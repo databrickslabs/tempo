@@ -1,8 +1,8 @@
-# PROJECT NAME
+# Tempo - Time Series Utilities for Data Teams Using Databricks
 Standard Project Template for Databricks Labs Projects
 
 ## Project Description
-Short description of project's purpose
+The purpose of this project is to provide easier ways to perform machine learning experiments, ETL, and ad-hoc analytics on time series within Databricks using Apache Spark. This includes data parallel and model parallel use cases encountered across the field. 
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.
