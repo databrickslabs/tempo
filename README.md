@@ -28,9 +28,8 @@ Instructions for how to release a version of the project
 
 ## Using the Project
 
-`from tca.base import newBaseTs 
+```from tca.base import newBaseTs 
 
-# use the AS OF join functionality to merge two financial datasets
 base_trades = newBaseTs(skewTrades)
 normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"])
-normal_asof_result.select("EVENT_TS_left").distinct().count()`
+normal_asof_result.select("EVENT_TS_left").distinct().count()```
