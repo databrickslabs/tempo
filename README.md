@@ -11,13 +11,26 @@ Any issues discovered through the use of this project should be filed as GitHub 
 
 
 ## Building the Project
-Instructions for how to build the project
+Once in the main project folder, build into a wheel using the following command: 
+
+`python setup.py bdist_wheel`
 
 ## Deploying / Installing the Project
-Instructions for how to deploy the project, or install it
+For installation in a Databricks notebook, you'll need to upload to the FileStore via UI (or directly). If uploading via the UI, you may need to rename with the commands below. Also below is the command to install the wheel into the notebook scope: 
+
+`%fs cp /FileStore/tables/tca_0_1_py3_none_any-1f645.whl /FileStore/tables/tca-0.1-py3-none-any.whl`
+
+`dbutils.library.install("/FileStore/tables/tca-0.1-py3-none-any.whl") #  Library
+dbutils.library.restartPython()`
 
 ## Releasing the Project
 Instructions for how to release a version of the project
 
 ## Using the Project
-Simple examples on how to use the project
+
+`from tca.base import newBaseTs 
+
+# use the AS OF join functionality to merge two financial datasets
+base_trades = newBaseTs(skewTrades)
+normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"])
+normal_asof_result.select("EVENT_TS_left").distinct().count()`
