@@ -63,7 +63,7 @@ class newBaseTs:
                     (col("is_original") == lit(1))) # Remove the overlapping partition parts in case we made use of time-partitions.
             .select(partitionCols + [ts_select_cols[0],ts_select_cols[1]]))
   
-  def asofJoin(self, right_DF, right_ts_col_name = None, partitionCols = [], tsPartitionVal = None, fraction = 0.5, asof_prefix='asof'):    
+  def asofJoin(self, right_DF, right_ts_col_name = None, partitionCols = [], tsPartitionVal = None, fraction = 0.5, asof_prefix = None):    
     
     right_ts_col_name = self.ts_col if right_ts_col_name is None else right_ts_col_name
     
@@ -71,10 +71,11 @@ class newBaseTs:
     ts_select_cols = ["_".join([self.ts_col,val]) for val in ["left","right","ms"]] 
     right_DF = right_DF.withColumnRenamed(right_ts_col_name,self.ts_col)
    
-    # in order to avoid duplicates, we'll supply a prefix 
-    right_DF = right_DF.toDF(*(asof_prefix+'_'+c if c not in list(set().union(partitionCols,ts_select_cols, list(right_ts_col_name)) else c for c in right_DF.columns))
+    # in order to avoid duplicate output columns from the join, we'll supply a prefix for asof fields only
+    prefix = asof_prefix + '_' if asof_prefix is not None else ''
+    right_DF = right_DF.toDF(*(prefix+c if c not in list(set().union(partitionCols,ts_select_cols, [self.ts_col, right_ts_col_name])) else c for c in right_DF.columns))
     unionDF = self.__getUnionDF(right_DF.withColumnRenamed(right_ts_col_name,self.ts_col),ts_select_cols,partitionCols)
-    
+ 
     # Only make use of  time partitions if tsPartitionVal was supplied
     if tsPartitionVal is None:
       asofDF = self.__getLastRightTs(unionDF,ts_select_cols,partitionCols)
