@@ -3,3 +3,8 @@
 
 # ignore virtual environments
 venv
+
+# ignore build files
+build
+dist
+tca.egg-info
