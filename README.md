@@ -9,6 +9,15 @@ Please note that all projects in the /databrickslabs github account are provided
 
 Any issues discovered through the use of this project should be filed as GitHub Issues on the Repo.  They will be reviewed as time permits, but there are no formal SLAs for support.
 
+## Project Setup
+After cloning the repo, it is highly advised that you create a [virtual environment](https://docs.python.org/3/library/venv.html) to isolate and manage
+packages for this project, like so:
+
+`python -m venv <path to project root>/venv`
+
+You can then install the required modules via pip:
+
+`pip install requirements.txt`
 
 ## Building the Project
 Once in the main project folder, build into a wheel using the following command: 
