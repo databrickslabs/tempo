@@ -10,7 +10,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
 
-class newBaseTs:
+class TSDF:
   
   def __init__(self, df, ts_col = "EVENT_TS"):
         self.df = df
@@ -28,7 +28,7 @@ class newBaseTs:
   def __getUnionDF(self,df_right, ts_select_cols, partitionCols):
     df_left = self.__createTimeSeriesDF(self.df, ts_select_cols, partitionCols=partitionCols)
     df_right = self.__createTimeSeriesDF(df_right, ts_select_cols,
-                                       fillLeft = False, partitionCols = partitionCols) # df_right ts col should have same ts column name, else error    
+                                       fillLeft = False, partitionCols = partitionCols) # df_right ts col should have same ts column name, else error
     return df_left.select(sorted(df_left.columns)).union(df_right.select(sorted(df_right.columns))).withColumn("is_original",lit(1))
     
   def __getTimePartitions(self,UnionDF, ts_select_cols,tsPartitionVal, fraction = 0.5):
@@ -63,7 +63,7 @@ class newBaseTs:
                     (col("is_original") == lit(1))) # Remove the overlapping partition parts in case we made use of time-partitions.
             .select(partitionCols + [ts_select_cols[0],ts_select_cols[1]]))
   
-  def asofJoin(self, right_DF, right_ts_col_name = None, partitionCols = [], tsPartitionVal = None, fraction = 0.5, asof_prefix = None):    
+  def asofJoin(self, right_DF, right_ts_col_name = None, partitionCols = [], tsPartitionVal = None, fraction = 0.5, asof_prefix = None):
     
     right_ts_col_name = self.ts_col if right_ts_col_name is None else right_ts_col_name
     
@@ -80,13 +80,14 @@ class newBaseTs:
     if tsPartitionVal is None:
       asofDF = self.__getLastRightTs(unionDF,ts_select_cols,partitionCols)
     else:
-      tsPartitionDF = self.__getTimePartitions(unionDF,ts_select_cols,tsPartitionVal, fraction = 0.5)
+      tsPartitionDF = self.__getTimePartitions(unionDF,ts_select_cols,tsPartitionVal, fraction = fraction)
       asofDF = self.__getLastRightTs(tsPartitionDF,ts_select_cols,partitionCols = partitionCols + ["ts_partition"])
       
     # Now need to join asofDF to self_df and right_df to get all the columns from the original dataframes.
     joinedDF = (asofDF
                 .join(self.df.withColumnRenamed(self.ts_col,ts_select_cols[0]),[ts_select_cols[0]]+ partitionCols)
-                .join(right_DF.withColumnRenamed(right_ts_col_name, ts_select_cols[1]),[ts_select_cols[1]] + partitionCols))
+                .join(right_DF.withColumnRenamed(right_ts_col_name, ts_select_cols[1]),[ts_select_cols[1]] + partitionCols)
+                )
     return joinedDF
   
   def vwap(self, frequency='m',volume_col = "volume", price_col = "price", partitionCols = ['symbol']):
