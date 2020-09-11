@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='tca',
+    name='tempo',
     version='0.1',
     author='Ricardo Portilla',
     author_email='ricardo.portilla@databricks.com',
@@ -13,7 +13,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/rportilla-databricks/tsfinancial',
-    packages=find_packages(),
+    packages=find_packages(where="tempo"),
+    extras_require=dict(tests=["pytest"]),
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
