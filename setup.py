@@ -5,14 +5,14 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='tca',
+    name='tempo',
     version='0.1',
     author='Ricardo Portilla',
     author_email='ricardo.portilla@databricks.com',
     description='scalable python time series utility package',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/rportilla-databricks/tsfinancial',
+    url='https://github.com/databrickslabs/tempo',
     packages=find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',

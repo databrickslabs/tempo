@@ -10,7 +10,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
 
-class newBaseTs:
+class TSDF:
   
   def __init__(self, df, ts_col = "EVENT_TS"):
         self.df = df
