@@ -12,8 +12,9 @@ setuptools.setup(
     description='scalable python time series utility package',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/databrickslabs/tempo',
-    packages=find_packages(),
+    url='https://github.com/rportilla-databricks/tsfinancial',
+    packages=find_packages(where="tempo"),
+    extras_require=dict(tests=["pytest"]),
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
