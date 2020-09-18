@@ -124,3 +124,24 @@ class TSDF:
       df = df.withColumn(emaColName,col(emaColName) + when(col(lagColName).isNull(),lit(0)).otherwise(col(lagColName))).drop(lagColName) # Nulls are currently removed
       
     return df
+
+  def withLookbackFeatures(self, featureCols, lookbackWindowSize, exactSize=True, featureColName="features", partitionCols=[]):
+    # default partitioning to ordering column
+    if not partitionCols:
+        partitionCols = [self.ts_col]
+
+    # first, join all featureCols into a single array column
+    tempArrayColName = "__TempArrayCol"
+    feat_array_tsdf = self.df.withColumn(tempArrayColName, fn.array(featureCols))
+
+    # construct a lookback array
+    lookback_win = Window.partitionBy(partitionCols).orderBy(self.ts_col).rowsBetween(-lookbackWindowSize, -1)
+    lookback_tsdf = (feat_array_tsdf.withColumn(featureColName,
+                                                fn.collect_list(fn.col(tempArrayColName)).over(lookback_win))
+                                    .drop(tempArrayColName))
+
+    # make sure only windows of exact size are allowed
+    if exactSize:
+        return lookback_tsdf.where(fn.size(featureColName) == lookbackWindowSize)
+
+    return lookback_tsdf
