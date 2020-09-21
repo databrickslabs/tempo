@@ -7,4 +7,7 @@ venv
 # ignore build files
 build
 dist
-tca.egg-info
+tempo.egg-info
+
+# other misc ignore
+.DS_Store
