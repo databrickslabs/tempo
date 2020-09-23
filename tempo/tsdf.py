@@ -124,3 +124,44 @@ class TSDF:
       df = df.withColumn(emaColName,col(emaColName) + when(col(lagColName).isNull(),lit(0)).otherwise(col(lagColName))).drop(lagColName) # Nulls are currently removed
       
     return df
+
+  def withLookbackFeatures(self,
+                           featureCols,
+                           lookbackWindowSize,
+                           exactSize=True,
+                           featureColName="features",
+                           partitionCols=[]):
+      """
+      Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
+      some set of features. This function creates a new column containing, for each observation, a 2-D array of the values
+      of some number of other columns over a trailing "lookback" window from the previous observation up to some maximum
+      number of past observations.
+
+      :param featureCols: the names of one or more feature columns to be aggregated into the feature column
+      :param lookbackWindowSize: The size of lookback window (in terms of past observations). Must be an integer >= 1
+      :param exactSize: If True (the default), then the resulting DataFrame will only include observations where the
+        generated feature column contains arrays of length lookbackWindowSize. This implies that it will truncate
+        observations that occurred less than lookbackWindowSize from the start of the timeseries. If False, no truncation
+        occurs, and the column may contain arrays less than lookbackWindowSize in length.
+      :param featureColName: The name of the feature column to be generated. Defaults to "features"
+      :param partitionCols: The names of any partition columns (columns whose values partition the DataFrame into
+        independent timeseries)
+      :return: a DataFrame with a feature column named featureColName containing the lookback feature tensor
+      """
+      # first, join all featureCols into a single array column
+      tempArrayColName = "__TempArrayCol"
+      feat_array_tsdf = self.df.withColumn(tempArrayColName, fn.array(featureCols))
+
+      # construct a lookback array
+      lookback_win = Window.orderBy(self.ts_col).rowsBetween(-lookbackWindowSize, -1)
+      if partitionCols:
+          lookback_win = lookback_win.partitionBy(partitionCols)
+      lookback_tsdf = (feat_array_tsdf.withColumn(featureColName,
+                                                  fn.collect_list(fn.col(tempArrayColName)).over(lookback_win))
+                                      .drop(tempArrayColName))
+
+      # make sure only windows of exact size are allowed
+      if exactSize:
+          return lookback_tsdf.where(fn.size(featureColName) == lookbackWindowSize)
+
+      return lookback_tsdf
