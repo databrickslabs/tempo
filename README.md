@@ -38,9 +38,9 @@ Instructions for how to release a version of the project
 ## Using the Project
 
 ```
-from tca.base import newBaseTs 
+from tempo import *
 
-base_trades = newBaseTs(skewTrades)
-normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"])
+base_trades = TSDF(skewTrades)
+normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"]).df
 normal_asof_result.select("EVENT_TS_left").distinct().count()
 ```
