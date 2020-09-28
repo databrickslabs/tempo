@@ -175,6 +175,7 @@ class TSDF:
           :param type - this is created in case we want to extend these stats to lookback over a fixed number of rows instead of ranging over column values
           :param partitionCols - list of partitions columns to be used for the range windowing
           :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
+          :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
           Assumptions:
                1. The features are summarized over a rolling window that ranges back
                2. The range back window can be specified by the user
