@@ -5,6 +5,8 @@
 venv
 
 # ignore build files
+*.pyc
+**/__pycache__
 build
 dist
 tempo.egg-info
