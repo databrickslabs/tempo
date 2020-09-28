@@ -184,10 +184,10 @@ class TSDF:
            """
           df = self.df
           w = (Window().partitionBy([col(elem) for elem in partitionCols]).orderBy(
-                  col("EVENT_TS").cast("long")).rangeBetween(-1 * rangeBackWindowSecs, 0))
+                  col(self.ts_col).cast("long")).rangeBetween(-1 * rangeBackWindowSecs, 0))
           colsToSummarize = [datatype[0] for datatype in df.dtypes if
-                                                      (
-                                          (datatype[1] != 'string') & (datatype[0].lower() != 'event_ts'))]
+                             ((datatype[1] != 'string') &
+                              (datatype[0].lower() != self.ts_col))]
           selectedCols = df.columns
           derivedCols = []
 
