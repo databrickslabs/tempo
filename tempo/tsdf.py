@@ -165,3 +165,42 @@ class TSDF:
           return lookback_tsdf.where(fn.size(featureColName) == lookbackWindowSize)
 
       return lookback_tsdf
+
+  def withRangeStats(self, type='range', partitionCols=[], colsToSummarize=[], rangeBackWindowSecs=1000):
+
+          """
+          Create a wider set of stats based on all numeric columns by default
+          Users can choose which columns they want to summarize also. These stats are:
+          mean/count/min/max/sum/std deviation/zscore
+          :param type - this is created in case we want to extend these stats to lookback over a fixed number of rows instead of ranging over column values
+          :param partitionCols - list of partitions columns to be used for the range windowing
+          :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
+          :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
+          Assumptions:
+               1. The features are summarized over a rolling window that ranges back
+               2. The range back window can be specified by the user
+               3. Sequence numbers are not yet supported for the sort
+               4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
+           """
+          df = self.df
+          w = (Window().partitionBy([col(elem) for elem in partitionCols]).orderBy(
+                  col("EVENT_TS").cast("long")).rangeBetween(-1 * rangeBackWindowSecs, 0))
+          colsToSummarize = [datatype[0] for datatype in df.dtypes if
+                                                      (
+                                          (datatype[1] != 'string') & (datatype[0].lower() != 'event_ts'))]
+          selectedCols = df.columns
+          derivedCols = []
+
+          for metric in colsToSummarize:
+              selectedCols.append(mean(metric).over(w).alias('mean_' + metric))
+              selectedCols.append(count(metric).over(w).alias('count_' + metric))
+              selectedCols.append(min(metric).over(w).alias('min_' + metric))
+              selectedCols.append(max(metric).over(w).alias('max_' + metric))
+              selectedCols.append(sum(metric).over(w).alias('sum_' + metric))
+              selectedCols.append(stddev(metric).over(w).alias('stddev_' + metric))
+              derivedCols.append(
+                      ((col(metric) - col('mean_' + metric)) / col('stddev_' + metric)).alias("zscore_" + metric))
+          df = df.select(*selectedCols)
+          print(derivedCols)
+          df = df.select(*df.columns, *derivedCols)
+          return (df)
