@@ -100,7 +100,7 @@ def test_range_stats(debug=False):
     dfExpected = (spark.createDataFrame(expected_data, expectedSchema)
                                      .withColumn("event_ts", F.to_timestamp(F.col("event_ts"))))
 
-    tsdf_left = TSDF(df)
+    tsdf_left = TSDF(df,ts_col="event_ts")
 
     # using lookback of 20 minutes
     featured_df = tsdf_left.withRangeStats(partitionCols=["symbol"], rangeBackWindowSecs=1200)
