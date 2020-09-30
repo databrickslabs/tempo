@@ -1,12 +1,5 @@
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import *
 import pyspark.sql.functions as fn
-from pyspark.sql.window import Window
 
-import pandas as pd
-
-
-from pyspark.sql import DataFrame
 from pyspark.sql.functions import *
 from pyspark.sql.window import Window
 
@@ -88,7 +81,7 @@ class TSDF:
                 .join(self.df.withColumnRenamed(self.ts_col,ts_select_cols[0]),[ts_select_cols[0]]+ partitionCols)
                 .join(right_DF.withColumnRenamed(right_ts_col_name, ts_select_cols[1]),[ts_select_cols[1]] + partitionCols)
                 )
-    return joinedDF
+    return TSDF( joinedDF, self.ts_col )
   
   def vwap(self, frequency='m',volume_col = "volume", price_col = "price", partitionCols = ['symbol']):
         # set pre_vwap as self or enrich with the frequency
@@ -105,11 +98,9 @@ class TSDF:
         vwapped = pre_vwap.withColumn("dllr_value", col(price_col) * col(volume_col)).groupby(partitionCols + ['time_group']).agg(
             sum('dllr_value').alias("dllr_value"), sum(volume_col).alias(volume_col),
             max(price_col).alias("_".join(["max",price_col]))).withColumn("vwap", col("dllr_value") / col(volume_col))
-        return vwapped
+        return TSDF( vwapped, self.ts_col )
   
   def EMA(self,colName,window=30,exp_factor = 0.2,partitionCols = []):
-    from functools import reduce
-    from operator import add
     # Constructs an approximate EMA in the fashion of:
     # EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
     
@@ -123,7 +114,7 @@ class TSDF:
       df = df.withColumn(lagColName, weight * (lag(col(colName),i).over(Window.partitionBy(partitionCols).orderBy(lit(1)))))
       df = df.withColumn(emaColName,col(emaColName) + when(col(lagColName).isNull(),lit(0)).otherwise(col(lagColName))).drop(lagColName) # Nulls are currently removed
       
-    return df
+    return TSDF( df, self.ts_col )
 
   def withLookbackFeatures(self,
                            featureCols,
@@ -164,7 +155,7 @@ class TSDF:
       if exactSize:
           return lookback_tsdf.where(fn.size(featureColName) == lookbackWindowSize)
 
-      return lookback_tsdf
+      return TSDF( lookback_tsdf, self.ts_col )
 
   def withRangeStats(self, type='range', partitionCols=[], colsToSummarize=[], rangeBackWindowSecs=1000):
 
@@ -203,4 +194,4 @@ class TSDF:
           df = df.select(*selectedCols)
           print(derivedCols)
           df = df.select(*df.columns, *derivedCols)
-          return (df)
+          return TSDF( df, self.ts_col )

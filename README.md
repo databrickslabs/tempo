@@ -38,6 +38,7 @@ Instructions for how to release a version of the project
 
 #### Example 1 - AS OF Join to Paste Latest Quote Information onto Trade
 ```
+<<<<<<< HEAD
 
 from tempo.tsdf import TSDF
 
@@ -52,7 +53,7 @@ from tempo.tsdf import TSDF
 
 from tempo.tsdf import TSDF
 base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"], asof_prefix = 'asof')
+normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"], asof_prefix = 'asof').df
 ```
 
 #### Example 2 - AS OF Join - Skew Join Optimized
@@ -60,7 +61,7 @@ normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"],
 from tempo.tsdf import TSDF
 
 base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-partitioned_asof_result = base_trades.asofJoin(skewQuotes, partitionCols = ["symbol"], tsPartitionVal = 1200, fraction = 0.1, asof_prefix='asof')
+partitioned_asof_result = base_trades.asofJoin(skewQuotes, partitionCols = ["symbol"], tsPartitionVal = 1200, fraction = 0.1, asof_prefix='asof').df
 ```
 
 #### Example 3 - Exponential Moving Average Approximated
@@ -69,7 +70,7 @@ partitioned_asof_result = base_trades.asofJoin(skewQuotes, partitionCols = ["sym
 from tempo.tsdf import TSDF
 
 base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-ema_trades = base_trades.EMA("trade_pr", window = 180, partitionCols = ["symbol"])
+ema_trades = base_trades.EMA("trade_pr", window = 180, partitionCols = ["symbol"]).df
 ```
 
 #### Example 4 - VWAP Calculation
@@ -78,7 +79,7 @@ ema_trades = base_trades.EMA("trade_pr", window = 180, partitionCols = ["symbol"
 from tempo.tsdf import TSDF
 
 base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-vwap_res = base_trades.vwap(price_col = "trade_pr")
+vwap_res = base_trades.vwap(price_col = "trade_pr").df
 ```
 
 #### Example 5 - Time Series Lookback Feature Generation
@@ -87,7 +88,7 @@ vwap_res = base_trades.vwap(price_col = "trade_pr")
 from tempo.tsdf import TSDF
 
 base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-res_df = base_trades.withLookbackFeatures(featureCols = ['trade_pr'] , lookbackWindowSize = 20, partitionCols=['symbol'])
+res_df = base_trades.withLookbackFeatures(featureCols = ['trade_pr'] , lookbackWindowSize = 20, partitionCols=['symbol']).df
 ```
 
 #### Example 6 - Range Stats Lookback Append
@@ -96,5 +97,5 @@ res_df = base_trades.withLookbackFeatures(featureCols = ['trade_pr'] , lookbackW
 from tempo.tsdf import TSDF
 
 base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-res_stats = base_trades.withRangeStats(partitionCols=['symbol'])
+res_stats = base_trades.withRangeStats(partitionCols=['symbol']).df
 ```
