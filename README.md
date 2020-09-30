@@ -25,22 +25,76 @@ Once in the main project folder, build into a wheel using the following command:
 `python setup.py bdist_wheel`
 
 ## Deploying / Installing the Project
-For installation in a Databricks notebook, you'll need to upload to the FileStore via UI (or directly). If uploading via the UI, you may need to rename with the commands below. Also below is the command to install the wheel into the notebook scope: 
+For installation in a Databricks notebook (using Databricks Runtime for ML), you'll need to upload to the FileStore via UI (or directly). If uploading via the UI, you may need to rename with the commands below. Also below is the command to install the wheel into the notebook scope:
 
-`%fs cp /FileStore/tables/tca_0_1_py3_none_any-1f645.whl /FileStore/tables/tca-0.1-py3-none-any.whl`
+`%fs cp /FileStore/tables/tempo_0_1_py3_none_any-1f645.whl /FileStore/tables/tempo-0.1-py3-none-any.whl`
 
-`dbutils.library.install("/FileStore/tables/tca-0.1-py3-none-any.whl") #  Library
-dbutils.library.restartPython()`
+`%pip install /FileStore/tables/tempo-0.1-py3-none-any.whl`
 
 ## Releasing the Project
 Instructions for how to release a version of the project
 
 ## Using the Project
 
+#### Example 1 - AS OF Join to Paste Latest Quote Information onto Trade
 ```
-from tca.base import newBaseTs 
 
-base_trades = newBaseTs(skewTrades)
-normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"])
-normal_asof_result.select("EVENT_TS_left").distinct().count()
+from tempo.tsdf import TSDF
+
+from tempo.tsdf import TSDF
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+```
+
+#### Example 1 - AS OF Join to Paste Latest Quote Information onto Trade
+```
+
+from tempo.tsdf import TSDF
+
+from tempo.tsdf import TSDF
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+normal_asof_result = base_trades.asofJoin(skewQuotes,partitionCols = ["symbol"], asof_prefix = 'asof')
+```
+
+#### Example 2 - AS OF Join - Skew Join Optimized
+```
+from tempo.tsdf import TSDF
+
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+partitioned_asof_result = base_trades.asofJoin(skewQuotes, partitionCols = ["symbol"], tsPartitionVal = 1200, fraction = 0.1, asof_prefix='asof')
+```
+
+#### Example 3 - Exponential Moving Average Approximated
+```
+
+from tempo.tsdf import TSDF
+
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+ema_trades = base_trades.EMA("trade_pr", window = 180, partitionCols = ["symbol"])
+```
+
+#### Example 4 - VWAP Calculation
+```
+
+from tempo.tsdf import TSDF
+
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+vwap_res = base_trades.vwap(price_col = "trade_pr")
+```
+
+#### Example 5 - Time Series Lookback Feature Generation
+```
+
+from tempo.tsdf import TSDF
+
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+res_df = base_trades.withLookbackFeatures(featureCols = ['trade_pr'] , lookbackWindowSize = 20, partitionCols=['symbol'])
+```
+
+#### Example 6 - Range Stats Lookback Append
+```
+
+from tempo.tsdf import TSDF
+
+base_trades = TSDF(skewTrades, ts_col = 'event_ts')
+res_stats = base_trades.withRangeStats(partitionCols=['symbol'])
 ```
