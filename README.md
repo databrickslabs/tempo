@@ -37,13 +37,6 @@ Instructions for how to release a version of the project
 ## Using the Project
 
 #### Example 1 - AS OF Join to Paste Latest Quote Information onto Trade
-
-from tempo import *
-
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-```
-
-#### Example 1 - AS OF Join to Paste Latest Quote Information onto Trade
 ```
 
 from tempo import *
