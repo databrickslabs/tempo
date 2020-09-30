@@ -55,7 +55,7 @@ def test_asof_join():
                   .withColumn("EVENT_TS_left", F.to_timestamp(F.col("EVENT_TS_left"))))
 
     tsdf_left = TSDF(dfLeft)
-    joined_df = tsdf_left.asofJoin(dfRight, partitionCols=["symbol"])
+    joined_df = tsdf_left.asofJoin(dfRight, partitionCols=["symbol"]).df
 
     assert (joined_df.select(sorted(joined_df.columns)).subtract(dfExpected.select(sorted(dfExpected.columns))).count() ==
             dfExpected.select(sorted(dfExpected.columns)).subtract(joined_df.select(sorted(joined_df.columns))).count() == 0)
@@ -103,7 +103,7 @@ def test_range_stats(debug=False):
     tsdf_left = TSDF(df,ts_col="event_ts")
 
     # using lookback of 20 minutes
-    featured_df = tsdf_left.withRangeStats(partitionCols=["symbol"], rangeBackWindowSecs=1200)
+    featured_df = tsdf_left.withRangeStats(partitionCols=["symbol"], rangeBackWindowSecs=1200).df
 
     # cast to decimal with precision in cents for simplicity
     featured_df = featured_df.select(F.col("symbol"), F.col("event_ts"),
