@@ -158,7 +158,6 @@ class TSDF:
       return TSDF( lookback_tsdf, self.ts_col )
 
   def withRangeStats(self, type='range', partitionCols=[], colsToSummarize=[], rangeBackWindowSecs=1000):
-
           """
           Create a wider set of stats based on all numeric columns by default
           Users can choose which columns they want to summarize also. These stats are:
@@ -173,15 +172,31 @@ class TSDF:
                3. Sequence numbers are not yet supported for the sort
                4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
            """
-          df = self.df
-          w = (Window().partitionBy([col(elem) for elem in partitionCols]).orderBy(
-                  col(self.ts_col).cast("long")).rangeBetween(-1 * rangeBackWindowSecs, 0))
-          colsToSummarize = [datatype[0] for datatype in df.dtypes if
-                             ((datatype[1] != 'string') &
-                              (datatype[0].lower() != self.ts_col))]
-          selectedCols = df.columns
-          derivedCols = []
 
+          # build window
+          w = ( Window().orderBy(col(self.ts_col).cast("long"))
+                        .rangeBetween(-1 * rangeBackWindowSecs, 0) )
+          if partitionCols:
+            w = w.partitionBy([col(elem) for elem in partitionCols])
+
+          # identify columns to summarize if not provided
+          # these should include all numeric columns that
+          # are not the timestamp column and not any of the partition columns
+          if not colsToSummarize:
+            # columns we should never summarize
+            prohibited_cols = [ self.ts_col.lower() ]
+            if partitionCols:
+              prohibited_cols.extend([ pc.lower() for pc in partitionCols])
+            # types that can be summarized
+            summarizable_types = ['int', 'bigint', 'float', 'double']
+            # filter columns to find summarizable columns
+            colsToSummarize = [datatype[0] for datatype in self.df.dtypes if
+                                ((datatype[1] in summarizable_types) and
+                                 (datatype[0].lower() not in prohibited_cols))]
+
+          # compute column summaries
+          selectedCols = self.df.columns
+          derivedCols = []
           for metric in colsToSummarize:
               selectedCols.append(mean(metric).over(w).alias('mean_' + metric))
               selectedCols.append(count(metric).over(w).alias('count_' + metric))
@@ -191,7 +206,8 @@ class TSDF:
               selectedCols.append(stddev(metric).over(w).alias('stddev_' + metric))
               derivedCols.append(
                       ((col(metric) - col('mean_' + metric)) / col('stddev_' + metric)).alias("zscore_" + metric))
-          df = df.select(*selectedCols)
-          print(derivedCols)
-          df = df.select(*df.columns, *derivedCols)
-          return TSDF( df, self.ts_col )
+          selected_df = self.df.select(*selectedCols)
+          #print(derivedCols)
+          summary_df = selected_df.select(*selected_df.columns, *derivedCols)
+
+          return TSDF( summary_df, self.ts_col )
