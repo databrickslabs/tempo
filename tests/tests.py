@@ -121,7 +121,7 @@ class AsOfJoinTest(SparkTest):
 
 class RangStatsTest(SparkTest):
 
-    def test_range_stats(self,debug=False):
+    def test_range_stats(self):
         """
         This method tests the lookback stats for one numeric column (trade_pr).
         :param - debug is used for testing only - switch to True to see data frame output
@@ -181,16 +181,6 @@ class RangStatsTest(SparkTest):
                                         F.col("sum_trade_pr").cast("decimal(5,2)"),
                                         F.col("stddev_trade_pr").cast("decimal(5,2)"),
                                         F.col("zscore_trade_pr").cast("decimal(5,2)"))
-
-
-        if debug:
-          print(f"featured_df: {featured_df.schema}")
-          print(f"dfExpected: {dfExpected.schema}")
-          print('Test 2 - Range Features Data Frame Output:')
-          featured_df.orderBy('event_ts').show(5, False)
-          print("-----------")
-          dfExpected.orderBy('event_ts').show(5, False)
-          featured_df.subtract(dfExpected).show(5, False)
 
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
