@@ -146,7 +146,7 @@ class AsOfJoinTest(SparkTest):
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual( joined_df, dfExpected )
 
-class RangStatsTest(SparkTest):
+class RangeStatsTest(SparkTest):
 
     def test_range_stats(self):
         """
