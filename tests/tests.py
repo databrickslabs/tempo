@@ -23,6 +23,13 @@ class SparkTest(unittest.TestCase):
     ##
 
     def buildTestDF(self, schema, data, ts_cols = ["event_ts"]):
+      """
+      Constructs a Spark Dataframe from the given components
+      :param schema: the schema to use for the Dataframe
+      :param data: values to use for the Dataframe
+      :param ts_cols: list of column names to be converted to Timestamp values
+      :return: a Spark Dataframe, constructed from the given schema and values
+      """
       # build dataframe
       df = self.spark.createDataFrame(data, schema)
 
@@ -37,11 +44,17 @@ class SparkTest(unittest.TestCase):
     ##
 
     def assertFieldsEqual(self, fieldA, fieldB):
+        """
+        Test that two fields are equivalent
+        """
         self.assertEqual(fieldA.name.lower(), fieldB.name.lower())
         self.assertEqual(fieldA.dataType, fieldB.dataType)
         self.assertEqual(fieldA.nullable, fieldB.nullable)
 
     def assertSchemaContainsField(self, schema, field):
+        """
+        Test that the given schema contains the given field
+        """
         # the schema must contain a field with the right name
         lc_fieldNames = [fc.lower() for fc in schema.fieldNames()]
         self.assertTrue( field.name.lower() in lc_fieldNames )
@@ -49,6 +62,9 @@ class SparkTest(unittest.TestCase):
         self.assertFieldsEqual( field, schema[field.name] )
 
     def assertSchemasEqual(self, schemaA, schemaB):
+        """
+        Test that the two given schemas are equivalent (column ordering ignored)
+        """
         # both schemas must have the same length
         self.assertEqual( len(schemaA.fields), len(schemaB.fields) )
         # schemaA must contain every field in schemaB
@@ -56,9 +72,16 @@ class SparkTest(unittest.TestCase):
             self.assertSchemaContainsField( schemaA, field )
 
     def assertHasSchema(self,df,expectedSchema):
+        """
+        Test that the given Dataframe conforms to the expected schema
+        """
         self.assertSchemasEqual(df.schema,expectedSchema)
 
     def assertDataFramesEqual(self,dfA,dfB):
+        """
+        Test that the two given Dataframes are equivalent.
+        That is, they have equivalent schemas, and both contain the same values
+        """
         # must have the same schemas
         self.assertSchemasEqual(dfA.schema,dfB.schema)
         # enforce a common column ordering
@@ -74,6 +97,10 @@ class SparkTest(unittest.TestCase):
 class AsOfJoinTest(SparkTest):
 
     def test_asof_join(self):
+        """
+        Tests that the correct values are merged from the 'right' dataset onto the 'left' dataset.
+        In particular, all values are aligned so the nth bid/ask should reside on the nth record from the left dataset.
+        """
         leftSchema = StructType([StructField("symbol", StringType()),
                                  StructField("event_ts", StringType()),
                                  StructField("trade_pr", FloatType())])
@@ -124,7 +151,6 @@ class RangStatsTest(SparkTest):
     def test_range_stats(self):
         """
         This method tests the lookback stats for one numeric column (trade_pr).
-        :param - debug is used for testing only - switch to True to see data frame output
         input parameters to the stats which are unique to this test are 1200 for 20 minute lookback
         """
         schema = StructType([StructField("symbol", StringType()),
