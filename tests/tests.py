@@ -54,8 +54,8 @@ def test_asof_join():
                   .withColumn("EVENT_TS_right", F.to_timestamp(F.col("EVENT_TS_right")))
                   .withColumn("EVENT_TS_left", F.to_timestamp(F.col("EVENT_TS_left"))))
 
-    tsdf_left = TSDF(dfLeft)
-    joined_df = tsdf_left.asofJoin(dfRight, partitionCols=["symbol"]).df
+    tsdf_left = TSDF(dfLeft, ts_col="event_ts", partitionCols=["symbol"])
+    joined_df = tsdf_left.asofJoin(dfRight).df
 
     assert (joined_df.select(sorted(joined_df.columns)).subtract(dfExpected.select(sorted(dfExpected.columns))).count() ==
             dfExpected.select(sorted(dfExpected.columns)).subtract(joined_df.select(sorted(joined_df.columns))).count() == 0)
