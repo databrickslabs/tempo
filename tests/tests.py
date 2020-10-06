@@ -97,10 +97,7 @@ class SparkTest(unittest.TestCase):
 class AsOfJoinTest(SparkTest):
 
     def test_asof_join(self):
-        """
-        Tests that the correct values are merged from the 'right' dataset onto the 'left' dataset.
-        In particular, all values are aligned so the nth bid/ask should reside on the nth record from the left dataset.
-        """
+        """Skew AS-OF Join with Partition Window Test"""
         leftSchema = StructType([StructField("symbol", StringType()),
                                  StructField("event_ts", StringType()),
                                  StructField("trade_pr", FloatType())])
@@ -149,10 +146,7 @@ class AsOfJoinTest(SparkTest):
 class RangeStatsTest(SparkTest):
 
     def test_range_stats(self):
-        """
-        This method tests the lookback stats for one numeric column (trade_pr).
-        input parameters to the stats which are unique to this test are 1200 for 20 minute lookback
-        """
+        """Test of range stats for 20 minute rolling window"""
         schema = StructType([StructField("symbol", StringType()),
                              StructField("event_ts", StringType()),
                              StructField("trade_pr", FloatType())])
