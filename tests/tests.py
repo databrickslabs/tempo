@@ -137,8 +137,8 @@ class AsOfJoinTest(SparkTest):
         dfExpected = self.buildTestDF(expectedSchema, expected_data, ["EVENT_TS_right", "EVENT_TS_left"])
 
         # perform the join
-        tsdf_left = TSDF(dfLeft)
-        joined_df = tsdf_left.asofJoin(dfRight, partitionCols=["symbol"]).df
+        tsdf_left = TSDF(dfLeft, partitionCols=["symbol"])
+        joined_df = tsdf_left.asofJoin(dfRight).df
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual( joined_df, dfExpected )
@@ -177,10 +177,10 @@ class RangeStatsTest(SparkTest):
         dfExpected = self.buildTestDF(expectedSchema,expected_data)
 
         # convert to TSDF
-        tsdf_left = TSDF(df)
+        tsdf_left = TSDF(df, partitionCols=["symbol"])
 
         # using lookback of 20 minutes
-        featured_df = tsdf_left.withRangeStats(partitionCols=["symbol"], rangeBackWindowSecs=1200).df
+        featured_df = tsdf_left.withRangeStats(rangeBackWindowSecs=1200).df
 
         # cast to decimal with precision in cents for simplicity
         featured_df = featured_df.select(F.col("symbol"), F.col("event_ts"),

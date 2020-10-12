@@ -12,7 +12,6 @@ class TSDF:
     :param ts_col:
     :param partitionCols:
     """
-    print(f"New TSDF with ts_col: {ts_col} and partitionCols: {partitionCols} on Dataframe: {df.columns}")
     self.df = df
     self.ts_col = self.__validated_column(ts_col)
     self.partitionCols = self.__validated_columns(partitionCols)
