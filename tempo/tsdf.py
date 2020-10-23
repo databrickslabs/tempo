@@ -4,27 +4,56 @@ from pyspark.sql.functions import *
 from pyspark.sql.window import Window
 
 class TSDF:
-  
-  def __init__(self, df, ts_col = "EVENT_TS"):
+
+
+  def __init__(self, df, ts_col = "EVENT_TS", seq_nb_col = '', key=''):
+        """"
+        @param key - TSDF includes an option for a key so we can always join narrow key datasets back to the larger fact table
+        @param seq_nb_col - TSDF includes an option for a sequence number for sorting purposes - especially useful for AS OF joins which will require this
+        """
         self.df = df
         self.ts_col = ts_col
+        self.seq_nb_col = seq_nb_col
+        self.key = key
         
-  def __createTimeSeriesDF(self, df, ts_select_cols, fillLeft = True, partitionCols = []):
+  def __createTimeSeriesDF(self, tsdf, ts_select_cols, seq_select_col, fillLeft = True, partitionCols = []):
+    df = tsdf.df
+
     left_ts_val, right_ts_val = (col(self.ts_col), lit(None)) if fillLeft else (lit(None),col(self.ts_col))
-    
-    return (df
-            .withColumn(ts_select_cols[0],left_ts_val)
-            .withColumn(ts_select_cols[1],right_ts_val)
-            .withColumn(ts_select_cols[2],col(self.ts_col).cast("double"))
-            .select(ts_select_cols + partitionCols))
+    left_seq_val, right_seq_val = (col(seq_select_col), lit(None)) if fillLeft else (lit(None), col(seq_select_col))
+
+    left_seq_val, right_seq_val = (lit(1), lit(1)) if len(seq_select_col) == 0 else (left_seq_val, right_seq_val)
+
+    selectedCols = ts_select_cols + partitionCols
+    selectedCols = selectedCols + [self.key] if len(self.key) > 0 else selectedCols
+    selectedCols = selectedCols + [seq_select_col] if len(seq_select_col) > 0 else selectedCols
+
+
+    res = df.withColumn(ts_select_cols[0],left_ts_val) \
+            .withColumn(ts_select_cols[1], right_ts_val) \
+            .withColumn(ts_select_cols[2], col(self.ts_col).cast("double")) \
+            .select(selectedCols)
+
+    full_cols = ts_select_cols + partitionCols
+    full_cols = full_cols + [self.key] if len(self.key) > 0  else full_cols
+    full_cols = full_cols + [seq_select_col] if len(seq_select_col) > 0 else full_cols
+
+    res = res.select(full_cols)
+
+    return res
   
-  def __getUnionDF(self,df_right, ts_select_cols, partitionCols):
-    df_left = self.__createTimeSeriesDF(self.df, ts_select_cols, partitionCols=partitionCols)
-    df_right = self.__createTimeSeriesDF(df_right, ts_select_cols,
-                                       fillLeft = False, partitionCols = partitionCols) # df_right ts col should have same ts column name, else error
+  def __getUnionDF(self, tsdf_right, ts_select_cols, seq_select_cols, partitionCols):
+    df_right = tsdf_right.df
+    seq_select_col = tsdf_right.seq_nb_col
+    df_left = self.__createTimeSeriesDF(self, ts_select_cols, seq_select_col, partitionCols=partitionCols)
+    df_right = self.__createTimeSeriesDF(tsdf_right, ts_select_cols, seq_select_col,
+                                       fillLeft = False, partitionCols = partitionCols) # df_right ts col should have same ts
+
+
+    #  column name, else error
     return df_left.select(sorted(df_left.columns)).union(df_right.select(sorted(df_right.columns))).withColumn("is_original",lit(1))
     
-  def __getTimePartitions(self,UnionDF, ts_select_cols,tsPartitionVal, fraction = 0.5):
+  def __getTimePartitions(self,UnionDF, ts_select_cols, seq_select_cols, tsPartitionVal, fraction = 0.5):
     """
     Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
     are rounded down to the nearest <tsPartitionVal> seconds.
@@ -46,47 +75,78 @@ class TSDF:
       .withColumn("is_original",lit(0)))
     return partition_df.union(remainder_df)
   
-  def __getLastRightTs(self,UnionDF, ts_select_cols, partitionCols = []):
+  def __getLastRightTs(self,UnionDF, ts_select_cols, seq_select_col, partitionCols = []):
     """Calculates the last observed timestamp of the right dataframe for each timestamp in the left dataframe"""
-    windowSpec = Window.partitionBy(partitionCols).orderBy(ts_select_cols[2])
-    
-    return (UnionDF
-            .withColumn(ts_select_cols[1], last(col(ts_select_cols[1]), True).over(windowSpec))
+    has_seq_nb = (len(seq_select_col) > 0)
+    windowSpec = Window.partitionBy(partitionCols).orderBy(ts_select_cols[2], seq_select_col) if has_seq_nb else Window.partitionBy(partitionCols).orderBy(ts_select_cols[2])
+
+    final_selected_cols = partitionCols + [self.key, ts_select_cols[0],ts_select_cols[1]] if len(self.key) > 0 else partitionCols + [ts_select_cols[0],ts_select_cols[1]]
+    final_selected_cols = final_selected_cols+[seq_select_col] if has_seq_nb else final_selected_cols
+
+    full_df_with_seq = UnionDF.withColumn(ts_select_cols[1], last(col(ts_select_cols[1]), True).over(windowSpec))
+    full_df_with_seq = full_df_with_seq.withColumn(seq_select_col, last(col(seq_select_col), True).over(windowSpec)) if has_seq_nb else full_df_with_seq
+
+    return (full_df_with_seq
             .filter((col(ts_select_cols[2])== col(ts_select_cols[0]).cast("double")) & 
                     (col("is_original") == lit(1))) # Remove the overlapping partition parts in case we made use of time-partitions.
-            .select(partitionCols + [ts_select_cols[0],ts_select_cols[1]]))
+            .select(final_selected_cols))
   
-  def asofJoin(self, right_DF, right_ts_col_name = None, partitionCols = [], tsPartitionVal = None, fraction = 0.5, asof_prefix = None):
-    
+  def asofJoin(self, right_TSDF, partitionCols = [], tsPartitionVal = None, fraction = 0.5, asof_prefix = None):
+
+    right_DF = right_TSDF.df
+    right_ts_col_name = right_TSDF.ts_col
     right_ts_col_name = self.ts_col if right_ts_col_name is None else right_ts_col_name
+    #right_seq_col_name = self.seq_nb_col if right_seq_col_name is None else right_seq_col_name
+
+
+
     
     # Define timeColumns that we will use throughout the calculation of the asof Join
-    ts_select_cols = ["_".join([self.ts_col,val]) for val in ["left","right","ms"]] 
-    right_DF = right_DF.withColumnRenamed(right_ts_col_name,self.ts_col)
+    ts_select_cols = ["_".join([self.ts_col,val]) for val in ["left","right","ms"]]
+    seq_select_col = right_TSDF.seq_nb_col
+    right_DF = right_DF.withColumnRenamed(right_ts_col_name,right_TSDF.ts_col)
+
+    if (right_TSDF.seq_nb_col):
+        right_DF = right_DF.withColumnRenamed(seq_select_col, right_TSDF.seq_nb_col)
    
     # in order to avoid duplicate output columns from the join, we'll supply a prefix for asof fields only
     prefix = asof_prefix + '_' if asof_prefix is not None else ''
-    right_DF = right_DF.toDF(*(prefix+c if c not in list(set().union(partitionCols,ts_select_cols, [self.ts_col, right_ts_col_name])) else c for c in right_DF.columns))
-    unionDF = self.__getUnionDF(right_DF.withColumnRenamed(right_ts_col_name,self.ts_col),ts_select_cols,partitionCols)
+
+    right_DF = right_DF.withColumn(self.key, lit(None)) if len(self.key) > 0 else right_DF
+    right_DF = right_DF.toDF(*(prefix + c if c not in list(
+        set().union(partitionCols, self.key, ts_select_cols, seq_select_col,
+                    [self.ts_col, right_TSDF.seq_nb_col, right_ts_col_name])) else c for c in
+                               right_DF.columns))
+
+    right_TSDF.df = right_DF
+    self.df = self.df.withColumn(seq_select_col, lit(None)) if len(right_TSDF.seq_nb_col) > 0 else self.df
+    unionDF = self.__getUnionDF(right_TSDF, ts_select_cols, seq_select_col, partitionCols)
+
  
     # Only make use of  time partitions if tsPartitionVal was supplied
     if tsPartitionVal is None:
-      asofDF = self.__getLastRightTs(unionDF,ts_select_cols,partitionCols)
+      asofDF = self.__getLastRightTs(unionDF,ts_select_cols,seq_select_col,partitionCols)
     else:
-      tsPartitionDF = self.__getTimePartitions(unionDF,ts_select_cols,tsPartitionVal, fraction = fraction)
-      asofDF = self.__getLastRightTs(tsPartitionDF,ts_select_cols,partitionCols = partitionCols + ["ts_partition"])
-      
+      tsPartitionDF = self.__getTimePartitions(unionDF,ts_select_cols,[seq_select_col],tsPartitionVal, fraction = fraction)
+      asofDF = self.__getLastRightTs(tsPartitionDF,ts_select_cols,seq_select_col,partitionCols = partitionCols + ["ts_partition"])
+
     # Now need to join asofDF to self_df and right_df to get all the columns from the original dataframes.
-    joinedDF = (asofDF
-                .join(self.df.withColumnRenamed(self.ts_col,ts_select_cols[0]),[ts_select_cols[0]]+ partitionCols)
-                .join(right_DF.withColumnRenamed(right_ts_col_name, ts_select_cols[1]),[ts_select_cols[1]] + partitionCols)
+    joinedDF = asofDF
+
+    left_df_join_keys = [ts_select_cols[0], self.key] if len(self.key) > 0 else [ts_select_cols[0]]
+    right_df_join_keys = [ts_select_cols[1]] + partitionCols
+    left_df_join_keys = left_df_join_keys + partitionCols
+
+    right_df_join_keys = right_df_join_keys + [right_TSDF.seq_nb_col] if len(right_TSDF.seq_nb_col) > 0 else right_df_join_keys
+
+    joinedDF = (joinedDF.join(self.df.withColumnRenamed(self.ts_col,ts_select_cols[0]).drop(right_TSDF.seq_nb_col),left_df_join_keys) \
+                .join(right_DF.withColumnRenamed(right_ts_col_name, ts_select_cols[1]).drop(self.key),right_df_join_keys)
                 )
-    return TSDF( joinedDF, self.ts_col )
+    return TSDF( joinedDF, self.ts_col , right_TSDF.seq_nb_col, self.key)
   
   def vwap(self, frequency='m',volume_col = "volume", price_col = "price", partitionCols = ['symbol']):
         # set pre_vwap as self or enrich with the frequency
         pre_vwap = self.df
-        print('input schema: ', pre_vwap.printSchema())
         if frequency == 'm':
             pre_vwap = self.df.withColumn("time_group", concat(lpad(hour(col(self.ts_col)), 2, '0'), lit(':'),
                                                                lpad(minute(col(self.ts_col)), 2, '0')))
@@ -207,7 +267,7 @@ class TSDF:
               derivedCols.append(
                       ((col(metric) - col('mean_' + metric)) / col('stddev_' + metric)).alias("zscore_" + metric))
           selected_df = self.df.select(*selectedCols)
-          #print(derivedCols)
+
           summary_df = selected_df.select(*selected_df.columns, *derivedCols)
 
           return TSDF( summary_df, self.ts_col )

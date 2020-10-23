@@ -138,10 +138,64 @@ class AsOfJoinTest(SparkTest):
 
         # perform the join
         tsdf_left = TSDF(dfLeft)
-        joined_df = tsdf_left.asofJoin(dfRight, partitionCols=["symbol"]).df
+        tsdf_right = TSDF(dfRight)
+        joined_df = tsdf_left.asofJoin(tsdf_right, partitionCols=["symbol"]).df
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual( joined_df, dfExpected )
+
+    def test_sequence_number_sort(self):
+        """Skew AS-OF Join with Partition Window Test"""
+        leftSchema = StructType([StructField("symbol", StringType()),
+                                 StructField("event_ts", StringType()),
+                                 StructField("trade_pr", FloatType()),
+                                 StructField("trade_id", IntegerType())])
+
+        rightSchema = StructType([StructField("symbol", StringType()),
+                                  StructField("event_ts", StringType()),
+                                  StructField("bid_pr", FloatType()),
+                                  StructField("ask_pr", FloatType()),
+                                  StructField("seq_nb", LongType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("EVENT_TS_left", StringType()),
+                                     StructField("trade_pr", FloatType()),
+                                     StructField("trade_id", IntegerType()),
+                                     StructField("EVENT_TS_right", StringType()),
+                                     StructField("bid_pr", FloatType()),
+                                     StructField("ask_pr", FloatType()),
+                                     StructField("seq_nb", LongType())])
+
+        left_data = [["S1", "2020-08-01 00:00:10", 349.21, 1],
+                     ["S1", "2020-08-01 00:01:12", 351.32, 2],
+                     ["S1", "2020-09-01 00:02:10", 361.1, 3],
+                     ["S1", "2020-09-01 00:19:12", 362.1, 4]]
+
+        right_data = [["S1", "2020-08-01 00:00:01", 345.11, 351.12, 1],
+                      ["S1", "2020-08-01 00:01:05", 348.10, 1000.13, 3],
+                      ["S1", "2020-08-01 00:01:05", 348.10, 100.13, 2],
+                      ["S1", "2020-09-01 00:02:01", 358.93, 365.12, 4],
+                      ["S1", "2020-09-01 00:15:01", 359.21, 365.31, 5]]
+
+        expected_data = [
+            ["S1", "2020-08-01 00:00:10", 349.21, 1, "2020-08-01 00:00:01", 345.11, 351.12, 1],
+            ["S1", "2020-08-01 00:01:12", 351.32, 2, "2020-08-01 00:01:05", 348.10, 1000.13, 3],
+            ["S1", "2020-09-01 00:02:10", 361.1, 3, "2020-09-01 00:02:01", 358.93, 365.12, 4],
+            ["S1", "2020-09-01 00:19:12", 362.1, 4, "2020-09-01 00:15:01", 359.21, 365.31, 5]]
+
+        # construct dataframes
+        dfLeft = self.buildTestDF(leftSchema, left_data)
+        dfRight = self.buildTestDF(rightSchema, right_data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["EVENT_TS_right", "EVENT_TS_left"])
+
+        # perform the join
+        tsdf_left = TSDF(dfLeft, key="trade_id")
+        tsdf_right = TSDF(dfRight, seq_nb_col="seq_nb")
+        joined_df = tsdf_left.asofJoin(tsdf_right, partitionCols=["symbol"]).df
+        joined_df.printSchema()
+        joined_df.show(10, False)
+        # joined dataframe should equal the expected dataframe
+        self.assertDataFramesEqual(joined_df, dfExpected)
 
 class RangeStatsTest(SparkTest):
 
