@@ -5,6 +5,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
 from tempo.tsdf import TSDF
+from datasource.deltasource import deltaSource
 
 class SparkTest(unittest.TestCase):
     ##
@@ -256,6 +257,15 @@ class RangeStatsTest(SparkTest):
 
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
+
+class WriteToDeltaTest(SparkTest):
+
+    def write_to_delta(self):
+
+        delta_source_table = deltaSource(spark.range(10).withColumn("e_ts", current_timestamp()).withColumn("flight_id", lit(1)))
+        delta_source_table.write('tempo_delta_tab')
+
+        assert 10 == int(spark.table("tempo_delta_tab").count())
 
 ## MAIN
 if __name__ == '__main__':
