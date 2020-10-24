@@ -108,7 +108,7 @@ class AsOfJoinTest(SparkTest):
                                   StructField("ask_pr", FloatType())])
 
         expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("EVENT_TS_left", StringType()),
+                                     StructField("EVENT_TS", StringType()),
                                      StructField("trade_pr", FloatType()),
                                      StructField("EVENT_TS_right", StringType()),
                                      StructField("bid_pr", FloatType()),
@@ -134,12 +134,12 @@ class AsOfJoinTest(SparkTest):
         # construct dataframes
         dfLeft = self.buildTestDF(leftSchema, left_data)
         dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["EVENT_TS_right", "EVENT_TS_left"])
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["EVENT_TS_right", "EVENT_TS"])
 
         # perform the join
-        tsdf_left = TSDF(dfLeft)
-        tsdf_right = TSDF(dfRight)
-        joined_df = tsdf_left.asofJoin(tsdf_right, partitionCols=["symbol"]).df
+        tsdf_left = TSDF(dfLeft, partitionCols=["symbol"])
+        tsdf_right = TSDF(dfRight, partitionCols=["symbol"])
+        joined_df = tsdf_left.asofJoin(tsdf_right).df
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual( joined_df, dfExpected )
@@ -158,7 +158,7 @@ class AsOfJoinTest(SparkTest):
                                   StructField("seq_nb", LongType())])
 
         expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("EVENT_TS_left", StringType()),
+                                     StructField("EVENT_TS", StringType()),
                                      StructField("trade_pr", FloatType()),
                                      StructField("trade_id", IntegerType()),
                                      StructField("EVENT_TS_right", StringType()),
@@ -186,14 +186,12 @@ class AsOfJoinTest(SparkTest):
         # construct dataframes
         dfLeft = self.buildTestDF(leftSchema, left_data)
         dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["EVENT_TS_right", "EVENT_TS_left"])
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["event_ts_right", "event_ts"])
 
         # perform the join
-        tsdf_left = TSDF(dfLeft, key="trade_id")
-        tsdf_right = TSDF(dfRight, seq_nb_col="seq_nb")
-        joined_df = tsdf_left.asofJoin(tsdf_right, partitionCols=["symbol"]).df
-        joined_df.printSchema()
-        joined_df.show(10, False)
+        tsdf_left = TSDF(dfLeft, partitionCols=["symbol"], ts_col="event_ts", key="trade_id")
+        tsdf_right = TSDF(dfRight, partitionCols=["symbol"], ts_col="event_ts", seq_nb_col="seq_nb")
+        joined_df = tsdf_left.asofJoin(tsdf_right).df
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual(joined_df, dfExpected)
 
@@ -231,10 +229,10 @@ class RangeStatsTest(SparkTest):
         dfExpected = self.buildTestDF(expectedSchema,expected_data)
 
         # convert to TSDF
-        tsdf_left = TSDF(df)
+        tsdf_left = TSDF(df, partitionCols=["symbol"])
 
         # using lookback of 20 minutes
-        featured_df = tsdf_left.withRangeStats(partitionCols=["symbol"], rangeBackWindowSecs=1200).df
+        featured_df = tsdf_left.withRangeStats(rangeBackWindowSecs=1200).df
 
         # cast to decimal with precision in cents for simplicity
         featured_df = featured_df.select(F.col("symbol"), F.col("event_ts"),
