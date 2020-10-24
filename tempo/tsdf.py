@@ -8,9 +8,9 @@ class TSDF:
   def __init__(self, df, partitionCols = [], ts_col="EVENT_TS", seq_nb_col="", key=""):
     """
         Constructor
-        :param df:
-        :param ts_col:
-        :param partitionCols:
+        :param df - underlying Spark data frame
+        :param ts_col - column used as the designed timestamp column for sorts and joins
+        :param partitionCols - designed columns for joining and window functions
         :param seq_nb_col denotes a secondary key for sorting
         :param key denotes the primary key for the TSDF
         """
