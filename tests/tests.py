@@ -90,14 +90,15 @@ class SparkTest(unittest.TestCase):
         sortedB = dfB.select(colOrder)
         # must have identical data
         # that is all rows in A must be in B, and vice-versa
-        self.assertEqual( sortedA.subtract(sortedB).count(), 0 )
-        self.assertEqual( sortedB.subtract(sortedA).count(), 0 )
+
+        self.assertEqual(sortedA.subtract(sortedB).count(), 0 )
+        self.assertEqual(sortedB.subtract(sortedA).count(), 0 )
 
 
 class AsOfJoinTest(SparkTest):
 
     def test_asof_join(self):
-        """Skew AS-OF Join with Partition Window Test"""
+        """AS-OF Join with out a time-partition test"""
         leftSchema = StructType([StructField("symbol", StringType()),
                                  StructField("event_ts", StringType()),
                                  StructField("trade_pr", FloatType())])
@@ -108,11 +109,11 @@ class AsOfJoinTest(SparkTest):
                                   StructField("ask_pr", FloatType())])
 
         expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("EVENT_TS_left", StringType()),
-                                     StructField("trade_pr", FloatType()),
-                                     StructField("EVENT_TS_right", StringType()),
-                                     StructField("bid_pr", FloatType()),
-                                     StructField("ask_pr", FloatType())])
+                                     StructField("left_event_ts", StringType()),
+                                     StructField("left_trade_pr", FloatType()),
+                                     StructField("right_event_ts", StringType()),
+                                     StructField("right_bid_pr", FloatType()),
+                                     StructField("right_ask_pr", FloatType())])
 
         left_data = [["S1", "2020-08-01 00:00:10", 349.21],
                      ["S1", "2020-08-01 00:01:12", 351.32],
@@ -130,18 +131,71 @@ class AsOfJoinTest(SparkTest):
             ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01",  358.93, 365.12],
             ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01",  359.21, 365.31]]
 
-
-        # construct dataframes
+        # Construct dataframes
         dfLeft = self.buildTestDF(leftSchema, left_data)
         dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["EVENT_TS_right", "EVENT_TS_left"])
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["left_event_ts", "right_event_ts"])
 
         # perform the join
-        tsdf_left = TSDF(dfLeft, partitionCols=["symbol"])
-        joined_df = tsdf_left.asofJoin(dfRight).df
+        tsdf_left = TSDF(dfLeft, ts_col="event_ts",partitionCols=["symbol"])
+        tsdf_right = TSDF(dfRight, ts_col="event_ts", partitionCols=["symbol"])
+
+        joined_df = tsdf_left.asofJoin(tsdf_right).df
 
         # joined dataframe should equal the expected dataframe
-        self.assertDataFramesEqual( joined_df, dfExpected )
+        self.assertDataFramesEqual(joined_df, dfExpected)
+
+    def test_partitioned_asof_join(self):
+        """AS-OF Join with a time-partition"""
+        leftSchema = StructType([StructField("symbol", StringType()),
+                                 StructField("event_ts", StringType()),
+                                 StructField("trade_pr", FloatType())])
+
+        rightSchema = StructType([StructField("symbol", StringType()),
+                                  StructField("event_ts", StringType()),
+                                  StructField("bid_pr", FloatType()),
+                                  StructField("ask_pr", FloatType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("left_event_ts", StringType()),
+                                     StructField("left_trade_pr", FloatType()),
+                                     StructField("right_event_ts", StringType()),
+                                     StructField("right_bid_pr", FloatType()),
+                                     StructField("right_ask_pr", FloatType())])
+
+        left_data = [["S1", "2020-08-01 00:00:02", 349.21],
+                     ["S1", "2020-08-01 00:00:08", 351.32],
+                     ["S1", "2020-08-01 00:00:11", 361.12],
+                     ["S1", "2020-08-01 00:00:18", 364.31],
+                     ["S1", "2020-08-01 00:00:19", 362.94],
+                     ["S1", "2020-08-01 00:00:21", 364.27],
+                     ["S1", "2020-08-01 00:00:23", 367.36]]
+
+        right_data = [["S1", "2020-08-01 00:00:01", 345.11, 351.12],
+                      ["S1", "2020-08-01 00:00:09", 348.10, 353.13],
+                      ["S1", "2020-08-01 00:00:12", 358.93, 365.12],
+                      ["S1", "2020-08-01 00:00:19", 359.21, 365.31]]
+
+        expected_data = [
+            ["S1", "2020-08-01 00:00:02", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:00:08", 351.32, "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:00:11", 361.12, "2020-08-01 00:00:09", 348.10, 353.13],
+            ["S1", "2020-08-01 00:00:18", 364.31, "2020-08-01 00:00:12", 358.93, 365.12],
+            ["S1", "2020-08-01 00:00:19", 362.94, "2020-08-01 00:00:19", 359.21, 365.31],
+            ["S1", "2020-08-01 00:00:21", 364.27, "2020-08-01 00:00:19", 359.21, 365.31],
+            ["S1", "2020-08-01 00:00:23", 367.36, "2020-08-01 00:00:19", 359.21, 365.31]]
+
+        # Construct dataframes
+        dfLeft = self.buildTestDF(leftSchema, left_data)
+        dfRight = self.buildTestDF(rightSchema, right_data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["left_event_ts", "right_event_ts"])
+
+        tsdf_left = TSDF(dfLeft, ts_col="event_ts", partitionCols=["symbol"])
+        tsdf_right = TSDF(dfRight, ts_col="event_ts", partitionCols=["symbol"])
+
+        joined_df = tsdf_left.asofJoin(tsdf_right, tsPartitionVal = 10, fraction = 0.1).df
+        self.assertDataFramesEqual(joined_df, dfExpected)
+
 
 class RangeStatsTest(SparkTest):
 
