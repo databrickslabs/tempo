@@ -3,16 +3,19 @@ from pyspark.sql.window import Window
 
 class TSDF:
   
-  def __init__(self, df, ts_col = "event_ts", partitionCols = []):
+  def __init__(self, df, ts_col="event_ts", partition_cols=None, other_select_cols=None):
     """
     Constructor
     :param df:
     :param ts_col:
     :param partitionCols:
     """
-    self.df = df
-    self.ts_col = self.__validated_column(ts_col)
-    self.partitionCols = self.__validated_columns(partitionCols)
+    self.ts_col = self.__validated_column(df, ts_col)
+    self.partitionCols = [] if partition_cols is None else self.__validated_columns(df, partition_cols)
+    self.other_cols = ([col for col in df.columns if col not in self.partitionCols + [self.ts_col]]
+                       if other_select_cols is None else other_select_cols)
+
+    self.df = df.select([self.ts_col] + self.partitionCols + self.other_cols)
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
@@ -20,14 +23,14 @@ class TSDF:
   ## Helper functions
   ##
 
-  def __validated_column(self,colname):
+  def __validated_column(self,df,colname):
     if type(colname) != str:
       raise TypeError(f"Column names must be of type str; found {type(colname)} instead!")
-    if colname.lower() not in [col.lower() for col in self.df.columns]:
+    if colname.lower() not in [col.lower() for col in df.columns]:
       raise ValueError(f"Column {colname} not found in Dataframe")
     return colname
 
-  def __validated_columns(self,colnames):
+  def __validated_columns(self,df,colnames):
     # if provided a string, treat it as a single column
     if type(colnames) == str:
       colnames = [ colnames ]
@@ -38,7 +41,7 @@ class TSDF:
       raise TypeError(f"Columns must be of type list, str, or None; found {type(colnames)} instead!")
     # validate each column
     for col in colnames:
-      self.__validated_column(col)
+      self.__validated_column(df,col)
     return colnames
 
   def __checkPartitionCols(self,tsdf_right):
@@ -58,12 +61,9 @@ class TSDF:
     ts_col = '_'.join([prefix, self.ts_col])
     return TSDF(df, ts_col, self.partitionCols)
 
-  def __getNonPartitionColumns(self):
-    return [col for col in self.df.columns if col not in self.partitionCols]
-
   def __addColumnsFromOtherDF(self, other_cols):
     """
-    Add columns from other DF as lit(None), as pre-step before union.
+    Add columns from some other DF as lit(None), as pre-step before union.
     """
     from functools import reduce
     new_df = reduce(lambda df, idx: df.withColumn(other_cols[idx], f.lit(None)), range(len(other_cols)), self.df)
@@ -77,7 +77,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightTS(self, left_ts_col, right_cols):
+  def __getLastRightRow(self, left_ts_col, right_cols):
     from functools import reduce
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
@@ -120,7 +120,7 @@ class TSDF:
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
 
-  def asofJoin(self, right_tsdf, tsPartitionVal = None, fraction=0.5):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -130,13 +130,14 @@ class TSDF:
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)
 
-    # prefix non-partition columns with "left" and "right", to avoid duplicated columns.
-    left_tsdf = (self.__addPrefixToColumns(self.__getNonPartitionColumns(), "left"))
-    right_tsdf = right_tsdf.__addPrefixToColumns(right_tsdf.__getNonPartitionColumns(), "right")
+    # prefix non-partition columns, to avoid duplicated columns.
+    left_tsdf = ((self.__addPrefixToColumns([self.ts_col] + self.other_cols, left_prefix))
+                 if left_prefix is not None else self)
+    right_tsdf = right_tsdf.__addPrefixToColumns([right_tsdf.ts_col] + right_tsdf.other_cols, right_prefix)
 
-    # Since column names have now changed we need to retrieve non partition columns again
-    left_columns = left_tsdf.__getNonPartitionColumns()
-    right_columns = right_tsdf.__getNonPartitionColumns()
+    # For both dataframes get all non-partition columns (including ts_col)
+    left_columns = [left_tsdf.ts_col] + left_tsdf.other_cols
+    right_columns = [right_tsdf.ts_col] + right_tsdf.other_cols
 
     # Union both dataframes, and create a combined TS column
     combined_ts_col = "combined_ts"
@@ -147,10 +148,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightTS(left_tsdf.ts_col, right_columns)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightTS(left_tsdf.ts_col, right_columns)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
@@ -212,7 +213,8 @@ class TSDF:
     """
     Constructs an approximate EMA in the fashion of:
     EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
-    TODO replace case when statement with coalesce
+    TODO: replace case when statement with coalesce
+    TODO: add in time partitions functionality (what is the overlap fraction?)
     """
 
     emaColName = "_".join(["EMA",colName])
