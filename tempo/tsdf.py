@@ -3,7 +3,7 @@ from pyspark.sql.window import Window
 
 class TSDF:
   
-  def __init__(self, df, ts_col="event_ts", partition_cols=None, other_select_cols=None):
+  def __init__(self, df, ts_col="event_ts", partition_cols=None, other_select_cols=None, seq_nb = None):
     """
     Constructor
     :param df:
@@ -16,6 +16,7 @@ class TSDF:
                        if other_select_cols is None else other_select_cols)
 
     self.df = df.select([self.ts_col] + self.partitionCols + self.other_cols)
+    self.seq_nb = '' if seq_nb is None else seq_nb
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
@@ -59,7 +60,8 @@ class TSDF:
                 range(len(col_list)), self.df)
 
     ts_col = '_'.join([prefix, self.ts_col])
-    return TSDF(df, ts_col, self.partitionCols)
+    seq_col = '_'.join([prefix, self.seq_nb]) if self.seq_nb else self.seq_nb
+    return TSDF(df, ts_col, self.partitionCols, seq_nb = seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
     """
@@ -77,14 +79,17 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols):
+  def __getLastRightRow(self, left_ts_col, right_cols, seq_nb):
     from functools import reduce
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
     since it is no longer used in subsequent methods.
     """
-    window_spec = Window.partitionBy(self.partitionCols).orderBy(self.ts_col)
+    ptntl_sort_keys = [self.ts_col, seq_nb]
+    sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
+
+    window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys)
     df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
                      range(len(right_cols)), self.df)
 
@@ -126,6 +131,12 @@ class TSDF:
     time brackets, which can help alleviate skew.
 
     NOTE: partition cols have to be the same for both Dataframes.
+    Parameters
+    :param right_tsdf - right-hand data frame containing columns to merge in
+    :param left_prefix - optional prefix for base data frame
+    :param right_prefix - optional prefix for right-hand data frame
+    :param tsPartitionVal - value to break up each partition into time brackets
+    :param fraction - overlap fraction
     """
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)
@@ -148,10 +159,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.seq_nb)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.seq_nb)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
