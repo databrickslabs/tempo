@@ -1,33 +1,36 @@
-import pyspark.sql.functions as fn
-
-from pyspark.sql.functions import *
+import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 class TSDF:
   
-  def __init__(self, df, ts_col = "EVENT_TS", partitionCols = []):
+  def __init__(self, df, ts_col="event_ts", partition_cols=None, other_select_cols=None):
     """
     Constructor
     :param df:
     :param ts_col:
     :param partitionCols:
     """
-    self.df = df
-    self.ts_col = self.__validated_column(ts_col)
-    self.partitionCols = self.__validated_columns(partitionCols)
+    self.ts_col = self.__validated_column(df, ts_col)
+    self.partitionCols = [] if partition_cols is None else self.__validated_columns(df, partition_cols)
+    self.other_cols = ([col for col in df.columns if col not in self.partitionCols + [self.ts_col]]
+                       if other_select_cols is None else other_select_cols)
 
+    self.df = df.select([self.ts_col] + self.partitionCols + self.other_cols)
+    """
+    Make sure DF is ordered by its respective ts_col and partition columns.
+    """
   ##
   ## Helper functions
   ##
 
-  def __validated_column(self,colname):
+  def __validated_column(self,df,colname):
     if type(colname) != str:
       raise TypeError(f"Column names must be of type str; found {type(colname)} instead!")
-    if colname.lower() not in [col.lower() for col in self.df.columns]:
+    if colname.lower() not in [col.lower() for col in df.columns]:
       raise ValueError(f"Column {colname} not found in Dataframe")
     return colname
 
-  def __validated_columns(self,colnames):
+  def __validated_columns(self,df,colnames):
     # if provided a string, treat it as a single column
     if type(colnames) == str:
       colnames = [ colnames ]
@@ -35,74 +38,143 @@ class TSDF:
     if colnames is None:
       colnames = []
     elif type(colnames) != list:
-      raise TypeError(f"Columns must be of type list, str, or None; found {type(colname)} instead!")
+      raise TypeError(f"Columns must be of type list, str, or None; found {type(colnames)} instead!")
     # validate each column
     for col in colnames:
-      self.__validated_column(col)
+      self.__validated_column(df,col)
     return colnames
 
-  def __createTimeSeriesDF(self, df, ts_select_cols, fillLeft = True, partitionCols = []):
-    left_ts_val, right_ts_val = (col(self.ts_col), lit(None)) if fillLeft else (lit(None),col(self.ts_col))
+  def __checkPartitionCols(self,tsdf_right):
+    for left_col, right_col in zip(self.partitionCols, tsdf_right.partitionCols):
+        if left_col != right_col:
+            raise ValueError("left and right dataframe partition columns should have same name in same order")
+
+  def __addPrefixToColumns(self,col_list,prefix):
+    """
+    Add prefix to all specified columns.
+    """
+    from functools import reduce
+
+    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix,col_list[idx]])),
+                range(len(col_list)), self.df)
+
+    ts_col = '_'.join([prefix, self.ts_col])
+    return TSDF(df, ts_col, self.partitionCols)
+
+  def __addColumnsFromOtherDF(self, other_cols):
+    """
+    Add columns from some other DF as lit(None), as pre-step before union.
+    """
+    from functools import reduce
+    new_df = reduce(lambda df, idx: df.withColumn(other_cols[idx], f.lit(None)), range(len(other_cols)), self.df)
+
+    return TSDF(new_df, self.ts_col, self.partitionCols)
+
+  def __combineTSDF(self, ts_df_right, combined_ts_col):
+    combined_df = (self.df
+                   .unionByName(ts_df_right.df)
+                   .withColumn(combined_ts_col,f.coalesce(self.ts_col, ts_df_right.ts_col)))
+
+    return TSDF(combined_df, combined_ts_col, self.partitionCols)
+
+  def __getLastRightRow(self, left_ts_col, right_cols):
+    from functools import reduce
+    """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
-    return (df
-            .withColumn(ts_select_cols[0],left_ts_val)
-            .withColumn(ts_select_cols[1],right_ts_val)
-            .withColumn(ts_select_cols[2],col(self.ts_col).cast("double"))
-            .select(ts_select_cols + partitionCols))
-  
-  def __getUnionDF(self,df_right, ts_select_cols, partitionCols):
-    df_left = self.__createTimeSeriesDF(self.df, ts_select_cols, partitionCols=partitionCols)
-    df_right = self.__createTimeSeriesDF(df_right, ts_select_cols,
-                                       fillLeft = False, partitionCols = partitionCols) # df_right ts col should have same ts column name, else error
-    return df_left.select(sorted(df_left.columns)).union(df_right.select(sorted(df_right.columns))).withColumn("is_original",lit(1))
-    
-  def __getTimePartitions(self,UnionDF, ts_select_cols,tsPartitionVal, fraction = 0.5):
+    self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
+    since it is no longer used in subsequent methods.
+    """
+    window_spec = Window.partitionBy(self.partitionCols).orderBy(self.ts_col)
+    df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
+                     range(len(right_cols)), self.df)
+
+    df = (df.filter(f.col(left_ts_col).isNotNull()).drop(self.ts_col))
+
+    return TSDF(df, left_ts_col, self.partitionCols)
+
+  def __getTimePartitions(self, tsPartitionVal, fraction=0.1):
     """
     Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
     are rounded down to the nearest <tsPartitionVal> seconds.
+
+    We cast our timestamp column to double instead of using f.unix_timestamp, since it provides more precision.
     
     Additionally, we make these partitions overlapping by adding a remainder df. This way when calculating the
     last right timestamp we will not end up with nulls for the first left timestamp in each partition.
+
+    TODO: change ts_partition to accomodate for higher precision than seconds.
     """
     partition_df = (
-        UnionDF
-        .withColumn('ts_partition',lit(tsPartitionVal) * (col(ts_select_cols[2]) / lit(tsPartitionVal)).cast('integer'))
-        .withColumn("partition_remainder",(col(ts_select_cols[2]) - col("ts_partition"))/lit(tsPartitionVal))
-        .withColumn("is_original",lit(1))).cache() # cache it because it's used twice.
-    
-    # TODO: Is there a smarter way of figuring out the remainders? We only really need to add max(ts_right) to the next partition,
-    # but this induces an extra groupBy. 
+        self.df
+        .withColumn("ts_col_double", f.col(self.ts_col).cast("double")) # double is preferred over unix_timestamp
+        .withColumn('ts_partition',f.lit(tsPartitionVal) * (f.col("ts_col_double") / f.lit(tsPartitionVal)).cast('integer'))
+        .withColumn("partition_remainder",(f.col("ts_col_double") - f.col("ts_partition"))/f.lit(tsPartitionVal))
+        .withColumn("is_original", f.lit(1))).cache() # cache it because it's used twice.
+
+    # add [1 - fraction] of previous time partition to the next partition.
     remainder_df = (
-      partition_df.filter(col("partition_remainder") >= lit(1 - fraction))
-      .withColumn("ts_partition", col("ts_partition") + lit(tsPartitionVal)) # add [1 - fraction] of previous time partition to the next.
-      .withColumn("is_original",lit(0)))
-    return partition_df.union(remainder_df)
-  
-  def __getLastRightTs(self,UnionDF, ts_select_cols, partitionCols = []):
-    """Calculates the last observed timestamp of the right dataframe for each timestamp in the left dataframe"""
-    windowSpec = Window.partitionBy(partitionCols).orderBy(ts_select_cols[2])
-    
-    return (UnionDF
-            .withColumn(ts_select_cols[1], last(col(ts_select_cols[1]), True).over(windowSpec))
-            .filter((col(ts_select_cols[2])== col(ts_select_cols[0]).cast("double")) & 
-                    (col("is_original") == lit(1))) # Remove the overlapping partition parts in case we made use of time-partitions.
-            .select(partitionCols + [ts_select_cols[0],ts_select_cols[1]]))
+      partition_df.filter(f.col("partition_remainder") >= f.lit(1 - fraction))
+      .withColumn("ts_partition", f.col("ts_partition") + f.lit(tsPartitionVal))
+      .withColumn("is_original",f.lit(0)))
+
+    df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
+    return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
+
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5):
+    """
+    Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
+    time brackets, which can help alleviate skew.
+
+    NOTE: partition cols have to be the same for both Dataframes.
+    """
+    # Check whether partition columns have same name in both dataframes
+    self.__checkPartitionCols(right_tsdf)
+
+    # prefix non-partition columns, to avoid duplicated columns.
+    left_tsdf = ((self.__addPrefixToColumns([self.ts_col] + self.other_cols, left_prefix))
+                 if left_prefix is not None else self)
+    right_tsdf = right_tsdf.__addPrefixToColumns([right_tsdf.ts_col] + right_tsdf.other_cols, right_prefix)
+
+    # For both dataframes get all non-partition columns (including ts_col)
+    left_columns = [left_tsdf.ts_col] + left_tsdf.other_cols
+    right_columns = [right_tsdf.ts_col] + right_tsdf.other_cols
+
+    # Union both dataframes, and create a combined TS column
+    combined_ts_col = "combined_ts"
+    combined_df = (left_tsdf
+                   .__addColumnsFromOtherDF(right_columns)
+                   .__combineTSDF(right_tsdf.__addColumnsFromOtherDF(left_columns),
+                                  combined_ts_col))
+
+    # perform asof join.
+    if tsPartitionVal is None:
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns)
+    else:
+        tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns)
+
+        # Get rid of overlapped data and the extra columns generated from timePartitions
+        df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
+
+        asofDF = TSDF(df, asofDF.ts_col, combined_df.partitionCols)
+
+    return asofDF
+
 
   def __baseWindow(self):
-    w = Window().orderBy(fn.col(self.ts_col).cast("long"))
+    w = Window().orderBy(f.col(self.ts_col).cast("long"))
     if self.partitionCols:
-      w = w.partitionBy([fn.col(elem) for elem in self.partitionCols])
+      w = w.partitionBy([f.col(elem) for elem in self.partitionCols])
     return w
+
 
   def __rangeBetweenWindow(self, range_from, range_to):
     return self.__baseWindow().rangeBetween(range_from, range_to)
 
+
   def __rowsBetweenWindow(self, rows_from, rows_to):
     return self.__baseWindow().rowsBetween(rows_from, rows_to)
 
-  ##
-  ## TSDF API functions
-  ##
 
   def withPartitionCols(self, partitionCols):
     """
@@ -111,76 +183,53 @@ class TSDF:
     :param partitionCols: a list of columns used to partition distinct timeseries
     :return: a TSDF object with the given partition columns
     """
-    return TSDF( self.df, self.ts_col, partitionCols )
-
-  def asofJoin(self, right_DF, right_ts_col_name = None, tsPartitionVal = None, fraction = 0.5, asof_prefix = None):
-    
-    right_ts_col_name = self.ts_col if right_ts_col_name is None else right_ts_col_name
-    
-    # Define timeColumns that we will use throughout the calculation of the asof Join
-    ts_select_cols = ["_".join([self.ts_col,val]) for val in ["left","right","ms"]] 
-    right_DF = right_DF.withColumnRenamed(right_ts_col_name,self.ts_col)
-   
-    # in order to avoid duplicate output columns from the join, we'll supply a prefix for asof fields only
-    prefix = asof_prefix + '_' if asof_prefix is not None else ''
-    right_DF = right_DF.toDF(*(prefix+c if c not in list(set().union(self.partitionCols,ts_select_cols, [self.ts_col, right_ts_col_name])) else c for c in right_DF.columns))
-    unionDF = self.__getUnionDF(right_DF.withColumnRenamed(right_ts_col_name,self.ts_col),ts_select_cols,self.partitionCols)
- 
-    # Only make use of  time partitions if tsPartitionVal was supplied
-    if tsPartitionVal is None:
-      asofDF = self.__getLastRightTs(unionDF,ts_select_cols,self.partitionCols)
-    else:
-      tsPartitionDF = self.__getTimePartitions(unionDF,ts_select_cols,tsPartitionVal, fraction = fraction)
-      asofDF = self.__getLastRightTs(tsPartitionDF,ts_select_cols,partitionCols = self.partitionCols + ["ts_partition"])
-      
-    # Now need to join asofDF to self_df and right_df to get all the columns from the original dataframes.
-    joinedDF = (asofDF
-                .join(self.df.withColumnRenamed(self.ts_col,ts_select_cols[0]),[ts_select_cols[0]]+ self.partitionCols)
-                .join(right_DF.withColumnRenamed(right_ts_col_name, ts_select_cols[1]),[ts_select_cols[1]] + self.partitionCols)
-                )
-
-    return TSDF(joinedDF, ts_select_cols[0], self.partitionCols)
+    return TSDF(self.df, self.ts_col, partitionCols)
   
   def vwap(self, frequency='m',volume_col = "volume", price_col = "price"):
         # set pre_vwap as self or enrich with the frequency
         pre_vwap = self.df
         print('input schema: ', pre_vwap.printSchema())
         if frequency == 'm':
-            pre_vwap = self.df.withColumn("time_group", concat(lpad(hour(col(self.ts_col)), 2, '0'), lit(':'),
-                                                               lpad(minute(col(self.ts_col)), 2, '0')))
+            pre_vwap = self.df.withColumn("time_group", f.concat(f.lpad(f.hour(f.col(self.ts_col)), 2, '0'), f.lit(':'),
+                                                               f.lpad(f.minute(f.col(self.ts_col)), 2, '0')))
         elif frequency == 'H':
-            pre_vwap = self.df.withColumn("time_group", concat(lpad(hour(col(self.ts_col)), 2, '0')))
+            pre_vwap = self.df.withColumn("time_group", f.concat(f.lpad(f.hour(f.col(self.ts_col)), 2, '0')))
         elif frequency == 'D':
-            pre_vwap = self.df.withColumn("time_group", concat(lpad(day(col(self.ts_col)), 2, '0')))
+            pre_vwap = self.df.withColumn("time_group", f.concat(f.lpad(f.day(f.col(self.ts_col)), 2, '0')))
 
         group_cols = ['time_group']
         if self.partitionCols:
           group_cols.extend(self.partitionCols)
-        vwapped = ( pre_vwap.withColumn("dllr_value", col(price_col) * col(volume_col))
+        vwapped = ( pre_vwap.withColumn("dllr_value", f.col(price_col) * f.col(volume_col))
                             .groupby(group_cols)
                             .agg( sum('dllr_value').alias("dllr_value"),
                                   sum(volume_col).alias(volume_col),
                                   max(price_col).alias("_".join(["max",price_col])) )
-                            .withColumn("vwap", col("dllr_value") / col(volume_col)) )
+                            .withColumn("vwap", f.col("dllr_value") / f.col(volume_col)) )
 
         return TSDF( vwapped, self.ts_col, self.partitionCols )
   
   def EMA(self,colName,window=30,exp_factor = 0.2):
-    # Constructs an approximate EMA in the fashion of:
-    # EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
-    
-    # Initialise EMA column:
+    """
+    Constructs an approximate EMA in the fashion of:
+    EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
+    TODO: replace case when statement with coalesce
+    TODO: add in time partitions functionality (what is the overlap fraction?)
+    """
+
     emaColName = "_".join(["EMA",colName])
-    df = self.df.withColumn(emaColName,lit(0)).orderBy(self.ts_col)
+    df = self.df.withColumn(emaColName,f.lit(0)).orderBy(self.ts_col)
     w = self.__baseWindow()
     # Generate all the lag columns:
     for i in range(window):
       lagColName = "_".join(["lag",colName,str(i)])
       weight = exp_factor * (1 - exp_factor)**i
-      df = df.withColumn(lagColName, weight * lag(col(colName),i).over(w) )
-      df = df.withColumn(emaColName,col(emaColName) + when(col(lagColName).isNull(),lit(0)).otherwise(col(lagColName))).drop(lagColName) # Nulls are currently removed
+      df = df.withColumn(lagColName, weight * f.lag(f.col(colName),i).over(w))
+      df = df.withColumn(emaColName, f.col(emaColName) + f.when(
+          f.col(lagColName).isNull(),f.lit(0)).otherwise(f.col(lagColName))).drop(lagColName)
+      # Nulls are currently removed
       
-    return TSDF( df, self.ts_col, self.partitionCols )
+    return TSDF(df, self.ts_col, self.partitionCols)
 
   def withLookbackFeatures(self,
                            featureCols,
@@ -204,17 +253,17 @@ class TSDF:
       """
       # first, join all featureCols into a single array column
       tempArrayColName = "__TempArrayCol"
-      feat_array_tsdf = self.df.withColumn(tempArrayColName, fn.array(featureCols))
+      feat_array_tsdf = self.df.withColumn(tempArrayColName, f.array(featureCols))
 
       # construct a lookback array
       lookback_win = self.__rowsBetweenWindow(-lookbackWindowSize, -1)
       lookback_tsdf = (feat_array_tsdf.withColumn(featureColName,
-                                                  fn.collect_list(fn.col(tempArrayColName)).over(lookback_win))
+                                                  f.collect_list(f.col(tempArrayColName)).over(lookback_win))
                                       .drop(tempArrayColName))
 
       # make sure only windows of exact size are allowed
       if exactSize:
-          return lookback_tsdf.where(fn.size(featureColName) == lookbackWindowSize)
+          return lookback_tsdf.where(f.size(featureColName) == lookbackWindowSize)
 
       return TSDF( lookback_tsdf, self.ts_col, self.partitionCols )
 
@@ -255,14 +304,14 @@ class TSDF:
           selectedCols = self.df.columns
           derivedCols = []
           for metric in colsToSummarize:
-              selectedCols.append(mean(metric).over(w).alias('mean_' + metric))
-              selectedCols.append(count(metric).over(w).alias('count_' + metric))
-              selectedCols.append(min(metric).over(w).alias('min_' + metric))
-              selectedCols.append(max(metric).over(w).alias('max_' + metric))
-              selectedCols.append(sum(metric).over(w).alias('sum_' + metric))
-              selectedCols.append(stddev(metric).over(w).alias('stddev_' + metric))
+              selectedCols.append(f.mean(metric).over(w).alias('mean_' + metric))
+              selectedCols.append(f.count(metric).over(w).alias('count_' + metric))
+              selectedCols.append(f.min(metric).over(w).alias('min_' + metric))
+              selectedCols.append(f.max(metric).over(w).alias('max_' + metric))
+              selectedCols.append(f.sum(metric).over(w).alias('sum_' + metric))
+              selectedCols.append(f.stddev(metric).over(w).alias('stddev_' + metric))
               derivedCols.append(
-                      ((col(metric) - col('mean_' + metric)) / col('stddev_' + metric)).alias("zscore_" + metric))
+                      ((f.col(metric) - f.col('mean_' + metric)) / f.col('stddev_' + metric)).alias("zscore_" + metric))
           selected_df = self.df.select(*selectedCols)
           #print(derivedCols)
           summary_df = selected_df.select(*selected_df.columns, *derivedCols)
