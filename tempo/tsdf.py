@@ -3,7 +3,7 @@ from pyspark.sql.window import Window
 
 class TSDF:
   
-  def __init__(self, df, ts_col="event_ts", partition_cols=None, other_select_cols=None, seq_nb = None):
+  def __init__(self, df, ts_col="event_ts", partition_cols=None, seq_nb = None):
     """
     Constructor
     :param df:
@@ -12,10 +12,8 @@ class TSDF:
     """
     self.ts_col = self.__validated_column(df, ts_col)
     self.partitionCols = [] if partition_cols is None else self.__validated_columns(df, partition_cols)
-    self.other_cols = ([col for col in df.columns if col not in self.partitionCols + [self.ts_col]]
-                       if other_select_cols is None else other_select_cols)
 
-    self.df = df.select([self.ts_col] + self.partitionCols + self.other_cols)
+    self.df = df
     self.seq_nb = '' if seq_nb is None else seq_nb
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
@@ -141,14 +139,24 @@ class TSDF:
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)
 
+
     # prefix non-partition columns, to avoid duplicated columns.
-    left_tsdf = ((self.__addPrefixToColumns([self.ts_col] + self.other_cols, left_prefix))
+    left_df = self.df
+    right_df = right_tsdf.df
+
+    orig_left_col_diff = list(set(left_df.columns).difference(set(self.partitionCols)))
+    orig_right_col_diff = list(set(right_df.columns).difference(set(self.partitionCols)))
+
+    left_tsdf = ((self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
                  if left_prefix is not None else self)
-    right_tsdf = right_tsdf.__addPrefixToColumns([right_tsdf.ts_col] + right_tsdf.other_cols, right_prefix)
+    right_tsdf = right_tsdf.__addPrefixToColumns([right_tsdf.ts_col] + orig_right_col_diff, right_prefix)
+
+    left_nonpartition_cols = list(set(left_tsdf.df.columns).difference(set(self.partitionCols)))
+    right_nonpartition_cols = list(set(right_tsdf.df.columns).difference(set(self.partitionCols)))
 
     # For both dataframes get all non-partition columns (including ts_col)
-    left_columns = [left_tsdf.ts_col] + left_tsdf.other_cols
-    right_columns = [right_tsdf.ts_col] + right_tsdf.other_cols
+    left_columns = [left_tsdf.ts_col] + left_nonpartition_cols
+    right_columns = [right_tsdf.ts_col] + right_nonpartition_cols
 
     # Union both dataframes, and create a combined TS column
     combined_ts_col = "combined_ts"
@@ -328,3 +336,23 @@ class TSDF:
           summary_df = selected_df.select(*selected_df.columns, *derivedCols)
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
+
+  def toDelta(self, optimizationCols):
+      df = self.df
+      ts_col = self.ts_col
+      partitionCols = self.partitionCols
+      optimizationCols = optimizationCols + ['event_time']
+      local = False
+      try:
+          dbutils.fs.ls("/")
+          True
+      except:
+          'Running in local mode'
+
+      format = "parquet" if local else "delta"
+      view_df = df.withColumn("event_dt", f.to_date(col(ts_col))) \
+          .withColumn("event_time", f.translate(f.split(f.col(ts_col).cast("string"), ' ')[1], ':', '').cast("double"))
+      view_df.write.mode("overwrite").partitionBy("event_dt").format(format).saveAsTable(tab_name)
+
+      if not local:
+          spark.sql("optimize {} zorder by {}".format(tab_name, "(" + ",".join(partitionCols + optimizationCols) + ")"))
