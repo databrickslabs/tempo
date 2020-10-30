@@ -9,6 +9,7 @@ class TSDF:
     :param df:
     :param ts_col:
     :param partitionCols:
+    :seq_nb every tsdf allows for a tie-breaker secondary sort key
     """
     self.ts_col = self.__validated_column(df, ts_col)
     self.partitionCols = [] if partition_cols is None else self.__validated_columns(df, partition_cols)
