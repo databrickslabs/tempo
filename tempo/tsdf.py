@@ -2,20 +2,19 @@ import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 class TSDF:
-  
-  def __init__(self, df, ts_col="event_ts", partition_cols=None, seq_nb = None):
+
+  def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None):
     """
     Constructor
     :param df:
     :param ts_col:
     :param partitionCols:
-    :seq_nb every tsdf allows for a tie-breaker secondary sort key
+    :sequence_col every tsdf allows for a tie-breaker secondary sort key
     """
     self.ts_col = self.__validated_column(df, ts_col)
     self.partitionCols = [] if partition_cols is None else self.__validated_columns(df, partition_cols)
-
     self.df = df
-    self.seq_nb = '' if seq_nb is None else seq_nb
+    self.sequence_col = '' if sequence_col is None else sequence_col
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
@@ -59,8 +58,8 @@ class TSDF:
                 range(len(col_list)), self.df)
 
     ts_col = '_'.join([prefix, self.ts_col])
-    seq_col = '_'.join([prefix, self.seq_nb]) if self.seq_nb else self.seq_nb
-    return TSDF(df, ts_col, self.partitionCols, seq_nb = seq_col)
+    seq_col = '_'.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
+    return TSDF(df, ts_col, self.partitionCols, sequence_col = seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
     """
@@ -78,14 +77,14 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, seq_nb):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col):
     from functools import reduce
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
     since it is no longer used in subsequent methods.
     """
-    ptntl_sort_keys = [self.ts_col, seq_nb]
+    ptntl_sort_keys = [self.ts_col, sequence_col]
     sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys)
@@ -140,7 +139,6 @@ class TSDF:
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)
 
-
     # prefix non-partition columns, to avoid duplicated columns.
     left_df = self.df
     right_df = right_tsdf.df
@@ -168,10 +166,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.seq_nb)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.seq_nb)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
@@ -183,7 +181,7 @@ class TSDF:
 
   def __baseWindow(self):
     # add all sort keys - time is first, unique sequence number breaks the tie
-    ptntl_sort_keys = [self.ts_col, self.seq_nb]
+    ptntl_sort_keys = [self.ts_col, self.sequence_col]
     sort_keys = [f.col(col_name).cast("long") for col_name in ptntl_sort_keys if col_name != '']
 
     w = Window().orderBy(sort_keys)
