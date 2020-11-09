@@ -191,9 +191,8 @@ class AsOfJoinTest(SparkTest):
 
         # perform the join
         tsdf_left = TSDF(dfLeft, partition_cols=["symbol"])
-        tsdf_right = TSDF(dfRight, partition_cols=["symbol"], seq_nb="seq_nb")
+        tsdf_right = TSDF(dfRight, partition_cols=["symbol"], sequence_col="seq_nb")
         joined_df = tsdf_left.asofJoin(tsdf_right, right_prefix='right').df
-
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual(joined_df, dfExpected)
