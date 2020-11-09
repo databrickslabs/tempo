@@ -1,5 +1,7 @@
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
+import tempo.resample as rs
+import tempo.io as tio
 
 class TSDF:
   
@@ -341,3 +343,19 @@ class TSDF:
           summary_df = selected_df.select(*selected_df.columns, *derivedCols)
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
+
+  def write(self, tabName, optimizationCols):
+    tio.write(self, tabName, optimizationCols)
+
+  def resample(self, freq, func=None):
+    """
+    function to upsample based on frequency and aggregate function similar to pandas
+    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param func: function used to aggregate input
+    :return: TSDF object with sample data using aggregate function
+    """
+    rs.validateFuncExists(func)
+
+    enriched_tsdf = rs.appendAggKey(self, freq)
+    enriched_tsdf = rs.aggregate(enriched_tsdf, func)
+    return(enriched_tsdf)
