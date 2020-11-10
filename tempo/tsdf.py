@@ -355,7 +355,5 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-
-    enriched_tsdf = rs.appendAggKey(self, freq)
-    enriched_tsdf = rs.aggregate(enriched_tsdf, func)
+    enriched_tsdf = rs.aggregate(self, freq, func)
     return(enriched_tsdf)

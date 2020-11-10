@@ -13,18 +13,20 @@ def write(tsdf, tabName, optimizationCols):
   ts_col = self.ts_col
   partitionCols = self.partitionCols
   optimizationCols = optimizationCols + ['event_time']
-  local = False
+  useDeltaOpt = True
   try:
       dbutils.fs.ls("/")
-      local = True
   except:
       print('Running in local mode')
+      useDeltaOpt = False
       pass
 
-  format = "parquet" if local else "delta"
   view_df = df.withColumn("event_dt", f.to_date(col(ts_col))) \
       .withColumn("event_time", f.translate(f.split(f.col(ts_col).cast("string"), ' ')[1], ':', '').cast("double"))
-  view_df.write.mode("overwrite").partitionBy("event_dt").format(format).saveAsTable(tab_name)
+  view_df.write.mode("overwrite").partitionBy("event_dt").format('delta').saveAsTable(tab_name)
 
-  if not local:
-      spark.sql("optimize {} zorder by {}".format(tab_name, "(" + ",".join(partitionCols + optimizationCols) + ")"))
+  if useDeltaOpt:
+      try:
+         spark.sql("optimize {} zorder by {}".format(tab_name, "(" + ",".join(partitionCols + optimizationCols) + ")"))
+      except:
+         print("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")

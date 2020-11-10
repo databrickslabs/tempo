@@ -14,7 +14,7 @@ MEAN_LEAD = "mean_lead"
 
 allowableFreqs = [SEC, MIN, HR]
 
-def appendAggKey(tsdf, freq = None):
+def __appendAggKey(tsdf, freq = None):
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -27,7 +27,6 @@ def appendAggKey(tsdf, freq = None):
     sec_col = f.second(f.col(tsdf.ts_col))
     min_col = f.minute(f.col(tsdf.ts_col))
     hour_col = f.hour(f.col(tsdf.ts_col))
-    agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lpad(hour_col, 2, '0'), f.lpad(min_col, 2, '0'), f.lpad(sec_col, 2, '0'))
 
     if (freq == SEC):
         #agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lpad(hour_col, 2, '0'), f.lpad(min_col, 2, '0'), f.lpad(sec_col, 2, '0'))
@@ -42,7 +41,7 @@ def appendAggKey(tsdf, freq = None):
     df = df.withColumn("agg_key", agg_key)
     return ts.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
 
-def aggregate(tsdf, func, metricCols = None):
+def aggregate(tsdf, freq, func, metricCols = None):
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
@@ -50,6 +49,7 @@ def aggregate(tsdf, func, metricCols = None):
     :param metricCols: columns used for aggregates
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
+    tsdf = __appendAggKey(tsdf, freq)
     df = tsdf.df
 
     groupingCols = tsdf.partitionCols + ['agg_key']
