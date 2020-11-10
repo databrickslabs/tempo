@@ -1,5 +1,7 @@
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
+import tempo.resample as rs
+import tempo.io as tio
 
 class TSDF:
 
@@ -13,6 +15,7 @@ class TSDF:
     """
     self.ts_col = self.__validated_column(df, ts_col)
     self.partitionCols = [] if partition_cols is None else self.__validated_columns(df, partition_cols)
+
     self.df = df
     self.sequence_col = '' if sequence_col is None else sequence_col
     """
@@ -181,6 +184,7 @@ class TSDF:
 
   def __baseWindow(self):
     # add all sort keys - time is first, unique sequence number breaks the tie
+
     ptntl_sort_keys = [self.ts_col, self.sequence_col]
     sort_keys = [f.col(col_name).cast("long") for col_name in ptntl_sort_keys if col_name != '']
 
@@ -339,3 +343,17 @@ class TSDF:
           summary_df = selected_df.select(*selected_df.columns, *derivedCols)
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
+
+  def write(self, tabName, optimizationCols):
+    tio.write(self, tabName, optimizationCols)
+
+  def resample(self, freq, func=None):
+    """
+    function to upsample based on frequency and aggregate function similar to pandas
+    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param func: function used to aggregate input
+    :return: TSDF object with sample data using aggregate function
+    """
+    rs.validateFuncExists(func)
+    enriched_tsdf = rs.aggregate(self, freq, func)
+    return(enriched_tsdf)

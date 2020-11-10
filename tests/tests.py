@@ -313,6 +313,94 @@ class RangeStatsTest(SparkTest):
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
 
+class ResampleTest(SparkTest):
+
+    def test_upsample(self):
+        """Test of range stats for 20 minute rolling window"""
+        schema = StructType([StructField("symbol", StringType()),
+                             StructField("date", StringType()),
+                             StructField("event_ts", StringType()),
+                             StructField("trade_pr", FloatType()),
+                             StructField("trade_pr_2", FloatType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("date", StringType()),
+                                     StructField("trade_pr_2", FloatType()),
+                                     StructField("trade_pr", FloatType())])
+
+        data = [["S1", "SAME_DT", "2020-08-01 00:00:10", 349.21, 10.0],
+                ["S1", "SAME_DT", "2020-08-01 00:00:11", 340.21, 9.0],
+                ["S1", "SAME_DT", "2020-08-01 00:01:12", 353.32, 8.0],
+                ["S1", "SAME_DT", "2020-08-01 00:01:13", 351.32, 7.0],
+                ["S1", "SAME_DT", "2020-08-01 00:01:14", 350.32, 6.0],
+                ["S1", "SAME_DT", "2020-09-01 00:01:12", 361.1, 5.0],
+                ["S1", "SAME_DT","2020-09-01 00:19:12", 362.1, 4.0]]
+
+        expected_data = [
+                ["S1", "2020-08-01 00:00:00", "SAME_DT", 10.0, 349.21],
+                ["S1", "2020-08-01 00:01:00", "SAME_DT", 8.0, 353.32],
+                ["S1", "2020-09-01 00:01:00", "SAME_DT", 5.0, 361.1],
+                ["S1", "2020-09-01 00:19:00", "SAME_DT", 4.0, 362.1]]
+
+        # construct dataframes
+        df = self.buildTestDF(schema,data)
+        dfExpected = self.buildTestDF(expectedSchema,expected_data)
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, partition_cols=["symbol"])
+
+        # using lookback of 20 minutes
+        featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
+
+        # should be equal to the expected dataframe
+        self.assertDataFramesEqual(featured_df, dfExpected)
+
+class DeltaWriteTest(SparkTest):
+
+    def write_to_delta(self):
+        """Test of range stats for 20 minute rolling window"""
+        schema = StructType([StructField("symbol", StringType()),
+                             StructField("date", StringType()),
+                             StructField("event_ts", StringType()),
+                             StructField("trade_pr", FloatType()),
+                             StructField("trade_pr_2", FloatType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("date", StringType()),
+                                     StructField("trade_pr_2", FloatType()),
+                                     StructField("trade_pr", FloatType())])
+
+        data = [["S1", "SAME_DT", "2020-08-01 00:00:10", 349.21, 10.0],
+                ["S1", "SAME_DT", "2020-08-01 00:00:11", 340.21, 9.0],
+                ["S1", "SAME_DT", "2020-08-01 00:01:12", 353.32, 8.0],
+                ["S1", "SAME_DT", "2020-08-01 00:01:13", 351.32, 7.0],
+                ["S1", "SAME_DT", "2020-08-01 00:01:14", 350.32, 6.0],
+                ["S1", "SAME_DT", "2020-09-01 00:01:12", 361.1, 5.0],
+                ["S1", "SAME_DT","2020-09-01 00:19:12", 362.1, 4.0]]
+
+        expected_data = [
+                ["S1", "2020-08-01 00:00:00", "SAME_DT", 10.0, 349.21],
+                ["S1", "2020-08-01 00:01:00", "SAME_DT", 8.0, 353.32],
+                ["S1", "2020-09-01 00:01:00", "SAME_DT", 5.0, 361.1],
+                ["S1", "2020-09-01 00:19:00", "SAME_DT", 4.0, 362.1]]
+
+        # construct dataframes
+        df = self.buildTestDF(schema,data)
+        dfExpected = self.buildTestDF(expectedSchema,expected_data)
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, partition_cols=["symbol"])
+
+        # using lookback of 20 minutes
+        #featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
+        tsdf_left.write("my_table")
+        print('delta table count ' + self.spark.table("my_table").count())
+
+        # should be equal to the expected dataframe
+        self.assertDataFramesEqual(tsdf_left, tsdf_left)
+
 ## MAIN
 if __name__ == '__main__':
     unittest.main()
