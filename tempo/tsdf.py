@@ -344,8 +344,8 @@ class TSDF:
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
-  def write(self, tabName, optimizationCols):
-    tio.write(self, tabName, optimizationCols)
+  def write(self, spark, tabName, optimizationCols = None):
+    tio.write(self, spark, tabName, optimizationCols)
 
   def resample(self, freq, func=None):
     """

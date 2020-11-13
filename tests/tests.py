@@ -11,8 +11,12 @@ class SparkTest(unittest.TestCase):
     ## Fixtures
     ##
     def setUp(self):
-        self.spark = (SparkSession.builder
-                      .master("local")
+        self.spark = (SparkSession.builder.appName("myapp") \
+                      .config("spark.driver.bindAddress", "127.0.0.1") \
+                      .config("spark.jars.packages", "io.delta:delta-core_2.12:0.7.0") \
+                      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+                      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+                      .master("local") \
                       .getOrCreate())
 
     def tearDown(self) -> None:
@@ -313,6 +317,7 @@ class RangeStatsTest(SparkTest):
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
 
+
 class ResampleTest(SparkTest):
 
     def test_upsample(self):
@@ -356,9 +361,10 @@ class ResampleTest(SparkTest):
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
 
+
 class DeltaWriteTest(SparkTest):
 
-    def write_to_delta(self):
+    def test_write_to_delta(self):
         """Test of range stats for 20 minute rolling window"""
         schema = StructType([StructField("symbol", StringType()),
                              StructField("date", StringType()),
@@ -395,11 +401,12 @@ class DeltaWriteTest(SparkTest):
 
         # using lookback of 20 minutes
         #featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
-        tsdf_left.write("my_table")
-        print('delta table count ' + self.spark.table("my_table").count())
+        tsdf_left.write(self.spark, "my_table")
+        print('delta table count ' + str(self.spark.table("my_table").count()))
 
         # should be equal to the expected dataframe
-        self.assertDataFramesEqual(tsdf_left, tsdf_left)
+        assert self.spark.table("my_table").count() == 7
+        #self.assertDataFramesEqual(tsdf_left.df, tsdf_left.df)
 
 ## MAIN
 if __name__ == '__main__':
