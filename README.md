@@ -8,6 +8,21 @@ Please note that all projects in the /databrickslabs github account are provided
 
 Any issues discovered through the use of this project should be filed as GitHub Issues on the Repo.  They will be reviewed as time permits, but there are no formal SLAs for support.
 
+## Unit Test Coverage (as of 11/13/20)
+
+`coverage report -m`
+Name                Stmts   Miss  Cover   Missing
+-------------------------------------------------
+tempo/__init__.py       1      0   100%
+tempo/io.py            23      5    78%   17, 34-37
+tempo/resample.py      54     16    70%   34, 38-40, 67-77, 85, 89
+tempo/tsdf.py         150     37    75%   30, 32, 38, 41, 43, 52, 202, 212, 216-236, 246-258, 281-294
+tests/__init__.py       0      0   100%
+tests/tests.py        117      2    98%   81, 412
+-------------------------------------------------
+TOTAL                 345     60    83%
+
+
 ## Project Setup
 After cloning the repo, it is highly advised that you create a [virtual environment](https://docs.python.org/3/library/venv.html) to isolate and manage
 packages for this project, like so:
