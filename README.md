@@ -8,7 +8,13 @@ The purpose of this project is to provide easier ways to perform machine learnin
 ## Using the Project
 
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
-The entry point into all functionalities for time series analysis in tempo is a TSDF object which wraps the Spark data frame. In high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
+The entry point into all functionalities for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
+
+#### Sample Reference Architecture for Capital Markets
+
+<p align="center">
+  <img src="ts_in_fs.png" width="500px"/>
+</p>
 
 #### 1. asofJoin - AS OF Join to Paste Latest AS OF Information onto Fact Table
 
