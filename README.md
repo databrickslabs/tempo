@@ -1,7 +1,7 @@
 # tempo - Time Series Utilities for Data Teams Using Databricks
 
 <p align="center">
-  <img src="tempo - black background.svg" width="300px"/>
+  <img src="tempo - dark background.svg" width="300px"/>
 </p>
 
 
