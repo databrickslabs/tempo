@@ -10,6 +10,7 @@ venv
 build
 dist
 tempo.egg-info/*
+spark-warehouse/*
 
 # other misc ignore
 .DS_Store

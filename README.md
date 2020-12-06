@@ -3,6 +3,8 @@
 ## Project Description
 The purpose of this project is to provide easier ways to perform machine learning experiments, ETL, and ad-hoc analytics on time series within Databricks using Apache Spark. This includes data parallel and model parallel use cases encountered across the field. 
 
+[![build](https://github.com/databrickslabs/tempo/workflows/build/badge.svg?branch=master)](https://github.com/databrickslabs/tempo/actions?query=workflow%3Abuild+branch%3Amaster) [![codecov](https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg)](https://codecov.io/gh/databrickslabs/tempo)
+
 ## Using the Project
 
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
