@@ -9,7 +9,7 @@ venv
 **/__pycache__
 build
 dist
-tempo.egg-info
+tempo.egg-info/*
 
 # other misc ignore
 .DS_Store

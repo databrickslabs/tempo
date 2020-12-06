@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="b0deca71-f449-43d4-92fb-3e6dc99596db" name="Default" comment="">
+      <change afterPath="$PROJECT_DIR$/.coverage" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.github/workflows/test.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/dictionaries/rportilla.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/tempo.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/lib/tca/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/lib/tca/base.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/lib/tempo/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/lib/tempo/io.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/lib/tempo/resample.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/lib/tempo/tsdf.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/coverage.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/tca-0.1-py3-none-any.whl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/tca-0.1.tar.gz" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/tempo-0.1-py3-none-any.whl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dist/tempo-0.1.macosx-10.6-x86_64.tar.gz" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/emptyfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/coverage_html.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/jquery.ba-throttle-debounce.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/jquery.hotkeys.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/jquery.isonscreen.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/jquery.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/jquery.tablesorter.min.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/keybd_closed.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/keybd_open.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/status.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/style.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/tempo___init___py.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/tempo_io_py.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/tempo_resample_py.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/htmlcov/tempo_tsdf_py.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/_delta_log/00000000000000000000.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/_delta_log/00000000000000000001.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/_delta_log/00000000000000000002.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-08-01/.part-00000-7cbbd741-d352-4c0e-a94b-5f8e644432f9.c000.snappy.parquet.crc" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-08-01/.part-00000-8940ba40-b481-49a4-bc07-5565e66826e6.c000.snappy.parquet.crc" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-08-01/.part-00000-b9320eb6-f15b-4d92-b8cc-92790316ed09.c000.snappy.parquet.crc" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-08-01/part-00000-7cbbd741-d352-4c0e-a94b-5f8e644432f9.c000.snappy.parquet" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-08-01/part-00000-8940ba40-b481-49a4-bc07-5565e66826e6.c000.snappy.parquet" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-08-01/part-00000-b9320eb6-f15b-4d92-b8cc-92790316ed09.c000.snappy.parquet" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-09-01/.part-00000-584b88fb-8361-428e-8bec-86ffbafad2c8.c000.snappy.parquet.crc" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-09-01/.part-00000-783c3cc4-4a23-41c2-97d8-33bd926a3fd3.c000.snappy.parquet.crc" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-09-01/.part-00000-a397e9da-8b4c-41c6-bf89-91ce857b6d1f.c000.snappy.parquet.crc" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-09-01/part-00000-584b88fb-8361-428e-8bec-86ffbafad2c8.c000.snappy.parquet" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-09-01/part-00000-783c3cc4-4a23-41c2-97d8-33bd926a3fd3.c000.snappy.parquet" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spark-warehouse/my_table/event_dt=2020-09-01/part-00000-a397e9da-8b4c-41c6-bf89-91ce857b6d1f.c000.snappy.parquet" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tempo.egg-info/PKG-INFO" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tempo.egg-info/SOURCES.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tempo.egg-info/dependency_links.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tempo.egg-info/requires.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tempo.egg-info/top_level.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/.coverage" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/tests.py" afterDir="false" />
+    </list>
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file leaf-file-name="resample.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/tempo/resample.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="382">
+              <caret line="73" column="26" selection-start-line="73" selection-start-column="26" selection-end-line="73" selection-end-column="26" />
+              <folding>
+                <element signature="e#0#33#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="test.yml" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/.github/workflows/test.yml">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="120">
+              <caret line="5" column="6" lean-forward="true" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="6" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="requirements.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/requirements.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="216">
+              <caret line="9" selection-start-line="9" selection-end-line="9" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="tests.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/tests/tests.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="144">
+              <caret line="12" column="8" selection-start-line="12" selection-start-column="8" selection-end-line="12" selection-end-column="8" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/tests/__init__.py">
+          <provider selected="true" editor-type-id="text-editor" />
+        </entry>
+      </file>
+      <file leaf-file-name="tsdf.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/tempo/tsdf.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="552">
+              <caret line="23" column="4" selection-start-line="23" selection-start-column="4" selection-end-line="23" selection-end-column="4" />
+              <folding>
+                <element signature="e#0#33#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>__getLastRightRow</find>
+      <find>test_range_stats</find>
+      <find>__addPrefixToColumns</find>
+      <find>self.other_</find>
+      <find>other_</find>
+      <find>__addColumnsFromOtherDF</find>
+      <find>other</find>
+      <find>self.other_cols</find>
+      <find>other_col</find>
+      <find>other_cols</find>
+      <find>prefix</find>
+      <find>set(</find>
+      <find>show</find>
+      <find>orderBy</find>
+      <find>check</find>
+      <find>differece</find>
+      <find>=</find>
+      <find>&gt;</find>
+      <find>&gt;&gt;</find>
+      <find>asofJOin</find>
+      <find>lpad</find>
+      <find>stypes.</find>
+      <find>==</find>
+      <find>TSDF</find>
+      <find>seq_nb</find>
+      <find>tabName</find>
+      <find>tab_name</find>
+      <find>resample</find>
+      <find>withLook</find>
+      <find>ts.</find>
+    </findStrings>
+    <replaceStrings>
+      <replace>sequence_col</replace>
+      <replace>f.lpad</replace>
+    </replaceStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/tca/base.py" />
+        <option value="$PROJECT_DIR$/tests/range_tests.py" />
+        <option value="$PROJECT_DIR$/CONTRIBUTING.md" />
+        <option value="$PROJECT_DIR$/NOTICE" />
+        <option value="$PROJECT_DIR$/LICENSE" />
+        <option value="$PROJECT_DIR$/../../vacuumScript.scala" />
+        <option value="$PROJECT_DIR$/utils/time.py" />
+        <option value="$PROJECT_DIR$/datasource/optimized_df.py" />
+        <option value="$PROJECT_DIR$/datasource/deltasource.py" />
+        <option value="$PROJECT_DIR$/datasource/refdata.py" />
+        <option value="$PROJECT_DIR$/tempo/__init__.py" />
+        <option value="$PROJECT_DIR$/tempo/io.py" />
+        <option value="$PROJECT_DIR$/tempo/tsdf.py" />
+        <option value="$PROJECT_DIR$/tempo.egg-info/requires.txt" />
+        <option value="$PROJECT_DIR$/dblabs_tempo/resample.py" />
+        <option value="$PROJECT_DIR$/tempo/resample.py" />
+        <option value="$PROJECT_DIR$/requirements.txt" />
+        <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/tests/tests.py" />
+        <option value="$PROJECT_DIR$/.github/workflows/test.yml" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="15" />
+    <option name="y" value="78" />
+    <option name="width" value="1680" />
+    <option name="height" value="942" />
+  </component>
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="databrickslabs_tempo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="databrickslabs_tempo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+              <item name=".github" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="databrickslabs_tempo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+              <item name=".github" type="462c0819:PsiDirectoryNode" />
+              <item name="workflows" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="databrickslabs_tempo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+              <item name="datasource" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="databrickslabs_tempo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="databrickslabs_tempo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="tempo" type="462c0819:PsiDirectoryNode" />
+              <item name="tests" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="Scope" />
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager" selected="Python.Run Tests">
+    <configuration name="Run Tests" type="PythonConfigurationType" factoryName="Python">
+      <module name="tempo" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="PYSPARK_PYTHON" value="python3" />
+        <env name="SPARK_LOCAL_IP" value="127.0.0.1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/tests.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+    </configuration>
+    <configuration name="Tempo Tests" type="tests" factoryName="py.test">
+      <module name="databrickslabs_tempo" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="/anaconda3/envs/dbconnect/bin/python" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.Run Tests" />
+      <item itemvalue="Python tests.Tempo Tests" />
+    </list>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="b0deca71-f449-43d4-92fb-3e6dc99596db" name="Default" comment="" />
+      <created>1598667022760</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1598667022760</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TestHistory">
+    <history-entry file="Tempo_Tests - 2020.09.14 at 14h 46m 58s.xml">
+      <configuration name="Tempo Tests" configurationId="tests" />
+    </history-entry>
+    <history-entry file="Tempo_Tests - 2020.09.25 at 23h 34m 55s.xml">
+      <configuration name="Tempo Tests" configurationId="tests" />
+    </history-entry>
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="15" y="78" width="1680" height="942" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.13140446" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Event Log" order="7" side_tool="true" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.22083333" />
+      <window_info anchor="bottom" id="Version Control" order="8" />
+      <window_info anchor="bottom" id="Python Console" order="9" weight="0.315625" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Terminal" order="10" weight="0.11487179" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.32923076" />
+    </layout>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/tempo/tsdf.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="552">
+          <caret line="23" column="4" lean-forward="true" selection-start-line="23" selection-start-column="4" selection-end-line="23" selection-end-column="4" />
+          <folding>
+            <element signature="e#0#33#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/README.md" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/CONTRIBUTING.md" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/NOTICE" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/LICENSE" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo/tsdf.py" />
+    <entry file="file://$PROJECT_DIR$/../../vacuumScript.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="720">
+          <caret line="30" column="16" selection-start-line="30" selection-start-column="16" selection-end-line="30" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tests/tests.py" />
+    <entry file="file://$PROJECT_DIR$/datasource/deltasource.py" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/README.md" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/CONTRIBUTING.md" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/NOTICE" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/LICENSE" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo/tsdf.py" />
+    <entry file="file://$PROJECT_DIR$/../../vacuumScript.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="984">
+          <caret line="41" column="29" selection-start-line="41" selection-start-column="29" selection-end-line="41" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tca.egg-info/PKG-INFO" />
+    <entry file="file://$PROJECT_DIR$/tca.egg-info/SOURCES.txt" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tests/tests.py" />
+    <entry file="file://$PROJECT_DIR$/tca.egg-info/top_level.txt" />
+    <entry file="file://$PROJECT_DIR$/tca.egg-info/PKG-INFO" />
+    <entry file="file://$PROJECT_DIR$/tca.egg-info/top_level.txt" />
+    <entry file="file://$PROJECT_DIR$/tca/base.py" />
+    <entry file="file://$PROJECT_DIR$/tca.egg-info/SOURCES.txt" />
+    <entry file="file://$PROJECT_DIR$/tests/range_tests.py" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/CONTRIBUTING.md" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/NOTICE" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/README.md" />
+    <entry file="file://$PROJECT_DIR$/../../vacuumScript.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="720">
+          <caret line="30" column="16" selection-start-line="30" selection-start-column="16" selection-end-line="30" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/LICENSE" />
+    <entry file="file://$USER_HOME$/opt/anaconda3/envs/dbconnect37/lib/python3.7/unittest/case.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2510">
+          <caret line="813" column="8" selection-start-line="813" selection-start-column="8" selection-end-line="813" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/opt/anaconda3/envs/dbconnect37/lib/python3.7/unittest/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-864">
+          <caret line="54" column="6" selection-start-line="54" selection-start-column="6" selection-end-line="54" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/utils/time.py" />
+    <entry file="file://$PROJECT_DIR$/datasource/deltasource.py" />
+    <entry file="file://$USER_HOME$/opt/anaconda3/envs/dbconnect37/lib/python3.7/site-packages/pyspark/sql/dataframe.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="185">
+          <caret line="1592" selection-start-line="1592" selection-end-line="1592" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/datasource/refdata.py" />
+    <entry file="file://$USER_HOME$/opt/anaconda3/envs/dbconnect37/lib/python3.7/site-packages/pyspark/sql/column.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="190">
+          <caret line="352" selection-start-line="352" selection-end-line="352" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/opt/anaconda3/envs/dbconnect37/lib/python3.7/site-packages/pyspark/sql/group.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2496">
+          <caret line="111" selection-start-line="111" selection-end-line="111" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo/io.py" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo.egg-info/SOURCES.txt" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo/tsdf.py" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo/resample.py" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tempo/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/../databrickslabs_tempo/tests/tests.py" />
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="20" column="3" lean-forward="true" selection-start-line="20" selection-start-column="3" selection-end-line="20" selection-end-column="3" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tempo/tsdf.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="552">
+          <caret line="23" column="4" selection-start-line="23" selection-start-column="4" selection-end-line="23" selection-end-column="4" />
+          <folding>
+            <element signature="e#0#33#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tempo/resample.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="382">
+          <caret line="73" column="26" selection-start-line="73" selection-start-column="26" selection-end-line="73" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#33#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/requirements.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="216">
+          <caret line="9" selection-start-line="9" selection-end-line="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/tests.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="144">
+          <caret line="12" column="8" selection-start-line="12" selection-start-column="8" selection-end-line="12" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/.coverage">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-482">
+          <caret line="22" column="64" selection-start-line="22" selection-start-column="64" selection-end-line="22" selection-end-column="64" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.github/workflows/test.yml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="120">
+          <caret line="5" column="6" lean-forward="true" selection-start-line="5" selection-start-column="6" selection-end-line="5" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>
