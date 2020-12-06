@@ -22,7 +22,7 @@ jobs:
         export SPARK_LOCAL_IP=127.0.0.1
     - name: Generate coverage report
       run: |
-        pip install requirements.txt
+        pip install -r requirements.txt
         pip install coverage
         coverage run -m unittest
         coverage xml
