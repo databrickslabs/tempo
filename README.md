@@ -1,5 +1,10 @@
 # tempo - Time Series Utilities for Data Teams Using Databricks
 
+<p align="center">
+  <img src="tempo - black background.svg" width="200px"/>
+</p>
+
+
 ## Project Description
 The purpose of this project is to make time series manipulation with Spark simpler. Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths, featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
 
@@ -8,7 +13,7 @@ The purpose of this project is to make time series manipulation with Spark simpl
 ## Using the Project
 
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
-The entry point into all functionalities for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
+The entry point into all features for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
 
 #### Sample Reference Architecture for Capital Markets
 
