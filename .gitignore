@@ -11,6 +11,9 @@ build
 dist
 tempo.egg-info/*
 spark-warehouse/*
+htmlcov/*
+.coverage
+coverage.xml
 
 # other misc ignore
 .DS_Store
