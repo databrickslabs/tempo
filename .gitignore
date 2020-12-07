@@ -9,7 +9,11 @@ venv
 **/__pycache__
 build
 dist
-tempo.egg-info
+tempo.egg-info/*
+spark-warehouse/*
+htmlcov/*
+.coverage
+coverage.xml
 
 # other misc ignore
 .DS_Store

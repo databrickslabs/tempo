@@ -1,12 +1,25 @@
 # tempo - Time Series Utilities for Data Teams Using Databricks
 
+<p align="center">
+  <img src="tempo - light background.svg" width="300px"/>
+</p>
+
+
 ## Project Description
-The purpose of this project is to provide easier ways to perform machine learning experiments, ETL, and ad-hoc analytics on time series within Databricks using Apache Spark. This includes data parallel and model parallel use cases encountered across the field. 
+The purpose of this project is to make time series manipulation with Spark simpler. Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths, featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
+
+[![codecov](https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg)](https://codecov.io/gh/databrickslabs/tempo)
 
 ## Using the Project
 
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
-The entry point into all functionalities for time series analysis in tempo is a TSDF object which wraps the Spark data frame. In high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
+The entry point into all features for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
+
+#### Sample Reference Architecture for Capital Markets
+
+<p align="center">
+  <img src="ts_in_fs.png" width="700px"/>
+</p>
 
 #### 1. asofJoin - AS OF Join to Paste Latest AS OF Information onto Fact Table
 

@@ -17,6 +17,7 @@ class SparkTest(unittest.TestCase):
                       .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
                       .master("local") \
                       .getOrCreate())
+        self.spark.conf.set("spark.sql.shuffle.partitions", 1)
 
     def tearDown(self) -> None:
         self.spark.stop()
