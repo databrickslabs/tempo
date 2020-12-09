@@ -12,6 +12,18 @@ The purpose of this project is to make time series manipulation with Spark simpl
 
 ## Using the Project
 
+Install in Databricks notebooks using:
+
+```
+%pip install git+https://github.com/databrickslabs/tempo.git
+```
+
+Install locally using: 
+
+```
+pip install git+https://github.com/databrickslabs/tempo.git
+```
+
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
 The entry point into all features for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
 
