@@ -4,7 +4,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
-from tempo.tsdf import TSDF
+from python.tempo.tsdf import TSDF
 
 class SparkTest(unittest.TestCase):
     ##

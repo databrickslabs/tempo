@@ -1,7 +1,7 @@
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
-import tempo.resample as rs
-import tempo.io as tio
+import python.tempo.resample as rs
+import python.tempo.io as tio
 
 class TSDF:
 

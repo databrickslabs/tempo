@@ -1,6 +1,5 @@
 import pyspark.sql.functions as f
 #import tempo.tsdf as ts
-import tempo
 
 # define global frequency options
 SEC = 'sec'
@@ -40,7 +39,7 @@ def __appendAggKey(tsdf, freq = None):
         agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(' '), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lit('00'), f.lit(':'), f.lit('00')).cast("timestamp")
 
     df = df.withColumn("agg_key", agg_key)
-    return tempo.tsdf.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
+    return python.tempo.tsdf.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
 
 def aggregate(tsdf, freq, func, metricCols = None):
     """
@@ -77,7 +76,7 @@ def aggregate(tsdf, freq, func, metricCols = None):
         res = df.groupBy(groupingCols).agg(exprs)
 
     res = res.drop(tsdf.ts_col).withColumnRenamed('agg_key', tsdf.ts_col)
-    return(tempo.tsdf.TSDF(res, ts_col = tsdf.ts_col, partition_cols = tsdf.partitionCols))
+    return(python.tempo.tsdf.TSDF(res, ts_col = tsdf.ts_col, partition_cols = tsdf.partitionCols))
 
 
 def checkAllowableFreq(freq):
