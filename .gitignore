@@ -1,5 +1,9 @@
-# ignore PyCharm IDE files
+# ignore IntelliJ/PyCharm IDE files
 .idea
+*.iml
+
+# Scala related files
+scala/tempo/target
 
 ## Python related files
 
