@@ -10,9 +10,9 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<scala.binary.version>2.11</scala.binary.version>
-		<scala.version>${scala.binary.version}.12</scala.version>
-		<spark.version>2.4.5</spark.version>
+		<scala.binary.version>2.12</scala.binary.version>
+		<scala.version>${scala.binary.version}.10</scala.version>
+		<spark.version>3.0.1</spark.version>
 		<json4s.version>3.5.5</json4s.version>
 		<dependency.scope>provided</dependency.scope>
 	</properties>

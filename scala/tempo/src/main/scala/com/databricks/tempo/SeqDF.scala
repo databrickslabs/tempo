@@ -1,5 +1,7 @@
 package com.databricks.tempo
 
+import com.databricks.tempo.Alignments.Alignment
+import com.databricks.tempo.Orderings.{Ordering, RangeBased, RowBased}
 import org.apache.spark.ml.PipelineStage
 import org.apache.spark.ml.param.{Param, ParamMap, StringArrayParam}
 import org.apache.spark.ml.util.Identifiable
@@ -84,6 +86,15 @@ class SeqDF(sourceDF: DataFrame,
 		      partitionCols)
 
 	/**
+	 * @constructor Create a new instance of [[SeqDF]]
+	 * @param sourceDF the source [[DataFrame]]
+	 * @param sequenceCol a sequence column used to define ordering within partitions
+	 * @param partitionCols columns used to distingusih different sequence from one another
+	 */
+	def this(sourceDF: DataFrame, sequenceCol: String, partitionCols: Seq[String]) =
+		this(sourceDF, Seq(sequenceCol), partitionCols)
+
+	/**
 	 * Use the given column names to define a combined total ordering over the SeqDF
 	 * @param sequencingCols the columns, in order of decreasing precedence, over which to define a total ordering
 	 * @return a new SeqDF instance, with total ordering defined by the given columns in decreasing precedence
@@ -102,72 +113,41 @@ class SeqDF(sourceDF: DataFrame,
 	/** Window Builders */
 
 	/**
-	 * Construct a base window for this SeqDF
-	 * @return a window designed to operate on this SeqDF
-	 */
-	protected def baseWindow(): WindowSpec =
-	{
-		val w = Window.orderBy(totalOrderingCol)
-
-		// partition if needed
-		if( this.isPartitioned )
-			w.partitionBy(partitionCols.head, partitionCols.tail :_*)
-		else
-			w
-	}
-
-	/**
-	 * Construct a window for this SeqDF
+	 * Construct a window for this [[SeqDF]]
 	 * @param start start row for the window
 	 * @param end end row for the window
-	 * @return a window appropriate for applying functions to this SeqDF
+	 * @return a window appropriate for applying functions to this [[SeqDF]]
 	 */
 	def rowsBetweenWindow(start: Long, end: Long): WindowSpec =
 	{
+		// make sure our bounds make sense
 		assert(end > start)
-		baseWindow().rowsBetween(start, end)
+
+		// order by total ordering column
+		val w = Window.orderBy(totalOrderingCol)
+
+		// partition if needed
+		val baseWindow = if( this.isPartitioned )
+			                 w.partitionBy(partitionCols.head, partitionCols.tail :_*)
+		                 else
+			                 w
+		// apply rows between
+		baseWindow.rowsBetween(start, end)
 	}
 
 	/**
-	 * Construct a leading window for this SeqDF
+	 * Construct a window for this [[SeqDF]]
+	 * @param ordering the type of window ordering to use
+	 * @param alignment the type of window alignment to build
 	 * @param size the size (in number of sequential observations) of the window
 	 * @param includesNow whether the window should include the current observation
-	 * @return a window appropriate for calculating leading operations across this SeqDF
+	 * @return a window appropriate for calculating window operations across this [[SeqDF]]
 	 */
-	def leadingWindow(size: Long, includesNow: Boolean = false): WindowSpec =
-		if(includesNow) {
-			assert( size > 1 )
-			rowsBetweenWindow(Window.currentRow,(size-1))
-		} else {
-			assert( size > 0 )
-			rowsBetweenWindow(1,size)
-		}
-
-	/**
-	 * Construct a centered window for this SeqDF
-	 * @param size the size (in number of sequential observations) of the window
-	 * @return a window appropriate for calculating centered operations across this SeqDF
-	 */
-	def centeredWindow(size: Long): WindowSpec =
-	{
-		assert( size > 1 )
-		rowsBetweenWindow( -(0.5 * (size-1)).floor.toLong,
-		                   (0.5 * (size-1)).ceil.toLong )
-	}
-
-	/**
-	 * Construct a trailing window for this SeqDF
-	 * @param size the size (in number of sequential observations) of the window
-	 * @param includesNow whether the window should include the current observation
-	 * @return a window appropriate for calculating trailing operations across this SeqDF
-	 */
-	def trailingWindow(size: Long, includesNow: Boolean = false): WindowSpec =
-		if(includesNow) {
-			assert( size > 1 )
-			rowsBetweenWindow( -(size-1), Window.currentRow)
-		} else {
-			assert( size > 0 )
-			rowsBetweenWindow(-size, -1)
+	def window(ordering: Ordering, alignment: Alignment, size: Long, includesNow: Boolean = false): WindowSpec =
+		ordering match {
+			case RowBased => WindowHelpers.buildWindow(rowsBetweenWindow)(alignment,size,includesNow)
+			case RangeBased =>
+				throw new IllegalArgumentException(s"SeqDF does not suport Range Based DataFrames")
 		}
 }
 
@@ -217,8 +197,7 @@ class ToSeqDF(override val uid: String)
 	/**
 	 * @constructor create a new instance of the [[ToSeqDF]] Transformer
 	 */
-	def this() =
-		this(Identifiable.randomUID("ToSeqDF"))
+	def this() = this(Identifiable.randomUID("ToSeqDF"))
 
 	override def copy(extra: ParamMap): PipelineStage = defaultCopy(extra)
 
