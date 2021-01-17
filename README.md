@@ -35,6 +35,10 @@ The entry point into all features for time series analysis in tempo is a TSDF ob
 
 #### 1. asofJoin - AS OF Join to Paste Latest AS OF Information onto Fact Table
 
+<p align="center">
+  <img src="AS_OF_Join.png" width="700px"/>
+</p>
+
 ##### This join uses windowing in order to select the latest record from a source table and merges this onto the base Fact table
 
 Parameters: 
