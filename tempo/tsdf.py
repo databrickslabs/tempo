@@ -70,11 +70,8 @@ class TSDF:
 
     try:
         dbutils.fs.ls("/")
-        display(full_smry)
         return(full_smry)
     except:
-        print('Running in local mode')
-        full_smry.show(100, False)
         return(full_smry)
         pass
 
