@@ -1,7 +1,0 @@
-[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:30:23: type mismatch;
-[error]  found   : org.apache.spark.sql.Dataset[Long]
-[error]  required: org.apache.spark.sql.DataFrame
-[error]     (which expands to)  org.apache.spark.sql.Dataset[org.apache.spark.sql.Row]
-[error]     val p1 = new tsdf(my_df, "event_ts")
-[error]                       ^
-[error] one error found
