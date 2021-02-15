@@ -1,0 +1,44 @@
+[debug] > Exec(__runWatch console0, Some(02182393-9da7-40fe-8d70-ed0edf9b9fff), Some(CommandSource(console0)))
+[debug] > Exec(sbtStashOnFailure, None, Some(CommandSource(console0)))
+[debug] > Exec(__preWatch console0, None, Some(CommandSource(console0)))
+[debug] > Exec(run, None, Some(CommandSource(console0)))
+[debug] Evaluating tasks: Compile / run
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[info] compiling 1 Scala source to /Users/rportilla/Downloads/ts/tempo/scala/tempo/target/scala-2.12/classes ...
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:3:12: object apache is not a member of package org
+[error] import org.apache.spark.sql.DataFrame
+[error]            ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:6:12: not found: type DataFrame
+[error]   def df : DataFrame
+[error]            ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:7:16: not found: type string
+[error]   def ts_col : string = "event_ts"
+[error]                ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:8:38: not found: value isEqual
+[error]   def isNotEqual(x: Any): Boolean = !isEqual(x)
+[error]                                      ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:11:38: not found: type Equal
+[error] class tsdf(xc: Int, yc: Int) extends Equal {
+[error]                                      ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:15:44: not found: type Point
+[error]   def isEqual(obj: Any) = obj.isInstanceOf[Point] && obj.asInstanceOf[Point].x == y
+[error]                                            ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:15:71: not found: type Point
+[error]   def isEqual(obj: Any) = obj.isInstanceOf[Point] && obj.asInstanceOf[Point].x == y
+[error]                                                                       ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:20:18: not found: type Point
+[error]     val p1 = new Point(2, 3)
+[error]                  ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:21:18: not found: type Point
+[error]     val p2 = new Point(2, 4)
+[error]                  ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:22:18: not found: type Point
+[error]     val p3 = new Point(3, 3)
+[error]                  ^
+[error] 10 errors found
+[error] (Compile / compileIncremental) Compilation failed
+[error] Total time: 1 s, completed Feb 2, 2021 11:13:29 PM
+[debug] > Exec(resumeFromFailure, None, Some(CommandSource(console0)))
+[debug] > Exec(sbtPopOnFailure, None, Some(CommandSource(console0)))
+[debug] > Exec(__postWatch console0, None, Some(CommandSource(console0)))
+[debug] > Exec(__waitWatch console0, None, Some(CommandSource(console0)))

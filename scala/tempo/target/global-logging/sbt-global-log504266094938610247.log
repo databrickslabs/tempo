@@ -1,0 +1,154 @@
+[debug] > Exec(early(addDefaultCommands), None, None)
+[debug] > Exec(addDefaultCommands, None, None)
+[debug] > Exec(early(initialize), None, None)
+[debug] > Exec(initialize, None, None)
+[debug] > Exec(boot, None, None)
+[debug] > Exec(writeSbtVersion, None, None)
+[debug] > Exec(reload, None, None)
+[debug] > Exec(sbtStashOnFailure, None, None)
+[debug] > Exec(onFailure loadFailed, None, None)
+[debug] > Exec(loadp, None, None)
+[info] welcome to sbt 1.4.7 (Oracle Corporation Java 1.8.0_181)
+[debug]       Load.loadUnit: plugins took 103.030078ms
+[debug]       Load.loadUnit: defsScala took 0.583052ms
+[debug] [Loading] Scanning directory /Users/rportilla/.sbt/1.0/plugins
+[debug]         Load.loadUnit: mkEval took 10.374054ms
+[debug] [Loading] Found non-root projects 
+[debug] [Loading] Done in /Users/rportilla/.sbt/1.0/plugins, returning: ()
+[debug] deducing auto plugins based on known facts Set(Atom(sbt.plugins.CorePlugin)) and clauses Clauses(List(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin))), Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin)))))
+[debug]   :: deduced result: Matched(sbt.plugins.CorePlugin,sbt.plugins.Giter8TemplatePlugin,sbt.plugins.IvyPlugin,sbt.plugins.JvmPlugin,sbt.plugins.MiniDependencyTreePlugin,sbt.plugins.JUnitXmlReportPlugin,sbt.plugins.SemanticdbPlugin)
+[debug] Plugins.deducer#function took 27.228697 ms
+[info] loading settings for project global-plugins from idea.sbt ...
+[debug]           Load.resolveProject(global-plugins) took 62.067838ms
+[debug]         Load.loadTransitive: finalizeProject(Project(id global-plugins, base: /Users/rportilla/.sbt/1.0/plugins, plugins: List(<none>))) took 123.893847ms
+[debug] [Loading] Done in /Users/rportilla/.sbt/1.0/plugins, returning: (global-plugins)
+[debug]       Load.loadUnit: loadedProjectsRaw took 403.552975ms
+[debug]       Load.loadUnit: cleanEvalClasses took 8.596831ms
+[debug]     Load.loadUnit(file:/Users/rportilla/.sbt/1.0/plugins/, ...) took 527.062199ms
+[debug]   Load.apply: load took 759.574461ms
+[debug]   Load.apply: resolveProjects took 9.462169ms
+[debug]   Load.apply: finalTransforms took 73.512484ms
+[debug]   Load.apply: config.delegates took 9.947429ms
+[debug]   Load.apply: Def.make(settings)... took 424.886731ms
+[debug]   Load.apply: structureIndex took 99.984653ms
+[debug]   Load.apply: mkStreams took 1.75563ms
+[info] loading global plugins from /Users/rportilla/.sbt/1.0/plugins
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[debug] Load.defaultLoad until apply took 3114.556068ms
+[debug]           Load.loadUnit: plugins took 14.004664ms
+[debug]           Load.loadUnit: defsScala took 0.004132ms
+[debug] [Loading] Scanning directory /Users/rportilla/Downloads/ts/tempo/scala/tempo/project
+[debug] [Loading] Found non-root projects 
+[debug] [Loading] Done in /Users/rportilla/Downloads/ts/tempo/scala/tempo/project, returning: ()
+[debug] deducing auto plugins based on known facts Set(Atom(sbt.plugins.CorePlugin)) and clauses Clauses(List(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin))), Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin)))))
+[debug]   :: deduced result: Matched(sbt.plugins.CorePlugin,sbt.plugins.Giter8TemplatePlugin,sbt.plugins.IvyPlugin,sbt.plugins.JvmPlugin,sbt.plugins.MiniDependencyTreePlugin,sbt.plugins.JUnitXmlReportPlugin,sbt.plugins.SemanticdbPlugin)
+[debug] Plugins.deducer#function took 1.680477 ms
+[debug]               Load.resolveProject(tempo-build) took 1.044772ms
+[debug]             Load.loadTransitive: finalizeProject(Project(id tempo-build, base: /Users/rportilla/Downloads/ts/tempo/scala/tempo/project, plugins: List(<none>))) took 3.25048ms
+[debug] [Loading] Done in /Users/rportilla/Downloads/ts/tempo/scala/tempo/project, returning: (tempo-build)
+[debug]           Load.loadUnit: loadedProjectsRaw took 4.794943ms
+[debug]           Load.loadUnit: cleanEvalClasses took 0.017781ms
+[debug]         Load.loadUnit(file:/Users/rportilla/Downloads/ts/tempo/scala/tempo/project/, ...) took 19.529947ms
+[debug]       Load.apply: load took 20.59781ms
+[debug]       Load.apply: resolveProjects took 0.111805ms
+[debug]       Load.apply: finalTransforms took 9.886005ms
+[debug]       Load.apply: config.delegates took 0.471535ms
+[debug]       Load.apply: Def.make(settings)... took 71.442832ms
+[debug]       Load.apply: structureIndex took 26.515342ms
+[debug]       Load.apply: mkStreams took 0.002778ms
+[info] loading project definition from /Users/rportilla/Downloads/ts/tempo/scala/tempo/project
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[debug]     Load.loadUnit: plugins took 268.351214ms
+[debug]     Load.loadUnit: defsScala took 0.003499ms
+[debug] [Loading] Scanning directory /Users/rportilla/Downloads/ts/tempo/scala/tempo
+[debug]       Load.loadUnit: mkEval took 0.205888ms
+[debug] [Loading] Found non-root projects 
+[debug] [Loading] Done in /Users/rportilla/Downloads/ts/tempo/scala/tempo, returning: ()
+[debug] deducing auto plugins based on known facts Set(Atom(sbt.plugins.CorePlugin)) and clauses Clauses(List(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin))), Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin))), Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin))), Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin))), Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin)))))
+[debug]   :: deduced result: Matched(sbt.plugins.CorePlugin,sbt.plugins.Giter8TemplatePlugin,sbt.plugins.IvyPlugin,sbt.plugins.JvmPlugin,sbt.plugins.MiniDependencyTreePlugin,sbt.plugins.JUnitXmlReportPlugin,sbt.plugins.SemanticdbPlugin)
+[debug] Plugins.deducer#function took 1.909073 ms
+[info] loading settings for project tempo from build.sbt ...
+[debug]         Load.resolveProject(tempo) took 1.797844ms
+[debug]       Load.loadTransitive: finalizeProject(Project(id tempo, base: /Users/rportilla/Downloads/ts/tempo/scala/tempo, plugins: List(<none>))) took 4.388122ms
+[debug] [Loading] Done in /Users/rportilla/Downloads/ts/tempo/scala/tempo, returning: (tempo)
+[debug]     Load.loadUnit: loadedProjectsRaw took 1799.742895ms
+[debug]     Load.loadUnit: cleanEvalClasses took 2.681151ms
+[debug]   Load.loadUnit(file:/Users/rportilla/Downloads/ts/tempo/scala/tempo/, ...) took 2071.501284ms
+[debug] Load.apply: load took 2073.307978ms
+[debug] Load.apply: resolveProjects took 0.121026ms
+[debug] Load.apply: finalTransforms took 8.45796ms
+[debug] Load.apply: config.delegates took 0.502831ms
+[debug] Load.apply: Def.make(settings)... took 92.663956ms
+[debug] Load.apply: structureIndex took 24.317043ms
+[debug] Load.apply: mkStreams took 0.004814ms
+[info] set current project to tempo (in build file:/Users/rportilla/Downloads/ts/tempo/scala/tempo/)
+[debug] > Exec(sbtPopOnFailure, None, None)
+[debug] > Exec(resumeFromFailure, None, None)
+[debug] > Exec(notifyUsersAboutShell, None, None)
+[debug] > Exec(iflast shell, None, None)
+[debug] > Exec(~run, None, None)
+[info] sbt server started at local:///Users/rportilla/.sbt/1.0/server/c8850a25b6c08bdee945/sock
+[info] started sbt server
+[debug] > Exec(__runWatch console0, None, None)
+[debug] > Exec(sbtStashOnFailure, None, None)
+[debug] > Exec(__preWatch console0, None, None)
+[debug] > Exec(run, None, None)
+[debug] Evaluating tasks: Compile / run
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[warn] 
+[warn] 	Note: Unresolved dependencies path:
+[error] sbt.librarymanagement.ResolveException: Error downloading org.apache.spark:spark-core_2.12:2.1.1
+[error]   Not found
+[error]   Not found
+[error]   not found: /Users/rportilla/.ivy2/localorg.apache.spark/spark-core_2.12/2.1.1/ivys/ivy.xml
+[error]   not found: https://repo1.maven.org/maven2/org/apache/spark/spark-core_2.12/2.1.1/spark-core_2.12-2.1.1.pom
+[error] Error downloading org.apache.spark:spark-sql_2.12:2.1.1
+[error]   Not found
+[error]   Not found
+[error]   not found: /Users/rportilla/.ivy2/localorg.apache.spark/spark-sql_2.12/2.1.1/ivys/ivy.xml
+[error]   not found: https://repo1.maven.org/maven2/org/apache/spark/spark-sql_2.12/2.1.1/spark-sql_2.12-2.1.1.pom
+[error] 	at lmcoursier.CoursierDependencyResolution.unresolvedWarningOrThrow(CoursierDependencyResolution.scala:258)
+[error] 	at lmcoursier.CoursierDependencyResolution.$anonfun$update$38(CoursierDependencyResolution.scala:227)
+[error] 	at scala.util.Either$LeftProjection.map(Either.scala:573)
+[error] 	at lmcoursier.CoursierDependencyResolution.update(CoursierDependencyResolution.scala:227)
+[error] 	at sbt.librarymanagement.DependencyResolution.update(DependencyResolution.scala:60)
+[error] 	at sbt.internal.LibraryManagement$.resolve$1(LibraryManagement.scala:53)
+[error] 	at sbt.internal.LibraryManagement$.$anonfun$cachedUpdate$12(LibraryManagement.scala:103)
+[error] 	at sbt.util.Tracked$.$anonfun$lastOutput$1(Tracked.scala:73)
+[error] 	at sbt.internal.LibraryManagement$.$anonfun$cachedUpdate$20(LibraryManagement.scala:116)
+[error] 	at scala.util.control.Exception$Catch.apply(Exception.scala:228)
+[error] 	at sbt.internal.LibraryManagement$.$anonfun$cachedUpdate$11(LibraryManagement.scala:116)
+[error] 	at sbt.internal.LibraryManagement$.$anonfun$cachedUpdate$11$adapted(LibraryManagement.scala:97)
+[error] 	at sbt.util.Tracked$.$anonfun$inputChangedW$1(Tracked.scala:219)
+[error] 	at sbt.internal.LibraryManagement$.cachedUpdate(LibraryManagement.scala:130)
+[error] 	at sbt.Classpaths$.$anonfun$updateTask0$5(Defaults.scala:3486)
+[error] 	at scala.Function1.$anonfun$compose$1(Function1.scala:49)
+[error] 	at sbt.internal.util.$tilde$greater.$anonfun$$u2219$1(TypeFunctions.scala:62)
+[error] 	at sbt.std.Transform$$anon$4.work(Transform.scala:68)
+[error] 	at sbt.Execute.$anonfun$submit$2(Execute.scala:282)
+[error] 	at sbt.internal.util.ErrorHandling$.wideConvert(ErrorHandling.scala:23)
+[error] 	at sbt.Execute.work(Execute.scala:291)
+[error] 	at sbt.Execute.$anonfun$submit$1(Execute.scala:282)
+[error] 	at sbt.ConcurrentRestrictions$$anon$4.$anonfun$submitValid$1(ConcurrentRestrictions.scala:265)
+[error] 	at sbt.CompletionService$$anon$2.call(CompletionService.scala:64)
+[error] 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+[error] 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+[error] 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+[error] 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+[error] 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+[error] 	at java.lang.Thread.run(Thread.java:748)
+[error] (update) sbt.librarymanagement.ResolveException: Error downloading org.apache.spark:spark-core_2.12:2.1.1
+[error]   Not found
+[error]   Not found
+[error]   not found: /Users/rportilla/.ivy2/localorg.apache.spark/spark-core_2.12/2.1.1/ivys/ivy.xml
+[error]   not found: https://repo1.maven.org/maven2/org/apache/spark/spark-core_2.12/2.1.1/spark-core_2.12-2.1.1.pom
+[error] Error downloading org.apache.spark:spark-sql_2.12:2.1.1
+[error]   Not found
+[error]   Not found
+[error]   not found: /Users/rportilla/.ivy2/localorg.apache.spark/spark-sql_2.12/2.1.1/ivys/ivy.xml
+[error]   not found: https://repo1.maven.org/maven2/org/apache/spark/spark-sql_2.12/2.1.1/spark-sql_2.12-2.1.1.pom
+[error] Total time: 2 s, completed Feb 3, 2021 12:11:48 AM
+[debug] > Exec(resumeFromFailure, None, None)
+[debug] > Exec(sbtPopOnFailure, None, None)
+[debug] > Exec(__postWatch console0, None, None)
+[debug] > Exec(__waitWatch console0, None, None)

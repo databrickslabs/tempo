@@ -1,0 +1,7 @@
+[debug] Created transactional ClassFileManager with tempDir = /Users/rportilla/Downloads/ts/tempo/scala/tempo/target/scala-2.12/classes.bak
+[debug] About to delete class files:
+[debug] We backup class files:
+[debug] Rolling back changes to class files.
+[debug] Removing generated classes:
+[debug] Restoring class files: 
+[debug] Removing the temporary directory used for backing up class files: /Users/rportilla/Downloads/ts/tempo/scala/tempo/target/scala-2.12/classes.bak

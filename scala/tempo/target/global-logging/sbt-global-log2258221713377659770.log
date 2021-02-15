@@ -1,0 +1,21 @@
+[debug] > Exec(__runWatch console0, Some(23c18281-724b-40b7-8d36-af90e15c0ea5), Some(CommandSource(console0)))
+[debug] > Exec(sbtStashOnFailure, None, Some(CommandSource(console0)))
+[debug] > Exec(__preWatch console0, None, Some(CommandSource(console0)))
+[debug] > Exec(run, None, Some(CommandSource(console0)))
+[debug] Evaluating tasks: Compile / run
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[info] compiling 1 Scala source to /Users/rportilla/Downloads/ts/tempo/scala/tempo/target/scala-2.12/classes ...
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:21:16: not found: value spark
+[error]     val my_df= spark.range(10)
+[error]                ^
+[error] /Users/rportilla/Downloads/ts/tempo/scala/tempo/src/main/scala/com/databrickslabs/tempo/Demo.scala:22:14: not enough arguments for constructor tsdf: (df: org.apache.spark.sql.DataFrame, ts: String)com.databrickslabs.tempo.tsdf.
+[error] Unspecified value parameter ts.
+[error]     val p1 = new tsdf(my_df)
+[error]              ^
+[error] two errors found
+[error] (Compile / compileIncremental) Compilation failed
+[error] Total time: 0 s, completed Feb 3, 2021 12:16:58 AM
+[debug] > Exec(resumeFromFailure, None, Some(CommandSource(console0)))
+[debug] > Exec(sbtPopOnFailure, None, Some(CommandSource(console0)))
+[debug] > Exec(__postWatch console0, None, Some(CommandSource(console0)))
+[debug] > Exec(__waitWatch console0, None, Some(CommandSource(console0)))
