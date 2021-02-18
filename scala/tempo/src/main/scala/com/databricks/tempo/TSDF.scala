@@ -52,6 +52,8 @@ sealed trait TSDF
 
 	// transformation functions
 
+	def asofJoin(rightTSDF : TSDF) : TSDF
+
 	/**
 	 * Add or modify partition columns
 	 * @param partitionCols the names of columns used to partition the SeqDF
@@ -263,6 +265,10 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	 */
 	def windowOverRange(length: Long, offset: Long): WindowSpec =
 		windowBetweenRange(offset, (offset + length - 1))
+
+	def asofJoin(rightTSDF : TSDF) : TSDF = {
+      rightTSDF
+	}
 }
 
 /**
@@ -352,4 +358,13 @@ object TSDF
 	          orderingColumns: Seq[String],
 	          partitionColumns: String* ): TSDF =
 		apply( df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionColumns :_* )
+}
+
+
+object programExecute {
+	def main(args: Array[String]): Unit = {
+
+		println("Hello from main of class")
+
+	}
 }
