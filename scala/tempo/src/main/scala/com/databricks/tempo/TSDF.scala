@@ -1,219 +1,313 @@
 package com.databricks.tempo
 
-import com.databricks.tempo.Alignments.Alignment
-import com.databricks.tempo.Orderings.{Ordering, RangeBased, RowBased}
-import org.apache.spark.ml.PipelineStage
-import org.apache.spark.ml.param.{Param, ParamMap, StringArrayParam}
-import org.apache.spark.ml.util.Identifiable
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
-import org.apache.spark.sql.types._
-
-import java.time.temporal.{ChronoUnit, TemporalAmount, TemporalUnit}
-import java.time.{Duration, Period}
-import scala.reflect.runtime.universe.TypeTag
+import org.apache.spark.sql.types.{ByteType, DataType, DateType, IntegerType, LongType, NumericType, ShortType, StructField, StructType, TimestampType}
 
 /**
- * TSDF: the Timeseries DataFrame
- *
- * @constructor creates a new instance of [[TSDF]]
- * @param df the source [[DataFrame]]
- * @param tsCol the name of the timeseries column
- * @param partitionCols columns used to distinguish different sequences from one another
- * @tparam T type of the timeseries column
- * @tparam D type of the sampling period
+ * The timeseries DataFrame
  */
-sealed abstract class TSDF[T <: DataType, D <: TemporalAmount](override val df: DataFrame,
-                                                               val tsCol: String,
-                                                               override val partitionCols: Seq[String] )
-                                                              (implicit val tt: TypeTag[T], implicit val dt: TypeTag[D])
-  extends SeqDF(df, tsCol, partitionCols)
+sealed trait TSDF
 {
-  /** Validate the timeseries column */
-  SeqDF.columnValidator(df.schema)("timeseries",TSDF.tsColTypes)(tsCol)
+	// core backing values
 
-  /**
-   * The base unit of this [[TSDF]]
-   */
-  val base: TemporalUnit
+	/**
+	 * The [[DataFrame]] backing this [[TSDF]]
+	 */
+	val df: DataFrame
 
-  /**
-   * Converts an amount of time as defined in terms of the parameter [[D]]
-   * to a value in terms of the timeseries column type [[T]]
-   * @param amount the amount of time to convert
-   * @return the corresponding value in the units of the timeseries column
-   */
-  protected def timeInBaseUnits(amount: D): Long = amount.get(base)
+	/**
+	 * The timeseries index column
+	 */
+	val tsColumn: StructField
 
-  /**
-   * Construct a window for this [[TSDF]]
-   * @param start starting bound for the window range
-   * @param end ending boutnd for the window range
-   * @return a window appropriate for applying functions to this [[TSDF]]
-   */
-  protected def rangeBetweenBaseWindow(start: Long, end: Long): WindowSpec =
-  {
-    // make sure our bounds make sense
-    assert(end > start)
+	/**
+	 * Partitioning columns (used to separate one logical timeseries from another)
+	 */
+	val partitionColumns: Array[StructField]
 
-    // order by total timestamp as a Long column
-    val w = Window.orderBy(df(tsCol).cast(LongType))
+	// derived attributes
 
-    // partition if needed
-    val baseWindow = if( this.isPartitioned )
-                       w.partitionBy(partitionCols.head, partitionCols.tail :_*)
-                     else
-                       w
-    // apply rows between
-    baseWindow.rowsBetween(start, end)
-  }
+	/**
+	 * Is this [[TSDF]] partitioned?
+	 */
+	val isPartitioned: Boolean
 
-  /**
-   * Construct a window for this [[TSDF]]
-   * @param ordering the type of window ordering to use
-   * @param alignment the type of window alignment to build
-   * @param size the size of the window
-   * @param includesNow whether the window should include the current observation
-   * @return a window appropriate for calculating window operations across this [[TSDF]]
-   */
-  override def window(ordering: Ordering, alignment: Alignment, size: Long, includesNow: Boolean): WindowSpec =
-    ordering match {
-      case RowBased => WindowHelpers.buildWindow(rowsBetweenWindow)(alignment,size,includesNow)
-      case RangeBased => WindowHelpers.buildWindow(rangeBetweenBaseWindow)(alignment,size,includesNow)
-    }
+	/**
+	 * Columns that define the structure of the [[TSDF]].
+	 * These should be protected from arbitrary modification.
+	 */
+	val structuralColumns: Array[StructField]
 
-  /**
-   * Construct a window for this [[TSDF]]
-   * @param ordering the type of window ordering to use
-   * @param alignment the type of window alignment to build
-   * @param size the size of the window
-   * @param includesNow whether the window should include the current observation
-   * @return a window appropriate for calculating window operations across this [[TSDF]]
-   */
-  def window(ordering: Ordering, alignment: Alignment, size: D, includesNow: Boolean): WindowSpec =
-    window(ordering, alignment, timeInBaseUnits(size), includesNow)
+	/**
+	 * Observation columns
+	 */
+	val observationColumns: Seq[StructField]
+
+	/**
+	 * Measure columns (numeric observations)
+	 */
+	val measureColumns: Seq[StructField]
+
+	// transformation functions
+
+	/**
+	 * Add or modify partition columns
+	 * @param partitionCols the names of columns used to partition the SeqDF
+	 * @return a new SeqDF instance, partitioned according to the given columns
+	 */
+	def partitionedBy(partitionCols: String*): TSDF
+
+	def select(cols: Column*): TSDF
+
+	def select(col: String, cols: String*): TSDF
+
+	def selectExpr(exprs: String*): TSDF
+
+	def filter(condition: Column): TSDF
+
+	def filter(conditionExpr: String): TSDF
+
+	def where(condition: Column): TSDF
+
+	def where(conditionExpr: String): TSDF
+
+	def limit(n: Int): TSDF
+
+	def union(other: TSDF): TSDF
+
+	def unionAll(other: TSDF): TSDF
+
+	def withColumn(colName: String, col: Column): TSDF
+
+	def withColumnRenamed(existingName: String, newName: String): TSDF
+
+	def drop(colName: String): TSDF
+
+	def drop(colNames: String*): TSDF
+
+	def drop(col: Column): TSDF
+
+	// window builder functions
+
+	/**
+	 * Construct a base window for this [[TDSF]]
+	 * @return a base [[WindowSpec]] from which other windows can be constructed
+	 */
+	protected def baseWindow(): WindowSpec
+
+	/**
+	 * Construct a row-based window for this [[TSDF]]
+	 * @param start start row for the window
+	 * @param end end row for the window
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	def windowBetweenRows(start: Long, end: Long): WindowSpec
+
+	/**
+	 * Construct a row-based window for this [[TSDF]]
+	 * @param length length in rows of the window
+	 * @param offset offset of the window from the current row
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	def windowOverRows(length: Long, offset: Long = Window.currentRow): WindowSpec
+
+	/**
+	 * Construct a range-based window for this [[TSDF]]
+	 * @param start start value for the window
+	 * @param end end value for the window
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	def windowBetweenRange(start: Long, end: Long): WindowSpec
+
+	/**
+	 * Construct a range-based window for this [[TSDF]]
+	 * @param length length of the window
+	 * @param offset offset of the window from the current
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	def windowOverRange(length: Long, offset: Long = Window.currentRow): WindowSpec
 }
 
 /**
- *
- * @param df the source [[DataFrame]]
- * @param tsCol the name of the timeseries column
- * @param partitionCols columns used to distinguish different sequences from one another
+ * Core implementation of [[TSDF]]
+ * @param df source [[DataFrame]]
+ * @param tsColumn timeseries column
+ * @param partitionColumns partitioning columns
  */
-class TimestampDF(override val df: DataFrame,
-                  override val tsCol: String,
-                  override val partitionCols: Seq[String] )
-  extends TSDF[TimestampType,Duration](df, tsCol, partitionCols)
+private[tempo] sealed class BaseTSDF(val df: DataFrame,
+                                     val tsColumn: StructField,
+                                     val partitionColumns: Array[StructField] = Array() )
+	extends TSDF
 {
-  /**
-   * The base unit of this [[TSDF]]
-   */
-  override val base: TemporalUnit = ChronoUnit.SECONDS
+	// Validate the arguments
+	assert( df.schema.contains(tsColumn),
+	        s"The given DataFrame does not contain the given timeseries column ${tsColumn.name}!")
+	assert( TSDF.validTSColumnTypes.contains(tsColumn.dataType),
+	        s"The given timeseries column ${tsColumn.name} is of a type (${tsColumn.dataType}) that cannot be used as an index!")
+
+	partitionColumns.foreach( pCol => assert( df.schema.contains(pCol),
+	                                          s"The given DataFrame does not contain the given partition column ${pCol.name}!" ))
+
+	// Define some other values
+
+	/**
+	 * Is this [[TSDF]] partitioned?
+	 */
+	override val isPartitioned: Boolean = partitionColumns.nonEmpty
+
+	/**
+	 * Columns that define the structure of the [[TSDF]].
+	 * These should be protected from arbitrary modification.
+	 */
+	override val structuralColumns: Array[StructField] = Array(tsColumn) ++ partitionColumns
+
+	/**
+	 * Observation columns
+	 */
+	override val observationColumns: Seq[StructField] =
+		df.schema.filter( structuralColumns.contains(_) )
+
+	/**
+	 * Measure columns (numeric observations)
+	 */
+	override val measureColumns: Seq[StructField] =
+		observationColumns.filter(_.dataType.isInstanceOf[NumericType])
+
+	// Transformations
+
+	/**
+	 * Add or modify partition columns
+	 *
+	 * @param partitionCols the names of columns used to partition the SeqDF
+	 * @return a new SeqDF instance, partitioned according to the given columns
+	 */
+	override def partitionedBy(partitionCols: String*): TSDF =
+		TSDF(df, tsColumn.name, partitionCols :_*)
+
+	override def select(cols: Column*): TSDF = ???
+	override def select(col: String,
+	                    cols: String*): TSDF = ???
+	override def selectExpr(exprs: String*): TSDF = ???
+	override def filter(condition: Column): TSDF = ???
+	override def filter(conditionExpr: String): TSDF = ???
+	override def where(condition: Column): TSDF = ???
+	override def where(conditionExpr: String): TSDF = ???
+	override def limit(n: Int): TSDF = ???
+	override def union(other: TSDF): TSDF = ???
+	override def unionAll(other: TSDF): TSDF = ???
+	override def withColumn(colName: String,
+	                        col: Column): TSDF = ???
+	override def withColumnRenamed(existingName: String,
+	                               newName: String): TSDF = ???
+	override def drop(colName: String): TSDF = ???
+	override def drop(colNames: String*): TSDF = ???
+	override def drop(col: Column): TSDF = ???
+
+	// Window builder functions
+
+	/**
+	 * Construct a base window for this [[TDSF]]
+	 *
+	 * @return a base [[WindowSpec]] from which other windows can be constructed
+	 */
+	override protected def baseWindow(): WindowSpec =
+	{
+		// order by total ordering column
+		val w = Window.orderBy(tsColumn.name)
+
+		// partition if needed
+		if( this.isPartitioned )
+			w.partitionBy(partitionColumns.head.name, partitionColumns.tail.map(_.name) :_*)
+		else
+			w
+	}
+
+	/**
+	 * Construct a row-based window for this [[TSDF]]
+	 *
+	 * @param start start row for the window
+	 * @param end   end row for the window
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	override def windowBetweenRows(start: Long, end: Long): WindowSpec =
+		baseWindow().rowsBetween(start, end)
+
+	/**
+	 * Construct a range-based window for this [[TSDF]]
+	 *
+	 * @param start start value for the window
+	 * @param end   end value for the window
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	override def windowBetweenRange(start: Long, end: Long): WindowSpec =
+		baseWindow().rangeBetween(start, end)
+
+	/**
+	 * Construct a row-based window for this [[TSDF]]
+	 *
+	 * @param length length in rows of the window
+	 * @param offset offset of the window from the current row
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	override def windowOverRows(length: Long, offset: Long): WindowSpec =
+		windowBetweenRows(offset, (offset + length - 1))
+
+	/**
+	 * Construct a range-based window for this [[TSDF]]
+	 *
+	 * @param length length of the window
+	 * @param offset offset of the window from the current
+	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
+	 */
+	override def windowOverRange(length: Long, offset: Long): WindowSpec =
+		windowBetweenRange(offset, (offset + length - 1))
 }
 
 /**
- *
- * @param df the source [[DataFrame]]
- * @param tsCol the name of the timeseries column
- * @param partitionCols columns used to distinguish different sequences from one another
+ * [[TSDF]] companion object - contains static constructors
  */
-class DateDF(override val df: DataFrame,
-             override val tsCol: String,
-             override val partitionCols: Seq[String] )
-  extends TSDF[DateType,Period](df, tsCol, partitionCols)
-{
-  /**
-   * The base unit of this [[TSDF]]
-   */
-  override val base: TemporalUnit = ChronoUnit.DAYS
-}
-
 object TSDF
 {
-  /**
-   * Valid timestamp column types
-   */
-  final val tsColTypes = Seq( TimestampType, DateType )
+	// Utility functions
 
-  /**
-   * Helper constructor
-   * @param df
-   * @param tsColName
-   * @param partitionCols
-   * @return
-   */
-  def apply(df: DataFrame, tsColName: String, partitionCols: Seq[String]): TSDF[_,_] =
-    df.schema.fields.find(_.name.toLowerCase == tsColName.toLowerCase) match {
-      case Some(tsCol) => tsCol.dataType match {
-        case TimestampType => new TimestampDF(df, tsColName, partitionCols)
-        case DateType => new DateDF(df, tsColName, partitionCols)
-        case colType =>
-          throw new IllegalArgumentException(s"Column $tsColName is of type $colType, which cannot be used as a timeseries index!")
-      }
-      case None => throw new IllegalArgumentException(s"No column named $tsColName exists in the given DataFrame!")
-    }
-}
+	/**
+	 * Valid timestamp column types
+	 */
+	final val validTSColumnTypes = Seq[DataType](ByteType,
+	                                             ShortType,
+	                                             IntegerType,
+	                                             LongType,
+	                                             TimestampType,
+	                                             DateType)
 
-/**
- * Transformer to convert a [[DataFrame]] to a [[TSDF]]
- * @param uid
- */
-class ToTSDF(override val uid: String)
-  extends PipelineStage
-{
-  /**
-   * @constructor create a new instance of the [[ToTSDF]] Transformer
-   */
-  def this() = this(Identifiable.randomUID("ToTSDF"))
+	/**
+	 * Retrieve a column by name from the dataframe by name
+	 * @param df the [[DataFrame]] with the column
+	 * @param colName the name of the column
+	 * @return the named column of the [[DataFrame]], if it exists,
+	 *         otherwise a [[NoSuchElementException]] is thrown
+	 */
+	private def colByName(df: DataFrame)(colName: String): StructField =
+		df.schema.find(_.name.toLowerCase() == colName.toLowerCase()).get
 
-  override def copy(extra: ParamMap): ToTSDF = defaultCopy(extra)
+	// TSDF Constructors
 
-  /** Params */
+	/**
+	 * @constructor
+	 * @param df the source [[DataFrame]]
+	 * @param tsColumnName the name of the timeseries column
+	 * @param partitionColumnNames the names of the paritioning columns
+	 * @return a [[TSDF]] object
+	 */
+	def apply( df: DataFrame,
+	           tsColumnName: String,
+	           partitionColumnNames: String* ): TSDF =
+	{
+		val colFinder = colByName(df) _
+		val tsColumn = colFinder(tsColumnName)
+		val partitionColumns = partitionColumnNames.map(colFinder).toArray
 
-  /** @group param */
-  final val tsColName: Param[String] = new Param[String](this, "tsColName", "Name of the timeseries index column")
-  setDefault(tsColName, "event_ts")
-
-  /** @group param */
-  final val partitionColNames: StringArrayParam =
-    new StringArrayParam(this,
-                         "partitionColNames",
-                         "Names of the partitioning columns")
-
-  /** @group getParam */
-  final def getTsColName: String = $(tsColName)
-
-  /** @group getParam */
-  final def getPartitionColNames: Array[String] = $(partitionColNames)
-
-  /** @group setParam */
-  final def setTsColName(value: String): ToTSDF =
-    set(tsColName, value)
-
-  /** @group setParam */
-  final def setPartitionColNames(values: Array[String]): ToTSDF =
-    set(partitionColNames, values)
-
-  /** Transform */
-
-  override def transformSchema(schema: StructType): StructType =
-  {
-    // make sure the timeseries column exists and is of the right type
-    val tsCol = schema.find(_.name.toLowerCase == $(tsColName).toLowerCase)
-    assert( tsCol.isDefined, s"The given timeseries column ${$(tsColName)} does not exist in this DataFrame!" )
-    assert( TSDF.tsColTypes.contains(tsCol.get.dataType),
-            s"The given timeseries column ${$(tsColName)} of type ${tsCol.get.dataType} cannot be used as a temporal index!" )
-
-    // validate the partition columns
-    $(partitionColNames).foreach( pCol => assert(schema.fieldNames
-                                                       .map(_.toLowerCase)
-                                                       .contains(pCol.toLowerCase),
-                                                 s"The partition column ${pCol} does not exist in this DataFrame!" ) )
-
-    // all good - return the schema unchanged
-    schema
-  }
-
-  def transform(df: DataFrame): TSDF[_,_] =
-    TSDF(df, $(tsColName), $(partitionColNames))
+		new BaseTSDF(df, tsColumn, partitionColumns)
+	}
 }
