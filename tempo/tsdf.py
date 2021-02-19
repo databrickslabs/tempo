@@ -32,7 +32,7 @@ class TSDF:
          Summary
          global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
          count / mean / stddev / min / max - standard Spark data frame describe() output
-         missing_vals_pct - percentage (from 0 to 100) of missing values
+         missing_vals_pct - percentage (from 0 to 100) of missing values.
     u9y768"""
     #extract the double version of the timestamp column to summarize
     double_ts_col = self.ts_col + "_dbl"
