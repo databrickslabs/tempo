@@ -8,8 +8,8 @@ class TSDF:
   def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None):
     """
     Constructor
-    :param df:
-    :param ts_col:
+    :param df
+    :param ts_col
     :param partitionCols:
     :sequence_col every tsdf allows for a tie-breaker secondary sort key
     """
