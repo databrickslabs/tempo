@@ -1,9 +1,10 @@
-package com.databricks.tempo
+package com.databrickslabs.tempo
 
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
-import org.apache.spark.sql.functions.row_number
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
+import resample._
 
 /**
  * The timeseries DataFrame
@@ -25,7 +26,7 @@ sealed trait TSDF
 	/**
 	 * Partitioning columns (used to separate one logical timeseries from another)
 	 */
-	val partitionColumns: Seq[StructField]
+	val partitionCols: Seq[StructField]
 
 	// derived attributes
 
@@ -53,6 +54,10 @@ sealed trait TSDF
 	// transformation functions
 
 	def asofJoin(rightTSDF : TSDF) : TSDF
+
+	def resample(freq : String, func : String) : TSDF
+
+	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF
 
 	/**
 	 * Add or modify partition columns
@@ -136,11 +141,11 @@ sealed trait TSDF
  * Core implementation of [[TSDF]]
  * @param df source [[DataFrame]]
  * @param tsColumn timeseries column
- * @param partitionColumns partitioning columns
+ * @param partitionCols partitioning columns
  */
 private[tempo] sealed class BaseTSDF(val df: DataFrame,
                                      val tsColumn: StructField,
-                                     val partitionColumns: StructField* )
+                                     val partitionCols: StructField* )
 	extends TSDF
 {
 	// Validate the arguments
@@ -149,7 +154,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	assert( TSDF.validTSColumnTypes.contains(tsColumn.dataType),
 	        s"The given timeseries column ${tsColumn.name} is of a type (${tsColumn.dataType}) that cannot be used as an index!")
 
-	partitionColumns.foreach( pCol => assert( df.schema.contains(pCol),
+	partitionCols.foreach( pCol => assert( df.schema.contains(pCol),
 	                                          s"The given DataFrame does not contain the given partition column ${pCol.name}!" ))
 
 	// Define some other values
@@ -157,13 +162,13 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	/**
 	 * Is this [[TSDF]] partitioned?
 	 */
-	val isPartitioned: Boolean = partitionColumns.nonEmpty
+	val isPartitioned: Boolean = partitionCols.nonEmpty
 
 	/**
 	 * Columns that define the structure of the [[TSDF]].
 	 * These should be protected from arbitrary modification.
 	 */
-	val structuralColumns: Seq[StructField] = Seq(tsColumn) ++ partitionColumns
+	val structuralColumns: Seq[StructField] = Seq(tsColumn) ++ partitionCols
 
 	/**
 	 * Observation columns
@@ -221,7 +226,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 
 		// partition if needed
 		if( this.isPartitioned )
-			w.partitionBy(partitionColumns.head.name, partitionColumns.tail.map(_.name) :_*)
+			w.partitionBy(partitionCols.head.name, partitionCols.tail.map(_.name) :_*)
 		else
 			w
 	}
@@ -269,6 +274,60 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	def asofJoin(rightTSDF : TSDF) : TSDF = {
       rightTSDF
 	}
+
+	/**
+		*
+		* @param freq - frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+		* @param func - function used to aggregate input
+		* @return - TSDF object with sample data using aggregate function
+		*/
+	def resample(freq : String, func : String) : TSDF = {
+	validateFuncExists(func)
+	val enriched_tsdf = rs_agg(this, freq, func)
+	return(enriched_tsdf)
+	}
+	/**
+		* Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
+		* some set of features. This function creates a new column containing, for each observation, a 2-D array of the values
+		* of some number of other columns over a trailing "lookback" window from the previous observation up to some maximum
+		* number of past observations.
+		* :param featureCols: the names of one or more feature columns to be aggregated into the feature column
+		* :param lookbackWindowSize: The size of lookback window (in terms of past observations). Must be an integer >= 1
+		* :param exactSize: If True (the default), then the resulting DataFrame will only include observations where the
+		* generated feature column contains arrays of length lookbackWindowSize. This implies that it will truncate
+		* observations that occurred less than lookbackWindowSize from the start of the timeseries. If False, no truncation
+		* occurs, and the column may contain arrays less than lookbackWindowSize in length.
+		* :param featureColName: The name of the feature column to be generated. Defaults to "features"
+		* :return: a DataFrame with a feature column named featureColName containing the lookback feature tensor
+		*
+		* @param featureCols
+		* @param lookbackWindowSize
+		* @param exactSize
+		* @param featureColName
+		* @return
+		*/
+	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF = {
+		// first, join all featureCols into a single array column
+		val tempArrayColName = "__TempArrayCol"
+		val feat_array_tsdf = df.withColumn(tempArrayColName, lit(featureCols).cast("array"))
+
+		// construct a lookback array
+		val lookback_win = windowBetweenRows(-lookbackWindowSize, -1)
+		val lookback_tsdf = (feat_array_tsdf.withColumn(featureColName,
+			collect_list(col(tempArrayColName)).over(lookback_win))
+			.drop(tempArrayColName))
+
+		val pCols = partitionCols.map(_.name).mkString
+
+
+		// make sure only windows of exact size are allowed
+		if (exactSize) {
+			return TSDF(lookback_tsdf.where(size(col(featureColName)) === lookbackWindowSize), tsColumnName = tsColumn.name, partitionColumnNames = pCols)
+		}
+
+		TSDF( lookback_tsdf, tsColumnName = tsColumn.name, partitionColumnNames = pCols )
+
+	}
 }
 
 /**
@@ -315,9 +374,9 @@ object TSDF
 	{
 		val colFinder = colByName(df) _
 		val tsColumn = colFinder(tsColumnName)
-		val partitionColumns = partitionColumnNames.map(colFinder)
+		val partitionCols = partitionColumnNames.map(colFinder)
 
-		new BaseTSDF(df, tsColumn, partitionColumns :_*)
+		new BaseTSDF(df, tsColumn, partitionCols :_*)
 	}
 
 	/**
@@ -325,17 +384,17 @@ object TSDF
 	 * @param df
 	 * @param orderingColumns
 	 * @param sequenceColName
-	 * @param partitionColumns
+	 * @param partitionCols
 	 */
 	def apply( df: DataFrame,
 	           orderingColumns: Seq[String],
 	           sequenceColName: String,
-	           partitionColumns: String* ): TSDF =
+						 partitionCols: String* ): TSDF =
 	{
 		// define window for ordering according to the combined sequence columns
 		val seq_win =
-			if( partitionColumns.nonEmpty)
-				Window.partitionBy(partitionColumns.map(df(_)) :_*)
+			if( partitionCols.nonEmpty)
+				Window.partitionBy(partitionCols.map(df(_)) :_*)
 				      .orderBy(orderingColumns.map(df(_)) :_*)
 			else
 				Window.orderBy(orderingColumns.map(df(_)) :_*)
@@ -344,20 +403,20 @@ object TSDF
 		val newDF = df.withColumn(sequenceColName, row_number().cast(LongType).over(seq_win))
 
 		// construct our TSDF
-		apply( newDF, sequenceColName, partitionColumns :_* )
+		apply( newDF, sequenceColName, partitionCols :_* )
 	}
 
 	/**
 	 * @constructor
 	 * @param df
 	 * @param orderingColumns
-	 * @param partitionColumns
+	 * @param partitionCols
 	 * @return
 	 */
 	def apply(df: DataFrame,
 	          orderingColumns: Seq[String],
-	          partitionColumns: String* ): TSDF =
-		apply( df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionColumns :_* )
+						partitionCols: String* ): TSDF =
+		apply( df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionCols :_* )
 }
 
 

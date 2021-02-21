@@ -1,4 +1,4 @@
-package com.databricks.tempo
+package com.databrickslabs.tempo
 
 import java.time.Duration
 
