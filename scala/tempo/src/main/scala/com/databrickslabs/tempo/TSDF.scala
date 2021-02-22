@@ -5,6 +5,7 @@ import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import resample._
+import asofJoin._
 
 /**
  * The timeseries DataFrame
@@ -53,7 +54,11 @@ sealed trait TSDF
 
 	// transformation functions
 
-	def asofJoin(rightTSDF : TSDF) : TSDF
+	def asofJoin(rightTSDF: TSDF,
+		leftPrefix: String,
+		rightPrefix: String = "right_",
+		tsPartitionVal: Int = 0,
+		fraction: Double = 0.1) : TSDF
 
 	def resample(freq : String, func : String) : TSDF
 
@@ -174,7 +179,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	 * Observation columns
 	 */
 	val observationColumns: Seq[StructField] =
-		df.schema.filter( structuralColumns.contains(_) )
+		df.schema.filter(!structuralColumns.contains(_))
 
 	/**
 	 * Measure columns (numeric observations)
@@ -271,9 +276,29 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	def windowOverRange(length: Long, offset: Long): WindowSpec =
 		windowBetweenRange(offset, (offset + length - 1))
 
-	def asofJoin(rightTSDF : TSDF) : TSDF = {
-      rightTSDF
+	// asof Join functions
+	// TODO: probably rewrite, but overloading methods seemed to break. the ifElse stuff is a quick fix.
+  def asofJoin(
+		rightTSDF: TSDF,
+		leftPrefix: String = "",
+		rightPrefix: String = "right_",
+		tsPartitionVal: Int = 0,
+		fraction: Double = 0.1): TSDF = {
+
+		if(leftPrefix == "" && tsPartitionVal == 0) {
+			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, tsPartitionVal = None, fraction)
+		}
+		else if(leftPrefix == "") {
+			asofJoinExec(this, rightTSDF, leftPrefix = None, rightPrefix, Some(tsPartitionVal), fraction)
+		}
+		else if(tsPartitionVal == 0) {
+			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, tsPartitionVal = None)
+		}
+		else {
+			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, Some(tsPartitionVal), fraction)
+		}
 	}
+
 
 	/**
 		*
@@ -424,6 +449,5 @@ object programExecute {
 	def main(args: Array[String]): Unit = {
 
 		println("Hello from main of class")
-
 	}
 }

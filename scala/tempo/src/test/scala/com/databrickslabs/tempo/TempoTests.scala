@@ -42,21 +42,25 @@ class TempoTestSpec
 
   it("Standard AS OF Join Test") {
 
-    val leftSchema = StructType(List(StructField("symbol", StringType),
+    val leftSchema = StructType(List(
+      StructField("symbol", StringType),
       StructField("event_ts", StringType),
       StructField("trade_pr", DoubleType)))
 
-    val rightSchema = StructType(List(StructField("symbol", StringType),
+    val rightSchema = StructType(List(
+      StructField("symbol", StringType),
       StructField("event_ts", StringType),
       StructField("bid_pr", DoubleType),
       StructField("ask_pr", DoubleType)))
 
-    val expectedSchema = StructType(List(StructField("symbol", StringType),
+    val expectedSchema = StructType(List(
+      StructField("symbol", StringType),
       StructField("left_event_ts", StringType),
       StructField("left_trade_pr", DoubleType),
-      StructField("right_event_ts", StringType),
       StructField("right_bid_pr", DoubleType),
-      StructField("right_ask_pr", DoubleType)))
+      StructField("right_ask_pr", DoubleType),
+      StructField("right_event_ts", StringType),
+    ))
 
     val left_data = Seq(Row("S1", "2020-08-01 00:00:10", 349.21),
       Row("S1", "2020-08-01 00:01:12", 351.32),
@@ -68,34 +72,92 @@ class TempoTestSpec
       Row("S1", "2020-09-01 00:02:01", 358.93, 365.12),
       Row("S1", "2020-09-01 00:15:01", 359.21, 365.31))
 
-    val expected_data = Seq(Row("S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12),
-      Row("S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13),
-      Row("S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12),
-      Row("S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31))
+    val expected_data = Seq(Row("S1", "2020-08-01 00:00:10", 349.21, 345.11, 351.12, "2020-08-01 00:00:01"),
+      Row("S1", "2020-08-01 00:01:12", 351.32, 348.1, 353.13, "2020-08-01 00:01:05"),
+      Row("S1", "2020-09-01 00:02:10", 361.1, 358.93, 365.12, "2020-09-01 00:02:01"),
+      Row("S1", "2020-09-01 00:19:12", 362.1, 359.21, 365.31, "2020-09-01 00:15:01"))
 
     // Construct dataframes
-    var dfLeft = spark.createDataFrame(spark.sparkContext.parallelize(left_data), leftSchema)
-    var dfRight = spark.createDataFrame(spark.sparkContext.parallelize(right_data), rightSchema)
-    var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
-
-    dfLeft = dfLeft.withColumn("event_ts", col("event_ts").cast("timestamp"))
-    dfRight = dfRight.withColumn("event_ts", col("event_ts").cast("timestamp"))
-    dfExpected = dfExpected.withColumn("left_event_ts", col("left_event_ts").cast("timestamp"))
-    dfExpected = dfExpected.withColumn("right_event_ts", col("right_event_ts").cast("timestamp"))
+    //var dfLeft = spark.createDataFrame(spark.sparkContext.parallelize(left_data), leftSchema)
+    //var dfRight = spark.createDataFrame(spark.sparkContext.parallelize(right_data), rightSchema)
+    //var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
+    val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
+    val dfRight = buildTestDF(schema = rightSchema, data = right_data, ts_cols = List("event_ts"))
+    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts","right_event_ts"))
 
     // perform the join
     val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
 
+    val joined_df = tsdf_left.asofJoin(tsdf_right, "left_")
 
-    val joined_df = tsdf_left.asofJoin(tsdf_right)
+    assert(joined_df.df.collect().sameElements(dfExpected.collect()))
+  }
 
-    // run basic assertion of the elements being the same
-    assert(joined_df.df.collect().sameElements(tsdf_right.df.collect()))
+  it("Time-partitioned as-of join") {
 
+    """AS-OF Join with a time-partition"""
+    val leftSchema = StructType(List(
+      StructField("symbol", StringType),
+      StructField("event_ts", StringType),
+      StructField("trade_pr", DoubleType)))
+
+    val rightSchema = StructType(List(
+      StructField("symbol", StringType),
+      StructField("event_ts", StringType),
+      StructField("bid_pr", DoubleType),
+      StructField("ask_pr", DoubleType)))
+
+    val expectedSchema = StructType(List(
+      StructField("symbol", StringType),
+      StructField("left_event_ts", StringType),
+      StructField("left_trade_pr", DoubleType),
+      StructField("right_bid_pr", DoubleType),
+      StructField("right_ask_pr", DoubleType),
+      StructField("right_event_ts", StringType)))
+
+    val left_data = Seq(
+      Row("S1", "2020-08-01 00:00:02", 349.21),
+      Row("S1", "2020-08-01 00:00:08", 351.32),
+      Row("S1", "2020-08-01 00:00:11", 361.12),
+      Row("S1", "2020-08-01 00:00:18", 364.31),
+      Row("S1", "2020-08-01 00:00:19", 362.94),
+      Row("S1", "2020-08-01 00:00:21", 364.27),
+      Row("S1", "2020-08-01 00:00:23", 367.36))
+
+    val right_data = Seq(
+      Row("S1", "2020-08-01 00:00:01", 345.11, 351.12),
+      Row("S1", "2020-08-01 00:00:09", 348.10, 353.13),
+      Row("S1", "2020-08-01 00:00:12", 358.93, 365.12),
+      Row("S1", "2020-08-01 00:00:19", 359.21, 365.31))
+
+    val expected_data = Seq(
+    Row("S1", "2020-08-01 00:00:02", 349.21, 345.11, 351.12, "2020-08-01 00:00:01"),
+    Row("S1", "2020-08-01 00:00:08", 351.32, 345.11, 351.12, "2020-08-01 00:00:01"),
+    Row("S1", "2020-08-01 00:00:11", 361.12, 348.1, 353.13,  "2020-08-01 00:00:09"),
+    Row("S1", "2020-08-01 00:00:18", 364.31, 358.93, 365.12, "2020-08-01 00:00:12"),
+    Row("S1", "2020-08-01 00:00:19", 362.94, 359.21, 365.31, "2020-08-01 00:00:19"),
+    Row("S1", "2020-08-01 00:00:21", 364.27, 359.21, 365.31, "2020-08-01 00:00:19"),
+    Row("S1", "2020-08-01 00:00:23", 367.36, 359.21, 365.31, "2020-08-01 00:00:19"))
+
+    // Construct dataframes
+    //var dfLeft = spark.createDataFrame(spark.sparkContext.parallelize(left_data), leftSchema)
+    //var dfRight = spark.createDataFrame(spark.sparkContext.parallelize(right_data), rightSchema)
+    //var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
+    val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
+    val dfRight = buildTestDF(schema = rightSchema, data = right_data, ts_cols = List("event_ts"))
+    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts","right_event_ts"))
+
+    // perform the join
+    val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
+
+    assert(joined_df.df.collect().sameElements(dfExpected.collect()))
   }
 
   it("Resample test") {
+    println("TESTING RESAMPLE")
     val schema = StructType(List(StructField("symbol", StringType),
     StructField("date", StringType),
     StructField("event_ts", StringType),
