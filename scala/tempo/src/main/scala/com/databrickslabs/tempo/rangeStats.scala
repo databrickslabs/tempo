@@ -2,11 +2,9 @@ package com.databrickslabs.tempo
 
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StructField}
 import org.apache.spark.sql.{Column, DataFrame}
 
 object rangeStats {
-
 
   val SUMMARY_FUNCS: List[(String, String => Column)] = List(
     ("mean_", {c: String => mean(c)}),
@@ -45,7 +43,6 @@ object rangeStats {
     val window_spec = Window
       .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
       .orderBy(tsdf.tsColumn.name)
-    // mean, count, min, max, sum, stddev . Create higher order function that
 
     val summaryDF = innerColsToSummarise
       .foldLeft(tsdf.df)((df, colName) => {

@@ -7,6 +7,7 @@ import org.apache.spark.sql.types._
 import resample._
 import asofJoin._
 import rangeStats._
+import EMA._
 /**
  * The timeseries DataFrame
  */
@@ -61,6 +62,8 @@ sealed trait TSDF
 		fraction: Double = 0.1) : TSDF
 
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF
+
+	def EMA(colName: String, window: Int, exp_factor: Double = 0.2): TSDF
 
 	def resample(freq : String, func : String) : TSDF
 
@@ -222,7 +225,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	// Window builder functions
 
 	/**
-	 * Construct a base window for this [[TDSF]]
+	 * Construct a base window for this [[TSDF]]
 	 *
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
@@ -303,6 +306,10 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	//
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF = {
 		rangeStatsExec(this, colsToSummarise = colsToSummarise, rangeBackWindowSecs = rangeBackWindowSecs)
+	}
+
+	def EMA(colName: String, window: Int, exp_factor: Double = 0.2): TSDF = {
+		emaExec(this, colName, window, exp_factor)
 	}
 
 
