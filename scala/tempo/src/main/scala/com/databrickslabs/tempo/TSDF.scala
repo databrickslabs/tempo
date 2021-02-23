@@ -6,7 +6,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import resample._
 import asofJoin._
-
+import rangeStats._
+import EMA._
 /**
  * The timeseries DataFrame
  */
@@ -60,6 +61,10 @@ sealed trait TSDF
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1) : TSDF
 
+	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF
+
+	def EMA(colName: String, window: Int, exp_factor: Double = 0.2): TSDF
+
 	def resample(freq : String, func : String) : TSDF
 
 	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF
@@ -104,7 +109,7 @@ sealed trait TSDF
 	// window builder functions
 
 	/**
-	 * Construct a base window for this [[TDSF]]
+	 * Construct a base window for this [[TSDF]]
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
 	protected def baseWindow(): WindowSpec
@@ -220,7 +225,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	// Window builder functions
 
 	/**
-	 * Construct a base window for this [[TDSF]]
+	 * Construct a base window for this [[TSDF]]
 	 *
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
@@ -297,6 +302,14 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		else {
 			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, Some(tsPartitionVal), fraction)
 		}
+	}
+	//
+	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF = {
+		rangeStatsExec(this, colsToSummarise = colsToSummarise, rangeBackWindowSecs = rangeBackWindowSecs)
+	}
+
+	def EMA(colName: String, window: Int, exp_factor: Double = 0.2): TSDF = {
+		emaExec(this, colName, window, exp_factor)
 	}
 
 
@@ -381,7 +394,7 @@ object TSDF
 	 * @return the named column of the [[DataFrame]], if it exists,
 	 *         otherwise a [[NoSuchElementException]] is thrown
 	 */
-	private def colByName(df: DataFrame)(colName: String): StructField =
+	private[tempo] def colByName(df: DataFrame)(colName: String): StructField =
 		df.schema.find(_.name.toLowerCase() == colName.toLowerCase()).get
 
 	// TSDF Constructors
@@ -411,6 +424,7 @@ object TSDF
 	 * @param sequenceColName
 	 * @param partitionCols
 	 */
+
 	def apply( df: DataFrame,
 	           orderingColumns: Seq[String],
 	           sequenceColName: String,
