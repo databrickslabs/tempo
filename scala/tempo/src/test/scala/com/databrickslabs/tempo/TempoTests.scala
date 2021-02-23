@@ -233,31 +233,19 @@ class TempoTestSpec
       Row("S2", "2020-09-01 00:19:12", 16.0),
       Row("S2", "2020-09-01 00:19:12", 32.0))
 
-    // window = 2
-    // exp_factor = 0.5
-
     val expectedData = Seq(
-      Row("S1", "2020-08-01 00:00:10", 8.0, 4.0),     // 0.5 * 8 = 4
-      Row("S1", "2020-08-01 00:01:12", 4.0, 4.0),     // 0.5 * 4 + 0.25 * 8 = 4
-      Row("S1", "2020-08-01 00:02:23", 2.0, 3.0),     // 0.5 * 2 + 0.25 * 4 +  0.125 * 8.0 = 3
+      Row("S1", "2020-08-01 00:00:10", 8.0, 4.0),
+      Row("S1", "2020-08-01 00:01:12", 4.0, 4.0),
+      Row("S1", "2020-08-01 00:02:23", 2.0, 3.0),
       Row("S2", "2020-09-01 00:02:10", 8.0, 4.0),
-      Row("S2", "2020-09-01 00:19:12", 16.0, 10.0),   // 0.5 * 16 + 0.25 * 8 = 10
-      Row("S2", "2020-09-01 00:19:12", 32.0, 21.0))     // 0.5 * 32 + 0.25 * 16 + 0.125 * 8 =
-
+      Row("S2", "2020-09-01 00:19:12", 16.0, 10.0),
+      Row("S2", "2020-09-01 00:19:12", 32.0, 21.0))
 
     val df = buildTestDF(schema, data, List("event_ts"))
     val dfExpected = buildTestDF(expectedSchema, expectedData, List("event_ts"))
 
     val tsdf = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
-
     val emaDf = tsdf.EMA("trade_pr", window = 2, exp_factor = 0.5).df
-
-    println("EXPECTED DF")
-    dfExpected.show(100,false)
-    println(dfExpected.schema)
-    println("ACTUAL DF")
-    emaDf.show(100,false)
-    println(emaDf.schema)
 
     assert(emaDf.collect().sameElements(dfExpected.collect()))
   }

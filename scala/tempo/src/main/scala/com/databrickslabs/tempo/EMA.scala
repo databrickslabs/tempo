@@ -10,7 +10,6 @@ object EMA {
   def emaExec(tsdf: TSDF, colName: String, window: Int, exp_factor: Double): TSDF = {
 
     val emaColName = "ema_" + colName
-
     val df = tsdf.df.withColumn(emaColName, lit(0))
 
     //TODO: make use of pre-defined windowing methods.
@@ -19,7 +18,6 @@ object EMA {
       .orderBy(tsdf.tsColumn.name)
 
     val tempLagCol = "temp_lag_col"
-
 
     // TODO: Check whether tempLagCol may need a different name each time
     def emaIncrement(df: DataFrame, k: Int): DataFrame = {
