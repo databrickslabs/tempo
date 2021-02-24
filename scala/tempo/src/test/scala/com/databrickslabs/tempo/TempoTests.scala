@@ -40,6 +40,55 @@ class TempoTestSpec
   extends FunSpec
     with SparkSessionTestWrapper {
 
+  it("TSDF Describe Test") {
+
+    val leftSchema = StructType(List(StructField("symbol", StringType),
+    StructField("event_ts", StringType),
+    StructField("trade_pr", DoubleType)))
+
+    val rightSchema = StructType(List(StructField("symbol", StringType),
+    StructField("event_ts", StringType),
+    StructField("bid_pr", DoubleType),
+    StructField("ask_pr", DoubleType)))
+
+    val expectedSchema = StructType(List(StructField("symbol", StringType),
+    StructField("left_event_ts", StringType),
+    StructField("left_trade_pr", DoubleType),
+    StructField("right_event_ts", StringType),
+    StructField("right_bid_pr", DoubleType),
+    StructField("right_ask_pr", DoubleType)))
+
+    val left_data = Seq(Row("S1", "2020-08-01 00:00:10", 349.21),
+      Row("S1", "2020-08-01 00:01:12", 351.32),
+      Row("S1", "2020-09-01 00:02:10", 361.1),
+      Row("S1", "2020-09-01 00:19:12", 362.1))
+
+    val right_data = Seq(Row("S1", "2020-08-01 00:00:01",  345.11, 351.12),
+      Row("S1", "2020-08-01 00:01:05",  348.10, 353.13),
+      Row("S1", "2020-09-01 00:02:01",  358.93, 365.12),
+      Row("S1", "2020-09-01 00:15:01",  359.21, 365.31))
+
+    val expected_data = Seq(Row("S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01",  345.11, 351.12),
+      Row("S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05",  348.10, 353.13),
+      Row("S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01",  358.93, 365.12),
+      Row("S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01",  359.21, 365.31))
+
+    // Construct dataframes
+    val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
+    val dfExpected = buildTestDF(expectedSchema, expected_data, List("left_event_ts", "right_event_ts"))
+
+    // perform the join
+    val tsdf_left = TSDF(dfLeft, tsColumnName="event_ts", partitionColumnNames= "symbol")
+    val res = tsdf_left.describe()
+
+    // joined dataframe should equal the expected dataframe
+    // self.assertDataFramesEqual(res, dfExpected)
+    assert(res.count == 7)
+    assert(res.select(max(col("unique_ts_count"))).collect()(0)(0) == "1")
+    assert(res.select(col("min_ts").cast("string")).collect()(0)(0) == "2020-08-01 00:00:10")
+    assert(res.select(col("max_ts").cast("string")).collect()(0)(0) == "2020-09-01 00:19:12")
+  }
+
   it("Standard AS OF Join Test") {
 
     val leftSchema = StructType(List(
@@ -96,7 +145,6 @@ class TempoTestSpec
 
   it("Time-partitioned as-of join") {
 
-    """AS-OF Join with a time-partition"""
     val leftSchema = StructType(List(
       StructField("symbol", StringType),
       StructField("event_ts", StringType),

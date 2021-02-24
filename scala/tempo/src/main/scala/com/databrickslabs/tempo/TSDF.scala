@@ -333,17 +333,16 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		val this_df = this.df.withColumn(double_ts_col, col(this.tsColumn.name).cast("double"))
 
 		// summary missing value percentages
-		val missing_vals_pct_cols = List(lit("missing_vals_pct").alias("summary")) ++ (for {c <- this_df.dtypes if (c._2 != "timestamp")} yield (lit(100) * count(when(col(c._1).isNull(), c._1)) / count(lit(1))).alias(c._1)).toList
+		val missing_vals_pct_cols = List(lit("missing_vals_pct").alias("summary")) ++ (for {c <- this_df.dtypes if (c._2 != "TimestampType")} yield (lit(100) * count(when(col(c._1).isNull, c._1)) / count(lit(1))).alias(c._1)).toList
 
 		val missing_vals = this_df.select(missing_vals_pct_cols:_*)
-
 
 		// describe stats
 		var desc_stats = this_df.describe().union(missing_vals)
 		val unique_ts = this_df.select(this.partitionCols.map(x => x.name) map col: _*).distinct().count
 
-		val max_ts = this_df.select(max(col(this.tsColumn.name)).alias("max_ts")).collect()(0)
-		val min_ts = this_df.select(min(col(this.tsColumn.name)).alias("max_ts")).collect()(0)
+		val max_ts = this_df.select(max(col(this.tsColumn.name)).alias("max_ts")).collect()(0)(0).toString
+		val min_ts = this_df.select(min(col(this.tsColumn.name)).alias("max_ts")).collect()(0)(0).toString
 		val gran = this_df.selectExpr(s"""min(case when $double_ts_col - cast($double_ts_col as integer) > 0 then '1-millis'
                   when $double_ts_col % 60 != 0 then '2-seconds'
                   when $double_ts_col % 3600 != 0 then '3-minutes'
@@ -353,11 +352,11 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		val non_summary_cols = for {c <- desc_stats.columns if c != "summary"} yield col(c)
 		val non_summary_col_strs = for {c <- desc_stats.columns if c != "summary"} yield c
 
-		val preCols = List(col("summary"), lit(None).alias("unique_ts_count"), lit(None).alias("min_ts"),
-			lit(None).alias("max_ts"), lit(None).alias("granularity")) ++ (non_summary_cols.toList)
+		val preCols = List(col("summary"), lit(" ").alias("unique_ts_count"), lit(" ").alias("min_ts"),
+			lit(" ").alias("max_ts"), lit(" ").alias("granularity")) ++ (non_summary_cols.toList)
 		desc_stats = desc_stats.select(preCols:_*)
 
-		val non_summary_cols_blank = List(lit("global").alias("summary"),lit(unique_ts).alias("unique_ts_count"), lit(min_ts).alias("min_ts"), lit(max_ts).alias("max_ts"), lit(gran).alias("granularity")) ++ (for {c <- non_summary_col_strs} yield lit(None).alias(c)).toList
+		val non_summary_cols_blank = List(lit("global").alias("summary"),lit(unique_ts).alias("unique_ts_count"), lit(min_ts).cast("timestamp").alias("min_ts"), lit(max_ts).cast("timestamp").alias("max_ts"), lit(gran).alias("granularity")) ++ (for {c <- non_summary_col_strs} yield lit(" ").alias(c)).toList
 		// add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
 		val global_smry_rec = desc_stats.limit(1).select(non_summary_cols_blank: _*)
 
