@@ -1,5 +1,7 @@
 package com.databrickslabs.tempo
 
+import java.io.FileNotFoundException
+
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
@@ -63,6 +65,8 @@ sealed trait TSDF
 	def resample(freq : String, func : String) : TSDF
 
 	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF
+
+	def describe() : DataFrame
 
 	/**
 	 * Add or modify partition columns
@@ -285,7 +289,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1): TSDF = {
 
-		if(leftPrefix == "" && tsPartitionVal == 0) {
+		if (leftPrefix == "" && tsPartitionVal == 0) {
 			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, tsPartitionVal = None, fraction)
 		}
 		else if(leftPrefix == "") {
@@ -297,6 +301,56 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		else {
 			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, Some(tsPartitionVal), fraction)
 		}
+	}
+
+	/**
+		* Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals
+		* Summary
+		* global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
+		* count / mean / stddev / min / max - standard Spark data frame describe() output
+		* missing_vals_pct - percentage (from 0 to 100) of missing values.
+		*
+		* @return
+		*/
+	def describe() : DataFrame = {
+
+		// extract the double version of the timestamp column to summarize
+		val double_ts_col = this.tsColumn.name + "_dbl"
+
+		val this_df = this.df.withColumn(double_ts_col, col(this.tsColumn.name).cast("double"))
+
+		// summary missing value percentages
+		val missing_vals_pct_cols = List(lit("missing_vals_pct").alias("summary")) ++ (for {c <- this_df.dtypes if (c._2 != "timestamp")} yield (lit(100) * count(when(col(c._1).isNull(), c._1)) / count(lit(1))).alias(c._1)).toList
+
+		val missing_vals = this_df.select(missing_vals_pct_cols:_*)
+
+
+		// describe stats
+		var desc_stats = this_df.describe().union(missing_vals)
+		val unique_ts = this_df.select(this.partitionCols.map(x => x.name) map col: _*).distinct().count
+
+		val max_ts = this_df.select(max(col(this.tsColumn.name)).alias("max_ts")).collect()(0)
+		val min_ts = this_df.select(min(col(this.tsColumn.name)).alias("max_ts")).collect()(0)
+		val gran = this_df.selectExpr(s"""min(case when $double_ts_col - cast($double_ts_col as integer) > 0 then '1-millis'
+                  when $double_ts_col % 60 != 0 then '2-seconds'
+                  when $double_ts_col % 3600 != 0 then '3-minutes'
+                  when $double_ts_col % 86400 != 0 then '4-hours'
+                  else '5-days' end) granularity""").collect()(0)(0).toString.substring(2)
+
+		val non_summary_cols = for {c <- desc_stats.columns if c != "summary"} yield col(c)
+		val non_summary_col_strs = for {c <- desc_stats.columns if c != "summary"} yield c
+
+		val preCols = List(col("summary"), lit(None).alias("unique_ts_count"), lit(None).alias("min_ts"),
+			lit(None).alias("max_ts"), lit(None).alias("granularity")) ++ (non_summary_cols.toList)
+		desc_stats = desc_stats.select(preCols:_*)
+
+		val non_summary_cols_blank = List(lit("global").alias("summary"),lit(unique_ts).alias("unique_ts_count"), lit(min_ts).alias("min_ts"), lit(max_ts).alias("max_ts"), lit(gran).alias("granularity")) ++ (for {c <- non_summary_col_strs} yield lit(None).alias(c)).toList
+		// add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
+		val global_smry_rec = desc_stats.limit(1).select(non_summary_cols_blank: _*)
+
+		val full_smry = global_smry_rec.union(desc_stats)
+
+    return(full_smry)
 	}
 
 
