@@ -2,7 +2,7 @@ package com.databrickslabs.tempo
 
 import java.io.FileNotFoundException
 
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -10,6 +10,8 @@ import resample._
 import asofJoin._
 import rangeStats._
 import EMA._
+import io._
+
 /**
  * The timeseries DataFrame
  */
@@ -68,6 +70,8 @@ sealed trait TSDF
 	def EMA(colName: String, window: Int, exp_factor: Double = 0.2): TSDF
 
 	def resample(freq : String, func : String) : TSDF
+
+	def write(spark: SparkSession, tabName: String, optimizationCols: Option[Seq[String]] = None) : Unit
 
 	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF
 
@@ -376,6 +380,10 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	validateFuncExists(func)
 	val enriched_tsdf = rs_agg(this, freq, func)
 	return(enriched_tsdf)
+	}
+
+	def write(spark: SparkSession, tabName: String, optimizationCols: Option[Seq[String]] = None) : Unit = {
+       TSDFWriters.write(this, spark, tabName, optimizationCols)
 	}
 	/**
 		* Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
