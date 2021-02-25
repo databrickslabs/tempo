@@ -1,0 +1,4 @@
+{"commitInfo":{"timestamp":1614225901156,"operation":"CREATE TABLE AS SELECT","operationParameters":{"isManaged":"true","description":null,"partitionBy":"[]","properties":"{}"},"isBlindAppend":true,"operationMetrics":{"numFiles":"1","numOutputBytes":"518","numOutputRows":"10"}}}
+{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}
+{"metaData":{"id":"90b46e86-2ff6-42fb-a817-25fa9e2d3453","format":{"provider":"parquet","options":{}},"schemaString":"{\"type\":\"struct\",\"fields\":[{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}","partitionColumns":[],"configuration":{},"createdTime":1614225900267}}
+{"add":{"path":"part-00000-1208fca1-6191-411e-aee6-1890a893f341-c000.snappy.parquet","partitionValues":{},"size":518,"modificationTime":1614225901000,"dataChange":true}}
