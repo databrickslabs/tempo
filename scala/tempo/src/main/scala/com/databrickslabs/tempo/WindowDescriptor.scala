@@ -7,6 +7,7 @@ import org.apache.spark.sql.expressions.{Window, WindowSpec}
 /**
  * Types of window orderings
  */
+/*
 object Orderings extends Enumeration
 {
 	type Ordering = Value
@@ -120,3 +121,4 @@ object WindowDescriptor
 			LongWindowDescriptor(ordering, -size, -1)
 	}
 }
+*/

@@ -4,6 +4,8 @@
 
 # Scala related files
 scala/tempo/target
+scala/tempo/project/target/*
+scala/tempo/project/project/target/config-classes/*
 
 ## Python related files
 

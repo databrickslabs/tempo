@@ -300,7 +300,7 @@ class TempoTestSpec
 
 
   it("Resample test") {
-    println("TESTING RESAMPLE")
+
     val schema = StructType(List(StructField("symbol", StringType),
       StructField("date", StringType),
       StructField("event_ts", StringType),
@@ -385,4 +385,37 @@ class TempoTestSpec
   assert(spark.table("my_table").count() == 7)
   // self.assertDataFramesEqual(tsdf_left.df, tsdf_left.df)
 }
+
+  it("Mirrored Data Frame Operations on TSDF") {
+
+    val schema = StructType(List(StructField("symbol", StringType),
+      StructField("date", StringType),
+      StructField("event_ts", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("trade_pr_2", DoubleType)))
+
+    val data =
+      Seq(Row("S1", "SAME_DT", "2020-08-01 00:00:10", 10.0, 349.21),
+        Row("S1", "SAME_DT", "2020-08-01 00:00:11", 9.0, 340.21),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:12", 8.0, 353.32),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:13", 7.0, 351.32),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:14", 6.0, 350.32),
+        Row("S1", "SAME_DT", "2020-09-01 00:01:12", 5.0, 361.1),
+        Row("S1", "SAME_DT", "2020-09-01 00:19:12", 4.0, 362.1))
+
+    //construct dataframes
+    val df = buildTestDF(schema, data, List("event_ts"))
+
+    // convert to TSDF
+    val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_right = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+
+
+    val left_of_union = tsdf_left.select("event_ts", "symbol", "date", "trade_pr", "trade_pr_2").selectExpr("*").filter("1=1").where("2=2")
+    val right_of_union = tsdf_right.select(cols= col("event_ts"), col("symbol"), col("date"), col("trade_pr"), col("trade_pr_2")).filter(col("trade_pr") === 4.0).where(col("trade_pr") === 4.0).limit(1)
+
+    val result = left_of_union.union(right_of_union).unionAll(right_of_union).withColumn("extra", lit("Extra")).withColumn("to_be_dropped_1", lit(2)).withColumn("to_be_dropped_2", lit(3)).withColumnRenamed("trade_pr_2", "better_trade_pr").drop("date").drop("to_be_dropped_1", "to_be_dropped_2")
+
+    assert(result.df.count == 9)
+  }
 }

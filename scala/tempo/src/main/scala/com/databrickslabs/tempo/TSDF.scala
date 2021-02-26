@@ -15,6 +15,7 @@ import io._
 /**
  * The timeseries DataFrame
  */
+
 sealed trait TSDF
 {
 	// core backing values
@@ -211,24 +212,82 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	def partitionedBy(partitionCols: String*): TSDF =
 		TSDF(df, tsColumn.name, partitionCols :_*)
 
-	def select(cols: Column*): TSDF = ???
+	def withColumn(colName: String, col: Column): TSDF = {
+		TSDF(df.withColumn(colName, col), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def select(cols: Column*): TSDF = {
+
+		val colsList = cols.toList
+
+		val timeAndPartitionsPresent = colsList.contains(tsColumn.name) && partitionCols.map(x => x.name).toList.forall(colsList.contains)
+
+		//if (!timeAndPartitionsPresent) {throw new RuntimeException("Timestamp column or partition columns are missing")}
+
+		TSDF(df.select(cols:_*), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
 	def select(col: String,
-	                    cols: String*): TSDF = ???
-	def selectExpr(exprs: String*): TSDF = ???
-	def filter(condition: Column): TSDF = ???
-	def filter(conditionExpr: String): TSDF = ???
-	def where(condition: Column): TSDF = ???
-	def where(conditionExpr: String): TSDF = ???
-	def limit(n: Int): TSDF = ???
-	def union(other: TSDF): TSDF = ???
-	def unionAll(other: TSDF): TSDF = ???
-	def withColumn(colName: String,
-	                        col: Column): TSDF = ???
+	                    cols: String*): TSDF = {
+		val masterList = Seq(col) ++ cols.toSeq
+
+		val colsList = masterList.toList
+
+		val timeAndPartitionsPresent = colsList.contains(tsColumn.name) && partitionCols.map(x => x.name).toList.forall(colsList.contains)
+
+		//if (!timeAndPartitionsPresent) {throw new RuntimeException("Timestamp column or partition columns are missing")}
+
+		TSDF(df.select(masterList.head, masterList.tail:_*), tsColumnName = tsColumn.name, partitionColumnNames =  partitionCols.map(_.name).mkString)
+	}
+
+	def selectExpr(exprs: String*): TSDF = {
+		TSDF(df.selectExpr(exprs:_*), tsColumnName = tsColumn.name, partitionColumnNames =  partitionCols.map(_.name).mkString)
+	}
+
+	def filter(condition: Column): TSDF = {
+		TSDF(df.filter(condition), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def filter(conditionExpr: String): TSDF = {
+		TSDF(df.filter(conditionExpr), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def where(condition: Column): TSDF = {
+		TSDF(df.where(condition), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def where(conditionExpr: String): TSDF = {
+		TSDF(df.where(conditionExpr), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def limit(n: Int): TSDF = {
+		TSDF(df.limit(n), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def union(other: TSDF): TSDF = {
+		TSDF(df.union(other.df), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def unionAll(other: TSDF): TSDF = {
+		TSDF(df.unionAll(other.df), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
 	def withColumnRenamed(existingName: String,
-	                               newName: String): TSDF = ???
-	def drop(colName: String): TSDF = ???
-	def drop(colNames: String*): TSDF = ???
-	def drop(col: Column): TSDF = ???
+	                               newName: String): TSDF = {
+		TSDF(df.withColumnRenamed(existingName, newName), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def drop(colName: String): TSDF = {
+		TSDF(df.drop(colName), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def drop(colNames: String*): TSDF = {
+		TSDF(df.drop(colNames:_*), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
+
+	def drop(col: Column): TSDF = {
+		TSDF(df.drop(col), tsColumnName = tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString)
+	}
 
 	// Window builder functions
 
@@ -455,8 +514,9 @@ object TSDF
 	 * @return the named column of the [[DataFrame]], if it exists,
 	 *         otherwise a [[NoSuchElementException]] is thrown
 	 */
-	private[tempo] def colByName(df: DataFrame)(colName: String): StructField =
+	private[tempo] def colByName(df: DataFrame)(colName: String): StructField = {
 		df.schema.find(_.name.toLowerCase() == colName.toLowerCase()).get
+}
 
 	// TSDF Constructors
 
@@ -523,6 +583,6 @@ object TSDF
 object programExecute {
 	def main(args: Array[String]): Unit = {
 
-		println("Hello from main of class")
+		println("")
 	}
 }
