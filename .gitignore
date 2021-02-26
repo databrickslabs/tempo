@@ -6,6 +6,7 @@
 scala/tempo/target
 scala/tempo/project/target/*
 scala/tempo/project/project/target/config-classes/*
+scala/tempo/spark-warehouse/*
 
 ## Python related files
 
