@@ -160,8 +160,8 @@ class TSDF:
     non_summary_cols = [c for c in desc_stats.columns if c != 'summary']
 
 
-    desc_stats = desc_stats.select(f.col("summary"), f.lit(None).alias("unique_ts_count"), f.lit(None).alias("min_ts"),
-                                   f.lit(None).alias("max_ts"), f.lit(None).alias("granularity"), *non_summary_cols)
+    desc_stats = desc_stats.select(f.col("summary"), f.lit(" ").alias("unique_ts_count"), f.lit(" ").alias("min_ts"),
+                                   f.lit(" ").alias("max_ts"), f.lit(" ").alias("granularity"), *non_summary_cols)
 
     # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
     global_smry_rec = desc_stats.limit(1).select(f.lit('global').alias("summary"),f.lit(unique_ts).alias("unique_ts_count"), f.lit(min_ts).alias("min_ts"), f.lit(max_ts).alias("max_ts"), f.lit(gran).alias("granularity"), *[f.lit(" ").alias(c) for c in non_summary_cols])
