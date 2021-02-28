@@ -1,4 +1,3 @@
-#import tempo.tsdf as ts
 import pyspark.sql.functions as f
 
 def write(tsdf, spark, tabName, optimizationCols = None):
