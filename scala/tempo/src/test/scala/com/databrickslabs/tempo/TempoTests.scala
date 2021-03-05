@@ -375,9 +375,14 @@ class TempoTestSpec
   // convert to TSDF
   val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames ="symbol")
 
-  // using lookback of
-  // 20 minutes
-  //featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
+  import scala.reflect.io.Directory
+  import java.io.File
+
+  val spark_warehouse_dir = spark.conf.get("spark.sql.warehouse.dir")
+    print(spark_warehouse_dir)
+  val directory = new Directory(new File(spark_warehouse_dir + "my_table/"))
+  directory.deleteRecursively()
+
   tsdf_left.write(spark, "my_table")
   println("delta table count" + spark.table("my_table").count())
 
@@ -417,5 +422,50 @@ class TempoTestSpec
     val result = left_of_union.union(right_of_union).unionAll(right_of_union).withColumn("extra", lit("Extra")).withColumn("to_be_dropped_1", lit(2)).withColumn("to_be_dropped_2", lit(3)).withColumnRenamed("trade_pr_2", "better_trade_pr").drop("date").drop("to_be_dropped_1", "to_be_dropped_2")
 
     assert(result.df.count == 9)
+  }
+
+  it("VWAP - Volume Weighted Average Pricing test") {
+
+    val schema = StructType(List(StructField("symbol", StringType),
+      StructField("date", StringType),
+      StructField("event_ts", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("trade_pr_2", DoubleType)))
+
+    val expectedSchema = StructType(List(StructField("symbol", StringType),
+      StructField("event_ts", StringType),
+      StructField("date", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("trade_pr_2", DoubleType)))
+
+    val data =
+      Seq(Row("S1", "SAME_DT", "2020-08-01 00:00:10", 10.0, 349.21),
+        Row("S1", "SAME_DT", "2020-08-01 00:00:11", 9.0, 340.21),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:12", 8.0, 353.32),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:13", 7.0, 351.32),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:14", 6.0, 350.32),
+        Row("S1", "SAME_DT", "2020-09-01 00:01:12", 5.0, 361.1),
+        Row("S1", "SAME_DT", "2020-09-01 00:19:12", 4.0, 362.1))
+
+    val expected_data =
+      Seq(Row("S1", "2020-08-01 00:00:00", "SAME_DT", 10.0, 349.21),
+        Row("S1", "2020-08-01 00:01:00", "SAME_DT", 8.0, 353.32),
+        Row("S1", "2020-09-01 00:01:00", "SAME_DT", 5.0, 361.1),
+        Row("S1", "2020-09-01 00:19:00", "SAME_DT", 4.0, 362.1))
+
+    //construct dataframes
+    val df = buildTestDF(schema, data, List("event_ts"))
+    val dfExpected = buildTestDF(expectedSchema, expected_data, List("event_ts"))
+
+    // convert to TSDF
+    val tsdf_left = TSDF(df.withColumn("vol", lit(100)), tsColumnName = "event_ts", partitionColumnNames = "symbol")
+
+    // using lookback of 20 minutes
+    val featured_df = tsdf_left.vwap(frequency = "D", volume_col = "vol", price_col = "trade_pr")
+
+    assert(featured_df.df.collect().size ==2)
+    assert(featured_df.df.select(col("event_ts").cast("string")).collect()(0)(0) == "2020-08-01 00:00:00")
+    assert(featured_df.df.select(col("event_ts").cast("string")).collect()(1)(0) == "2020-09-01 00:00:00")
+
   }
 }

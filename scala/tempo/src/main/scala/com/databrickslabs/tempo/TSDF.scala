@@ -66,6 +66,8 @@ sealed trait TSDF
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1) : TSDF
 
+	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF
+
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF
 
 	def EMA(colName: String, window: Int, exp_factor: Double = 0.2): TSDF
@@ -369,6 +371,35 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		else {
 			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, Some(tsPartitionVal), fraction)
 		}
+	}
+
+	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF = {
+		// set pre_vwap as self or enrich with the frequency
+		println("columns for input data frame")
+		this.df.columns.foreach(println)
+		var pre_vwap = this.df
+
+		if (frequency == "m") {
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("minute", col(tsColumn.name)))
+		} else if (frequency == "H") {
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("hour", col(tsColumn.name)))
+		} else if (frequency == "D") {
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("day", col(tsColumn.name)))
+		}
+
+		var group_cols = List("time_group")
+
+		if (this.partitionCols.size > 0) {
+			group_cols = group_cols ++ (this.partitionCols.map(x => x.name))
+		}
+		var vwapped = ( pre_vwap.withColumn("dllr_value", col(price_col) * col(volume_col)).groupBy(group_cols map col: _*).agg( sum("dllr_value").alias("dllr_value"), sum(volume_col).alias(volume_col), max(price_col).alias("max_" + price_col))
+		.withColumn("vwap", col("dllr_value") / col(volume_col)) )
+
+		println("vwapped schema")
+		vwapped.columns.foreach(println)
+		vwapped = vwapped.withColumnRenamed("time_group", "event_ts")
+
+		TSDF( vwapped, tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString )
 	}
 	//
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF = {

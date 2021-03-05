@@ -33,7 +33,7 @@ object TSDFWriters {
     var useDeltaOpt = true
 
     try {
-      val ddf = spark.range(10).write.format("delta").saveAsTable("ddft")
+      val ddf = spark.range(10).write.mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable("ddft")
       spark.sql("optimize ddft")
     } catch {
       case foo: Exception => {
