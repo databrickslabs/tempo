@@ -375,8 +375,6 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 
 	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF = {
 		// set pre_vwap as self or enrich with the frequency
-		println("columns for input data frame")
-		this.df.columns.foreach(println)
 		var pre_vwap = this.df
 
 		if (frequency == "m") {
@@ -395,8 +393,6 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		var vwapped = ( pre_vwap.withColumn("dllr_value", col(price_col) * col(volume_col)).groupBy(group_cols map col: _*).agg( sum("dllr_value").alias("dllr_value"), sum(volume_col).alias(volume_col), max(price_col).alias("max_" + price_col))
 		.withColumn("vwap", col("dllr_value") / col(volume_col)) )
 
-		println("vwapped schema")
-		vwapped.columns.foreach(println)
 		vwapped = vwapped.withColumnRenamed("time_group", "event_ts")
 
 		TSDF( vwapped, tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString )
