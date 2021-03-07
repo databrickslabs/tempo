@@ -13,7 +13,7 @@ import EMA._
 import io._
 
 /**
- * The timeseries DataFrame
+ * The main abstraction of the tempo project is the time series data frame (abbreviated TSDF) which contains methods to transform the existing Spark data frame based on partitions columns and an event timestamp column. Additional methods are present for joining 2 TSDFs
  */
 
 sealed trait TSDF
@@ -609,7 +609,6 @@ object TSDF
 
 object programExecute {
 	def main(args: Array[String]): Unit = {
-
 		println("")
 	}
 }

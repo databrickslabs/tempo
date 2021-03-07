@@ -4,6 +4,9 @@ import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame}
 
+/**
+  * The following object has methods for adding rolling statistics based on the timestamp as the base point. The parameter to range stats is a number of seconds to look back to aggregate statistics such as mean, count, sum, min, max, etc.
+  */
 object rangeStats {
 
   val SUMMARY_FUNCS: List[(String, String => Column)] = List(

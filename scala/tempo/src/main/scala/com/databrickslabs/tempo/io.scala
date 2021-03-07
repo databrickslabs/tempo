@@ -4,6 +4,9 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.SparkSession
 
 
+/**
+The following methods provide support for writing the TSDF object to Delta Lake based on the partition columns specified along with the time as ZORDER columns (with Hilbert space-filling curve optimization)
+ */
 object TSDFWriters {
   /**
     * param: tsdf: input TSDF object to write

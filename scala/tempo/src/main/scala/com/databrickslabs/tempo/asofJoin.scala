@@ -4,13 +4,16 @@ import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
 
+/*
+For many large-scale time series in various industries, the timestamps occur at irregular times. The AS OF join functionality here allows the user to merge time series A and time series B (replicated to millions of time series pairs A & B) by specifying only a partition column and timestamp column. The returned result will have card(time series A) with additional columns from time series B, namely the last non-null observation from time series B as of the time of time series A for all points in time series A.
+ */
 object asofJoin {
 
   def checkEqualPartitionCols(leftTSDF: TSDF, rightTSDF: TSDF): Boolean = {
     leftTSDF.partitionCols.zip(rightTSDF.partitionCols).forall(p => p._1 == p._2)
   }
 
-  // add prefix to all specified columns
+  // add prefix to all specified columns - useful since repeated AS OF joins are likely chained together
   def addPrefixToColumns(tsdf: TSDF, col_list: Seq[StructField], prefix: String): TSDF = {
 
     // Prefix all column
@@ -39,7 +42,7 @@ object asofJoin {
     TSDF(newDF, tsdf.tsColumn.name, tsdf.partitionCols.map(_.name):_*)
   }
 
-  //
+  // union the time series A and time series B data frames
   def combineTSDF(leftTSDF: TSDF, rightTSDF: TSDF): TSDF = {
 
     val combinedTsCol = "combined_ts"
@@ -52,9 +55,9 @@ object asofJoin {
     TSDF(combinedDF, combinedTsCol, leftTSDF.partitionCols.map(_.name):_*)
   }
 
+  // helper method to obtain the columns from time series B to paste onto time series A
   def getLastRightRow(tsdf: TSDF, left_ts_col: StructField, rightCols: Seq[StructField]): TSDF = {
-    // TODO: Add functionality for sort_keys (@ricardo)
-
+    // TODO: Add functionality for secondary sort key
 
     val window_spec: WindowSpec =  Window
       .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
@@ -69,6 +72,7 @@ object asofJoin {
     TSDF(df, left_ts_col.name, tsdf.partitionCols.map(_.name):_*)
   }
 
+  // Create smaller time-based ranges inside of the TSDF partition
   def getTimePartitions(combinedTSDF: TSDF, tsPartitionVal: Int, fraction: Double): TSDF = {
 
     val tsColDouble = "ts_col_double"
@@ -94,6 +98,7 @@ object asofJoin {
     TSDF(df, combinedTSDF.tsColumn.name, newPartitionColNames:_*)
   }
 
+  // wrapper method for executing the AS OF join based on various parameters
   def asofJoinExec(
     leftTSDF: TSDF,
     rightTSDF: TSDF,

@@ -4,9 +4,10 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame}
 import scala.math.pow
 
+// EMA = exponential moving average. The following implementation is an approximation based on built-in Spark methods
 object EMA {
   // Constructs an approximate EMA in the fashion of:
-  // EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until windoww
+  // EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
   def emaExec(tsdf: TSDF, colName: String, window: Int, exp_factor: Double): TSDF = {
 
     val emaColName = "ema_" + colName
