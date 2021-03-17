@@ -33,28 +33,69 @@ The entry point into all features for time series analysis in tempo is a TSDF ob
   <img src="ts_in_fs.png" width="700px"/>
 </p>
 
-#### 1. asofJoin - AS OF Join to Paste Latest AS OF Information onto Fact Table
+## Quickstart 
+
+Data source is UCI public accelerometer data available at this URL https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
+
+#### 0. Read in Data 
+
+```
+from pyspark.sql.functions import * 
+
+phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+
+series = phone_accel_df.toPandas()
+
+from tempo import * 
+
+phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+```
+
+#### 1. Resample and Visualize
+
+```
+# ts_col = timestamp column on which to sort fact and source table
+# partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
+
+resampled_sdf = phone_accel_tsdf.resample(freq='min', func='closest_lead')
+resampled_pdf = resampled_sdf.df.filter(col('event_ts').cast("date") == "2015-02-23").toPandas()
+
+import plotly.graph_objs as go
+import plotly.express as px
+import pandas as pd
+
+# Plotly figure 1
+fig = px.line(resampled_pdf, x='event_ts', y='z',
+              color="User",
+              line_group="User", hover_name="User")
+fig.update_layout(title='Phone Accelerometer Usage' , showlegend=False)
+
+fig.show()
+```
+
+#### 2. AS OF Join 
+##### This join uses windowing in order to select the latest record from a source table and merges this onto the base Fact table
+
 
 <p align="center">
   <img src="AS_OF_Join.png" width="700px"/>
 </p>
 
-##### This join uses windowing in order to select the latest record from a source table and merges this onto the base Fact table
-
-Parameters: 
-
-ts_col = timestamp column on which to sort fact and source table
-partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
 
 ```
+from pyspark.sql.functions import * 
 
-from tempo import *
+watch_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Watch_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
 
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-normal_asof_result = base_trades.asofJoin(skewQuotes, partition_cols = ["symbol"], right_prefix = 'asof').df
+watch_accel_tsdf = TSDF(watch_accel_df, ts_col="event_ts", partition_cols = ["User"])
+
+# Applying AS OF join to TSDF datasets
+joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="phone_accel").df
+
+joined_df.show(10, False)
 ```
 
-#### 2. Skew Join Optimized AS OF Join
+#### 3. Skew Join Optimized AS OF Join
 
 The purpose of the skew optimized as of join is to bucket each set of `partition_cols` to get the latest source record merged onto the fact table
 
@@ -67,79 +108,34 @@ fraction = overlap fraction
 right_prefix = prefix used for source columns when merged into fact table
 
 ```
-from tempo import *
-
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-partitioned_asof_result = base_trades.asofJoin(skewQuotes, partition_cols = ["symbol"], tsPartitionVal = 1200, fraction = 0.1, right_prefix='asof').df
+joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="watch_accel", tsPartitionVal = 10, fraction = 0.1).df
+joined_df.show(10, False)
 ```
 
-#### 3 - Approximate Exponential Moving Average
+#### 4 - Approximate Exponential Moving Average
 
 The approximate exponential moving average uses an approximation of the form `EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) ` to define a rolling moving average based on exponential decay.
 
 Parameters: 
 
-ts_col = timestamp on which to sort for computing previous `n` terms where `n` is the size of the window
 window = number of lagged values to compute for moving average
 
 ```
-
-from tempo import *
-
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-ema_trades = base_trades.EMA("trade_pr", window = 180, partitionCols = ["symbol"]).df
+ema_trades = watch_accel_tsdf.EMA("x", window = 50).df
+ema_trades.show(10, False)
 ```
 
-#### 4 - Volume-weighted average point (VWAP) Calculation
-
-This calculation computes a volume-weighted average point, where point can be any feature, e.g. a price, a temperature reading, etc.
-
-Parameters: 
-
-ts_col = column on which to bin for VWAP calculation (default to minute unit)
-price_col = feature column on which to aggregate
-
-```
-
-from tempo import *
-
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-vwap_res = base_trades.vwap(price_col = "trade_pr").df
-```
-
-#### 5 - Time Series Lookback Feature Generation
-
-Method for placing lagged values into an array for traditional ML methods
-
-Parameters: 
-
-ts_col = timestamp column used for sorting and computing lagged values per partition 
-partitionCols = columns to use for more granular time series calculation
-lookbackWindowSize = cardinality of computed feature vector
-featureCols = features to aggregate into array
-
-```
-
-from tempo import *
-
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-res_df = base_trades.withLookbackFeatures(featureCols = ['trade_pr'] , lookbackWindowSize = 20, partitionCols=['symbol']).df
-```
-
-#### 6 - Range Stats Lookback Append
+#### 5 - Simple Moving Average
 
 Method for computing rolling statistics based on the distinguished timestamp column 
 
 Parameters: 
 
-ts_col = timestamp column used for sorting values to get rolling values
-partitionCols = partition columns used for the range stats windowing in Spark
+rangeBackWindowSecs = number of seconds to look back
+
 ```
-
-from tempo import *
-
-base_trades = TSDF(skewTrades, ts_col = 'event_ts')
-res_stats = base_trades.withRangeStats(partitionCols=['symbol']).df
+moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
+moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
 
