@@ -202,6 +202,11 @@ class TempoTestSpec
     val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
 
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
+
+    // this will execute the block printing out a message that values are being missing given the small tsPartitionVal window
+    val missing_vals_joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 1, fraction = 0.1)
+    val missing_vals_df_ct = missing_vals_joined_df.df.count()
+    assert(missing_vals_df_ct == 7)
   }
 
   it("range-stats test") {

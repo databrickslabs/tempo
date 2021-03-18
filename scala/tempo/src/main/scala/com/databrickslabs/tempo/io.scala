@@ -11,7 +11,7 @@ object TSDFWriters {
   /**
     * param: tsdf: input TSDF object to write
     * param: tabName Delta output table name
-    * param: optimizationCols list of columns to optimize on (time)
+    * param: optimizationCols list of columns to optimize on (time) in addition to the partition key columns from the original TSDF definition
     */
   def write(tsdf: TSDF, spark: SparkSession, tabName: String, optimizationCols: Option[Seq[String]] = None): Unit = {
 
@@ -22,28 +22,18 @@ object TSDFWriters {
     val ts_col = tsdf.tsColumn.name
     val partitionCols = tsdf.partitionCols
 
-    var optCols = Seq("")
+    var optCols = partitionCols.map(_.name)
 
     optimizationCols match {
       case Some(oc) => {
-        optCols = oc ++ Seq("event_time")
+        optCols = optCols ++ oc ++ Seq("event_time")
       }
       case None => {
-         optCols = Seq("event_time")
+         optCols = optCols ++ Seq("event_time")
       }
     }
 
-    var useDeltaOpt = true
-
-    try {
-      val ddf = spark.range(10).write.mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable("ddft")
-      spark.sql("optimize ddft")
-    } catch {
-      case foo: Exception => {
-        println("Running in local mode")
-        useDeltaOpt = false
-      }
-    }
+    val useDeltaOpt = !(sys.env.get("DATABRICKS_RUNTIME_VERSION") == None)
 
     val view_df = df.withColumn("event_dt", to_date(col(ts_col))).withColumn("event_time", translate(split(col(ts_col).cast("string"), " ")(1), ":", " ").cast("double"))
 

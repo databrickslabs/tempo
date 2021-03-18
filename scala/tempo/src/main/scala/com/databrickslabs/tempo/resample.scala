@@ -27,7 +27,7 @@ val allowableFreqs = List(SEC, MIN, HR)
     * @param freq - frequency at which to upsample
     * @return - return a TSDF with a new aggregate key (called agg_key)
     */
-  def __appendAggKey(tsdf : TSDF, freq : String) : TSDF = {
+  private[tempo] def __appendAggKey(tsdf : TSDF, freq : String) : TSDF = {
     var df = tsdf.df
     checkAllowableFreq(freq)
 

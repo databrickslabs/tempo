@@ -63,11 +63,25 @@ object asofJoin {
       .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
       .orderBy(tsdf.tsColumn.name)
 
-    val df = rightCols
+    // use the built-in Spark window last function (ignore nulls) to get the last record from the AS OF data framae
+    // also record how many missing values are received so we report this per partition and aggregate the number of partition keys with missing values
+    var df = rightCols
       .foldLeft(tsdf.df)((df, rightCol) =>
         df.withColumn(rightCol.name, last(df(rightCol.name), true)
-          .over(window_spec)))
+          .over(window_spec))
+        .withColumn("non_null_ct" + rightCol.name, count(rightCol.name).over(window_spec)))
       .filter(col(left_ts_col.name).isNotNull).drop(col(tsdf.tsColumn.name))
+
+    for (column <- df.columns) {
+      if (column.startsWith("non_null")) {
+         val any_blank_vals = (df.agg(min(column)).collect()(0)(0) == 0)
+         val newCol = column.replace("non_null_ct", "")
+           if (any_blank_vals)  {
+             println("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
+           }
+       df = df.drop(column)
+      }
+    }
 
     TSDF(df, left_ts_col.name, tsdf.partitionCols.map(_.name):_*)
   }
