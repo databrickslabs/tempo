@@ -8,8 +8,8 @@ class TSDF:
   def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None):
     """
     Constructor
-    :param df:
-    :param ts_col:
+    :param df
+    :param ts_col
     :param partitionCols:
     :sequence_col every tsdf allows for a tie-breaker secondary sort key
     """
@@ -24,6 +24,56 @@ class TSDF:
   ##
   ## Helper functions
   ##
+
+  def describe(self):
+    """
+         Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals
+
+         Summary
+         global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
+         count / mean / stddev / min / max - standard Spark data frame describe() output
+         missing_vals_pct - percentage (from 0 to 100) of missing values.
+    u9y768"""
+    #extract the double version of the timestamp column to summarize
+    double_ts_col = self.ts_col + "_dbl"
+
+    this_df = self.df.withColumn(double_ts_col, f.col(self.ts_col).cast("double"))
+
+    #summary missing value percentages
+    missing_vals = this_df.select(
+          [(100 * f.count(f.when(f.col(c[0]).isNull(), c[0])) / f.count(f.lit(1))).alias(c[0]) for c in this_df.dtypes if
+           c[1] != 'timestamp']).select(f.lit('missing_vals_pct').alias("summary"), "*")
+
+
+    # describe stats
+    desc_stats = this_df.describe().union(missing_vals)
+    unique_ts = this_df.select(*self.partitionCols).distinct().count()
+
+    max_ts = this_df.select(f.max(f.col(self.ts_col)).alias("max_ts")).collect()[0][0]
+    min_ts = this_df.select(f.min(f.col(self.ts_col)).alias("max_ts")).collect()[0][0]
+    gran = this_df.selectExpr("""min(case when {0} - cast({0} as integer) > 0 then '1-millis'
+                  when {0} % 60 != 0 then '2-seconds'
+                  when {0} % 3600 != 0 then '3-minutes'
+                  when {0} % 86400 != 0 then '4-hours' 
+                  else '5-days' end) granularity""".format(double_ts_col)).collect()[0][0][2:]
+
+    non_summary_cols = [c for c in desc_stats.columns if c != 'summary']
+
+
+    desc_stats = desc_stats.select(f.col("summary"), f.lit(None).alias("unique_ts_count"), f.lit(None).alias("min_ts"),
+                                   f.lit(None).alias("max_ts"), f.lit(None).alias("granularity"), *non_summary_cols)
+
+    # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
+    global_smry_rec = desc_stats.limit(1).select(f.lit('global').alias("summary"),f.lit(unique_ts).alias("unique_ts_count"), f.lit(min_ts).alias("min_ts"), f.lit(max_ts).alias("max_ts"), f.lit(gran).alias("granularity"), *[f.lit(None).alias(c) for c in non_summary_cols])
+
+    full_smry = global_smry_rec.union(desc_stats)
+
+    try:
+        dbutils.fs.ls("/")
+        return(full_smry)
+    except:
+        return(full_smry)
+        pass
 
   def __validated_column(self,df,colname):
     if type(colname) != str:
