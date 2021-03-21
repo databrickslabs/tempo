@@ -63,6 +63,7 @@ sealed trait TSDF
 	def asofJoin(rightTSDF: TSDF,
 		leftPrefix: String,
 		rightPrefix: String = "right_",
+							 maxLookback : Int = 0,
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1) : TSDF
 
@@ -356,22 +357,23 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		rightTSDF: TSDF,
 		leftPrefix: String = "",
 		rightPrefix: String = "right_",
+		maxLookback : Int = 0,
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1): TSDF = {
 
 		if (tsPartitionVal > 0) {("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")}
 
 		if (leftPrefix == "" && tsPartitionVal == 0) {
-			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, tsPartitionVal = None, fraction)
+			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, maxLookback,  tsPartitionVal = None, fraction)
 		}
 		else if(leftPrefix == "") {
-			asofJoinExec(this, rightTSDF, leftPrefix = None, rightPrefix, Some(tsPartitionVal), fraction)
+			asofJoinExec(this, rightTSDF, leftPrefix = None, rightPrefix, maxLookback, Some(tsPartitionVal), fraction)
 		}
 		else if(tsPartitionVal == 0) {
-			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, tsPartitionVal = None)
+			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, maxLookback, tsPartitionVal = None)
 		}
 		else {
-			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, Some(tsPartitionVal), fraction)
+			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, maxLookback, Some(tsPartitionVal), fraction)
 		}
 	}
 

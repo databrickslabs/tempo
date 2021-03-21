@@ -16,6 +16,7 @@ object asofJoin {
   // add prefix to all specified columns - useful since repeated AS OF joins are likely chained together
   def addPrefixToColumns(tsdf: TSDF, col_list: Seq[StructField], prefix: String): TSDF = {
 
+
     // Prefix all column
     val prefixedDF = col_list.foldLeft(tsdf.df)((df, colStruct) => df
       .withColumnRenamed(colStruct.name, prefix + colStruct.name))
@@ -47,21 +48,31 @@ object asofJoin {
 
     val combinedTsCol = "combined_ts"
 
+    val left_rec_ind = leftTSDF.df.columns.filter(x => x.endsWith("rec_ind"))(0)
+    val right_rec_ind = rightTSDF.df.columns.filter(x => x.endsWith("rec_ind"))(0)
+
     val combinedDF = leftTSDF.df
       .unionByName(rightTSDF.df)
       .withColumn(combinedTsCol,
         coalesce(col(leftTSDF.tsColumn.name), col(rightTSDF.tsColumn.name)))
+        .withColumn("rec_ind", coalesce(col(left_rec_ind), col(right_rec_ind)))
 
     TSDF(combinedDF, combinedTsCol, leftTSDF.partitionCols.map(_.name):_*)
   }
 
   // helper method to obtain the columns from time series B to paste onto time series A
-  def getLastRightRow(tsdf: TSDF, left_ts_col: StructField, rightCols: Seq[StructField]): TSDF = {
+  def getLastRightRow(tsdf: TSDF, left_ts_col: StructField, rightCols: Seq[StructField], maxLookback : Int): TSDF = {
     // TODO: Add functionality for secondary sort key
 
+    var maxLookbackValue = if (maxLookback == 0) Int.MaxValue else maxLookback
     val window_spec: WindowSpec =  Window
       .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
-      .orderBy(tsdf.tsColumn.name)
+      .orderBy(tsdf.tsColumn.name, "rec_ind")
+      .rowsBetween(-maxLookbackValue , 0L)
+
+
+    val left_rec_ind = tsdf.df.columns.filter(x => x.endsWith("rec_ind"))(0)
+    val right_rec_ind = tsdf.df.columns.filter(x => x.endsWith("rec_ind"))(1)
 
     // use the built-in Spark window last function (ignore nulls) to get the last record from the AS OF data framae
     // also record how many missing values are received so we report this per partition and aggregate the number of partition keys with missing values
@@ -70,10 +81,12 @@ object asofJoin {
         df.withColumn(rightCol.name, last(df(rightCol.name), true)
           .over(window_spec))
         .withColumn("non_null_ct" + rightCol.name, count(rightCol.name).over(window_spec)))
-      .filter(col(left_ts_col.name).isNotNull).drop(col(tsdf.tsColumn.name))
+      .filter(col(left_ts_col.name).isNotNull).drop(col(tsdf.tsColumn.name)).drop(left_rec_ind).drop(right_rec_ind)
+
+
 
     for (column <- df.columns) {
-      if (column.startsWith("non_null")) {
+      if (column.startsWith("non_null") & column != "non_null_ctrec_ind") {
          val any_blank_vals = (df.agg(min(column)).collect()(0)(0) == 0)
          val newCol = column.replace("non_null_ct", "")
            if (any_blank_vals)  {
@@ -81,6 +94,7 @@ object asofJoin {
            }
        df = df.drop(column)
       }
+      df = df.drop("non_null_ctrec_ind")
     }
 
     TSDF(df, left_ts_col.name, tsdf.partitionCols.map(_.name):_*)
@@ -114,11 +128,22 @@ object asofJoin {
 
   // wrapper method for executing the AS OF join based on various parameters
   def asofJoinExec(
-    leftTSDF: TSDF,
-    rightTSDF: TSDF,
+    _leftTSDF: TSDF,
+    _rightTSDF: TSDF,
     leftPrefix: Option[String],
-    rightPrefix: String, tsPartitionVal: Option[Int],
+    rightPrefix: String, maxLookback : Int, tsPartitionVal: Option[Int],
     fraction: Double = 0.1): TSDF= {
+
+    var leftTSDF: TSDF = _leftTSDF.withColumn("rec_ind", lit(1))
+    var rightTSDF: TSDF = _rightTSDF.withColumn("rec_ind", lit(-1))
+
+    // set time partition value to maxLookback in case it is specified and tsPartitionVal > maxLookback
+    val restrictLookback = (maxLookback > 0)
+    var timePartition = tsPartitionVal match {
+      case Some(s) => s
+      case _ => 0
+    }
+    if (maxLookback > 0 & timePartition > 0) {timePartition = maxLookback}
 
     if(!checkEqualPartitionCols(leftTSDF,rightTSDF)) {
       throw new IllegalArgumentException("Partition columns of left and right TSDF should be equal.")
@@ -147,16 +172,17 @@ object asofJoin {
       addColumnsFromOtherDF(prefixedLeftTSDF, rightCols),
       addColumnsFromOtherDF(prefixedRightTSDF, leftCols))
 
-    val asofTSDF: TSDF = tsPartitionVal match {
-      case Some(partitionValue) => {
-        val timePartitionedTSDF = getTimePartitions(combinedTSDF, partitionValue, fraction)
-        val asofDF = getLastRightRow(timePartitionedTSDF,prefixedLeftTSDF.tsColumn,rightCols).df
+    val asofTSDF: TSDF = timePartition > 0 match {
+      case true => {
+        val timePartitionedTSDF = getTimePartitions(combinedTSDF, timePartition, fraction)
+
+        val asofDF = getLastRightRow(timePartitionedTSDF,prefixedLeftTSDF.tsColumn,rightCols, maxLookback).df
           .filter(col("is_original") === lit(1))
           .drop("ts_partition","is_original")
 
         TSDF(asofDF, prefixedLeftTSDF.tsColumn.name, leftTSDF.partitionCols.map(_.name):_*)
       }
-      case None => getLastRightRow(combinedTSDF, prefixedLeftTSDF.tsColumn,rightCols)
+      case false => getLastRightRow(combinedTSDF, prefixedLeftTSDF.tsColumn,rightCols, maxLookback)
     }
     asofTSDF
   }
