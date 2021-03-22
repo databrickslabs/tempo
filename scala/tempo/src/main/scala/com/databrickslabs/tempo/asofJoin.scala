@@ -1,8 +1,8 @@
 package com.databrickslabs.tempo
 
+import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.expressions.{Window, WindowSpec}
 
 /*
 For many large-scale time series in various industries, the timestamps occur at irregular times. The AS OF join functionality here allows the user to merge time series A and time series B (replicated to millions of time series pairs A & B) by specifying only a partition column and timestamp column. The returned result will have card(time series A) with additional columns from time series B, namely the last non-null observation from time series B as of the time of time series A for all points in time series A.
@@ -65,7 +65,8 @@ object asofJoin {
     // TODO: Add functionality for secondary sort key
 
     var maxLookbackValue = if (maxLookback == 0) Int.MaxValue else maxLookback
-    val window_spec : WindowSpec =  Window.partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
+    val window_spec: WindowSpec =  Window
+      .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
       .orderBy(tsdf.tsColumn.name, "rec_ind")
       .rowsBetween(-maxLookbackValue , 0L)
 

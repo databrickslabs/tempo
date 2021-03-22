@@ -657,9 +657,3 @@ object TSDF {
 			TSDF(df, orderingColumns, partitionCols)
 	}
 }
-
-	object programExecute {
-		def main(args: Array[String]): Unit = {
-			println("")
-		}
-	}
