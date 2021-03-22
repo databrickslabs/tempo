@@ -1,5 +1,6 @@
 package com.databrickslabs.tempo
 
+import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructField
 
@@ -64,7 +65,11 @@ object asofJoin {
     // TODO: Add functionality for secondary sort key
 
     var maxLookbackValue = if (maxLookback == 0) Int.MaxValue else maxLookback
-    val window_spec = tsdf.windowBetweenRows(-maxLookbackValue, 0L)
+    val window_spec: WindowSpec =  Window
+      .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
+      .orderBy(tsdf.tsColumn.name, "rec_ind")
+      .rowsBetween(-maxLookbackValue , 0L)
+
 
     val left_rec_ind = tsdf.df.columns.filter(x => x.endsWith("rec_ind"))(0)
     val right_rec_ind = tsdf.df.columns.filter(x => x.endsWith("rec_ind"))(1)
