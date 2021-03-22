@@ -1,23 +1,19 @@
 package com.databrickslabs.tempo
-import org.apache.spark.sql.expressions.{Window, WindowSpec}
+
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{Column, DataFrame}
+
 import scala.math.pow
 
 // EMA = exponential moving average. The following implementation is an approximation based on built-in Spark methods
 object EMA {
   // Constructs an approximate EMA in the fashion of:
   // EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
-  def emaExec(tsdf: TSDF, colName: String, window: Int, exp_factor: Double): TSDF = {
-
+  def emaExec(tsdf: TSDF, colName: String, window: Int, exp_factor: Double): TSDF =
+  {
     val emaColName = "ema_" + colName
     val df = tsdf.df.withColumn(emaColName, lit(0))
-
-    //TODO: make use of pre-defined windowing methods.
-    val window_spec = Window
-      .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
-      .orderBy(tsdf.tsColumn.name)
-
+    val window_spec = tsdf.baseWindow()
     val tempLagCol = "temp_lag_col"
 
     // TODO: Check whether tempLagCol may need a different name each time

@@ -124,7 +124,7 @@ sealed trait TSDF
 	 * Construct a base window for this [[TSDF]]
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
-	protected def baseWindow(): WindowSpec
+	def baseWindow(): WindowSpec
 
 	/**
 	 * Construct a row-based window for this [[TSDF]]
