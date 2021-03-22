@@ -140,9 +140,6 @@ class TempoTestSpec
 
     val joined_df = tsdf_left.asofJoin(tsdf_right, "left_")
 
-    println("as of result test")
-    joined_df.df.show(100 ,false)
-
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
   }
 
