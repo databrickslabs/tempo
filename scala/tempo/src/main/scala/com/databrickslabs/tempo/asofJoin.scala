@@ -124,6 +124,8 @@ object asofJoin {
     val df = partitionDF.union(remainderDF).drop(partitionRemainder, tsColDouble)
     val newPartitionColNames = combinedTSDF.partitionCols.map(_.name) :+ tsColPartition
 
+    partitionDF.unpersist()
+
     TSDF(df, combinedTSDF.tsColumn.name, newPartitionColNames:_*)
   }
 
