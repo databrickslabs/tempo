@@ -12,13 +12,6 @@ import scala.collection.JavaConverters._
 trait SparkSessionWrapper extends Serializable {
 
   /**
-    * Init environment. This structure alows for multiple calls to "reinit" the environment. Important in the case of
-    * autoscaling. When the cluster scales up/down envInit and then check for current cluster cores.
-    */
-  @transient
-  lazy protected val _envInit: Boolean = envInit()
-
-  /**
     * Access to spark
     * If testing locally or using DBConnect, the System variable "OVERWATCH" is set to "LOCAL" to make the code base
     * behavior differently to work in remote execution AND/OR local only mode but local only mode
@@ -41,36 +34,5 @@ trait SparkSessionWrapper extends Serializable {
   }
 
   lazy val sc: SparkContext = spark.sparkContext
-  //  sc.setLogLevel("DEBUG")
 
-  def getCoresPerWorker: Int = sc.parallelize("1", 1)
-    .map(_ => java.lang.Runtime.getRuntime.availableProcessors).collect()(0)
-
-  def getNumberOfWorkerNodes: Int = sc.statusTracker.getExecutorInfos.length - 1
-
-  def getTotalCores: Int = getCoresPerWorker * getNumberOfWorkerNodes
-
-  def getCoresPerTask: Int = {
-    try {
-      spark.conf.get("spark.task.cpus").toInt
-    }
-    catch {
-      case _: java.util.NoSuchElementException => 1
-    }
-  }
-
-  def getParTasks: Int = scala.math.floor(getTotalCores / getCoresPerTask).toInt
-
-  def getDriverCores: Int = java.lang.Runtime.getRuntime.availableProcessors
-
-  /**
-    * Set global, cluster details such as cluster cores, driver cores, logLevel, etc.
-    * This also provides a simple way to change the logging level throuhgout the package
-    * @param logLevel log4j log level
-    * @return
-    */
-  def envInit(logLevel: String = "INFO"): Boolean = {
-    sc.setLogLevel(logLevel)
-    true
-  }
 }
