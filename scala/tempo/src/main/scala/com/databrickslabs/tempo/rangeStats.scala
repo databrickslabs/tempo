@@ -42,10 +42,7 @@ object rangeStats {
       case _ => colsToSummarise
     }
 
-    //TODO: make use of pre-defined windowing methods.
-    val window_spec = Window
-      .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
-      .orderBy(tsdf.tsColumn.name)
+    val window_spec = tsdf.baseWindow()
 
     val summaryDF = innerColsToSummarise
       .foldLeft(tsdf.df)((df, colName) => {
