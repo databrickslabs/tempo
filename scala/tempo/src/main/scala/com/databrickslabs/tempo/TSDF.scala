@@ -522,135 +522,144 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 /**
  * [[TSDF]] companion object - contains static constructors
  */
-object TSDF
-{
+object TSDF {
 	// Utility functions
 
 	/**
-	 * @define DEFAULT_SEQ_COLNAME sequence_num
-	 */
+		* @define DEFAULT_SEQ_COLNAME sequence_num
+		*/
 	final val DEFAULT_SEQ_COLNAME = "sequence_num"
 
 	/**
-	 * Valid timestamp column types
-	 */
+		* Valid timestamp column types
+		*/
 	final val validTSColumnTypes = Seq[DataType](ByteType,
-	                                             ShortType,
-	                                             IntegerType,
-	                                             LongType,
-	                                             TimestampType,
-	                                             DateType)
+		ShortType,
+		IntegerType,
+		LongType,
+		TimestampType,
+		DateType)
 
 	/**
-	 * Retrieve a column by name from the dataframe by name
-	 * @param df the [[DataFrame]] with the column
-	 * @param colName the name of the column
-	 * @return the named column of the [[DataFrame]], if it exists,
-	 *         otherwise a [[NoSuchElementException]] is thrown
-	 */
+		* Retrieve a column by name from the dataframe by name
+		*
+		* @param df      the [[DataFrame]] with the column
+		* @param colName the name of the column
+		* @return the named column of the [[DataFrame]], if it exists,
+		*         otherwise a [[NoSuchElementException]] is thrown
+		*/
 	private[tempo] def colByName(df: DataFrame)(colName: String): StructField = {
 		df.schema.find(_.name.toLowerCase() == colName.toLowerCase()).get
-}
+	}
 
 	// TSDF Constructors
 
 	/**
-	 * @param df the source [[DataFrame]]
-	 * @param tsColumnName the name of the timeseries column
-	 * @param partitionColumnNames the names of the paritioning columns
-	 * @return a [[TSDF]] object representing the given [[DataFrame]]
-	 */
-	def apply( df: DataFrame,
-	           tsColumnName: String,
-	           partitionColumnNames: String* ): TSDF =
-	{
+		* @param df                   the source [[DataFrame]]
+		* @param tsColumnName         the name of the timeseries column
+		* @param partitionColumnNames the names of the paritioning columns
+		* @return a [[TSDF]] object representing the given [[DataFrame]]
+		*/
+	def apply(df: DataFrame,
+						tsColumnName: String,
+						partitionColumnNames: String*): TSDF = {
 		val colFinder = colByName(df) _
 		val tsColumn = colFinder(tsColumnName)
 		val partitionCols = partitionColumnNames.map(colFinder)
 
-		new BaseTSDF(df, tsColumn, partitionCols :_*)
+		new BaseTSDF(df, tsColumn, partitionCols: _*)
 	}
 
 	/**
-	 * Construct a [[TSDF]] with multi-column ordering. This method will construct
-	 * a timeseries column (in the column named by the sequenceColName) based on the
-	 * ordering of the orderingColumns.
-	 * @param df the source [[DataFrame]]
-	 * @param orderingColumns columns that define ordering on the [[DataFrame]]
-	 * @param sequenceColName the name for the constructed timeseries column
-	 * @param partitionCols partition columns
-	 * @return a [[TSDF]] object representing the given [[DataFrame]]
-	 */
-	def apply( df: DataFrame,
-	           orderingColumns: Seq[String],
-	           sequenceColName: String,
-						 partitionCols: Seq[String] ): TSDF =
-	{
+		* Construct a [[TSDF]] with multi-column ordering. This method will construct
+		* a timeseries column (in the column named by the sequenceColName) based on the
+		* ordering of the orderingColumns.
+		*
+		* @param df              the source [[DataFrame]]
+		* @param orderingColumns columns that define ordering on the [[DataFrame]]
+		* @param sequenceColName the name for the constructed timeseries column
+		* @param partitionCols   partition columns
+		* @return a [[TSDF]] object representing the given [[DataFrame]]
+		*/
+	def apply(df: DataFrame,
+						orderingColumns: Seq[String],
+						sequenceColName: String,
+						partitionCols: Seq[String]): TSDF = {
 		// define window for ordering according to the combined sequence columns
 		val seq_win =
-			if( partitionCols.nonEmpty)
-				Window.partitionBy(partitionCols.map(df(_)) :_*)
-				      .orderBy(orderingColumns.map(df(_)) :_*)
+			if (partitionCols.nonEmpty)
+				Window.partitionBy(partitionCols.map(df(_)): _*)
+					.orderBy(orderingColumns.map(df(_)): _*)
 			else
-				Window.orderBy(orderingColumns.map(df(_)) :_*)
+				Window.orderBy(orderingColumns.map(df(_)): _*)
 
 		// add total ordering column
 		val newDF = df.withColumn(sequenceColName, row_number().cast(LongType).over(seq_win))
 
 		// construct our TSDF
-		apply( newDF, sequenceColName, partitionCols :_* )
+		apply(newDF, sequenceColName, partitionCols: _*)
 	}
 
 	/**
-	 * Construct a [[TSDF]] with multi-column ordering. This method will construct
-	 * a timeseries column named $DEFAULT_SEQ_COLNAME based on the ordering of the
-	 * orderingColumns.
-	 * @param df the source [[DataFrame]]
-	 * @param orderingColumns columns that define ordering on the [[DataFrame]]
-	 * @param partitionCols partition columns
-	 * @return a [[TSDF]] object representing the given [[DataFrame]]
-	 */
+		* Construct a [[TSDF]] with multi-column ordering. This method will construct
+		* a timeseries column named $DEFAULT_SEQ_COLNAME based on the ordering of the
+		* orderingColumns.
+		*
+		* @param df              the source [[DataFrame]]
+		* @param orderingColumns columns that define ordering on the [[DataFrame]]
+		* @param partitionCols   partition columns
+		* @return a [[TSDF]] object representing the given [[DataFrame]]
+		*/
 	def apply(df: DataFrame,
-	          orderingColumns: Seq[String],
-						partitionCols: Seq[String] ): TSDF =
-		apply( df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionCols )
+						orderingColumns: Seq[String],
+						partitionCols: Seq[String]): TSDF =
+		apply(df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionCols)
 
 	/**
-	 * Implicit TSDF functions on DataFrames
-	 * @param df the DataFrame on which to define the implicit functions
-	 */
-	implicit class TSDFImplicits(df: DataFrame)
-	{
+		* Implicit TSDF functions on DataFrames
+		*
+		* @param df the DataFrame on which to define the implicit functions
+		*/
+	implicit class TSDFImplicits(df: DataFrame) {
 		/**
-		 * Convert a [[DataFrame]] to [[TSDF]]
-		 * @param tsColumnName timeseries column
-		 * @param partitionColumnNames partition columns
-		 * @return a [[TSDF]] based on the current [[DataFrame]]
-		 */
+			* Convert a [[DataFrame]] to [[TSDF]]
+			*
+			* @param tsColumnName         timeseries column
+			* @param partitionColumnNames partition columns
+			* @return a [[TSDF]] based on the current [[DataFrame]]
+			*/
 		def toTSDF(tsColumnName: String,
-		           partitionColumnNames: String*): TSDF =
-			TSDF(df,tsColumnName,partitionColumnNames :_*)
+							 partitionColumnNames: String*): TSDF =
+			TSDF(df, tsColumnName, partitionColumnNames: _*)
 
 		/**
-		 * Convert a [[DataFrame]] to [[TSDF]]
-		 * @param orderingColumns columns that define ordering on the [[DataFrame]]
-		 * @param sequenceColName the name for the constructed timeseries column
-		 * @param partitionCols partition columns
-		 * @return a [[TSDF]] based on the current [[DataFrame]]
-		 */
+			* Convert a [[DataFrame]] to [[TSDF]]
+			*
+			* @param orderingColumns columns that define ordering on the [[DataFrame]]
+			* @param sequenceColName the name for the constructed timeseries column
+			* @param partitionCols   partition columns
+			* @return a [[TSDF]] based on the current [[DataFrame]]
+			*/
 		def toTSDF(orderingColumns: Seq[String],
-		           sequenceColName: String,
-		           partitionCols: Seq[String]): TSDF =
-			TSDF(df,orderingColumns,sequenceColName,partitionCols)
+							 sequenceColName: String,
+							 partitionCols: Seq[String]): TSDF =
+			TSDF(df, orderingColumns, sequenceColName, partitionCols)
 
 		/**
-		 * Convert a [[DataFrame]] to [[TSDF]]
-		 * @param orderingColumns columns that define ordering on the [[DataFrame]]
-		 * @param partitionCols parition columns
-		 * @return a [[TSDF]] based on the current [[DataFrame]]
-		 */
+			* Convert a [[DataFrame]] to [[TSDF]]
+			*
+			* @param orderingColumns columns that define ordering on the [[DataFrame]]
+			* @param partitionCols   parition columns
+			* @return a [[TSDF]] based on the current [[DataFrame]]
+			*/
 		def toTSDF(orderingColumns: Seq[String],
-		           partitionCols: Seq[String]): TSDF =
-			TSDF(df,orderingColumns,partitionCols)
+							 partitionCols: Seq[String]): TSDF =
+			TSDF(df, orderingColumns, partitionCols)
 	}
 }
+
+	object programExecute {
+		def main(args: Array[String]): Unit = {
+			println("")
+		}
+	}

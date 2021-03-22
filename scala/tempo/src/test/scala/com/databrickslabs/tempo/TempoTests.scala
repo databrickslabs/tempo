@@ -200,7 +200,7 @@ class TempoTestSpec
     val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
-
+    
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
 
     // this will execute the block printing out a message that values are being missing given the small tsPartitionVal window
