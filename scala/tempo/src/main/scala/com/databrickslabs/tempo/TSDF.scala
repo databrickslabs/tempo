@@ -299,7 +299,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	 *
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
-	protected def baseWindow(): WindowSpec =
+	def baseWindow(): WindowSpec =
 	{
 		// order by total ordering column
 		val w = Window.orderBy(tsColumn.name)
