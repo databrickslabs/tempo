@@ -63,11 +63,11 @@ trait HasWindow extends Params
 	final def getWindowOrdering: Ordering = $(windowOrdering)
 
 	/** @group setParam */
-	final def setWindowOrdering(value: Ordering): this.type =
+	def setWindowOrdering(value: Ordering): this.type =
 		set(windowOrdering,value)
 
 	/** @group setParam */
-	final def setWindowOrdering(value: String): this.type =
+	def setWindowOrdering(value: String): this.type =
 		setWindowOrdering(Orderings.withName(value))
 
 	/**
@@ -80,11 +80,11 @@ trait HasWindow extends Params
 	final def getWindowAlignment: WindowAlignment = $(windowAlignment)
 
 	/** @group setParam */
-	final def setWindowAlignment(value: WindowAlignment): this.type =
+	def setWindowAlignment(value: WindowAlignment): this.type =
 		set(windowAlignment,value)
 
 	/** @group setParam */
-	final def setWindowAlignment(value: String): this.type =
+	def setWindowAlignment(value: String): this.type =
 		setWindowAlignment(WindowAlignments.withName(value))
 
 	/**

@@ -21,13 +21,19 @@ class SMA(uid: String)
 
 	// custom output column names
 
+	private def setDefaultOutputColumn =
+		if($(outputCol) == null || $(outputCol).isEmpty)
+			set(outputCol, "sma_"+ $(windowAlignment) +"_"+ $(windowSize) +"_"+ $(measureCol))
+
 	/** @group setParam */
 	override def setWindowSize(value: Long): SMA.this.type =
 	{
-		if($(outputCol).isEmpty)
-			set(outputCol, "sma_"+ $(windowAlignment) +"_"+ value +"_"+ $(measureCol) )
 		super.setWindowSize(value)
+		setDefaultOutputColumn
+		this
 	}
+
+
 
 	// transform
 
