@@ -388,7 +388,7 @@ class TempoTestSpec
   val directory = new Directory(new File(spark_warehouse_dir + "my_table/"))
   directory.deleteRecursively()
 
-  tsdf_left.write(spark, "my_table")
+  tsdf_left.write("my_table")
   println("delta table count" + spark.table("my_table").count())
 
   // should be equal to the expected dataframe
