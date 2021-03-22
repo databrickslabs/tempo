@@ -94,6 +94,7 @@ object asofJoin {
            }
        df = df.drop(column)
       }
+      df = df.drop("rec_ind")
       df = df.drop("non_null_ctrec_ind")
     }
 
