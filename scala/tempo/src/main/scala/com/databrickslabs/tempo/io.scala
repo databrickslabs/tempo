@@ -12,9 +12,10 @@ object TSDFWriters extends SparkSessionWrapper {
   /**
     * param: tsdf: input TSDF object to write
     * param: tabName Delta output table name
+    * param: tabPath is the external table path which can be used to save a table to an arbitrary blob location
     * param: optimizationCols list of columns to optimize on (time) in addition to the partition key columns from the original TSDF definition
     */
-  def write(tsdf: TSDF, tabName: String, optimizationCols: Option[Seq[String]] = None): Unit = {
+  def write(tsdf: TSDF, tabName: String, tabPath : String = "", optimizationCols: Option[Seq[String]] = None): Unit = {
 
     // hilbert curves more evenly distribute performance for querying multiple columns for Delta tables
     spark.conf.set("spark.databricks.io.skipping.mdc.curve", "hilbert")
@@ -38,7 +39,11 @@ object TSDFWriters extends SparkSessionWrapper {
 
     val view_df = df.withColumn("event_dt", to_date(col(ts_col))).withColumn("event_time", translate(split(col(ts_col).cast("string"), " ")(1), ":", " ").cast("double"))
 
-    view_df.write.mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable(tabName)
+    tabPath == "" match {
+      case false => view_df.write.option("path", tabPath).mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable(tabName)
+      case true =>  view_df.write.mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable(tabName)
+
+    }
 
     if (useDeltaOpt) {
       val optColsStr = optCols.mkString(",")

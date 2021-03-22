@@ -75,7 +75,7 @@ sealed trait TSDF
 
 	def resample(freq : String, func : String) : TSDF
 
-	def write(tabName: String, optimizationCols: Option[Seq[String]] = None) : Unit
+	def write(tabName: String, tabPath : String = "", optimizationCols: Option[Seq[String]] = None) : Unit
 
 	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF
 
@@ -472,8 +472,8 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	return(enriched_tsdf)
 	}
 
-	def write(tabName: String, optimizationCols: Option[Seq[String]] = None) : Unit = {
-       TSDFWriters.write(this, tabName, optimizationCols)
+	def write(tabName: String, tabPath : String = "", optimizationCols: Option[Seq[String]] = None) : Unit = {
+       TSDFWriters.write(this, tabName, tabPath, optimizationCols)
 	}
 	/**
 		* Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
