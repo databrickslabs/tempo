@@ -51,6 +51,12 @@ class TSDF:
         if left_col != right_col:
             raise ValueError("left and right dataframe partition columns should have same name in same order")
 
+  def __validateTsColMatch(self, right_tsdf):
+      left_ts_datatype = self.df.select(self.ts_col).dtypes[0][1]
+      right_ts_datatype = right_tsdf.df.select(self.ts_col).dtypes[0][1]
+      if left_ts_datatype != right_ts_datatype:
+          raise ValueError("left and right dataframe timestamp index columns should have same type")
+
   def __addPrefixToColumns(self,col_list,prefix):
     """
     Add prefix to all specified columns.
@@ -217,6 +223,10 @@ class TSDF:
     # prefix non-partition columns, to avoid duplicated columns.
     left_df = self.df
     right_df = right_tsdf.df
+
+
+    # validate timestamp datatypes match
+    self.__validateTsColMatch(right_tsdf)
 
     orig_left_col_diff = list(set(left_df.columns).difference(set(self.partitionCols)))
     orig_right_col_diff = list(set(right_df.columns).difference(set(self.partitionCols)))
