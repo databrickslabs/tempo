@@ -361,7 +361,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1): TSDF = {
 
-		if (tsPartitionVal > 0) {("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")}
+		if (tsPartitionVal > 0) {println("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")}
 
 		if (leftPrefix == "" && tsPartitionVal == 0) {
 			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, maxLookback,  tsPartitionVal = None, fraction)

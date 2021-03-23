@@ -78,24 +78,11 @@ object asofJoin {
     var df = rightCols
       .foldLeft(tsdf.df)((df, rightCol) =>
         df.withColumn(rightCol.name, last(df(rightCol.name), true)
-          .over(window_spec))
-        .withColumn("non_null_ct" + rightCol.name, count(rightCol.name).over(window_spec)))
+          .over(window_spec)))
+        //.withColumn("non_null_ct" + rightCol.name, count(rightCol.name).over(window_spec))
       .filter(col(left_ts_col.name).isNotNull).drop(col(tsdf.tsColumn.name)).drop(left_rec_ind).drop(right_rec_ind)
 
-
-
-    for (column <- df.columns) {
-      if (column.startsWith("non_null") & column != "non_null_ctrec_ind") {
-         val any_blank_vals = (df.agg(min(column)).collect()(0)(0) == 0)
-         val newCol = column.replace("non_null_ct", "")
-           if (any_blank_vals)  {
-             println("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
-           }
-       df = df.drop(column)
-      }
-      df = df.drop("rec_ind")
-      df = df.drop("non_null_ctrec_ind")
-    }
+    df = df.drop("rec_ind")
 
     TSDF(df, left_ts_col.name, tsdf.partitionCols.map(_.name):_*)
   }
