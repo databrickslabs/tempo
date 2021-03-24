@@ -28,7 +28,8 @@ Scala installation:
 
 Once the jar is created (via the following instructions), upload the jar to Databricks for use in a notebook or job:
 
-```cd scala/tempo
+```
+cd scala/tempo
 sbt package
 ```
 
