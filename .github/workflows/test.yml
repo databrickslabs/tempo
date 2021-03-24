@@ -25,7 +25,7 @@ jobs:
         pip install -r python/requirements.txt
         pip install coverage
         python -m unittest discover python
-        coverage xml
+        cd python ; coverage xml
 
     - name: Publish test coverage
       uses: codecov/codecov-action@v1
