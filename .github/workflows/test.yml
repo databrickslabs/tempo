@@ -24,7 +24,7 @@ jobs:
       run: |
         pip install -r python/requirements.txt
         pip install coverage
-        coverage run -m unittest
+        python -m unittest discover python
         coverage xml
 
     - name: Publish test coverage
