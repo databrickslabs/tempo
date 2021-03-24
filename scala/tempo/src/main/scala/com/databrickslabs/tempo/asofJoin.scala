@@ -13,13 +13,15 @@ object asofJoin {
     leftTSDF.partitionCols.zip(rightTSDF.partitionCols).forall(p => p._1 == p._2)
   }
 
+  def sharedColumns(leftColumns: Seq[StructField], rightColumns: Seq[StructField]): Seq[StructField] =
+    leftColumns.toSet.intersect(rightColumns.toSet).toSeq
+
   // add prefix to all specified columns - useful since repeated AS OF joins are likely chained together
-  def addPrefixToColumns(tsdf: TSDF, col_list: Seq[StructField], prefix: String): TSDF = {
-
-
-    // Prefix all column
-    val prefixedDF = col_list.foldLeft(tsdf.df)((df, colStruct) => df
-      .withColumnRenamed(colStruct.name, prefix + colStruct.name))
+  def addPrefixToColumns(tsdf: TSDF, col_list: Seq[StructField], prefix: String): TSDF =
+  {
+    // Prefix all columns in the list
+    val prefixedDF = col_list.foldLeft(tsdf.df)((df, colStruct) =>
+                                                  df.withColumnRenamed(colStruct.name, prefix + colStruct.name))
 
     // update ts_colName if it is in col_list
     val ts_colName = if(col_list.contains(tsdf.tsColumn)) prefix + tsdf.tsColumn.name else tsdf.tsColumn.name
@@ -119,8 +121,9 @@ object asofJoin {
   def asofJoinExec(
     _leftTSDF: TSDF,
     _rightTSDF: TSDF,
-    leftPrefix: Option[String],
-    rightPrefix: String, maxLookback : Int, tsPartitionVal: Option[Int],
+    rightPrefix: Option[String],
+    maxLookback : Int,
+    tsPartitionVal: Option[Int],
     fraction: Double = 0.1): TSDF= {
 
     var leftTSDF: TSDF = _leftTSDF.withColumn("rec_ind", lit(1))
@@ -138,40 +141,36 @@ object asofJoin {
       throw new IllegalArgumentException("Partition columns of left and right TSDF should be equal.")
     }
 
-    // add Prefixes to TSDFs
-    val prefixedLeftTSDF = leftPrefix match {
-      case Some(prefix_value) => addPrefixToColumns(
-        leftTSDF,
-        leftTSDF.observationColumns :+ leftTSDF.tsColumn,
-        prefix_value)
-      case None => leftTSDF
+    // prefix duplicated right-side columns only if prefix specified
+    val prefixedRightTSDF = rightPrefix match {
+      case Some(prefix) =>
+        addPrefixToColumns(rightTSDF,
+                           sharedColumns( leftTSDF.observationColumns :+ leftTSDF.tsColumn,
+                                          rightTSDF.observationColumns :+ rightTSDF.tsColumn ),
+                           prefix)
+      case None => rightTSDF
     }
 
-    val prefixedRightTSDF = addPrefixToColumns(
-      rightTSDF,
-      rightTSDF.observationColumns :+ rightTSDF.tsColumn,
-      rightPrefix)
-
     // get all non-partition columns (including ts col)
-    val leftCols = prefixedLeftTSDF.observationColumns :+ prefixedLeftTSDF.tsColumn
+    val leftCols = leftTSDF.observationColumns :+ leftTSDF.tsColumn
     val rightCols = prefixedRightTSDF.observationColumns :+ prefixedRightTSDF.tsColumn
 
     // perform asof join
     val combinedTSDF = combineTSDF(
-      addColumnsFromOtherDF(prefixedLeftTSDF, rightCols),
+      addColumnsFromOtherDF(leftTSDF, rightCols),
       addColumnsFromOtherDF(prefixedRightTSDF, leftCols))
 
     val asofTSDF: TSDF = timePartition > 0 match {
       case true => {
         val timePartitionedTSDF = getTimePartitions(combinedTSDF, timePartition, fraction)
 
-        val asofDF = getLastRightRow(timePartitionedTSDF,prefixedLeftTSDF.tsColumn,rightCols, maxLookback).df
+        val asofDF = getLastRightRow(timePartitionedTSDF,leftTSDF.tsColumn,rightCols, maxLookback).df
           .filter(col("is_original") === lit(1))
           .drop("ts_partition","is_original")
 
-        TSDF(asofDF, prefixedLeftTSDF.tsColumn.name, leftTSDF.partitionCols.map(_.name):_*)
+        TSDF(asofDF, leftTSDF.tsColumn.name, leftTSDF.partitionCols.map(_.name):_*)
       }
-      case false => getLastRightRow(combinedTSDF, prefixedLeftTSDF.tsColumn,rightCols, maxLookback)
+      case false => getLastRightRow(combinedTSDF, leftTSDF.tsColumn,rightCols, maxLookback)
     }
     asofTSDF
   }
