@@ -61,10 +61,11 @@ sealed trait TSDF
 	// transformation functions
 
 	def asofJoin(rightTSDF: TSDF,
-	             rightPrefix: String = "right_",
+		leftPrefix: String,
+		rightPrefix: String = "right_",
 							 maxLookback : Int = 0,
-							 tsPartitionVal: Int = 0,
-							 fraction: Double = 0.1) : TSDF
+		tsPartitionVal: Int = 0,
+		fraction: Double = 0.1) : TSDF
 
 	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF
 
@@ -354,29 +355,26 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 	// TODO: probably rewrite, but overloading methods seemed to break. the ifElse stuff is a quick fix.
   def asofJoin(
 		rightTSDF: TSDF,
-		rightPrefix: String = "",
+		leftPrefix: String = "",
+		rightPrefix: String = "right_",
 		maxLookback : Int = 0,
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1): TSDF = {
 
-		if (tsPartitionVal > 0)
-			println("WARNING: You are using the skew version of the AS OF join. " +
-			        "This may result in null values if there are any values outside of the maximum lookback. " +
-			        "For maximum efficiency, choose smaller values of maximum lookback, trading off performance " +
-			        "and potential blank AS OF values for sparse keys")
+		if (tsPartitionVal > 0) {println("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")}
 
-		// set right prefix
-		val rightPrefixOpt =
-			if( rightPrefix == null || rightPrefix == "" )
-				None
-			else
-				Some(rightPrefix)
-
-		// call the implementation function
-		if(tsPartitionVal == 0)
-			asofJoinExec(this, rightTSDF, rightPrefixOpt, maxLookback, tsPartitionVal = None)
-		else
-			asofJoinExec(this, rightTSDF, rightPrefixOpt, maxLookback, Some(tsPartitionVal), fraction)
+		if (leftPrefix == "" && tsPartitionVal == 0) {
+			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, maxLookback,  tsPartitionVal = None, fraction)
+		}
+		else if(leftPrefix == "") {
+			asofJoinExec(this, rightTSDF, leftPrefix = None, rightPrefix, maxLookback, Some(tsPartitionVal), fraction)
+		}
+		else if(tsPartitionVal == 0) {
+			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, maxLookback, tsPartitionVal = None)
+		}
+		else {
+			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, maxLookback, Some(tsPartitionVal), fraction)
+		}
 	}
 
 	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF = {
