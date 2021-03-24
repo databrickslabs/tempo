@@ -51,6 +51,12 @@ class TSDF:
         if left_col != right_col:
             raise ValueError("left and right dataframe partition columns should have same name in same order")
 
+  def __validateTsColMatch(self, right_tsdf):
+      left_ts_datatype = self.df.select(self.ts_col).dtypes[0][1]
+      right_ts_datatype = right_tsdf.df.select(self.ts_col).dtypes[0][1]
+      if left_ts_datatype != right_ts_datatype:
+          raise ValueError("left and right dataframe timestamp index columns should have same type")
+
   def __addPrefixToColumns(self,col_list,prefix):
     """
     Add prefix to all specified columns.
@@ -80,7 +86,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal):
     from functools import reduce
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
@@ -91,10 +97,29 @@ class TSDF:
     sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys)
-    df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
+
+    # splitting off the condition as we want different columns in the reduce if we are implementing the skew AS OF join
+    if tsPartitionVal is None:
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
                      range(len(right_cols)), self.df)
+    else:
+        df = reduce(
+            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)).withColumn(
+                'non_null_ct' + right_cols[idx], f.count(right_cols[idx]).over(window_spec)),
+            range(len(right_cols)), self.df)
 
     df = (df.filter(f.col(left_ts_col).isNotNull()).drop(self.ts_col))
+
+    # remove the null_ct stats used to record missing values in partitioned as of join
+    if tsPartitionVal is not None:
+      for column in df.columns:
+        if (column.startswith("non_null")):
+          any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
+          newCol = column.replace("non_null_ct", "")
+          if any_blank_vals:
+            print("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
+          df = df.drop(column)
+
 
     return TSDF(df, left_ts_col, self.partitionCols)
 
@@ -188,12 +213,20 @@ class TSDF:
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
     """
+
+    if (tsPartitionVal is not None):
+      print("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
+
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)
 
     # prefix non-partition columns, to avoid duplicated columns.
     left_df = self.df
     right_df = right_tsdf.df
+
+
+    # validate timestamp datatypes match
+    self.__validateTsColMatch(right_tsdf)
 
     orig_left_col_diff = list(set(left_df.columns).difference(set(self.partitionCols)))
     orig_right_col_diff = list(set(right_df.columns).difference(set(self.partitionCols)))
@@ -218,10 +251,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
@@ -263,7 +296,6 @@ class TSDF:
   def vwap(self, frequency='m',volume_col = "volume", price_col = "price"):
         # set pre_vwap as self or enrich with the frequency
         pre_vwap = self.df
-        print('input schema: ', pre_vwap.printSchema())
         if frequency == 'm':
             pre_vwap = self.df.withColumn("time_group", f.concat(f.lpad(f.hour(f.col(self.ts_col)), 2, '0'), f.lit(':'),
                                                                f.lpad(f.minute(f.col(self.ts_col)), 2, '0')))
@@ -388,7 +420,6 @@ class TSDF:
               derivedCols.append(
                       ((f.col(metric) - f.col('mean_' + metric)) / f.col('stddev_' + metric)).alias("zscore_" + metric))
           selected_df = self.df.select(*selectedCols)
-          #print(derivedCols)
           summary_df = selected_df.select(*selected_df.columns, *derivedCols)
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)

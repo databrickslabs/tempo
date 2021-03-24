@@ -9,9 +9,15 @@ import org.apache.spark.sql.functions._
 // create Spark session with local mode
 trait SparkSessionTestWrapper {
 
-  lazy val spark: SparkSession = {
-    SparkSession.builder().master("local").config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension").config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog").config("spark.sql.shuffle.partitions", 1).config("spark.driver.bindAddress", "127.0.0.1").appName("spark session").getOrCreate()
-  }
+  lazy val spark: SparkSession =
+    SparkSession.builder()
+                .master("local")
+                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+                .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+                .config("spark.sql.shuffle.partitions", 1)
+                .config("spark.driver.bindAddress", "127.0.0.1")
+                .appName("test code")
+                .getOrCreate()
 
   import spark.implicits._
 
@@ -104,10 +110,10 @@ class TempoTestSpec
 
     val expectedSchema = StructType(List(
       StructField("symbol", StringType),
-      StructField("left_event_ts", StringType),
-      StructField("left_trade_pr", DoubleType),
-      StructField("right_bid_pr", DoubleType),
-      StructField("right_ask_pr", DoubleType),
+      StructField("event_ts", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("bid_pr", DoubleType),
+      StructField("ask_pr", DoubleType),
       StructField("right_event_ts", StringType),
     ))
 
@@ -132,13 +138,13 @@ class TempoTestSpec
     //var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
     val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
     val dfRight = buildTestDF(schema = rightSchema, data = right_data, ts_cols = List("event_ts"))
-    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts", "right_event_ts"))
+    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("event_ts", "right_event_ts"))
 
     // perform the join
     val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
 
-    val joined_df = tsdf_left.asofJoin(tsdf_right, "left_")
+    val joined_df = tsdf_left.asofJoin(tsdf_right, "right_")
 
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
   }
@@ -158,10 +164,10 @@ class TempoTestSpec
 
     val expectedSchema = StructType(List(
       StructField("symbol", StringType),
-      StructField("left_event_ts", StringType),
-      StructField("left_trade_pr", DoubleType),
-      StructField("right_bid_pr", DoubleType),
-      StructField("right_ask_pr", DoubleType),
+      StructField("event_ts", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("bid_pr", DoubleType),
+      StructField("ask_pr", DoubleType),
       StructField("right_event_ts", StringType)))
 
     val left_data = Seq(
@@ -194,14 +200,19 @@ class TempoTestSpec
     //var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
     val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
     val dfRight = buildTestDF(schema = rightSchema, data = right_data, ts_cols = List("event_ts"))
-    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts", "right_event_ts"))
+    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("event_ts", "right_event_ts"))
 
     // perform the join
     val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
-    val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
+    val joined_df = tsdf_left.asofJoin(tsdf_right, "right_", tsPartitionVal = 10, fraction = 0.1)
 
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
+
+    // this will execute the block printing out a message that values are being missing given the small tsPartitionVal window
+    val missing_vals_joined_df = tsdf_left.asofJoin(tsdf_right, "right_", tsPartitionVal = 1, fraction = 0.1)
+    val missing_vals_df_ct = missing_vals_joined_df.df.count()
+    assert(missing_vals_df_ct == 7)
   }
 
   it("range-stats test") {
@@ -375,10 +386,15 @@ class TempoTestSpec
   // convert to TSDF
   val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames ="symbol")
 
-  // using lookback of
-  // 20 minutes
-  //featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
-  tsdf_left.write(spark, "my_table")
+  import scala.reflect.io.Directory
+  import java.io.File
+
+  val spark_warehouse_dir = spark.conf.get("spark.sql.warehouse.dir")
+    print(spark_warehouse_dir)
+  val directory = new Directory(new File(spark_warehouse_dir + "my_table/"))
+  directory.deleteRecursively()
+
+  tsdf_left.write("my_table")
   println("delta table count" + spark.table("my_table").count())
 
   // should be equal to the expected dataframe
@@ -417,5 +433,50 @@ class TempoTestSpec
     val result = left_of_union.union(right_of_union).unionAll(right_of_union).withColumn("extra", lit("Extra")).withColumn("to_be_dropped_1", lit(2)).withColumn("to_be_dropped_2", lit(3)).withColumnRenamed("trade_pr_2", "better_trade_pr").drop("date").drop("to_be_dropped_1", "to_be_dropped_2")
 
     assert(result.df.count == 9)
+  }
+
+  it("VWAP - Volume Weighted Average Pricing test") {
+
+    val schema = StructType(List(StructField("symbol", StringType),
+      StructField("date", StringType),
+      StructField("event_ts", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("trade_pr_2", DoubleType)))
+
+    val expectedSchema = StructType(List(StructField("symbol", StringType),
+      StructField("event_ts", StringType),
+      StructField("date", StringType),
+      StructField("trade_pr", DoubleType),
+      StructField("trade_pr_2", DoubleType)))
+
+    val data =
+      Seq(Row("S1", "SAME_DT", "2020-08-01 00:00:10", 10.0, 349.21),
+        Row("S1", "SAME_DT", "2020-08-01 00:00:11", 9.0, 340.21),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:12", 8.0, 353.32),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:13", 7.0, 351.32),
+        Row("S1", "SAME_DT", "2020-08-01 00:01:14", 6.0, 350.32),
+        Row("S1", "SAME_DT", "2020-09-01 00:01:12", 5.0, 361.1),
+        Row("S1", "SAME_DT", "2020-09-01 00:19:12", 4.0, 362.1))
+
+    val expected_data =
+      Seq(Row("S1", "2020-08-01 00:00:00", "SAME_DT", 10.0, 349.21),
+        Row("S1", "2020-08-01 00:01:00", "SAME_DT", 8.0, 353.32),
+        Row("S1", "2020-09-01 00:01:00", "SAME_DT", 5.0, 361.1),
+        Row("S1", "2020-09-01 00:19:00", "SAME_DT", 4.0, 362.1))
+
+    //construct dataframes
+    val df = buildTestDF(schema, data, List("event_ts"))
+    val dfExpected = buildTestDF(expectedSchema, expected_data, List("event_ts"))
+
+    // convert to TSDF
+    val tsdf_left = TSDF(df.withColumn("vol", lit(100)), tsColumnName = "event_ts", partitionColumnNames = "symbol")
+
+    // using lookback of 20 minutes
+    val featured_df = tsdf_left.vwap(frequency = "D", volume_col = "vol", price_col = "trade_pr")
+
+    assert(featured_df.df.collect().size ==2)
+    assert(featured_df.df.select(col("event_ts").cast("string")).collect()(0)(0) == "2020-08-01 00:00:00")
+    assert(featured_df.df.select(col("event_ts").cast("string")).collect()(1)(0) == "2020-09-01 00:00:00")
+
   }
 }

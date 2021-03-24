@@ -10,7 +10,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 
 /**
- * The timeseries DataFrame
+ * The main abstraction of the tempo project is the time series data frame (abbreviated TSDF) which contains methods to transform the existing Spark data frame based on partitions columns and an event timestamp column. Additional methods are present for joining 2 TSDFs
  */
 sealed trait TSDF
 	extends TSSchema
@@ -30,10 +30,12 @@ sealed trait TSDF
 	// transformation functions
 
 	def asofJoin(rightTSDF: TSDF,
-		leftPrefix: String,
-		rightPrefix: String = "right_",
-		tsPartitionVal: Int = 0,
-		fraction: Double = 0.1) : TSDF
+	             rightPrefix: String = "right_",
+							 maxLookback : Int = 0,
+							 tsPartitionVal: Int = 0,
+							 fraction: Double = 0.1) : TSDF
+
+	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF
 
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF
 
@@ -41,7 +43,7 @@ sealed trait TSDF
 
 	def resample(freq : String, func : String) : TSDF
 
-	def write(spark: SparkSession, tabName: String, optimizationCols: Option[Seq[String]] = None) : Unit
+	def write(tabName: String, tabPath : String = "", optimizationCols: Option[Seq[String]] = None) : Unit
 
 	def withLookbackFeatures(featureCols : List[String], lookbackWindowSize : Integer, exactSize : Boolean = true, featureColName : String = "features") : TSDF
 
@@ -90,7 +92,7 @@ sealed trait TSDF
 	 * Construct a base window for this [[TSDF]]
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
-	protected def baseWindow(): WindowSpec
+	def baseWindow(): WindowSpec
 
 	/**
 	 * Construct a row-based window for this [[TSDF]]
@@ -277,7 +279,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	 *
 	 * @return a base [[WindowSpec]] from which other windows can be constructed
 	 */
-	protected def baseWindow(): WindowSpec =
+	def baseWindow(): WindowSpec =
 	{
 		// order by total ordering column
 		val w = Window.orderBy(tsColumnName)
@@ -333,23 +335,54 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	// TODO: probably rewrite, but overloading methods seemed to break. the ifElse stuff is a quick fix.
   def asofJoin(
 		rightTSDF: TSDF,
-		leftPrefix: String = "",
-		rightPrefix: String = "right_",
+		rightPrefix: String = "",
+		maxLookback : Int = 0,
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1): TSDF = {
 
-		if (leftPrefix == "" && tsPartitionVal == 0) {
-			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, tsPartitionVal = None, fraction)
+		if (tsPartitionVal > 0)
+			println("WARNING: You are using the skew version of the AS OF join. " +
+			        "This may result in null values if there are any values outside of the maximum lookback. " +
+			        "For maximum efficiency, choose smaller values of maximum lookback, trading off performance " +
+			        "and potential blank AS OF values for sparse keys")
+
+		// set right prefix
+		val rightPrefixOpt =
+			if( rightPrefix == null || rightPrefix == "" )
+				None
+			else
+				Some(rightPrefix)
+
+		// call the implementation function
+		if(tsPartitionVal == 0)
+			asofJoinExec(this, rightTSDF, rightPrefixOpt, maxLookback, tsPartitionVal = None)
+		else
+			asofJoinExec(this, rightTSDF, rightPrefixOpt, maxLookback, Some(tsPartitionVal), fraction)
+	}
+
+	def vwap(frequency : String = "m", volume_col : String = "volume", price_col : String = "price") : TSDF = {
+		// set pre_vwap as self or enrich with the frequency
+		var pre_vwap = this.df
+
+		if (frequency == "m") {
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("minute", col(tsColumn.name)))
+		} else if (frequency == "H") {
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("hour", col(tsColumn.name)))
+		} else if (frequency == "D") {
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("day", col(tsColumn.name)))
 		}
-		else if(leftPrefix == "") {
-			asofJoinExec(this, rightTSDF, leftPrefix = None, rightPrefix, Some(tsPartitionVal), fraction)
+
+		var group_cols = List("time_group")
+
+		if (this.partitionCols.size > 0) {
+			group_cols = group_cols ++ (this.partitionCols.map(x => x.name))
 		}
-		else if(tsPartitionVal == 0) {
-			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, tsPartitionVal = None)
-		}
-		else {
-			asofJoinExec(this, rightTSDF, Some(leftPrefix), rightPrefix, Some(tsPartitionVal), fraction)
-		}
+		var vwapped = ( pre_vwap.withColumn("dllr_value", col(price_col) * col(volume_col)).groupBy(group_cols map col: _*).agg( sum("dllr_value").alias("dllr_value"), sum(volume_col).alias(volume_col), max(price_col).alias("max_" + price_col))
+		.withColumn("vwap", col("dllr_value") / col(volume_col)) )
+
+		vwapped = vwapped.withColumnRenamed("time_group", "event_ts")
+
+		TSDF( vwapped, tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString )
 	}
 	//
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF = {
@@ -422,8 +455,8 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	return(enriched_tsdf)
 	}
 
-	def write(spark: SparkSession, tabName: String, optimizationCols: Option[Seq[String]] = None) : Unit = {
-       TSDFWriters.write(this, spark, tabName, optimizationCols)
+	def write(tabName: String, tabPath : String = "", optimizationCols: Option[Seq[String]] = None) : Unit = {
+       TSDFWriters.write(this, tabName, tabPath, optimizationCols)
 	}
 	/**
 		* Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
@@ -472,98 +505,138 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 /**
  * [[TSDF]] companion object - contains static constructors
  */
-object TSDF
-{
+object TSDF {
 	// Utility functions
 
+	/**
+		* @define DEFAULT_SEQ_COLNAME sequence_num
+		*/
 	final val DEFAULT_SEQ_COLNAME = "sequence_num"
 
 	/**
-	 * Valid timestamp column types
-	 */
+		* Valid timestamp column types
+		*/
 	final val validTSColumnTypes = Seq[DataType](ByteType,
-	                                             ShortType,
-	                                             IntegerType,
-	                                             LongType,
-	                                             TimestampType,
-	                                             DateType)
+		ShortType,
+		IntegerType,
+		LongType,
+		TimestampType,
+		DateType)
 
 	/**
-	 * Retrieve a column by name from the dataframe by name
-	 * @param df the [[DataFrame]] with the column
-	 * @param colName the name of the column
-	 * @return the named column of the [[DataFrame]], if it exists,
-	 *         otherwise a [[NoSuchElementException]] is thrown
-	 */
+		* Retrieve a column by name from the dataframe by name
+		*
+		* @param df      the [[DataFrame]] with the column
+		* @param colName the name of the column
+		* @return the named column of the [[DataFrame]], if it exists,
+		*         otherwise a [[NoSuchElementException]] is thrown
+		*/
 	private[tempo] def colByName(df: DataFrame)(colName: String): StructField = {
 		df.schema.find(_.name.toLowerCase() == colName.toLowerCase()).get
-}
+	}
 
 	// TSDF Constructors
 
 	/**
-	 * @constructor
-	 * @param df the source [[DataFrame]]
-	 * @param tsColumnName the name of the timeseries column
-	 * @param partitionColumnNames the names of the paritioning columns
-	 * @return a [[TSDF]] object
-	 */
-	def apply( df: DataFrame,
-	           tsColumnName: String,
-	           partitionColumnNames: String* ): TSDF =
-	{
+		* @param df                   the source [[DataFrame]]
+		* @param tsColumnName         the name of the timeseries column
+		* @param partitionColumnNames the names of the paritioning columns
+		* @return a [[TSDF]] object representing the given [[DataFrame]]
+		*/
+	def apply(df: DataFrame,
+						tsColumnName: String,
+						partitionColumnNames: String*): TSDF = {
 		val colFinder = colByName(df) _
 		val tsColumn = colFinder(tsColumnName)
 		val partitionCols = partitionColumnNames.map(colFinder)
 
-		new BaseTSDF(df, tsColumn, partitionCols :_*)
+		new BaseTSDF(df, tsColumn, partitionCols: _*)
 	}
 
 	/**
-	 * @constructor
-	 * @param df
-	 * @param orderingColumns
-	 * @param sequenceColName
-	 * @param partitionCols
-	 */
-
-	def apply( df: DataFrame,
-	           orderingColumns: Seq[String],
-	           sequenceColName: String,
-						 partitionCols: String* ): TSDF =
-	{
+		* Construct a [[TSDF]] with multi-column ordering. This method will construct
+		* a timeseries column (in the column named by the sequenceColName) based on the
+		* ordering of the orderingColumns.
+		*
+		* @param df              the source [[DataFrame]]
+		* @param orderingColumns columns that define ordering on the [[DataFrame]]
+		* @param sequenceColName the name for the constructed timeseries column
+		* @param partitionCols   partition columns
+		* @return a [[TSDF]] object representing the given [[DataFrame]]
+		*/
+	def apply(df: DataFrame,
+						orderingColumns: Seq[String],
+						sequenceColName: String,
+						partitionCols: Seq[String]): TSDF = {
 		// define window for ordering according to the combined sequence columns
 		val seq_win =
-			if( partitionCols.nonEmpty)
-				Window.partitionBy(partitionCols.map(df(_)) :_*)
-				      .orderBy(orderingColumns.map(df(_)) :_*)
+			if (partitionCols.nonEmpty)
+				Window.partitionBy(partitionCols.map(df(_)): _*)
+					.orderBy(orderingColumns.map(df(_)): _*)
 			else
-				Window.orderBy(orderingColumns.map(df(_)) :_*)
+				Window.orderBy(orderingColumns.map(df(_)): _*)
 
 		// add total ordering column
 		val newDF = df.withColumn(sequenceColName, row_number().cast(LongType).over(seq_win))
 
 		// construct our TSDF
-		apply( newDF, sequenceColName, partitionCols :_* )
+		apply(newDF, sequenceColName, partitionCols: _*)
 	}
 
 	/**
-	 * @constructor
-	 * @param df
-	 * @param orderingColumns
-	 * @param partitionCols
-	 * @return
-	 */
+		* Construct a [[TSDF]] with multi-column ordering. This method will construct
+		* a timeseries column named $DEFAULT_SEQ_COLNAME based on the ordering of the
+		* orderingColumns.
+		*
+		* @param df              the source [[DataFrame]]
+		* @param orderingColumns columns that define ordering on the [[DataFrame]]
+		* @param partitionCols   partition columns
+		* @return a [[TSDF]] object representing the given [[DataFrame]]
+		*/
 	def apply(df: DataFrame,
-	          orderingColumns: Seq[String],
-						partitionCols: String* ): TSDF =
-		apply( df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionCols :_* )
-}
+						orderingColumns: Seq[String],
+						partitionCols: Seq[String]): TSDF =
+		apply(df, orderingColumns, DEFAULT_SEQ_COLNAME, partitionCols)
 
+	/**
+		* Implicit TSDF functions on DataFrames
+		*
+		* @param df the DataFrame on which to define the implicit functions
+		*/
+	implicit class TSDFImplicits(df: DataFrame) {
+		/**
+			* Convert a [[DataFrame]] to [[TSDF]]
+			*
+			* @param tsColumnName         timeseries column
+			* @param partitionColumnNames partition columns
+			* @return a [[TSDF]] based on the current [[DataFrame]]
+			*/
+		def toTSDF(tsColumnName: String,
+							 partitionColumnNames: String*): TSDF =
+			TSDF(df, tsColumnName, partitionColumnNames: _*)
 
-object programExecute {
-	def main(args: Array[String]): Unit = {
+		/**
+			* Convert a [[DataFrame]] to [[TSDF]]
+			*
+			* @param orderingColumns columns that define ordering on the [[DataFrame]]
+			* @param sequenceColName the name for the constructed timeseries column
+			* @param partitionCols   partition columns
+			* @return a [[TSDF]] based on the current [[DataFrame]]
+			*/
+		def toTSDF(orderingColumns: Seq[String],
+							 sequenceColName: String,
+							 partitionCols: Seq[String]): TSDF =
+			TSDF(df, orderingColumns, sequenceColName, partitionCols)
 
-		println("")
+		/**
+			* Convert a [[DataFrame]] to [[TSDF]]
+			*
+			* @param orderingColumns columns that define ordering on the [[DataFrame]]
+			* @param partitionCols   parition columns
+			* @return a [[TSDF]] based on the current [[DataFrame]]
+			*/
+		def toTSDF(orderingColumns: Seq[String],
+							 partitionCols: Seq[String]): TSDF =
+			TSDF(df, orderingColumns, partitionCols)
 	}
 }

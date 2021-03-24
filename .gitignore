@@ -8,6 +8,12 @@ scala/tempo/project/target/*
 scala/tempo/project/project/target/config-classes/*
 scala/tempo/spark-warehouse/*
 
+# ignore build files
+build
+dist
+htmlcov
+tempo.egg-info
+
 ## Python related files
 
 # ignore virtual environments

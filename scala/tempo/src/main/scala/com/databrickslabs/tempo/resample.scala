@@ -3,7 +3,11 @@ package com.databrickslabs.tempo
 import org.apache.spark.sql.functions._
 import TSDF._
 
+/**
+  * The following object contains methods for resampling (up to millions of time series in parallel).
+  */
 object resample {
+
 // define global frequency options
 val SEC = "sec"
 val MIN = "min"
@@ -23,7 +27,7 @@ val allowableFreqs = List(SEC, MIN, HR)
     * @param freq - frequency at which to upsample
     * @return - return a TSDF with a new aggregate key (called agg_key)
     */
-  def __appendAggKey(tsdf : TSDF, freq : String) : TSDF = {
+  private[tempo] def __appendAggKey(tsdf : TSDF, freq : String) : TSDF = {
     var df = tsdf.df
     checkAllowableFreq(freq)
 
@@ -55,6 +59,8 @@ val allowableFreqs = List(SEC, MIN, HR)
     */
   def rs_agg(tsdf : TSDF, freq : String, func : String, metricCols : Option[List[String]] = None) : TSDF =  {
 
+       validateFuncExists(func)
+
        var tsdf_w_aggkey = __appendAggKey(tsdf, freq)
        val df = tsdf_w_aggkey.df
        var adjustedMetricCols = List("")
@@ -77,15 +83,12 @@ val allowableFreqs = List(SEC, MIN, HR)
        } else if (func == MEAN_LEAD) {
          val exprs = adjustedMetricCols.map(k => avg(df(s"$k")).alias("avg_" + s"$k"))
          res = df.groupBy(groupingCols map col: _*).agg(exprs.head, exprs.tail:_*)
-         //return(res)
        } else if (func == MIN_LEAD) {
          val exprs = adjustedMetricCols.map(k => min(df(s"$k")).alias("avg_" + s"$k"))
          res = df.groupBy(groupingCols map col: _*).agg(exprs.head, exprs.tail:_*)
-         //return(res)
        } else if (func == MAX_LEAD) {
          val exprs = adjustedMetricCols.map(k => max(df(s"$k")).alias("avg_" + s"$k"))
          res = df.groupBy(groupingCols map col: _*).agg(exprs.head, exprs.tail:_*)
-         //return(res)
        }
 
        res = res.drop(tsdf.tsColumn.name).withColumnRenamed("agg_key", tsdf.tsColumn.name)

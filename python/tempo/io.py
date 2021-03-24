@@ -17,13 +17,8 @@ def write(tsdf, spark, tabName, optimizationCols = None):
   else:
      optimizationCols = ['event_time']
 
-  useDeltaOpt = True
-  try:
-      dbutils.fs.ls("/")
-  except:
-      print('Running in local mode')
-      useDeltaOpt = False
-      pass
+  import os
+  useDeltaOpt = (os.getenv('DATABRICKS_RUNTIME_VERSION') != None)
 
   view_df = df.withColumn("event_dt", f.to_date(f.col(ts_col))) \
       .withColumn("event_time", f.translate(f.split(f.col(ts_col).cast("string"), ' ')[1], ':', '').cast("double"))

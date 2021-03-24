@@ -4,6 +4,9 @@ import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, DataFrame}
 
+/**
+  * The following object has methods for adding rolling statistics based on the timestamp as the base point. The parameter to range stats is a number of seconds to look back to aggregate statistics such as mean, count, sum, min, max, etc.
+  */
 object rangeStats {
 
   val SUMMARY_FUNCS: List[(String, String => Column)] = List(
@@ -39,10 +42,7 @@ object rangeStats {
       case _ => colsToSummarise
     }
 
-    //TODO: make use of pre-defined windowing methods.
-    val window_spec = Window
-      .partitionBy(tsdf.partitionCols.map(x => col(x.name)):_*)
-      .orderBy(tsdf.tsColumn.name)
+    val window_spec = tsdf.baseWindow()
 
     val summaryDF = innerColsToSummarise
       .foldLeft(tsdf.df)((df, colName) => {
