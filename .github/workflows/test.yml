@@ -1,7 +1,7 @@
 name: build
 on:
   push:
-    branches: [master]
+    branches: [master, scala_refactor]
 jobs:
   run:
     runs-on: ${{ matrix.os }}
@@ -21,10 +21,11 @@ jobs:
       run: |
         export SPARK_LOCAL_IP=127.0.0.1
     - name: Generate coverage report
+      working-directory: ./python
       run: |
         pip install -r requirements.txt
         pip install coverage
-        coverage run -m unittest
+        coverage run -m unittest 
         coverage xml
 
     - name: Publish test coverage

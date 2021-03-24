@@ -1,17 +1,32 @@
-# ignore PyCharm IDE files
+# ignore IntelliJ/PyCharm IDE files
 .idea
+*.iml
+
+# Scala related files
+scala/tempo/target
+scala/tempo/project/target/*
+scala/tempo/project/project/target/config-classes/*
+scala/tempo/spark-warehouse/*
+
+# ignore build files
+build
+dist
+htmlcov
+tempo.egg-info
+
+## Python related files
 
 # ignore virtual environments
-venv
+python/venv
 
 # ignore build files
 *.pyc
 **/__pycache__
-build
-dist
-tempo.egg-info/*
-spark-warehouse/*
-htmlcov/*
+python/build
+python/dist
+python/tempo.egg-info/*
+python/spark-warehouse/*
+python/htmlcov/*
 .coverage
 coverage.xml
 
