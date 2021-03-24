@@ -12,17 +12,28 @@ The purpose of this project is to make time series manipulation with Spark simpl
 
 ## Using the Project
 
-Install in Databricks notebooks using:
+Python install in Databricks notebooks using:
 
 ```
-%pip install git+https://github.com/databrickslabs/tempo.git
+%pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
 ```
 
 Install locally using: 
 
 ```
-pip install git+https://github.com/databrickslabs/tempo.git
+pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
 ```
+
+Scala installation: 
+
+Once the jar is created (via the following instructions), upload the jar to Databricks for use in a notebook or job:
+
+```
+cd scala/tempo
+sbt package
+```
+
+
 
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
 The entry point into all features for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
@@ -33,7 +44,7 @@ The entry point into all features for time series analysis in tempo is a TSDF ob
   <img src="ts_in_fs.png" width="700px"/>
 </p>
 
-## Quickstart 
+## Quickstart - Python 
 
 Data source is UCI public accelerometer data available at this URL https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition
 
@@ -134,7 +145,8 @@ rangeBackWindowSecs = number of seconds to look back
 ```
 moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
-```
+``
+
 
 
 ## Project Support
