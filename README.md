@@ -15,13 +15,13 @@ The purpose of this project is to make time series manipulation with Spark simpl
 Install in Databricks notebooks using:
 
 ```
-%pip install git+https://github.com/databrickslabs/tempo.git
+%pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
 ```
 
 Install locally using: 
 
 ```
-pip install git+https://github.com/databrickslabs/tempo.git
+pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
 ```
 
 ### Starting Point: TSDF object, a wrapper over a Spark data frame
