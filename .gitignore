@@ -2,33 +2,30 @@
 .idea
 *.iml
 
+# coverage files
+.coverage
+coverage.xml
+
 # Scala related files
 scala/tempo/target
-scala/tempo/project/target/*
-scala/tempo/project/project/target/config-classes/*
-scala/tempo/spark-warehouse/*
+scala/tempo/project/target/
+scala/tempo/project/project/target/
+
+# local delta tables
+**/spark-warehouse
 
 # ignore build files
-build
-dist
-htmlcov
-tempo.egg-info
+**/build
+**/dist
+**/htmlcov
+**/tempo.egg-info
 
 ## Python related files
+*.pyc
+**/__pycache__
 
 # ignore virtual environments
 python/venv
-
-# ignore build files
-*.pyc
-**/__pycache__
-python/build
-python/dist
-python/tempo.egg-info/*
-python/spark-warehouse/*
-python/htmlcov/*
-.coverage
-coverage.xml
 
 # other misc ignore
 .DS_Store
