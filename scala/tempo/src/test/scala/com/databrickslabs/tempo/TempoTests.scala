@@ -110,10 +110,10 @@ class TempoTestSpec
 
     val expectedSchema = StructType(List(
       StructField("symbol", StringType),
-      StructField("event_ts", StringType),
-      StructField("trade_pr", DoubleType),
-      StructField("bid_pr", DoubleType),
-      StructField("ask_pr", DoubleType),
+      StructField("left_event_ts", StringType),
+      StructField("left_trade_pr", DoubleType),
+      StructField("right_bid_pr", DoubleType),
+      StructField("right_ask_pr", DoubleType),
       StructField("right_event_ts", StringType),
     ))
 
@@ -138,13 +138,13 @@ class TempoTestSpec
     //var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
     val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
     val dfRight = buildTestDF(schema = rightSchema, data = right_data, ts_cols = List("event_ts"))
-    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("event_ts", "right_event_ts"))
+    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts", "right_event_ts"))
 
     // perform the join
     val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
 
-    val joined_df = tsdf_left.asofJoin(tsdf_right, "right_")
+    val joined_df = tsdf_left.asofJoin(tsdf_right, "left_")
 
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
   }
@@ -164,10 +164,10 @@ class TempoTestSpec
 
     val expectedSchema = StructType(List(
       StructField("symbol", StringType),
-      StructField("event_ts", StringType),
-      StructField("trade_pr", DoubleType),
-      StructField("bid_pr", DoubleType),
-      StructField("ask_pr", DoubleType),
+      StructField("left_event_ts", StringType),
+      StructField("left_trade_pr", DoubleType),
+      StructField("right_bid_pr", DoubleType),
+      StructField("right_ask_pr", DoubleType),
       StructField("right_event_ts", StringType)))
 
     val left_data = Seq(
@@ -200,17 +200,17 @@ class TempoTestSpec
     //var dfExpected = spark.createDataFrame(spark.sparkContext.parallelize(expected_data), expectedSchema)
     val dfLeft = buildTestDF(schema = leftSchema, data = left_data, ts_cols = List("event_ts"))
     val dfRight = buildTestDF(schema = rightSchema, data = right_data, ts_cols = List("event_ts"))
-    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("event_ts", "right_event_ts"))
+    val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts", "right_event_ts"))
 
     // perform the join
     val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
     val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
-    val joined_df = tsdf_left.asofJoin(tsdf_right, "right_", tsPartitionVal = 10, fraction = 0.1)
+    val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
 
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
 
     // this will execute the block printing out a message that values are being missing given the small tsPartitionVal window
-    val missing_vals_joined_df = tsdf_left.asofJoin(tsdf_right, "right_", tsPartitionVal = 1, fraction = 0.1)
+    val missing_vals_joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 1, fraction = 0.1)
     val missing_vals_df_ct = missing_vals_joined_df.df.count()
     assert(missing_vals_df_ct == 7)
   }
