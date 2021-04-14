@@ -1,9 +1,8 @@
 package com.databrickslabs.tempo.ml
 
 import com.databrickslabs.tempo.{TSDF, TSStructType}
-import org.apache.spark.ml.param.{BooleanParam, LongParam, Param, ParamValidators, Params}
+import org.apache.spark.ml.param._
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
-import org.apache.spark.sql.types.StructType
 
 /**
  * Types of window orderings
@@ -58,6 +57,7 @@ trait HasWindow extends Params
 	final val windowOrdering = new Param[Ordering](this,
 	                                               "windowOrdering",
 	                                               "Window Ordering")
+	setDefault(windowOrdering,row)
 
 	/** @group getParam */
 	final def getWindowOrdering: Ordering = $(windowOrdering)
@@ -75,6 +75,7 @@ trait HasWindow extends Params
 	 * @group param
 	 */
 	final val windowAlignment = new Param[WindowAlignment](this,"windowAlignment","Window Aligment")
+	setDefault(windowAlignment,trailing)
 
 	/** @group getParam */
 	final def getWindowAlignment: WindowAlignment = $(windowAlignment)

@@ -1,12 +1,12 @@
 package com.databrickslabs.tempo.ml.stat
 
+import com.databrickslabs.tempo.ml._
 import com.databrickslabs.tempo.{TSDF, TSStructType}
-import com.databrickslabs.tempo.ml.{HasMeasureCol, HasWindow, Orderings, TSDFTransformer, WindowAlignments}
 import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.ml.param.shared.{HasInputCol, HasOutputCol}
+import org.apache.spark.ml.param.shared.HasOutputCol
 import org.apache.spark.ml.util.Identifiable
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.functions.mean
+import org.apache.spark.sql.types.{DataTypes, StructField}
 
 /**
  * Transformer for simple moving averages
@@ -33,8 +33,6 @@ class SMA(uid: String)
 		this
 	}
 
-
-
 	// transform
 
 	/**
@@ -49,6 +47,7 @@ class SMA(uid: String)
 	 */
 	override def transformSchema(schema: TSStructType): TSStructType =
 	{
+		// make sure we have a valid measure column
 		validateMeasureCol(schema)
 		// make sure we don't already have the output column
 		assert(! schema.fieldNames.contains($(outputCol)),

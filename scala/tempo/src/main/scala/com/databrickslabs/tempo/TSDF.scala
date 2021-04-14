@@ -7,7 +7,7 @@ import com.databrickslabs.tempo.resample._
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Column, DataFrame, SparkSession}
+import org.apache.spark.sql.{Column, DataFrame}
 
 /**
  * The main abstraction of the tempo project is the time series data frame (abbreviated TSDF) which contains methods to transform the existing Spark data frame based on partitions columns and an event timestamp column. Additional methods are present for joining 2 TSDFs
@@ -403,9 +403,6 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	def describe() : DataFrame = {
 
 		// extract the double version of the timestamp column to summarize
-		val double_ts_col = this.tsColumn.name + "_dbl"
-
-		val this_df = this.df.withColumn(double_ts_col, col(this.tsColumn.name).cast("double"))
 		val double_ts_col = this.tsColumnName + "_dbl"
 
 		val this_df = this.df.withColumn(double_ts_col, col(this.tsColumnName).cast("double"))
