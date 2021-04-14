@@ -51,7 +51,7 @@ object rangeStats {
         derivedDf
       })
 
-    TSDF(summaryDF, tsdf.tsColumn.name, tsdf.partitionCols.map(_.name):_*)
+    TSDF(summaryDF, tsdf.tsColumn.name, tsdf.partitionCols.map(_.name))
   }
 
 
