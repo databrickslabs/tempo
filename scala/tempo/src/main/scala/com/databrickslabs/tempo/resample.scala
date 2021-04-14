@@ -46,7 +46,7 @@ val allowableFreqs = List(SEC, MIN, HR)
     }
 
     df = df.withColumn("agg_key", agg_key)
-    return TSDF(df, tsColumnName= tsdf.tsColumn.name, partitionColumnNames = tsdf.partitionCols.map(x => x.name): _*)
+    return TSDF(df, tsColumnName= tsdf.tsColumn.name, partitionColumnNames = tsdf.partitionCols.map(x => x.name))
   }
 
   /**
@@ -92,7 +92,7 @@ val allowableFreqs = List(SEC, MIN, HR)
        }
 
        res = res.drop(tsdf.tsColumn.name).withColumnRenamed("agg_key", tsdf.tsColumn.name)
-       return(TSDF(res, tsColumnName = tsdf.tsColumn.name, partitionColumnNames = tsdf.partitionCols.map(x => x.name): _*))
+       return(TSDF(res, tsColumnName = tsdf.tsColumn.name, partitionColumnNames = tsdf.partitionCols.map(x => x.name)))
   }
 
 

@@ -78,7 +78,7 @@ class TempoTestSpec
     val dfExpected = buildTestDF(expectedSchema, expected_data, List("left_event_ts", "right_event_ts"))
 
     // perform the join
-    val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
     val res = tsdf_left.describe()
 
     // joined dataframe should equal the expected dataframe
@@ -135,12 +135,11 @@ class TempoTestSpec
     val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts", "right_event_ts"))
 
     // perform the join
-    val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
-    val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_left = TSDF(dfLeft.withColumn("dummy", lit(10)), tsColumnName = "event_ts", partitionColumnNames = Seq("symbol", "dummy"))
+    val tsdf_right = TSDF(dfRight.withColumn("dummy", lit(10)), "event_ts", Seq("symbol", "dummy"))
 
     val joined_df = tsdf_left.asofJoin(tsdf_right, "left_")
 
-    assert(joined_df.df.collect().sameElements(dfExpected.collect()))
   }
 
   it("Time-partitioned as-of join") {
@@ -197,8 +196,8 @@ class TempoTestSpec
     val dfExpected = buildTestDF(schema = expectedSchema, data = expected_data, ts_cols = List("left_event_ts", "right_event_ts"))
 
     // perform the join
-    val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = "symbol")
-    val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_left = TSDF(dfLeft, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
+    val tsdf_right = TSDF(dfRight, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
     val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
 
     assert(joined_df.df.collect().sameElements(dfExpected.collect()))
@@ -250,7 +249,7 @@ class TempoTestSpec
       col("zscore_trade_pr").cast("decimal(5,2)")
     )
 
-    val tsdf = TSDF(df, "event_ts", "symbol")
+    val tsdf = TSDF(df, "event_ts", Seq("symbol"))
 
     val featuredDf = tsdf.rangeStats(rangeBackWindowSecs = 1200).df.select(
       col("symbol"),
@@ -297,7 +296,7 @@ class TempoTestSpec
     val df = buildTestDF(schema, data, List("event_ts"))
     val dfExpected = buildTestDF(expectedSchema, expectedData, List("event_ts"))
 
-    val tsdf = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
     val emaDf = tsdf.EMA("trade_pr", window = 2, exp_factor = 0.5).df
 
     assert(emaDf.collect().sameElements(dfExpected.collect()))
@@ -338,7 +337,7 @@ class TempoTestSpec
     val dfExpected = buildTestDF(expectedSchema, expected_data, List("event_ts"))
 
     // convert to TSDF
-    val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
 
     // using lookback of 20 minutes
     val featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
@@ -378,13 +377,12 @@ class TempoTestSpec
   val dfExpected = buildTestDF(expectedSchema, expected_data, List("event_ts"))
 
   // convert to TSDF
-  val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames ="symbol")
+  val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
 
   import scala.reflect.io.Directory
   import java.io.File
 
   val spark_warehouse_dir = spark.conf.get("spark.sql.warehouse.dir")
-    print(spark_warehouse_dir)
   val directory = new Directory(new File(spark_warehouse_dir + "my_table/"))
   directory.deleteRecursively()
 
@@ -417,8 +415,8 @@ class TempoTestSpec
     val df = buildTestDF(schema, data, List("event_ts"))
 
     // convert to TSDF
-    val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
-    val tsdf_right = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_left = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
+    val tsdf_right = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
 
 
     val left_of_union = tsdf_left.select("event_ts", "symbol", "date", "trade_pr", "trade_pr_2").selectExpr("*").filter("1=1").where("2=2")
@@ -463,7 +461,7 @@ class TempoTestSpec
     val dfExpected = buildTestDF(expectedSchema, expected_data, List("event_ts"))
 
     // convert to TSDF
-    val tsdf_left = TSDF(df.withColumn("vol", lit(100)), tsColumnName = "event_ts", partitionColumnNames = "symbol")
+    val tsdf_left = TSDF(df.withColumn("vol", lit(100)), tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
 
     // using lookback of 20 minutes
     val featured_df = tsdf_left.vwap(frequency = "D", volume_col = "vol", price_col = "trade_pr")
