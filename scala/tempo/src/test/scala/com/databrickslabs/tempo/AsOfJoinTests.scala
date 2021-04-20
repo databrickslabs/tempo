@@ -48,6 +48,13 @@ class AsOfJoinTests
 	                                    Row("S1", "2020-09-01 00:15:01", 359.21, 365.31)),
 	                                "event_ts" )
 
+	lazy val dfRight2 = buildTestDF( rightSchema,
+		Seq(Row("S1", "2020-08-01 00:00:01", 345.11, 351.12),
+			Row("S1", "2020-08-01 00:00:09", 348.10, 353.13),
+			Row("S1", "2020-08-01 00:00:12", 358.93, 365.12),
+			Row("S1", "2020-08-01 00:00:19", 359.21, 365.31)),
+		"event_ts" )
+
 	lazy val dfExpected1 = buildTestDF( expectedSchema,
 	                                        Seq(Row("S1", "2020-08-01 00:00:10", 349.21, 345.11, 351.12, "2020-08-01 00:00:01"),
 	                                            Row("S1", "2020-08-01 00:01:12", 351.32, 348.1, 353.13, "2020-08-01 00:01:05"),
@@ -84,9 +91,9 @@ class AsOfJoinTests
 
 		// perform the join
 		val tsdf_left = TSDF(dfLeft2, "event_ts", Seq("symbol"))
-		val tsdf_right = TSDF(dfRight, "event_ts", Seq("symbol"))
+		val tsdf_right = TSDF(dfRight2, "event_ts", Seq("symbol"))
 		val joined_df = tsdf_left.asofJoin(tsdf_right, "left_", "right_", tsPartitionVal = 10, fraction = 0.1)
-
+		
 		assert(joined_df.df.collect().sameElements(dfExpected2.collect()))
 
 		// this will execute the block printing out a message that values are being missing given the small tsPartitionVal window
