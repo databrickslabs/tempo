@@ -53,7 +53,7 @@ trait TSSchema
  */
 class TSStructType(fields: Array[StructField],
                    val tsColumn: StructField,
-                   val partitionCols: StructField*)
+                   val partitionCols: Seq[StructField])
 	extends StructType(fields) with TSSchema
 {
 	// Validate the arguments

@@ -1,17 +1,21 @@
 package com.databrickslabs.tempo
 
-import com.databrickslabs.tempo.EMA._
-import com.databrickslabs.tempo.asofJoin._
-import com.databrickslabs.tempo.rangeStats._
-import com.databrickslabs.tempo.resample._
+import java.io.FileNotFoundException
+
+import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Column, DataFrame}
+import resample._
+import asofJoin._
+import rangeStats._
+import EMA._
+import io._
 
 /**
  * The main abstraction of the tempo project is the time series data frame (abbreviated TSDF) which contains methods to transform the existing Spark data frame based on partitions columns and an event timestamp column. Additional methods are present for joining 2 TSDFs
  */
+
 sealed trait TSDF
 	extends TSSchema
 {
@@ -55,7 +59,7 @@ sealed trait TSDF
 	 * @param partitionCols the names of columns used to partition the SeqDF
 	 * @return a new SeqDF instance, partitioned according to the given columns
 	 */
-	def partitionedBy(partitionCols: String*): TSDF
+	def partitionedBy(partitionCols: Seq[String]): TSDF
 
 	def select(cols: Column*): TSDF
 
@@ -143,8 +147,8 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	 * @param tsColumn
 	 * @param partitionCols
 	 */
-	def this(df: DataFrame, tsColumn: StructField, partitionCols: StructField* ) =
-		this(df,new TSStructType(df.schema.fields, tsColumn, partitionCols :_*))
+	def this(df: DataFrame, tsColumn: StructField, partitionCols: Seq[StructField] ) =
+		this(df,new TSStructType(df.schema.fields, tsColumn, partitionCols))
 
 	/**
 	 * The timeseries column
@@ -191,13 +195,13 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	 * @param partitionCols the names of columns used to partition the SeqDF
 	 * @return a new SeqDF instance, partitioned according to the given columns
 	 */
-	def partitionedBy(partitionCols: String*): TSDF =
-		TSDF(this.df, this.tsColumnName, partitionCols :_*)
+	def partitionedBy(partitionCols: Seq[String]): TSDF =
+		TSDF(this.df, this.tsColumnName, partitionCols)
 
 	def withColumn(colName: String, col: Column): TSDF = {
 		TSDF(this.df.withColumn(colName, col),
 		     tsColumnName = this.tsColumnName,
-		     partitionColumnNames = this.partitionCols.map(_.name).mkString)
+		     partitionColumnNames = this.partitionCols.map(_.name))
 	}
 
 	def select(cols: Column*): TSDF = {
@@ -208,7 +212,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 
 		//if (!timeAndPartitionsPresent) {throw new RuntimeException("Timestamp column or partition columns are missing")}
 
-		TSDF(df.select(cols:_*), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.select(cols:_*), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def select(col: String,
@@ -221,56 +225,56 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 
 		//if (!timeAndPartitionsPresent) {throw new RuntimeException("Timestamp column or partition columns are missing")}
 
-		TSDF(df.select(masterList.head, masterList.tail:_*), tsColumnName = tsColumnName, partitionColumnNames =  partitionCols.map(_.name).mkString)
+		TSDF(df.select(masterList.head, masterList.tail:_*), tsColumnName = tsColumnName, partitionColumnNames =  partitionCols.map(_.name))
 	}
 
 	def selectExpr(exprs: String*): TSDF = {
-		TSDF(df.selectExpr(exprs:_*), tsColumnName = tsColumnName, partitionColumnNames =  partitionCols.map(_.name).mkString)
+		TSDF(df.selectExpr(exprs:_*), tsColumnName = tsColumnName, partitionColumnNames =  partitionCols.map(_.name))
 	}
 
 	def filter(condition: Column): TSDF = {
-		TSDF(df.filter(condition), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.filter(condition), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def filter(conditionExpr: String): TSDF = {
-		TSDF(df.filter(conditionExpr), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.filter(conditionExpr), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def where(condition: Column): TSDF = {
-		TSDF(df.where(condition), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.where(condition), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def where(conditionExpr: String): TSDF = {
-		TSDF(df.where(conditionExpr), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.where(conditionExpr), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def limit(n: Int): TSDF = {
-		TSDF(df.limit(n), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.limit(n), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def union(other: TSDF): TSDF = {
-		TSDF(df.union(other.df), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.union(other.df), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def unionAll(other: TSDF): TSDF = {
-		TSDF(df.unionAll(other.df), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.unionAll(other.df), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def withColumnRenamed(existingName: String,
 	                               newName: String): TSDF = {
-		TSDF(df.withColumnRenamed(existingName, newName), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.withColumnRenamed(existingName, newName), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def drop(colName: String): TSDF = {
-		TSDF(df.drop(colName), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.drop(colName), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def drop(colNames: String*): TSDF = {
-		TSDF(df.drop(colNames:_*), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.drop(colNames:_*), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	def drop(col: Column): TSDF = {
-		TSDF(df.drop(col), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name).mkString)
+		TSDF(df.drop(col), tsColumnName = tsColumnName, partitionColumnNames = partitionCols.map(_.name))
 	}
 
 	// Window builder functions
@@ -342,8 +346,6 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 		tsPartitionVal: Int = 0,
 		fraction: Double = 0.1): TSDF = {
 
-		if (tsPartitionVal > 0) {println("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")}
-
 		if (leftPrefix == "" && tsPartitionVal == 0) {
 			asofJoinExec(this,rightTSDF, leftPrefix = None, rightPrefix, maxLookback,  tsPartitionVal = None, fraction)
 		}
@@ -363,11 +365,11 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 		var pre_vwap = this.df
 
 		if (frequency == "m") {
-			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("minute", col(tsColumn.name)))
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("minute", col(tsColumnName)))
 		} else if (frequency == "H") {
-			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("hour", col(tsColumn.name)))
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("hour", col(tsColumnName)))
 		} else if (frequency == "D") {
-			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("day", col(tsColumn.name)))
+			pre_vwap = pre_vwap.withColumn("time_group", date_trunc("day", col(tsColumnName)))
 		}
 
 		var group_cols = List("time_group")
@@ -380,7 +382,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 
 		vwapped = vwapped.withColumnRenamed("time_group", "event_ts")
 
-		TSDF( vwapped, tsColumn.name, partitionColumnNames = partitionCols.map(_.name).mkString )
+		TSDF( vwapped, tsColumnName, partitionColumnNames = partitionCols.map(_.name) )
 	}
 	//
 	def rangeStats(colsToSummarise: Seq[String] = Seq(), rangeBackWindowSecs: Int = 1000): TSDF = {
@@ -487,7 +489,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 			collect_list(col(tempArrayColName)).over(lookback_win))
 			.drop(tempArrayColName))
 
-		val pCols = partitionCols.map(_.name).mkString
+		val pCols = partitionCols.map(_.name)
 
 
 		// make sure only windows of exact size are allowed
@@ -529,9 +531,8 @@ object TSDF {
 		* @return the named column of the [[DataFrame]], if it exists,
 		*         otherwise a [[NoSuchElementException]] is thrown
 		*/
-	private[tempo] def colByName(df: DataFrame)(colName: String): StructField = {
-		df.schema.find(_.name.toLowerCase() == colName.toLowerCase()).get
-	}
+	private[tempo] def colByName(df: DataFrame)(colName: String): StructField =
+		df.schema.find(x => {x.name.toLowerCase().equalsIgnoreCase(colName.toLowerCase())}).get
 
 	// TSDF Constructors
 
@@ -543,12 +544,12 @@ object TSDF {
 		*/
 	def apply(df: DataFrame,
 						tsColumnName: String,
-						partitionColumnNames: String*): TSDF = {
+						partitionColumnNames: Seq[String]): TSDF = {
 		val colFinder = colByName(df) _
 		val tsColumn = colFinder(tsColumnName)
 		val partitionCols = partitionColumnNames.map(colFinder)
 
-		new BaseTSDF(df, tsColumn, partitionCols: _*)
+		new BaseTSDF(df, tsColumn, partitionCols)
 	}
 
 	/**
@@ -578,7 +579,7 @@ object TSDF {
 		val newDF = df.withColumn(sequenceColName, row_number().cast(LongType).over(seq_win))
 
 		// construct our TSDF
-		apply(newDF, sequenceColName, partitionCols: _*)
+		apply(newDF, sequenceColName, partitionCols)
 	}
 
 	/**
@@ -610,8 +611,8 @@ object TSDF {
 			* @return a [[TSDF]] based on the current [[DataFrame]]
 			*/
 		def toTSDF(tsColumnName: String,
-							 partitionColumnNames: String*): TSDF =
-			TSDF(df, tsColumnName, partitionColumnNames: _*)
+							 partitionColumnNames: Seq[String]): TSDF =
+			TSDF(df, tsColumnName, partitionColumnNames)
 
 		/**
 			* Convert a [[DataFrame]] to [[TSDF]]

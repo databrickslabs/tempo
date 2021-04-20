@@ -30,6 +30,6 @@ object EMA {
 
     val emaDF = Range(0,window+1).foldLeft(df)((df:DataFrame, k: Int) => emaIncrement(df,k))
 
-    TSDF(emaDF, tsdf.tsColumn.name, tsdf.partitionCols.map(_.name):_*)
+    TSDF(emaDF, tsdf.tsColumnName, tsdf.partitionCols.map(_.name))
   }
 }

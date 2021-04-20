@@ -103,6 +103,6 @@ class ToTSDF(override val uid: String)
   {
     transformSchema(df.schema)
 
-    TSDF(df, $(tsColName), $(partitionColNames) :_*)
+    TSDF(df, $(tsColName), $(partitionColNames))
   }
 }

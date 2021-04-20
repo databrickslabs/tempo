@@ -29,7 +29,7 @@ object asofJoin {
       .foldLeft(Seq[String]())((newPartCols, PartCol) =>
         newPartCols :+ (if (col_list.contains(PartCol)) prefix + PartCol.name else PartCol.name))
 
-    TSDF(prefixedDF,ts_colName, partitionColstrings:_*)
+    TSDF(prefixedDF,ts_colName, partitionColstrings)
   }
 
   // Add columns from other DF ahead of combining them through Union
@@ -40,7 +40,7 @@ object asofJoin {
       .withColumn(colStruct.name, lit(null)))
 
     // TODO: fix partition column names, it's not nice this way
-    TSDF(newDF, tsdf.tsColumn.name, tsdf.partitionCols.map(_.name):_*)
+    TSDF(newDF, tsdf.tsColumn.name, tsdf.partitionCols.map(_.name))
   }
 
   // union the time series A and time series B data frames
@@ -57,7 +57,7 @@ object asofJoin {
         coalesce(col(leftTSDF.tsColumn.name), col(rightTSDF.tsColumn.name)))
         .withColumn("rec_ind", coalesce(col(left_rec_ind), col(right_rec_ind)))
 
-    TSDF(combinedDF, combinedTsCol, leftTSDF.partitionCols.map(_.name):_*)
+    TSDF(combinedDF, combinedTsCol, leftTSDF.partitionCols.map(_.name))
   }
 
   // helper method to obtain the columns from time series B to paste onto time series A
@@ -84,7 +84,7 @@ object asofJoin {
 
     df = df.drop("rec_ind")
 
-    TSDF(df, left_ts_col.name, tsdf.partitionCols.map(_.name):_*)
+    TSDF(df, left_ts_col.name, tsdf.partitionCols.map(_.name))
   }
 
   // Create smaller time-based ranges inside of the TSDF partition
@@ -112,7 +112,7 @@ object asofJoin {
 
     partitionDF.unpersist()
 
-    TSDF(df, combinedTSDF.tsColumn.name, newPartitionColNames:_*)
+    TSDF(df, combinedTSDF.tsColumn.name, newPartitionColNames)
   }
 
   // wrapper method for executing the AS OF join based on various parameters
@@ -169,7 +169,7 @@ object asofJoin {
           .filter(col("is_original") === lit(1))
           .drop("ts_partition","is_original")
 
-        TSDF(asofDF, prefixedLeftTSDF.tsColumn.name, leftTSDF.partitionCols.map(_.name):_*)
+        TSDF(asofDF, prefixedLeftTSDF.tsColumn.name, leftTSDF.partitionCols.map(_.name))
       }
       case false => getLastRightRow(combinedTSDF, prefixedLeftTSDF.tsColumn,rightCols, maxLookback)
     }

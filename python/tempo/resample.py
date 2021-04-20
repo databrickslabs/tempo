@@ -7,6 +7,7 @@ import tempo
 SEC = 'sec'
 MIN = 'min'
 HR = 'hr'
+DAY = 'day'
 
 # define global aggregate function options for downsampling
 CLOSEST_LEAD = "closest_lead"
@@ -14,7 +15,7 @@ MIN_LEAD = "min_lead"
 MAX_LEAD = "max_lead"
 MEAN_LEAD = "mean_lead"
 
-allowableFreqs = [SEC, MIN, HR]
+allowableFreqs = [SEC, MIN, HR, DAY]
 
 def __appendAggKey(tsdf, freq = None):
     """
@@ -31,14 +32,13 @@ def __appendAggKey(tsdf, freq = None):
     hour_col = f.hour(f.col(tsdf.ts_col))
 
     if (freq == SEC):
-        #agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lpad(hour_col, 2, '0'), f.lpad(min_col, 2, '0'), f.lpad(sec_col, 2, '0'))
         agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(" "), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lpad(min_col, 2, '0'), f.lit(':'), f.lpad(sec_col, 2, '0')).cast("timestamp")
     elif (freq == MIN):
-        #agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lpad(hour_col, 2, '0'), f.lpad(min_col, 2, '0'))
         agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(' '), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lpad(min_col, 2, '0'), f.lit(':'), f.lit('00')).cast("timestamp")
     elif (freq == HR):
-        #agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lpad(hour_col, 2, '0'))
         agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(' '), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lit('00'), f.lit(':'), f.lit('00')).cast("timestamp")
+    elif (freq == DAY):
+        agg_key = f.col(tsdf.ts_col).cast("date").cast("timestamp")
 
     df = df.withColumn("agg_key", agg_key)
     return tempo.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)

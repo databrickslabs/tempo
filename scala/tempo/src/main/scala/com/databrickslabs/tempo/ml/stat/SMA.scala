@@ -55,7 +55,7 @@ class SMA(uid: String)
 
 		new TSStructType(schema.fields :+ StructField($(outputCol), DataTypes.DoubleType),
 		              schema.tsColumn,
-		              schema.partitionCols :_*)
+		              schema.partitionCols)
 	}
 
 	/**
