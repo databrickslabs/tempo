@@ -5,6 +5,12 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 import org.scalatest.FunSpec
 
+/**
+ * AS OF Join tests include 2 flavors:
+ * traditional merging on partition keys using the UNION/SORT pattern
+ * with a skewed version (partitioned as of join)
+ * test with multiple partition keys
+ */
 class AsOfJoinTests
 	extends FunSpec with SparkSessionTestWrapper
 {

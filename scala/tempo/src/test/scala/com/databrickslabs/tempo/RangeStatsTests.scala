@@ -5,6 +5,9 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StringType, StructField, StructType}
 import org.scalatest.FunSpec
 
+/**
+ * Range stats tests that multiple rolling aggregate statistics are tested and returned
+ */
 class RangeStatsTests
 	extends FunSpec with SparkSessionTestWrapper
 {
