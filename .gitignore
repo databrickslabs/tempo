@@ -15,6 +15,7 @@ scala/tempo/project/project/target/
 **/spark-warehouse
 
 # ignore build files
+scala/tempo/.bsp
 **/build
 **/dist
 **/htmlcov
