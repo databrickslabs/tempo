@@ -1,8 +1,8 @@
 package com.databrickslabs.tempo
 
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions.{col, to_timestamp}
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 // create Spark session with local mode
 trait SparkSessionTestWrapper
@@ -17,8 +17,6 @@ trait SparkSessionTestWrapper
 		            .appName("spark session")
 		            .getOrCreate()
 	}
-
-	import spark.implicits._
 
 	/**
 	 *

@@ -316,6 +316,14 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	def windowBetweenRange(start: Long, end: Long): WindowSpec =
 		baseWindow().rangeBetween(start, end)
 
+	// helper class to set start, end points of windows
+	private case class MinMaxPair( a: Long, b: Long )
+	{
+		def min: Long = a.min(b)
+
+		def max: Long = a.max(b)
+	}
+
 	/**
 	 * Construct a row-based window for this [[TSDF]]
 	 *
@@ -324,7 +332,10 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
 	 */
 	def windowOverRows(length: Long, offset: Long): WindowSpec =
-		windowBetweenRows(offset, (offset + length - 1))
+	{
+		val from_to = MinMaxPair( offset, (offset + length - 1) )
+		windowBetweenRows( from_to.min, from_to.max )
+	}
 
 	/**
 	 * Construct a range-based window for this [[TSDF]]
@@ -334,7 +345,10 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	 * @return a [[WindowSpec]] appropriate for applying functions to this [[TSDF]]
 	 */
 	def windowOverRange(length: Long, offset: Long): WindowSpec =
-		windowBetweenRange(offset, (offset + length - 1))
+	{
+		val from_to = MinMaxPair( offset, (offset + length - 1) )
+		windowBetweenRange( from_to.min, from_to.max )
+	}
 
 	// asof Join functions
 	// TODO: probably rewrite, but overloading methods seemed to break. the ifElse stuff is a quick fix.

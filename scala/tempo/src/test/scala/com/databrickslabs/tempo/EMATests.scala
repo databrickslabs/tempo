@@ -1,7 +1,8 @@
 package com.databrickslabs.tempo
 
+import com.databrickslabs.tempo.ml.stat.{EMA => EMATX}
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{DoubleType, StringType}
 import org.scalatest.FunSpec
 
 class EMATests
@@ -34,10 +35,19 @@ class EMATests
 		                                    Row("S2", "2020-09-01 00:19:12", 32.0, 21.0)),
 	                                  "event_ts" )
 
-	it("EMA test") {
+	it("EMA method") {
 
 		val tsdf = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
 		val emaDf = tsdf.EMA("trade_pr", window = 2, exp_factor = 0.5).df
+
+		assert(emaDf.collect().sameElements(dfExpected.collect()))
+	}
+
+	it("EMA Transformer"){
+		val tsdf = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
+
+		val ema_tx = EMATX("trade_pr","ema_trade_pr",2,0.5)
+		val emaDf = ema_tx.transform(tsdf).df
 
 		assert(emaDf.collect().sameElements(dfExpected.collect()))
 	}

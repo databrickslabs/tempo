@@ -1,9 +1,10 @@
 package com.databrickslabs.tempo.ml.stat
 
+import com.databrickslabs.tempo.ml.Orderings.Ordering
+import com.databrickslabs.tempo.ml.WindowAlignments.WindowAlignment
+import com.databrickslabs.tempo.ml._
 import com.databrickslabs.tempo.{TSDF, TSStructType}
-import com.databrickslabs.tempo.ml.{HasMeasureCol, HasWindow, TSDFTransformer}
-import org.apache.spark.ml.param.{Param, ParamMap}
-import org.apache.spark.ml.param.shared.HasOutputCol
+import org.apache.spark.ml.param.{DoubleParam, IntParam, LongParam, Param, ParamMap}
 import org.apache.spark.ml.util.Identifiable
 import org.apache.spark.sql.types.{DataTypes, StructField}
 import org.apache.spark.sql.{functions => fn}
@@ -11,7 +12,7 @@ import org.apache.spark.sql.{functions => fn}
 import scala.math.pow
 
 class EMA(uid: String)
-	extends TSDFTransformer(uid) with HasWindow with HasMeasureCol with HasOutputCol
+	extends TSDFTransformer(uid) with HasMeasureCol with HasOutputCol
 {
 	def this() = this(Identifiable.randomUID("EMA"))
 
@@ -20,17 +21,28 @@ class EMA(uid: String)
 	// parameters
 
 	/** @group param */
-	final val expFactor = new Param[Double]( this,
-	                                         "expFactor",
-	                                         "exponential factor" )
-	setDefault(expFactor,EMA.DEFAULT_EXP_FACTOR)
+	final val N = new IntParam(this,
+	                           "period",
+	                           "The size of the lookback period over which we calculate the EMA")
 
 	/** @group getParam */
-	final def getExpFactor: Double = $(expFactor)
+	final def getN: Int = $(N)
 
 	/** @group setParam */
-	final def setExpFactor(value: Double): EMA =
-		set(expFactor,value)
+	final def setN( value: Int ): EMA = set(N,value)
+
+	/** @group param */
+	final val alpha = new DoubleParam(this,
+	                                  "expFactor",
+	                                  "Exponential Factor Alpha")
+	setDefault(alpha, EMA.DEFAULT_ALPHA)
+
+	/** @group getParam */
+	final def getAlpha: Double = $(alpha)
+
+	/** @group setParam */
+	final def setAlpha(value: Double): EMA =
+		set(alpha, value)
 
 	/**
 	 * Check transform validity and derive the output schema from the input schema.
@@ -61,7 +73,7 @@ class EMA(uid: String)
 	 * @return
 	 */
 	private def weightFn(k: Int): Double =
-		$(expFactor) * pow(1.0 - $(expFactor), k)
+		$(alpha) * pow(1.0 - $(alpha), k)
 
 	private case class LagCol(lag: Int, colname: String)
 	private def lagColName(i: Int): String = $(measureCol) +s"_templag_$i"
@@ -75,15 +87,16 @@ class EMA(uid: String)
 	override def transform(tsdf: TSDF): TSDF =
 	{
 		// set up the window
-		val window = buildWindow(tsdf)
+		val window = tsdf.baseWindow()
 
 		// temporary lag column names
-		val lag_cols = Seq.range(1,$(windowSize).toInt).map( i => LagCol(i, lagColName(i)) )
+		val lag_cols = Seq.range(0,($(N)+1)).map( i => LagCol(i, lagColName(i)) )
 
 		// compute lag columns
-		val with_lag_cols = lag_cols.foldLeft(tsdf)( (df, lc) =>
-			                                             df.withColumn(lc.colname,
-			                                                           fn.lit(weightFn(lc.lag)) * fn.lag($(measureCol), lc.lag).over(window)) )
+		val with_lag_cols =
+			lag_cols.foldLeft(tsdf)( (df, lc) =>
+				                         df.withColumn(lc.colname,
+				                                       fn.lit(weightFn(lc.lag)) * fn.lag($(measureCol), lc.lag).over(window)) )
 		// consolidate lag columns into EMA column
 		val sum_lag_cols = lag_cols.map( lc => fn.when(fn.col(lc.colname).isNull, fn.lit(0))
 		                                         .otherwise(fn.col(lc.colname)) )
@@ -97,5 +110,58 @@ class EMA(uid: String)
 
 object EMA
 {
-	val DEFAULT_EXP_FACTOR = 0.2
+	val DEFAULT_ALPHA = 0.2
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param emaCol
+	 * @param N
+	 * @param alpha
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          emaCol: String,
+	          N: Int,
+	          alpha: Double): EMA =
+		new EMA().setMeasureCol(measureCol)
+		         .setOutputCol(emaCol)
+		         .setN(N)
+		         .setAlpha(alpha)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param N
+	 * @param alpha
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          N: Int,
+	          alpha: Double): EMA =
+		new EMA().setMeasureCol(measureCol)
+		         .setN(N)
+		         .setAlpha(alpha)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param emaCol
+	 * @param N
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          emaCol: String,
+	          N: Int): EMA =
+		apply(measureCol, emaCol, N, DEFAULT_ALPHA)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param N
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          N: Int): EMA =
+		apply(measureCol, N, DEFAULT_ALPHA)
 }

@@ -3,7 +3,6 @@ package com.databrickslabs.tempo.ml.stat
 import com.databrickslabs.tempo.ml._
 import com.databrickslabs.tempo.{TSDF, TSStructType}
 import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.ml.param.shared.HasOutputCol
 import org.apache.spark.ml.util.Identifiable
 import org.apache.spark.sql.functions.mean
 import org.apache.spark.sql.types.{DataTypes, StructField}
@@ -78,82 +77,212 @@ object SMA
 
 	/**
 	 *
+	 * @param measureCol
+	 * @param outputCol
 	 * @param size
 	 * @param ordering
 	 * @param alignment
 	 * @param includesNow
 	 * @return
 	 */
-	def apply(size: Long,
+	def apply(measureCol: String,
+	          outputCol: String,
+	          size: Long,
 	          ordering: Ordering,
 	          alignment: WindowAlignment,
 	          includesNow: Boolean): SMA =
-		new SMA().setWindowSize(size)
+		new SMA().setMeasureCol(measureCol)
+		         .setOutputCol(outputCol)
+		         .setWindowSize(size)
 		         .setWindowOrdering(ordering)
 		         .setWindowAlignment(alignment)
 		         .setIncludesNow(includesNow)
 
 	/**
 	 *
-	 * @param size
-	 * @param ordering
-	 * @param alignment
-	 * @return
-	 */
-	def apply(size: Long,
-	          ordering: Ordering,
-	          alignment: WindowAlignment): SMA =
-		apply(size,ordering,alignment,true)
-
-	/**
-	 *
-	 * @param size
-	 * @param ordering
-	 * @return
-	 */
-	def apply(size: Long, ordering: Ordering): SMA =
-		apply(size,ordering,trailing)
-
-	/**
-	 *
-	 * @param size
-	 * @return
-	 */
-	def apply(size:Long): SMA =
-		apply(size,row)
-
-	/**
-	 *
+	 * @param measureCol
 	 * @param size
 	 * @param ordering
 	 * @param alignment
 	 * @param includesNow
 	 * @return
 	 */
-	def apply( size: Long,
-	           ordering: String,
-	           alignment: String,
-	           includesNow: Boolean): SMA =
-		apply(size, Orderings.withName(ordering), WindowAlignments.withName(alignment), includesNow)
+	def apply(measureCol: String,
+	          size: Long,
+	          ordering: Ordering,
+	          alignment: WindowAlignment,
+	          includesNow: Boolean): SMA =
+		new SMA().setMeasureCol(measureCol)
+		         .setWindowSize(size)
+		         .setWindowOrdering(ordering)
+		         .setWindowAlignment(alignment)
+		         .setIncludesNow(includesNow)
 
 	/**
 	 *
+	 * @param measureCol
+	 * @param outputCol
 	 * @param size
 	 * @param ordering
 	 * @param alignment
 	 * @return
 	 */
-	def apply( size: Long,
-	           ordering: String,
-	           alignment: String): SMA =
-		apply(size,Orderings.withName(ordering),WindowAlignments.withName(alignment))
+	def apply(measureCol: String,
+	          outputCol: String,
+	          size: Long,
+	          ordering: Ordering,
+	          alignment: WindowAlignment): SMA =
+		apply(measureCol,outputCol,size,ordering,alignment,true)
 
 	/**
 	 *
+	 * @param measureCol
+	 * @param size
+	 * @param ordering
+	 * @param alignment
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          size: Long,
+	          ordering: Ordering,
+	          alignment: WindowAlignment): SMA =
+		apply(measureCol,size,ordering,alignment,true)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param outputCol
 	 * @param size
 	 * @param ordering
 	 * @return
 	 */
-	def apply(size: Long, ordering: String): SMA =
-		apply(size,Orderings.withName(ordering),trailing)
+	def apply(measureCol: String,
+	          outputCol: String,
+	          size: Long,
+	          ordering: Ordering): SMA =
+		apply(measureCol,outputCol,size,ordering,trailing)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param size
+	 * @param ordering
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          size: Long,
+	          ordering: Ordering): SMA =
+		apply(measureCol,size,ordering,trailing)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param outputCol
+	 * @param size
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          outputCol: String,
+	          size:Long): SMA =
+		apply(measureCol,outputCol,size,row)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param size
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          size:Long): SMA =
+		apply(measureCol,size,row)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param outputCol
+	 * @param size
+	 * @param ordering
+	 * @param alignment
+	 * @param includesNow
+	 * @return
+	 */
+	def apply( measureCol: String,
+	           outputCol: String,
+	           size: Long,
+	           ordering: String,
+	           alignment: String,
+	           includesNow: Boolean): SMA =
+		apply(measureCol, outputCol, size, Orderings.withName(ordering), WindowAlignments.withName(alignment), includesNow)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param size
+	 * @param ordering
+	 * @param alignment
+	 * @param includesNow
+	 * @return
+	 */
+	def apply( measureCol: String,
+	           size: Long,
+	           ordering: String,
+	           alignment: String,
+	           includesNow: Boolean): SMA =
+		apply(measureCol, size, Orderings.withName(ordering), WindowAlignments.withName(alignment), includesNow)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param outputCol
+	 * @param size
+	 * @param ordering
+	 * @param alignment
+	 * @return
+	 */
+	def apply( measureCol: String,
+	           outputCol: String,
+	           size: Long,
+	           ordering: String,
+	           alignment: String): SMA =
+		apply(measureCol,outputCol,size,Orderings.withName(ordering),WindowAlignments.withName(alignment))
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param size
+	 * @param ordering
+	 * @param alignment
+	 * @return
+	 */
+	def apply( measureCol: String,
+	           size: Long,
+	           ordering: String,
+	           alignment: String): SMA =
+		apply(measureCol,size,Orderings.withName(ordering),WindowAlignments.withName(alignment))
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param outputCol
+	 * @param size
+	 * @param ordering
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          outputCol: String,
+	          size: Long,
+	          ordering: String): SMA =
+		apply(measureCol,outputCol,size,Orderings.withName(ordering),trailing)
+
+	/**
+	 *
+	 * @param measureCol
+	 * @param size
+	 * @param ordering
+	 * @return
+	 */
+	def apply(measureCol: String,
+	          size: Long,
+	          ordering: String): SMA =
+		apply(measureCol,size,Orderings.withName(ordering),trailing)
 }

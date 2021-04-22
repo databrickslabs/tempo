@@ -1,7 +1,7 @@
 package com.databrickslabs.tempo.ml
 
 import com.databrickslabs.tempo.{TSDF, TSStructType}
-import org.apache.spark.ml.param._
+import org.apache.spark.ml.param.{BooleanParam, LongParam, Param, ParamValidators, Params}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 
 /**
@@ -40,6 +40,24 @@ trait HasMeasureCol extends Params
 	protected def validateMeasureCol(schema: TSStructType): Unit =
 		assert( schema.measureColumns.map(_.name.toLowerCase).contains($(measureCol).toLowerCase),
 		        s"The measure column parameter must refer to a measure (numeric) column in the dataframe")
+}
+
+trait HasOutputCol extends Params
+{
+	/**
+	 * Param for output column name.
+	 * @group param
+	 */
+	final val outputCol: Param[String] = new Param[String](this, "outputCol", "output column name")
+
+	setDefault(outputCol, uid + "__output")
+
+	/** @group getParam */
+	final def getOutputCol: String = $(outputCol)
+
+	/** @group setParam */
+	final def setOutputCol(value: String): this.type =
+		set(outputCol, value)
 }
 
 /**
@@ -138,16 +156,16 @@ trait HasWindow extends Params
 		$(windowAlignment) match {
 			case `leading` =>
 				if($(includesNow))
-					windowBuilder($(windowSize)-1,Window.currentRow)
+					windowBuilder($(windowSize)-1,0)
 				else
 					windowBuilder($(windowSize),1)
 			case `trailing` =>
 				if($(includesNow))
-					windowBuilder(-($(windowSize)-1),Window.currentRow)
+					windowBuilder(-($(windowSize)-1),0)
 				else
 					windowBuilder(-$(windowSize),-1)
 			case `centered` =>
-				windowBuilder($(windowSize), -(0.5 * ($(windowSize)-1)).floor.toLong)
+				windowBuilder($(windowSize), -(0.5 * $(windowSize)).floor.toLong)
 		}
 	}
 }
