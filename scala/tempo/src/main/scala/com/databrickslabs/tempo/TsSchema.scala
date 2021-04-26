@@ -5,7 +5,7 @@ import org.apache.spark.sql.types.{NumericType, StructField, StructType}
 /**
  * A Timeseries Schema
  */
-trait TSSchema
+trait TsSchema
 {
 	/**
 	 * The timeseries column
@@ -51,10 +51,10 @@ trait TSSchema
  * @param tsColumn
  * @param partitionCols
  */
-class TSStructType(fields: Array[StructField],
+class TsStructType(fields: Array[StructField],
                    val tsColumn: StructField,
                    val partitionCols: Seq[StructField])
-	extends StructType(fields) with TSSchema
+	extends StructType(fields) with TsSchema
 {
 	// Validate the arguments
 	assert( fields.contains(tsColumn),

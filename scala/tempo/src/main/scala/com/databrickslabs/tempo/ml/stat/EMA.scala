@@ -3,7 +3,7 @@ package com.databrickslabs.tempo.ml.stat
 import com.databrickslabs.tempo.ml.Orderings.Ordering
 import com.databrickslabs.tempo.ml.WindowAlignments.WindowAlignment
 import com.databrickslabs.tempo.ml._
-import com.databrickslabs.tempo.{TSDF, TSStructType}
+import com.databrickslabs.tempo.{TSDF, TsStructType}
 import org.apache.spark.ml.param.{DoubleParam, IntParam, LongParam, Param, ParamMap}
 import org.apache.spark.ml.util.Identifiable
 import org.apache.spark.sql.types.{DataTypes, StructField}
@@ -54,7 +54,7 @@ class EMA(uid: String)
 	 * Typical implementation should first conduct verification on schema change and parameter
 	 * validity, including complex parameter interaction checks.
 	 */
-	override def transformSchema(schema: TSStructType): TSStructType =
+	override def transformSchema(schema: TsStructType): TsStructType =
 	{
 		// make sure we have a valid measure column
 		validateMeasureCol(schema)
@@ -62,7 +62,7 @@ class EMA(uid: String)
 		assert(! schema.fieldNames.contains($(outputCol)),
 		       s"TSDF already contains the output column ${$(outputCol)}")
 
-		new TSStructType(schema.fields :+ StructField($(outputCol), DataTypes.DoubleType),
+		new TsStructType(schema.fields :+ StructField($(outputCol), DataTypes.DoubleType),
 		                 schema.tsColumn,
 		                 schema.partitionCols)
 	}

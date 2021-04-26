@@ -1,6 +1,6 @@
 package com.databrickslabs.tempo.ml
 
-import com.databrickslabs.tempo.{TSDF, TSStructType}
+import com.databrickslabs.tempo.{TSDF, TsStructType}
 import org.apache.spark.ml.PipelineStage
 import org.apache.spark.ml.param.{Param, ParamMap, Params, StringArrayParam}
 import org.apache.spark.ml.util.Identifiable
@@ -28,7 +28,7 @@ abstract class TSDFTransformer(override val uid: String)
    * Typical implementation should first conduct verification on schema change and parameter
    * validity, including complex parameter interaction checks.
    */
-  def transformSchema(schema: TSStructType): TSStructType
+  def transformSchema(schema: TsStructType): TsStructType
 
   /**
    * Transform the given [[TSDF]]

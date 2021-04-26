@@ -17,7 +17,7 @@ import io._
  */
 
 sealed trait TSDF
-	extends TSSchema
+	extends TsSchema
 {
 	// core backing values
 
@@ -29,7 +29,7 @@ sealed trait TSDF
 	/**
 	 * The schema of the timeseries DataFrame
 	 */
-	val schema: TSStructType
+	val schema: TsStructType
 
 	// transformation functions
 
@@ -138,7 +138,7 @@ sealed trait TSDF
  * @param tsColumn timeseries column
  * @param partitionCols partitioning columns
  */
-private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType )
+private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TsStructType )
 	extends TSDF
 {
 	/**
@@ -148,7 +148,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame, val schema: TSStructType
 	 * @param partitionCols
 	 */
 	def this(df: DataFrame, tsColumn: StructField, partitionCols: Seq[StructField] ) =
-		this(df,new TSStructType(df.schema.fields, tsColumn, partitionCols))
+		this(df, new TsStructType(df.schema.fields, tsColumn, partitionCols))
 
 	/**
 	 * The timeseries column

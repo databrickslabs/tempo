@@ -1,7 +1,7 @@
 package com.databrickslabs.tempo.ml.stat
 
 import com.databrickslabs.tempo.ml._
-import com.databrickslabs.tempo.{TSDF, TSStructType}
+import com.databrickslabs.tempo.{TSDF, TsStructType}
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.ml.util.Identifiable
 import org.apache.spark.sql.functions.mean
@@ -44,7 +44,7 @@ class SMA(uid: String)
 	 * Typical implementation should first conduct verification on schema change and parameter
 	 * validity, including complex parameter interaction checks.
 	 */
-	override def transformSchema(schema: TSStructType): TSStructType =
+	override def transformSchema(schema: TsStructType): TsStructType =
 	{
 		// make sure we have a valid measure column
 		validateMeasureCol(schema)
@@ -52,7 +52,7 @@ class SMA(uid: String)
 		assert(! schema.fieldNames.contains($(outputCol)),
 		       s"TSDF already contains the output column ${$(outputCol)}")
 
-		new TSStructType(schema.fields :+ StructField($(outputCol), DataTypes.DoubleType),
+		new TsStructType(schema.fields :+ StructField($(outputCol), DataTypes.DoubleType),
 		              schema.tsColumn,
 		              schema.partitionCols)
 	}

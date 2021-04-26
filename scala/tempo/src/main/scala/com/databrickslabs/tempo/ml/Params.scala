@@ -1,6 +1,6 @@
 package com.databrickslabs.tempo.ml
 
-import com.databrickslabs.tempo.{TSDF, TSStructType}
+import com.databrickslabs.tempo.{TSDF, TsStructType}
 import org.apache.spark.ml.param.{BooleanParam, LongParam, Param, ParamValidators, Params}
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 
@@ -37,7 +37,7 @@ trait HasMeasureCol extends Params
 	final def setMeasureCol(value: String): this.type =
 		set(measureCol,value)
 
-	protected def validateMeasureCol(schema: TSStructType): Unit =
+	protected def validateMeasureCol(schema: TsStructType): Unit =
 		assert( schema.measureColumns.map(_.name.toLowerCase).contains($(measureCol).toLowerCase),
 		        s"The measure column parameter must refer to a measure (numeric) column in the dataframe")
 }
