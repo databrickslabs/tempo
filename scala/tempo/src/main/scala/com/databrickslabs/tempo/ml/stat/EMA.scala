@@ -21,15 +21,15 @@ class EMA(uid: String)
 	// parameters
 
 	/** @group param */
-	final val N = new IntParam(this,
-	                           "period",
-	                           "The size of the lookback period over which we calculate the EMA")
+	final val windowLength = new IntParam(this,
+	                                      "period",
+	                                      "The length of the lookback window over which we calculate the EMA")
 
 	/** @group getParam */
-	final def getN: Int = $(N)
+	final def getWindowLength: Int = $(windowLength)
 
 	/** @group setParam */
-	final def setN( value: Int ): EMA = set(N,value)
+	final def setWindowLength(value: Int ): EMA = set(windowLength, value)
 
 	/** @group param */
 	final val alpha = new DoubleParam(this,
@@ -90,7 +90,7 @@ class EMA(uid: String)
 		val window = tsdf.baseWindow()
 
 		// temporary lag column names
-		val lag_cols = Seq.range(0,($(N)+1)).map( i => LagCol(i, lagColName(i)) )
+		val lag_cols = Seq.range(0, ($(windowLength) + 1)).map(i => LagCol(i, lagColName(i)))
 
 		// compute lag columns
 		val with_lag_cols =
@@ -116,17 +116,17 @@ object EMA
 	 *
 	 * @param measureCol
 	 * @param emaCol
-	 * @param N
+	 * @param windowLength
 	 * @param alpha
 	 * @return
 	 */
 	def apply(measureCol: String,
 	          emaCol: String,
-	          N: Int,
+	          windowLength: Int,
 	          alpha: Double): EMA =
 		new EMA().setMeasureCol(measureCol)
 		         .setOutputCol(emaCol)
-		         .setN(N)
+		         .setWindowLength(windowLength)
 		         .setAlpha(alpha)
 
 	/**
@@ -137,10 +137,10 @@ object EMA
 	 * @return
 	 */
 	def apply(measureCol: String,
-	          N: Int,
+	          windowLength: Int,
 	          alpha: Double): EMA =
 		new EMA().setMeasureCol(measureCol)
-		         .setN(N)
+		         .setWindowLength(windowLength)
 		         .setAlpha(alpha)
 
 	/**
@@ -152,8 +152,8 @@ object EMA
 	 */
 	def apply(measureCol: String,
 	          emaCol: String,
-	          N: Int): EMA =
-		apply(measureCol, emaCol, N, DEFAULT_ALPHA)
+	          windowLength: Int): EMA =
+		apply(measureCol, emaCol, windowLength, DEFAULT_ALPHA)
 
 	/**
 	 *
@@ -162,6 +162,6 @@ object EMA
 	 * @return
 	 */
 	def apply(measureCol: String,
-	          N: Int): EMA =
-		apply(measureCol, N, DEFAULT_ALPHA)
+	          windowLength: Int): EMA =
+		apply(measureCol, windowLength, DEFAULT_ALPHA)
 }
