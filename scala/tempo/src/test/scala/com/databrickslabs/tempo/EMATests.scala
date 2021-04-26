@@ -46,7 +46,7 @@ class EMATests
 	it("EMA Transformer"){
 		val tsdf = TSDF(df, tsColumnName = "event_ts", partitionColumnNames = Seq("symbol"))
 
-		val ema_tx = EMATX("trade_pr","ema_trade_pr",2,0.5)
+		val ema_tx = EMATX(measureCol = "trade_pr", emaCol = "ema_trade_pr", windowLength = 2, alpha = 0.5)
 		val emaDf = ema_tx.transform(tsdf).df
 
 		assert(emaDf.collect().sameElements(dfExpected.collect()))
