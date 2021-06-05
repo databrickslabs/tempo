@@ -95,8 +95,9 @@ class TSDF:
     """
     ptntl_sort_keys = [self.ts_col, sequence_col]
     sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
+    sort_keys.append('rec_ind')
 
-    window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys)
+    window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
     # splitting off the condition as we want different columns in the reduce if we are implementing the skew AS OF join
     if tsPartitionVal is None:
@@ -108,7 +109,7 @@ class TSDF:
                 'non_null_ct' + right_cols[idx], f.count(right_cols[idx]).over(window_spec)),
             range(len(right_cols)), self.df)
 
-    df = (df.filter(f.col(left_ts_col).isNotNull()).drop(self.ts_col))
+    df = (df.filter(f.col(left_ts_col).isNotNull()).drop(self.ts_col)).drop('rec_ind')
 
     # remove the null_ct stats used to record missing values in partitioned as of join
     if tsPartitionVal is not None:
@@ -248,6 +249,7 @@ class TSDF:
                    .__addColumnsFromOtherDF(right_columns)
                    .__combineTSDF(right_tsdf.__addColumnsFromOtherDF(left_columns),
                                   combined_ts_col))
+    combined_df.df = combined_df.df.withColumn("rec_ind", f.when(f.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1))
 
     # perform asof join.
     if tsPartitionVal is None:

@@ -302,7 +302,11 @@ class AsOfJoinTest(SparkTest):
         tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
 
         joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right",
-                                       tsPartitionVal = 10, fraction = 0.1).df
+                                       tsPartitionVal = 10, fraction = 0.4).df
+
+        print("printing diff")
+        joined_df.show(20, False)
+        dfExpected.show(20, False)
 
         self.assertDataFramesEqual(joined_df, dfExpected)
 
