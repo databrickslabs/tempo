@@ -66,7 +66,7 @@ phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["Us
 # ts_col = timestamp column on which to sort fact and source table
 # partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
 
-resampled_sdf = phone_accel_tsdf.resample(freq='min', func='closest_lead')
+resampled_sdf = phone_accel_tsdf.resample(freq='min', func='floor')
 resampled_pdf = resampled_sdf.df.filter(col('event_ts').cast("date") == "2015-02-23").toPandas()
 
 import plotly.graph_objs as go

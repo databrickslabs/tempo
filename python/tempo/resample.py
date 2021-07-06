@@ -1,5 +1,4 @@
 import pyspark.sql.functions as f
-#import tempo.tsdf as ts
 
 # define global frequency options
 import tempo
@@ -10,10 +9,11 @@ HR = 'hr'
 DAY = 'day'
 
 # define global aggregate function options for downsampling
-CLOSEST_LEAD = "closest_lead"
-MIN_LEAD = "min_lead"
-MAX_LEAD = "max_lead"
-MEAN_LEAD = "mean_lead"
+floor = "floor"
+min = "min"
+max = "max"
+average = "mean"
+ceiling = "ceil"
 
 allowableFreqs = [SEC, MIN, HR, DAY]
 
@@ -43,7 +43,7 @@ def __appendAggKey(tsdf, freq = None):
     df = df.withColumn("agg_key", agg_key)
     return tempo.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
 
-def aggregate(tsdf, freq, func, metricCols = None):
+def aggregate(tsdf, freq, func, metricCols = None, prefix = None):
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
@@ -60,22 +60,48 @@ def aggregate(tsdf, freq, func, metricCols = None):
 
     groupingCols = [f.col(column) for column in groupingCols]
 
-    if func == CLOSEST_LEAD:
-        #exprs = {x: "min" for x in metricCols}
+    if func == floor:
+        if prefix is None:
+            prefix = floor
         metricCol = f.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(f.min('struct_cols').alias("closest_data")).select(*groupingCols, f.col("closest_data.*"))
-    elif func == MEAN_LEAD:
+        new_cols = [f.col(tsdf.ts_col)] + [f.col(c).alias("{}_".format(prefix) + c) for c in metricCols]
+        res = res.select(*groupingCols, *new_cols)
+    elif func == average:
+        if prefix is None:
+          prefix = average
         exprs = {x: "avg" for x in metricCols}
-        res= df.groupBy(groupingCols).agg(exprs)
-    elif func == MIN_LEAD:
+        res = df.groupBy(groupingCols).agg(exprs)
+        agg_metric_cls = list(set(res.columns).difference(set(tsdf.partitionCols + [tsdf.ts_col, 'agg_key'])))
+        new_cols = [f.col(c).alias('{}_'.format(prefix) + (c.split("avg(")[1]).replace(')', '')) for c in agg_metric_cls]
+        res = res.select(*groupingCols, *new_cols)
+    elif func == min:
+        if prefix is None:
+          prefix = min
         exprs = {x: "min" for x in metricCols}
         summaryCols = metricCols
         res = df.groupBy(groupingCols).agg(exprs)
-    elif func == MAX_LEAD:
+        agg_metric_cls = list(set(res.columns).difference(set(tsdf.partitionCols + [tsdf.ts_col, 'agg_key'])))
+        new_cols = [f.col(c).alias('{}_'.format(prefix) + (c.split("min(")[1]).replace(')', '')) for c in agg_metric_cls]
+        res = res.select(*groupingCols, *new_cols)
+    elif func == max:
+        if prefix is None:
+            prefix = max
         exprs = {x: "max" for x in metricCols}
         summaryCols = metricCols
         res = df.groupBy(groupingCols).agg(exprs)
+        agg_metric_cls = list(set(res.columns).difference(set(tsdf.partitionCols + [tsdf.ts_col, 'agg_key'])))
+        new_cols = [f.col(c).alias('{}_'.format(prefix) + (c.split("max(")[1]).replace(')', '')) for c in agg_metric_cls]
+        res = res.select(*groupingCols, *new_cols)
+    elif func == ceiling:
+        if prefix is None:
+            prefix = ceiling
+        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
+        res = res.agg(f.max('struct_cols').alias("ceil_data")).select(*groupingCols, f.col("ceil_data.*"))
+        new_cols = [f.col(tsdf.ts_col)] + [f.col(c).alias("{}_".format(prefix) + c) for c in metricCols]
+        res = res.select(*groupingCols, *new_cols)
 
     res = res.drop(tsdf.ts_col).withColumnRenamed('agg_key', tsdf.ts_col)
     return(tempo.TSDF(res, ts_col = tsdf.ts_col, partition_cols = tsdf.partitionCols))
