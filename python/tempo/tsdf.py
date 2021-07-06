@@ -429,7 +429,7 @@ class TSDF:
   def write(self, spark, tabName, optimizationCols = None):
     tio.write(self, spark, tabName, optimizationCols)
 
-  def resample(self, freq, func=None):
+  def resample(self, freq, func=None, metricCols = None, prefix=None):
     """
     function to upsample based on frequency and aggregate function similar to pandas
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
@@ -437,5 +437,20 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    enriched_tsdf = rs.aggregate(self, freq, func)
+    enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix)
     return(enriched_tsdf)
+
+  def calc_bars(tsdf, freq, func = None, metricCols = None):
+
+      resample_open = tsdf.resample(freq=freq, func='floor', metricCols = metricCols, prefix='open')
+      resample_low = tsdf.resample(freq=freq, func='min', metricCols = metricCols, prefix='low')
+      resample_high = tsdf.resample(freq=freq, func='max', metricCols = metricCols, prefix='high')
+      resample_close = tsdf.resample(freq=freq, func='ceil', metricCols = metricCols, prefix='close')
+
+      join_cols = resample_open.partitionCols + [resample_open.ts_col]
+      bars = resample_open.df.join(resample_high.df, join_cols).join(resample_low.df, join_cols).join(resample_close.df, join_cols)
+      non_part_cols = set(set(bars.columns) - set(resample_open.partitionCols)) - set([resample_open.ts_col])
+      sel_and_sort = resample_open.partitionCols + [resample_open.ts_col] + sorted(non_part_cols)
+      bars = bars.select(sel_and_sort)
+
+      return(TSDF(bars, resample_open.ts_col, resample_open.partitionCols))

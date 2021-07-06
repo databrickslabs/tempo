@@ -26,6 +26,7 @@ scala/tempo/project/project/target/
 
 # ignore virtual environments
 python/venv
+venv
 
 # other misc ignore
 .DS_Store
