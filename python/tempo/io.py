@@ -32,5 +32,10 @@ def write(tsdf, spark, tabName, optimizationCols = None):
   if useDeltaOpt:
       try:
          spark.sql("optimize {} zorder by {}".format(tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"))
-      except:
-         print("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
+      except Exception as e: 
+         print("Delta optimizations attempted, but was not successful. Error: {}".format(e))
+  else:
+      print("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
+         
+         
+   
