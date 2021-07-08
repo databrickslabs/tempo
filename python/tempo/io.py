@@ -1,4 +1,5 @@
 import pyspark.sql.functions as f
+from collections import deque
 
 def write(tsdf, spark, tabName, optimizationCols = None):
   """
@@ -19,13 +20,22 @@ def write(tsdf, spark, tabName, optimizationCols = None):
 
   import os
   useDeltaOpt = (os.getenv('DATABRICKS_RUNTIME_VERSION') != None)
-
+  
   view_df = df.withColumn("event_dt", f.to_date(f.col(ts_col))) \
       .withColumn("event_time", f.translate(f.split(f.col(ts_col).cast("string"), ' ')[1], ':', '').cast("double"))
+  view_cols = deque(view_df.columns)
+  view_cols.rotate(1)
+  view_df = view_df.select(*list(view_cols))
+
   view_df.write.mode("overwrite").partitionBy("event_dt").format('delta').saveAsTable(tabName)
 
   if useDeltaOpt:
       try:
          spark.sql("optimize {} zorder by {}".format(tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"))
-      except:
-         print("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
+      except Exception as e: 
+         print("Delta optimizations attempted, but was not successful.\nError: {}".format(e))
+  else:
+      print("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
+         
+         
+   
