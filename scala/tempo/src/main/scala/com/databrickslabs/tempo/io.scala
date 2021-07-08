@@ -37,7 +37,12 @@ object TSDFWriters extends SparkSessionWrapper {
 
     val useDeltaOpt = !(sys.env.get("DATABRICKS_RUNTIME_VERSION") == None)
 
-    val view_df = df.withColumn("event_dt", to_date(col(ts_col))).withColumn("event_time", translate(split(col(ts_col).cast("string"), " ")(1), ":", " ").cast("double"))
+    val view_df_old = df.withColumn("event_dt", to_date(col(ts_col))).withColumn("event_time", translate(split(col(ts_col).cast("string"), " ")(1), ":", "").cast("double"))
+    
+    val last = Seq("event_time")
+    val reordered =  last ++ view_df_old.columns.diff(last) 
+    val reorderedCols = reordered.map(c => col(c))
+    val view_df = view_df_old.select(reorderedCols: _*)
 
     tabPath == "" match {
       case false => view_df.write.option("path", tabPath).mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable(tabName)
