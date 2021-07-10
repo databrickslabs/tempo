@@ -2,7 +2,6 @@ package com.databrickslabs.tempo
 
 import com.databrickslabs.tempo.utils.SparkSessionWrapper
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.SparkSession
 
 
 /**
@@ -38,9 +37,10 @@ object TSDFWriters extends SparkSessionWrapper {
     val useDeltaOpt = !(sys.env.get("DATABRICKS_RUNTIME_VERSION") == None)
 
     val view_df_old = df.withColumn("event_dt", to_date(col(ts_col))).withColumn("event_time", translate(split(col(ts_col).cast("string"), " ")(1), ":", "").cast("double"))
-    
-    val last = Seq("event_time")
-    val reordered =  last ++ view_df_old.columns.diff(last) 
+
+    // reordering columns to take advantage of zordering on event time which was added last
+    val event_time_col = Seq("event_time")
+    val reordered =  event_time_col ++ view_df_old.columns.diff(event_time_col)
     val reorderedCols = reordered.map(c => col(c))
     val view_df = view_df_old.select(reorderedCols: _*)
 
