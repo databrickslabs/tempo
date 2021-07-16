@@ -145,7 +145,7 @@ rangeBackWindowSecs = number of seconds to look back
 ```
 moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
-``
+```
 
 
 
