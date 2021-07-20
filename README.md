@@ -74,7 +74,7 @@ import plotly.express as px
 import pandas as pd
 
 # Plotly figure 1
-fig = px.line(resampled_pdf, x='event_ts', y='z',
+fig = px.line(resampled_pdf, x='event_ts', y='floor_z',
               color="User",
               line_group="User", hover_name="User")
 fig.update_layout(title='Phone Accelerometer Usage' , showlegend=False)
