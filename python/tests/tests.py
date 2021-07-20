@@ -386,6 +386,12 @@ class ResampleTest(SparkTest):
                                      StructField("floor_date", StringType()),
                                      StructField("floor_trade_pr_2", FloatType())])
 
+        expected_30m_Schema = StructType([StructField("symbol", StringType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("date", DoubleType()),
+                                     StructField("trade_pr", DoubleType()),
+                                     StructField("trade_pr_2", DoubleType())])
+
         expectedBarsSchema = StructType([StructField("symbol", StringType()),
                                          StructField("event_ts", StringType()),
                                          StructField("close_trade_pr", FloatType()),
@@ -411,6 +417,12 @@ class ResampleTest(SparkTest):
                 ["S1", "2020-09-01 00:01:00", 361.1, "SAME_DT", 5.0],
                 ["S1", "2020-09-01 00:19:00", 362.1, "SAME_DT", 4.0]]
 
+        expected_data_30m = [
+            ["S1", "2020-08-01 00:00:00", None, 348.88, 8.0],
+            ["S1", "2020-09-01 00:00:00", None, 361.1, 5.0],
+            ["S1", "2020-09-01 00:15:00", None, 362.1, 4.0]
+        ]
+
         expected_bars = [
             ['S1', '2020-08-01 00:00:00', 340.21, 9.0, 349.21, 10.0, 340.21, 9.0, 349.21, 10.0],
             ['S1', '2020-08-01 00:01:00', 350.32, 6.0, 353.32, 8.0, 350.32, 6.0, 353.32, 8.0],
@@ -421,22 +433,26 @@ class ResampleTest(SparkTest):
         # construct dataframes
         df = self.buildTestDF(schema,data)
         dfExpected = self.buildTestDF(expectedSchema,expected_data)
+        expected_30s_df = self.buildTestDF(expected_30m_Schema,expected_data_30m)
         barsExpected = self.buildTestDF(expectedBarsSchema,expected_bars)
+
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
 
-        # using lookback of 20 minutes
-        featured_df = tsdf_left.resample(freq = "min", func = "floor").df
+        # 1 minute aggregation
+        featured_df = tsdf_left.resample(freq = "min", func = "floor", prefix='floor').df
+        # 30 minute aggregation
+        resample_30m = tsdf_left.resample(freq = "5 minutes", func = "mean").df.withColumn("trade_pr", F.round(F.col('trade_pr'), 2))
 
         bars = tsdf_left.calc_bars(freq='min', metricCols = ['trade_pr', 'trade_pr_2']).df
 
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
+        self.assertDataFramesEqual(resample_30m, expected_30s_df)
 
         #test bars summary
         self.assertDataFramesEqual(bars, barsExpected)
-
 
 class DeltaWriteTest(SparkTest):
 
