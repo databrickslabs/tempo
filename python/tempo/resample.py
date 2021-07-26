@@ -15,7 +15,10 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
+freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days'}
+
 allowableFreqs = [SEC, MIN, HR, DAY]
+allowableFuncs = [floor, min, max, average, ceiling]
 
 def __appendAggKey(tsdf, freq = None):
     """
@@ -24,23 +27,10 @@ def __appendAggKey(tsdf, freq = None):
     :return: return a TSDF with a new aggregate key (called agg_key)
     """
     df = tsdf.df
-    checkAllowableFreq(freq)
+    parsed_freq = checkAllowableFreq(tsdf, freq)
+    agg_window = f.window(f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]]))
 
-    # compute timestamp columns
-    sec_col = f.second(f.col(tsdf.ts_col))
-    min_col = f.minute(f.col(tsdf.ts_col))
-    hour_col = f.hour(f.col(tsdf.ts_col))
-
-    if (freq == SEC):
-        agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(" "), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lpad(min_col, 2, '0'), f.lit(':'), f.lpad(sec_col, 2, '0')).cast("timestamp")
-    elif (freq == MIN):
-        agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(' '), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lpad(min_col, 2, '0'), f.lit(':'), f.lit('00')).cast("timestamp")
-    elif (freq == HR):
-        agg_key = f.concat(f.col(tsdf.ts_col).cast("date"), f.lit(' '), f.lpad(hour_col, 2, '0'), f.lit(':'), f.lit('00'), f.lit(':'), f.lit('00')).cast("timestamp")
-    elif (freq == DAY):
-        agg_key = f.col(tsdf.ts_col).cast("date").cast("timestamp")
-
-    df = df.withColumn("agg_key", agg_key)
+    df = df.withColumn("agg_key", agg_window)
     return tempo.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
 
 def aggregate(tsdf, freq, func, metricCols = None, prefix = None):
@@ -57,60 +47,78 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None):
     groupingCols = tsdf.partitionCols + ['agg_key']
     if metricCols is None:
         metricCols = list(set(df.columns).difference(set(groupingCols + [tsdf.ts_col])))
+    if prefix is None:
+        prefix = ''
+    else:
+        prefix = prefix+'_'
 
     groupingCols = [f.col(column) for column in groupingCols]
 
     if func == floor:
-        if prefix is None:
-            prefix = floor
         metricCol = f.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(f.min('struct_cols').alias("closest_data")).select(*groupingCols, f.col("closest_data.*"))
-        new_cols = [f.col(tsdf.ts_col)] + [f.col(c).alias("{}_".format(prefix) + c) for c in metricCols]
+        new_cols = [f.col(tsdf.ts_col)] + [f.col(c).alias("{}".format(prefix) + c) for c in metricCols]
         res = res.select(*groupingCols, *new_cols)
     elif func == average:
-        if prefix is None:
-          prefix = average
         exprs = {x: "avg" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(set(res.columns).difference(set(tsdf.partitionCols + [tsdf.ts_col, 'agg_key'])))
-        new_cols = [f.col(c).alias('{}_'.format(prefix) + (c.split("avg(")[1]).replace(')', '')) for c in agg_metric_cls]
+        new_cols = [f.col(c).alias('{}'.format(prefix) + (c.split("avg(")[1]).replace(')', '')) for c in agg_metric_cls]
         res = res.select(*groupingCols, *new_cols)
     elif func == min:
-        if prefix is None:
-          prefix = min
         exprs = {x: "min" for x in metricCols}
         summaryCols = metricCols
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(set(res.columns).difference(set(tsdf.partitionCols + [tsdf.ts_col, 'agg_key'])))
-        new_cols = [f.col(c).alias('{}_'.format(prefix) + (c.split("min(")[1]).replace(')', '')) for c in agg_metric_cls]
+        new_cols = [f.col(c).alias('{}'.format(prefix) + (c.split("min(")[1]).replace(')', '')) for c in agg_metric_cls]
         res = res.select(*groupingCols, *new_cols)
     elif func == max:
-        if prefix is None:
-            prefix = max
         exprs = {x: "max" for x in metricCols}
         summaryCols = metricCols
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(set(res.columns).difference(set(tsdf.partitionCols + [tsdf.ts_col, 'agg_key'])))
-        new_cols = [f.col(c).alias('{}_'.format(prefix) + (c.split("max(")[1]).replace(')', '')) for c in agg_metric_cls]
+        new_cols = [f.col(c).alias('{}'.format(prefix) + (c.split("max(")[1]).replace(')', '')) for c in agg_metric_cls]
         res = res.select(*groupingCols, *new_cols)
     elif func == ceiling:
-        if prefix is None:
-            prefix = ceiling
         metricCol = f.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(f.max('struct_cols').alias("ceil_data")).select(*groupingCols, f.col("ceil_data.*"))
-        new_cols = [f.col(tsdf.ts_col)] + [f.col(c).alias("{}_".format(prefix) + c) for c in metricCols]
+        new_cols = [f.col(tsdf.ts_col)] + [f.col(c).alias("{}".format(prefix) + c) for c in metricCols]
         res = res.select(*groupingCols, *new_cols)
 
-    res = res.drop(tsdf.ts_col).withColumnRenamed('agg_key', tsdf.ts_col)
+    # aggregate by the window and drop the end time (use start time as new ts_col)
+    res = res.drop(tsdf.ts_col).withColumnRenamed('agg_key', tsdf.ts_col).withColumn(tsdf.ts_col, f.col(tsdf.ts_col).start)
+
+    # sort columns so they are consistent
+    non_part_cols = set(set(res.columns) - set(tsdf.partitionCols)) - set([tsdf.ts_col])
+    sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
+    res = res.select(sel_and_sort)
     return(tempo.TSDF(res, ts_col = tsdf.ts_col, partition_cols = tsdf.partitionCols))
 
 
-def checkAllowableFreq(freq):
+def checkAllowableFreq(tsdf, freq):
     if freq not in allowableFreqs:
-      raise ValueError("Allowable grouping frequencies are sec (second), min (minute), hr (hour)")
+      try:
+          periods = freq.lower().split(" ")[0].strip()
+          units = freq.lower().split(" ")[1].strip()
+      except:
+          raise ValueError("Allowable grouping frequencies are sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
+      if units.startswith(SEC):
+          return (periods, SEC)
+      elif units.startswith(MIN):
+          return (periods, MIN)
+      elif units.startswith("hour"):
+          return (periods, "hour")
+      elif units.startswith(DAY):
+          return (periods, DAY)
+    elif freq in allowableFreqs:
+      return (1, freq)
+
 
 def validateFuncExists(func):
-  if func is None:
-      raise ValueError("Aggregate function missing. Provide one of the allowable functions: " + ", ".join([CLOSEST_LEAD, MIN_LEAD, MAX_LEAD, MEAN_LEAD]))
+  if ( (func is None)):
+      raise ValueError("Aggregate function missing. Provide one of the allowable functions: " + ", ".join(allowableFuncs))
+  elif (func not in allowableFuncs):
+      raise ValueError("Aggregate function is not in the valid list. Provide one of the allowable functions: " + ", ".join(allowableFuncs))
+

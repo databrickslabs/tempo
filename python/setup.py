@@ -5,11 +5,11 @@ with open('../README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='tempo',
-    version='0.1',
-    author='Ricardo Portilla',
+    name='dbl-tempo',
+    version='0.1.0',
+    author='Ricardo Portilla, Databricks',
     author_email='ricardo.portilla@databricks.com',
-    description='scalable python time series utility package',
+    description='Spark Time Series Utility Package',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/databrickslabs/tempo',
