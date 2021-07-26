@@ -62,6 +62,9 @@ phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["Us
 
 #### 1. Resample and Visualize
 
+###### Sample usage: 
+Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day. For the accepted functions to aggreagate data, options are floor, ceil, min, max, mean. Custom functions will be available in a future release.
+
 ```
 # ts_col = timestamp column on which to sort fact and source table
 # partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
