@@ -30,12 +30,6 @@ def __appendAggKey(tsdf, freq = None):
     parsed_freq = checkAllowableFreq(tsdf, freq)
     agg_window = f.window(f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]]))
 
-
-    # compute timestamp columns
-    sec_col = f.second(f.col(tsdf.ts_col))
-    min_col = f.minute(f.col(tsdf.ts_col))
-    hour_col = f.hour(f.col(tsdf.ts_col))
-
     df = df.withColumn("agg_key", agg_window)
     return tempo.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
 
