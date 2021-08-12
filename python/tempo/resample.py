@@ -130,7 +130,7 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
 
     metrics = []
     for col in res.dtypes:
-      if col[1] in ['long', 'double', 'decimal', 'integer', 'float']:
+      if col[1] in ['long', 'double', 'decimal', 'integer', 'float', 'int']:
         metrics.append(col[0])
 
     if fill:
