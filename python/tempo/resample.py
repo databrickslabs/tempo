@@ -18,7 +18,7 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days'}
+freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
 
 allowableFreqs = [SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
@@ -150,7 +150,7 @@ def checkAllowableFreq(tsdf, freq):
           return (periods, SEC)
       elif units.startswith(MIN):
           return (periods, MIN)
-      elif units.startswith("hour"):
+      elif (units.startswith("hour") | units.startswith(HR)):
           return (periods, "hour")
       elif units.startswith(DAY):
           return (periods, DAY)
