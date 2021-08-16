@@ -191,10 +191,10 @@ class BasicTests(SparkTest):
         dfExpected = self.buildTestDF(expectedSchema, expected_data, ["left_event_ts", "right_event_ts"])
 
         # perform the join
-        self.spark.sql("create database if not exists tempo")
-        self.spark.range(10).withColumn("event_ts", F.current_timestamp()).withColumn("winner", F.lit('DFP')).write.mode('overwrite').saveAsTable('tempo.hourly_metrics')
+        self.spark.range(10).withColumn("event_ts", F.current_timestamp()).withColumn("winner", F.lit('DFP')).withColumn("advertiser_impressions", F.lit(100)).withColumn("clicks", F.lit(5)).write.option("overwriteSchema", "true").mode('overwrite').format("delta").saveAsTable("hourly_metrics")
+        self.spark.range(10).withColumn("event_ts", F.current_timestamp()).withColumn("winner", F.lit('DFP')).withColumn("advertiser_impressions", F.lit(100)).withColumn("clicks", F.lit(5)).write.option("overwriteSchema", "true").mode('overwrite').format("delta").saveAsTable("monthly_metrics")
         file = "./ad.yaml"
-        res = read_yaml(self.spark, file)
+        res = calc_anomalies(self.spark, file)
 
 
 class AsOfJoinTest(SparkTest):
