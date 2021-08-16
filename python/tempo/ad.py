@@ -38,6 +38,7 @@ def calc_anomalies(spark, yaml_file):
         print(d)
         print(data[d])
         table = data[d]['database'] + '.' + data[d]['name']
+        tgt_table = 'tempo.' + data[d]['name']
         df = spark.table(table)
         partition_cols = data[d]['partition_cols']
         ts_col = data[d]['ts_col']
@@ -67,12 +68,13 @@ def calc_anomalies(spark, yaml_file):
 
         tsdf = TSDF(stacked, partition_cols = part_cols_w_metrics, ts_col = ts_col)
         moving_avg = tsdf.withRangeStats(['value'], rangeBackWindowSecs=int(lkbck_window)).df
-        anomalies = moving_avg.select(ts_col, *partition_cols, 'zscore_' + 'value').withColumn("anomaly_fl", F.when(F.col('zscore_' + 'value') > 2.5, 1).otherwise(0))
+        anomalies = moving_avg.select(ts_col, *partition_cols, 'metric', 'zscore_' + 'value').withColumn("anomaly_fl", F.when(F.col('zscore_' + 'value') > 2.5, 1).otherwise(0))
 
         # class 1 - 2.5 standard deviations outside mean
         # brand new table
         if mode == 'new':
-            anomalies.write.mode('overwrite').format("delta").saveAsTable(table + "_class1")
+            spark.sql("create database if not exists tempo")
+            anomalies.write.mode('overwrite').option("overwriteSchema", "true").format("delta").saveAsTable(tgt_table + "_class1")
         # append to existing table without DLT
         elif mode == 'append':
             # incremental append with DLT
