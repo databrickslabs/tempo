@@ -98,20 +98,6 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
-    min_time = res.select(f.min(f.col(tsdf.ts_col))).collect()[0][0]
-    max_time = df.select(f.max(f.col(tsdf.ts_col))).collect()[0][0]
-
-    if (freq == HR):
-        min_time = min_time - timedelta(hours=min_time.hour % period, minutes=min_time.minute, seconds=min_time.second,
-                                        microseconds=min_time.microsecond)
-    elif freq == MIN:
-        min_time = min_time - timedelta(minutes=min_time.minute % period, seconds=min_time.second,
-                                        microseconds=min_time.microsecond)
-    elif freq == SEC:
-        min_time = min_time - timedelta(seconds=min_time.second % period, microseconds=min_time.microsecond)
-    elif freq == DAY:
-        min_time = min_time - timedelta(days=min_time.day % period, hours = min_time.hour, minutes=min_time.minute, seconds=min_time.second, microseconds=min_time.microsecond)
-
     fillW = Window.partitionBy(tsdf.partitionCols)
 
     imputes = res.select(*tsdf.partitionCols, f.min(tsdf.ts_col).over(fillW).alias("from"), f.max(tsdf.ts_col).over(fillW).alias("until")) \
