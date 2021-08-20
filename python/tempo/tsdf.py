@@ -434,6 +434,9 @@ class TSDF:
     function to upsample based on frequency and aggregate function similar to pandas
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
     :param func: function used to aggregate input
+    :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
+    :param prefix - supply a prefix for the newly sampled columns
+    :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)

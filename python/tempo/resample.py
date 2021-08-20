@@ -42,6 +42,8 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     :param tsdf: input TSDF object
     :param func: aggregate function
     :param metricCols: columns used for aggregates
+    :param prefix the metric columns with the aggregate named function
+    :param fill: upsample based on the time increment for 0s in numeric columns
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
     tsdf, period, unit = __appendAggKey(tsdf, freq)
