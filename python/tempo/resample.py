@@ -112,15 +112,6 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     elif freq == DAY:
         min_time = min_time - timedelta(days=min_time.day % period, hours = min_time.hour, minutes=min_time.minute, seconds=min_time.second, microseconds=min_time.microsecond)
 
-    difference = (max_time - min_time)
-
-    seconds = difference.total_seconds()
-
-    days = int(seconds // 24)
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    seconds = int(seconds % 60)
-
     fillW = Window.partitionBy(tsdf.partitionCols)
 
     imputes = res.select(*tsdf.partitionCols, f.min(tsdf.ts_col).over(fillW).alias("from"), f.max(tsdf.ts_col).over(fillW).alias("until")) \
