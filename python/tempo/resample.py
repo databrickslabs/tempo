@@ -1,4 +1,7 @@
 import pyspark.sql.functions as f
+from datetime import *
+from pyspark.sql.types import *
+from pyspark.sql.window import Window
 
 # define global frequency options
 import tempo
@@ -15,7 +18,7 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days'}
+freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
 
 allowableFreqs = [SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
@@ -24,24 +27,26 @@ def __appendAggKey(tsdf, freq = None):
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
-    :return: return a TSDF with a new aggregate key (called agg_key)
+    :return: triple - 1) return a TSDF with a new aggregate key (called agg_key) 2) return the period for use in interpolation, 3) return the time increment (also necessary for interpolation)
     """
     df = tsdf.df
     parsed_freq = checkAllowableFreq(tsdf, freq)
     agg_window = f.window(f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]]))
 
     df = df.withColumn("agg_key", agg_window)
-    return tempo.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols)
+    return (tempo.TSDF(df, tsdf.ts_col, partition_cols = tsdf.partitionCols), parsed_freq[0], freq_dict[parsed_freq[1]])
 
-def aggregate(tsdf, freq, func, metricCols = None, prefix = None):
+def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
     :param func: aggregate function
     :param metricCols: columns used for aggregates
+    :param prefix the metric columns with the aggregate named function
+    :param fill: upsample based on the time increment for 0s in numeric columns
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
-    tsdf = __appendAggKey(tsdf, freq)
+    tsdf, period, unit = __appendAggKey(tsdf, freq)
     df = tsdf.df
 
     groupingCols = tsdf.partitionCols + ['agg_key']
@@ -94,6 +99,22 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None):
     non_part_cols = set(set(res.columns) - set(tsdf.partitionCols)) - set([tsdf.ts_col])
     sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
+
+    fillW = Window.partitionBy(tsdf.partitionCols)
+
+    imputes = res.select(*tsdf.partitionCols, f.min(tsdf.ts_col).over(fillW).alias("from"), f.max(tsdf.ts_col).over(fillW).alias("until")) \
+    .distinct() \
+    .withColumn(tsdf.ts_col, f.explode(f.expr("sequence(from, until, interval {} {})".format(period, unit)))) \
+    .drop("from", "until")
+
+    metrics = []
+    for col in res.dtypes:
+      if col[1] in ['long', 'double', 'decimal', 'integer', 'float', 'int']:
+        metrics.append(col[0])
+
+    if fill:
+      res = imputes.join(res, tsdf.partitionCols + [tsdf.ts_col], "leftouter").na.fill(0, metrics)
+
     return(tempo.TSDF(res, ts_col = tsdf.ts_col, partition_cols = tsdf.partitionCols))
 
 
@@ -108,7 +129,7 @@ def checkAllowableFreq(tsdf, freq):
           return (periods, SEC)
       elif units.startswith(MIN):
           return (periods, MIN)
-      elif units.startswith("hour"):
+      elif (units.startswith("hour") | units.startswith(HR)):
           return (periods, "hour")
       elif units.startswith(DAY):
           return (periods, DAY)

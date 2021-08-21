@@ -429,23 +429,26 @@ class TSDF:
   def write(self, spark, tabName, optimizationCols = None):
     tio.write(self, spark, tabName, optimizationCols)
 
-  def resample(self, freq, func=None, metricCols = None, prefix=None):
+  def resample(self, freq, func=None, metricCols = None, prefix=None, fill = None):
     """
     function to upsample based on frequency and aggregate function similar to pandas
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
     :param func: function used to aggregate input
+    :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
+    :param prefix - supply a prefix for the newly sampled columns
+    :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix)
+    enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return(enriched_tsdf)
 
-  def calc_bars(tsdf, freq, func = None, metricCols = None):
+  def calc_bars(tsdf, freq, func = None, metricCols = None, fill = None):
 
-      resample_open = tsdf.resample(freq=freq, func='floor', metricCols = metricCols, prefix='open')
-      resample_low = tsdf.resample(freq=freq, func='min', metricCols = metricCols, prefix='low')
-      resample_high = tsdf.resample(freq=freq, func='max', metricCols = metricCols, prefix='high')
-      resample_close = tsdf.resample(freq=freq, func='ceil', metricCols = metricCols, prefix='close')
+      resample_open = tsdf.resample(freq=freq, func='floor', metricCols = metricCols, prefix='open', fill = fill)
+      resample_low = tsdf.resample(freq=freq, func='min', metricCols = metricCols, prefix='low', fill = fill)
+      resample_high = tsdf.resample(freq=freq, func='max', metricCols = metricCols, prefix='high', fill = fill)
+      resample_close = tsdf.resample(freq=freq, func='ceil', metricCols = metricCols, prefix='close', fill = fill)
 
       join_cols = resample_open.partitionCols + [resample_open.ts_col]
       bars = resample_open.df.join(resample_high.df, join_cols).join(resample_low.df, join_cols).join(resample_close.df, join_cols)
