@@ -12,16 +12,16 @@ The purpose of this project is to make time series manipulation with Spark simpl
 
 ## Using the Project
 
-Python install in Databricks notebooks using:
+Python - pip install in Databricks notebooks using:
 
 ```
-%pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
+%pip install dbl-tempo"
 ```
 
 Install locally using: 
 
 ```
-pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
+pip install dbl-tempo"
 ```
 
 Scala installation: 
