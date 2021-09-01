@@ -6,7 +6,7 @@ with open('./README.md', 'r') as fh:
 
 setuptools.setup(
     name='dbl-tempo',
-    version='0.1.0',
+    version='0.1.1',
     author='Ricardo Portilla, Tristan Nixon, Max Thone, Sonali Guleria',
     author_email='labs@databricks.com',
     description='Spark Time Series Utility Package',

@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: dbl-tempo
-Version: 0.1.0
+Version: 0.1.1
 Summary: Spark Time Series Utility Package
 Home-page: https://github.com/databrickslabs/tempo
 Author: Ricardo Portilla, Tristan Nixon, Max Thone, Sonali Guleria
@@ -23,24 +23,14 @@ Description: # tempo - Time Series Utilities for Data Teams Using Databricks
         Python - pip install in Databricks notebooks using:
         
         ```
-        %pip install dbl-tempo"
+        %pip install dbl-tempo
         ```
         
         Install locally using: 
         
         ```
-        pip install dbl-tempo"
+        pip install dbl-tempo
         ```
-        
-        Scala installation: 
-        
-        Once the jar is created (via the following instructions), upload the jar to Databricks for use in a notebook or job:
-        
-        ```
-        cd scala/tempo
-        sbt package
-        ```
-        
         
         
         ### Starting Point: TSDF object, a wrapper over a Spark data frame

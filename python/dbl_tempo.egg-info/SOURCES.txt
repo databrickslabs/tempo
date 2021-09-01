@@ -1,3 +1,4 @@
+README.md
 setup.py
 dbl_tempo.egg-info/PKG-INFO
 dbl_tempo.egg-info/SOURCES.txt
