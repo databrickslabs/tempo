@@ -15,13 +15,13 @@ The purpose of this project is to make time series manipulation with Spark simpl
 Python - pip install in Databricks notebooks using:
 
 ```
-%pip install dbl-tempo"
+%pip install dbl-tempo
 ```
 
 Install locally using: 
 
 ```
-pip install dbl-tempo"
+pip install dbl-tempo
 ```
 
 Scala installation: 
