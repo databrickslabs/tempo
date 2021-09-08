@@ -522,9 +522,7 @@ class ResampleTest(SparkTest):
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
 
-
         resample_30m = tsdf_left.resample(freq = "5 minutes", func = "mean", fill = True).df.withColumn("trade_pr", F.round(F.col('trade_pr'), 2))
-
         bars = tsdf_left.calc_bars(freq='min', metricCols = ['trade_pr', 'trade_pr_2']).df
 
         upsampled = resample_30m.filter(F.col("event_ts").isin('2020-08-01 00:00:00', '2020-08-01 00:05:00', '2020-09-01 00:00:00', '2020-09-01 00:15:00'))

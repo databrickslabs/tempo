@@ -142,7 +142,37 @@ moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
+#### 6 - Anomaly Detection
 
+First create a local yaml file containing tables you wish to create anomalies for: 
+
+Note: Use `%sh` in Databricks or just run a bash command in your local directory as follows:
+
+```
+echo """
+table1:
+database : "default"
+name : "revenue_hourly_2021"
+ts_col : "timestamp"
+lookback_window : "84600"
+mode : "new"
+# include any grouping columns or metrics you wish to detect anomalies on
+partition_cols : ["winner"]
+metrics : ["advertiser_impressions", "publisher_net_revenue"]
+""" > ad.yaml
+```
+
+The code to run to produce the stacked table with anomalies is: 
+
+```
+from tempo.tsdf import TSDF
+from tempo.ad import *
+
+calc_anomalies(spark, 'ad.yaml')
+```
+The above yaml and code defines an output table with suffix ```_class1``. Select the results from your table in the metastore using this `SELECT` statement:
+
+select * from tempo.revenue_hourly_2021_class1
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.
