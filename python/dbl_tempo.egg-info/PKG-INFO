@@ -1,10 +1,18 @@
 Metadata-Version: 2.1
 Name: dbl-tempo
+<<<<<<< HEAD
 Version: 0.1.1
 Summary: Spark Time Series Utility Package
 Home-page: https://github.com/databrickslabs/tempo
 Author: Ricardo Portilla, Tristan Nixon, Max Thone, Sonali Guleria
 Author-email: labs@databricks.com
+=======
+Version: 0.1.0
+Summary: Spark Time Series Utility Package
+Home-page: https://github.com/databrickslabs/tempo
+Author: Ricardo Portilla, Databricks
+Author-email: ricardo.portilla@databricks.com
+>>>>>>> 32f5fc30ce3e6578f9d6da4fc86d0e0bd26d4323
 License: UNKNOWN
 Description: # tempo - Time Series Utilities for Data Teams Using Databricks
         
@@ -20,18 +28,41 @@ Description: # tempo - Time Series Utilities for Data Teams Using Databricks
         
         ## Using the Project
         
+<<<<<<< HEAD
         Python - pip install in Databricks notebooks using:
         
         ```
         %pip install dbl-tempo
+=======
+        Python install in Databricks notebooks using:
+        
+        ```
+        %pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
+>>>>>>> 32f5fc30ce3e6578f9d6da4fc86d0e0bd26d4323
         ```
         
         Install locally using: 
         
         ```
+<<<<<<< HEAD
         pip install dbl-tempo
         ```
         
+=======
+        pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=tempo&#subdirectory=python"
+        ```
+        
+        Scala installation: 
+        
+        Once the jar is created (via the following instructions), upload the jar to Databricks for use in a notebook or job:
+        
+        ```
+        cd scala/tempo
+        sbt package
+        ```
+        
+        
+>>>>>>> 32f5fc30ce3e6578f9d6da4fc86d0e0bd26d4323
         
         ### Starting Point: TSDF object, a wrapper over a Spark data frame
         The entry point into all features for time series analysis in tempo is a TSDF object which wraps the Spark data frame. At a high level, a TSDF contains a data frame which contains many smaller time series, one per partition key. In order to create a TSDF object, a distinguished timestamp column much be provided in order for sorting purposes for public methods. Optionally, a sequence number and partition columns can be provided as the assumptive columns on which to create new features from. Below are the public methods available for TSDF transformation and enrichment.
@@ -61,9 +92,13 @@ Description: # tempo - Time Series Utilities for Data Teams Using Databricks
         #### 1. Resample and Visualize
         
         ###### Sample usage: 
+<<<<<<< HEAD
         Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day. For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min', 'max', 'mean'. Custom functions will be available in a future release.
         
         Note: You can upsample any missing values by using an option in the resample interface (fill = True)
+=======
+        Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day. For the accepted functions to aggreagate data, options are floor, ceil, min, max, mean. Custom functions will be available in a future release.
+>>>>>>> 32f5fc30ce3e6578f9d6da4fc86d0e0bd26d4323
         
         ```
         # ts_col = timestamp column on which to sort fact and source table
@@ -148,7 +183,11 @@ Description: # tempo - Time Series Utilities for Data Teams Using Databricks
         ```
         moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
         moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
+<<<<<<< HEAD
         ```
+=======
+        ``
+>>>>>>> 32f5fc30ce3e6578f9d6da4fc86d0e0bd26d4323
         
         
         

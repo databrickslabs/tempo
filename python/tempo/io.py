@@ -36,6 +36,3 @@ def write(tsdf, spark, tabName, optimizationCols = None):
          print("Delta optimizations attempted, but was not successful.\nError: {}".format(e))
   else:
       print("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
-         
-         
-   
