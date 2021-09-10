@@ -25,27 +25,21 @@ def calc_anomalies(spark, yaml_file):
     else:
         yaml_path = yaml_file
 
-    print(yaml_path)
-
     with open(yaml_path) as f:
 
         data = yaml.load(f, Loader=yaml.FullLoader)
-        print(data)
-        print('data type is ' + str(type(data)))
 
     import json
     for d in data.keys():
-        print(d)
-        print(data[d])
+        database = data[d]['database']
         table = data[d]['database'] + '.' + data[d]['name']
-        tgt_table = 'tempo.' + data[d]['name']
+        tgt_table = database + data[d]['name']
         df = spark.table(table)
         partition_cols = data[d]['partition_cols']
         ts_col = data[d]['ts_col']
         mode = data[d]['mode']
         metrics = data[d]['metrics']
         lkbck_window = data[d]['lookback_window']
-        #tsdf = TSDF(df, partition_cols = partition_cols, ts_col = ts_col)
 
         # logic to stack metrics instead of individual columns
         l = []
@@ -73,7 +67,7 @@ def calc_anomalies(spark, yaml_file):
         # class 1 - 2.5 standard deviations outside mean
         # brand new table
         if mode == 'new':
-            spark.sql("create database if not exists tempo")
+            spark.sql("create database if not exists {}".format(database))
             anomalies.write.mode('overwrite').option("overwriteSchema", "true").format("delta").saveAsTable(tgt_table + "_class1")
         # append to existing table without DLT
         elif mode == 'append':
