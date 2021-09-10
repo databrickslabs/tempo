@@ -33,7 +33,7 @@ def calc_anomalies(spark, yaml_file):
     for d in data.keys():
         database = data[d]['database']
         table = data[d]['database'] + '.' + data[d]['name']
-        tgt_table = database + data[d]['name']
+        tgt_table = database + '.' + data[d]['name']
         df = spark.table(table)
         partition_cols = data[d]['partition_cols']
         ts_col = data[d]['ts_col']
