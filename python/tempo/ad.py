@@ -62,7 +62,7 @@ def calc_anomalies(spark, yaml_file):
 
         tsdf = TSDF(stacked, partition_cols = part_cols_w_metrics, ts_col = ts_col)
         moving_avg = tsdf.withRangeStats(['value'], rangeBackWindowSecs=int(lkbck_window)).df
-        anomalies = moving_avg.select(ts_col, *partition_cols, 'metric', 'zscore_' + 'value').withColumn("anomaly_fl", F.when(F.col('zscore_' + 'value') > 2.5, 1).otherwise(0))
+        anomalies = moving_avg.select(ts_col, *partition_cols, 'metric', 'value', 'zscore_' + 'value').withColumn("anomaly_fl", F.when(F.col('zscore_' + 'value') > 2.5, 1).otherwise(0))
 
         # class 1 - 2.5 standard deviations outside mean
         # brand new table
