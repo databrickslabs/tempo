@@ -63,11 +63,11 @@ class TSDF:
     """
     from functools import reduce
 
-    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix,col_list[idx]])),
+    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], ''.join([prefix,col_list[idx]])),
                 range(len(col_list)), self.df)
 
-    ts_col = '_'.join([prefix, self.ts_col])
-    seq_col = '_'.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
+    ts_col = ''.join([prefix, self.ts_col])
+    seq_col = ''.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
     return TSDF(df, ts_col, self.partitionCols, sequence_col = seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
@@ -225,6 +225,10 @@ class TSDF:
     left_df = self.df
     right_df = right_tsdf.df
 
+    if left_prefix:
+        left_prefix = left_prefix + '_'
+    if right_prefix:
+        right_prefix = right_prefix + '_'
 
     # validate timestamp datatypes match
     self.__validateTsColMatch(right_tsdf)

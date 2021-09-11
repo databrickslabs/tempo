@@ -216,6 +216,12 @@ class AsOfJoinTest(SparkTest):
                                      StructField("right_event_ts", StringType()),
                                      StructField("right_bid_pr", FloatType()),
                                      StructField("right_ask_pr", FloatType())])
+        expectedSchemaNoRightPrefix = StructType([StructField("symbol", StringType()),
+                                     StructField("left_event_ts", StringType()),
+                                     StructField("left_trade_pr", FloatType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("bid_pr", FloatType()),
+                                     StructField("ask_pr", FloatType())])
 
         left_data = [["S1", "2020-08-01 00:00:10", 349.21],
                      ["S1", "2020-08-01 00:01:12", 351.32],
@@ -243,9 +249,11 @@ class AsOfJoinTest(SparkTest):
         tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
 
         joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right").df
+        non_prefix_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix = '').df
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual(joined_df, dfExpected)
+        self.assertDataFramesEqual(non_prefix_joined_df, expectedSchemaNoRightPrefix)
 
     def test_sequence_number_sort(self):
         """Skew AS-OF Join with Partition Window Test"""
