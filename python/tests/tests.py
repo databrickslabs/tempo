@@ -151,51 +151,6 @@ class BasicTests(SparkTest):
         assert res.filter(F.col("min_ts") != " ").select(F.col('min_ts').cast("string")).collect()[0][0] == '2020-08-01 00:00:10'
         assert res.filter(F.col("max_ts") != " ").select(F.col('max_ts').cast("string")).collect()[0][0] == '2020-09-01 00:19:12'
 
-    def test_yaml_read(self):
-        """AS-OF Join with out a time-partition test"""
-        leftSchema = StructType([StructField("symbol", StringType()),
-                                 StructField("event_ts", StringType()),
-                                 StructField("trade_pr", FloatType())])
-
-        rightSchema = StructType([StructField("symbol", StringType()),
-                                  StructField("event_ts", StringType()),
-                                  StructField("bid_pr", FloatType()),
-                                  StructField("ask_pr", FloatType())])
-
-        expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("left_event_ts", StringType()),
-                                     StructField("left_trade_pr", FloatType()),
-                                     StructField("right_event_ts", StringType()),
-                                     StructField("right_bid_pr", FloatType()),
-                                     StructField("right_ask_pr", FloatType())])
-
-        left_data = [["S1", "2020-08-01 00:00:10", 349.21],
-                     ["S1", "2020-08-01 00:01:12", 351.32],
-                     ["S1", "2020-09-01 00:02:10", 361.1],
-                     ["S1", "2020-09-01 00:19:12", 362.1]]
-
-        right_data = [["S1", "2020-08-01 00:00:01",  345.11, 351.12],
-                      ["S1", "2020-08-01 00:01:05",  348.10, 353.13],
-                      ["S1", "2020-09-01 00:02:01",  358.93, 365.12],
-                      ["S1", "2020-09-01 00:15:01",  359.21, 365.31]]
-
-        expected_data = [
-            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01",  345.11, 351.12],
-            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05",  348.10, 353.13],
-            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01",  358.93, 365.12],
-            ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01",  359.21, 365.31]]
-
-        # Construct dataframes
-        dfLeft = self.buildTestDF(leftSchema, left_data)
-        dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data, ["left_event_ts", "right_event_ts"])
-
-        # perform the join
-        self.spark.range(10).withColumn("event_ts", F.current_timestamp()).withColumn("winner", F.lit('DFP')).withColumn("advertiser_impressions", F.lit(100)).withColumn("clicks", F.lit(5)).write.option("overwriteSchema", "true").mode('overwrite').format("delta").saveAsTable("hourly_metrics")
-        self.spark.range(10).withColumn("event_ts", F.current_timestamp()).withColumn("winner", F.lit('DFP')).withColumn("advertiser_impressions", F.lit(100)).withColumn("clicks", F.lit(5)).write.option("overwriteSchema", "true").mode('overwrite').format("delta").saveAsTable("monthly_metrics")
-        file = "./ad.yaml"
-        res = calc_anomalies(self.spark, file)
-
 
 class AsOfJoinTest(SparkTest):
 
