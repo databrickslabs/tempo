@@ -3,6 +3,9 @@ from pyspark.sql.window import Window
 import tempo.resample as rs
 import tempo.io as tio
 
+from pyspark.sql import SparkSession
+
+
 class TSDF:
 
   def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None):
@@ -201,7 +204,7 @@ class TSDF:
         return(full_smry)
         pass
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, override_legacy=False):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -214,6 +217,31 @@ class TSDF:
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
     """
+
+    # first block of logic checks whether a standard range join will suffice
+    left_df = self.df
+    right_df = right_tsdf.df
+
+    spark = (SparkSession.builder.appName("myapp").getOrCreate())
+
+    left_plan = left_df._jdf.queryExecution().logical()
+    left_bytes = spark._jsparkSession.sessionState().executePlan(left_plan).optimizedPlan().stats().sizeInBytes()
+    right_plan = right_df._jdf.queryExecution().logical()
+    right_bytes = spark._jsparkSession.sessionState().executePlan(right_plan).optimizedPlan().stats().sizeInBytes()
+
+    # choose 30MB as the cutoff for the broadcast
+    bytes_threshold = 30*1024*1024
+    if (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold) | override_legacy:
+      #print("in standard spark sql join")
+      spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
+      partition_cols = right_tsdf.partitionCols
+      w = Window.partitionBy(*partition_cols).orderBy(right_tsdf.ts_col)
+      quotes_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols + [right_tsdf.ts_col])))
+      part_cols_plus_ts = partition_cols + [right_tsdf.ts_col]
+      quotes_df_w_lag = left_df.withColumn("lead_" + right_tsdf.ts_col, f.lead(right_tsdf.ts_col).over(w)).withColumnRenamed(right_tsdf.ts_col, 'right_' + right_tsdf.ts_col)
+      quotes_df_w_lag_tsdf = TSDF(quotes_df_w_lag, partition_cols=right_tsdf.partitionCols, ts_col='right_' + right_tsdf.ts_col)
+      res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[self.ts_col].between(f.col('right_' + right_tsdf.ts_col), f.col('lead_' + right_tsdf.ts_col))).drop('right_' + right_tsdf.ts_col)
+      return(TSDF(res, partition_cols=self.partitionCols, ts_col=self.ts_col))
 
     if (tsPartitionVal is not None):
       print("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
