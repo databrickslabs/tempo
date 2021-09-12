@@ -257,6 +257,9 @@ class AsOfJoinTest(SparkTest):
         noRightPrefixdfExpected = self.buildTestDF(expectedSchemaNoRightPrefix, expected_data, ["left_event_ts", "event_ts"])
         self.assertDataFramesEqual(non_prefix_joined_df, noRightPrefixdfExpected)
 
+        spark_sql_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right", override_legacy=True).df
+        self.assertDataFramesEqual(spark_sql_joined_df, dfExpected)
+
     def test_sequence_number_sort(self):
         """Skew AS-OF Join with Partition Window Test"""
         leftSchema = StructType([StructField("symbol", StringType()),
