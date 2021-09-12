@@ -100,7 +100,6 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
-
     fillW = Window.partitionBy(tsdf.partitionCols)
 
     imputes = res.select(*tsdf.partitionCols, f.min(tsdf.ts_col).over(fillW).alias("from"), f.max(tsdf.ts_col).over(fillW).alias("until")) \
