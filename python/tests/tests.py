@@ -5,7 +5,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
 from tempo.tsdf import TSDF
-from tempo.ad import *
 
 class SparkTest(unittest.TestCase):
     ##
