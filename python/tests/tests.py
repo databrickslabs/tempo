@@ -212,7 +212,10 @@ class AsOfJoinTest(SparkTest):
         self.assertDataFramesEqual(non_prefix_joined_df, noRightPrefixdfExpected)
 
         spark_sql_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right", override_legacy=True).df
+        spark_sql_joined_df.show(10, False)
+        dfExpected.show(10, False)
         self.assertDataFramesEqual(spark_sql_joined_df, dfExpected)
+
 
     def test_sequence_number_sort(self):
         """Skew AS-OF Join with Partition Window Test"""

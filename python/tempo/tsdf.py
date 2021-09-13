@@ -234,21 +234,27 @@ class TSDF:
     if (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold) | override_legacy:
       spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
       partition_cols = right_tsdf.partitionCols
-      w = Window.partitionBy(*partition_cols).orderBy(right_prefix + '_' + right_tsdf.ts_col)
       left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
       right_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols)))
       new_left_cols = left_cols
       if left_prefix:
-        print('in left prefix')
-        new_left_ts_col = left_prefix + '_' + self.ts_col
-        new_left_cols = [f.col(c).alias(left_prefix + '_' + c) for c in left_cols] + partition_cols
-      new_right_cols = [f.col(c).alias(right_prefix + '_' + c) for c in right_cols] + partition_cols
-      quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + '_' + right_tsdf.ts_col).over(w))#.withColumnRenamed(right_tsdf.ts_col, 'right_' + right_tsdf.ts_col)
-      quotes_df_w_lag_tsdf = TSDF(quotes_df_w_lag, partition_cols=right_tsdf.partitionCols, ts_col= right_prefix + '_' + right_tsdf.ts_col)
+         left_prefix += '_'
+      else:
+         left_prefix = ''
+          
+      if right_prefix != '':
+          right_prefix+= '_'
+
+      w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
+      new_left_ts_col = left_prefix + self.ts_col
+      new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
+      new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
+      quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + right_tsdf.ts_col).over(w))
+      quotes_df_w_lag_tsdf = TSDF(quotes_df_w_lag, partition_cols=right_tsdf.partitionCols, ts_col= right_prefix + right_tsdf.ts_col)
       left_df = left_df.select(*new_left_cols)
       [print(c) for c in left_df.columns]
       [print(c) for c in quotes_df_w_lag.columns]
-      res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[new_left_ts_col].between(f.col(right_prefix + '_'+ right_tsdf.ts_col), f.coalesce(f.col('lead_' + right_tsdf.ts_col), f.lit('2099-01-01').cast("timestamp")))).drop('lead_' + right_tsdf.ts_col)
+      res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[new_left_ts_col].between(f.col(right_prefix + right_tsdf.ts_col), f.coalesce(f.col('lead_' + right_tsdf.ts_col), f.lit('2099-01-01').cast("timestamp")))).drop('lead_' + right_tsdf.ts_col)
       return(TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col))
     # end of block checking to see if standard Spark SQL join will work
 
