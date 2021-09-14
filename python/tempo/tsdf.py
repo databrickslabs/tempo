@@ -252,8 +252,6 @@ class TSDF:
       quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + right_tsdf.ts_col).over(w))
       quotes_df_w_lag_tsdf = TSDF(quotes_df_w_lag, partition_cols=right_tsdf.partitionCols, ts_col= right_prefix + right_tsdf.ts_col)
       left_df = left_df.select(*new_left_cols)
-      [print(c) for c in left_df.columns]
-      [print(c) for c in quotes_df_w_lag.columns]
       res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[new_left_ts_col].between(f.col(right_prefix + right_tsdf.ts_col), f.coalesce(f.col('lead_' + right_tsdf.ts_col), f.lit('2099-01-01').cast("timestamp")))).drop('lead_' + right_tsdf.ts_col)
       return(TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col))
     # end of block checking to see if standard Spark SQL join will work
