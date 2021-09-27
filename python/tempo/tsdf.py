@@ -1,7 +1,12 @@
-import pyspark.sql.functions as f
-from pyspark.sql.window import Window
 import tempo.resample as rs
 import tempo.io as tio
+
+import logging
+from functools import reduce
+
+import pyspark.sql.functions as f
+from pyspark.sql.window import Window
+
 
 class TSDF:
 
@@ -61,7 +66,6 @@ class TSDF:
     """
     Add prefix to all specified columns.
     """
-    from functools import reduce
 
     df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix,col_list[idx]])),
                 range(len(col_list)), self.df)
@@ -74,7 +78,6 @@ class TSDF:
     """
     Add columns from some other DF as lit(None), as pre-step before union.
     """
-    from functools import reduce
     new_df = reduce(lambda df, idx: df.withColumn(other_cols[idx], f.lit(None)), range(len(other_cols)), self.df)
 
     return TSDF(new_df, self.ts_col, self.partitionCols)
@@ -87,7 +90,6 @@ class TSDF:
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
   def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal):
-    from functools import reduce
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -118,7 +120,7 @@ class TSDF:
           any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
           newCol = column.replace("non_null_ct", "")
           if any_blank_vals:
-            print("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
+            logging.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
           df = df.drop(column)
 
 
@@ -216,7 +218,7 @@ class TSDF:
     """
 
     if (tsPartitionVal is not None):
-      print("WARNING: You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
+      logging.warning("You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
 
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)

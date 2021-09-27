@@ -19,6 +19,7 @@ scala/tempo/project/project/target/
 **/dist
 **/htmlcov
 **/tempo.egg-info
+**/dbl_tempo.egg-info
 
 ## Python related files
 *.pyc

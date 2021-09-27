@@ -1,3 +1,4 @@
+import logging
 import unittest
 
 import pyspark.sql.functions as F
@@ -573,7 +574,7 @@ class DeltaWriteTest(SparkTest):
         # using lookback of 20 minutes
         #featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
         tsdf_left.write(self.spark, "my_table")
-        print('delta table count ' + str(self.spark.table("my_table").count()))
+        logging.info('delta table count ' + str(self.spark.table("my_table").count()))
 
         # should be equal to the expected dataframe
         assert self.spark.table("my_table").count() == 7
