@@ -10,6 +10,7 @@ coverage.xml
 scala/tempo/target
 scala/tempo/project/target/
 scala/tempo/project/project/target/
+.bsp
 
 # local delta tables
 **/spark-warehouse
@@ -19,6 +20,7 @@ scala/tempo/project/project/target/
 **/dist
 **/htmlcov
 **/tempo.egg-info
+**/dbl_tempo.egg-info
 
 ## Python related files
 *.pyc
