@@ -1,6 +1,6 @@
 numpy==1.19.1
 pandas==1.1.0
-py4j==0.10.9
+py4j==0.10.9.2
 pyspark==3.0.0
 pyspark-stubs==3.0.0
 python-dateutil==2.8.1
