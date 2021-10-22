@@ -7,6 +7,8 @@ from functools import reduce
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
+logger = logging.getLogger(__name__)
+
 
 class TSDF:
 
@@ -120,7 +122,7 @@ class TSDF:
           any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
           newCol = column.replace("non_null_ct", "")
           if any_blank_vals:
-            logging.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
+            logger.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
           df = df.drop(column)
 
 
@@ -218,7 +220,7 @@ class TSDF:
     """
 
     if (tsPartitionVal is not None):
-      logging.warning("You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
+      logger.warning("You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
 
     # Check whether partition columns have same name in both dataframes
     self.__checkPartitionCols(right_tsdf)

@@ -4,6 +4,9 @@ from collections import deque
 
 import pyspark.sql.functions as f
 
+logger = logging.getLogger(__name__)
+
+
 def write(tsdf, spark, tabName, optimizationCols = None):
   """
   param: tsdf: input TSDF object to write
@@ -35,9 +38,9 @@ def write(tsdf, spark, tabName, optimizationCols = None):
       try:
          spark.sql("optimize {} zorder by {}".format(tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"))
       except Exception as e: 
-         logging.error("Delta optimizations attempted, but was not successful.\nError: {}".format(e))
+         logger.error("Delta optimizations attempted, but was not successful.\nError: {}".format(e))
   else:
-      logging.warning("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
+      logger.warning("Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages.")
          
          
    

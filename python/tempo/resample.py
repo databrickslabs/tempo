@@ -1,7 +1,5 @@
 import tempo
 
-import logging
-
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
