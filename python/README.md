@@ -40,7 +40,7 @@ Data source is UCI public accelerometer data available at this URL https://archi
 
 #### 0. Read in Data 
 
-```
+```python
 from pyspark.sql.functions import * 
 
 phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
@@ -57,7 +57,7 @@ Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days
 
 Note: You can upsample any missing values by using an option in the resample interface (fill = True)
 
-```
+```python
 # ts_col = timestamp column on which to sort fact and source table
 # partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
 
@@ -86,7 +86,7 @@ fig.show()
 </p>
 
 
-```
+```python
 from pyspark.sql.functions import * 
 
 watch_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Watch_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
@@ -111,7 +111,7 @@ tsPartitionVal = value to break up each partition into time brackets
 fraction = overlap fraction
 right_prefix = prefix used for source columns when merged into fact table
 
-```
+```python
 joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="watch_accel", tsPartitionVal = 10, fraction = 0.1).df
 joined_df.show(10, False)
 ```
@@ -124,7 +124,7 @@ Parameters:
 
 window = number of lagged values to compute for moving average
 
-```
+```python
 ema_trades = watch_accel_tsdf.EMA("x", window = 50).df
 ema_trades.show(10, False)
 ```
@@ -137,7 +137,7 @@ Parameters:
 
 rangeBackWindowSecs = number of seconds to look back
 
-```
+```python
 moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
