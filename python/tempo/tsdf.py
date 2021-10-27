@@ -1,6 +1,10 @@
 import tempo.resample as rs
 import tempo.io as tio
 
+import os
+from IPython.display import display
+from IPython.core.display import HTML
+from IPython import get_ipython
 import logging
 from functools import reduce
 
@@ -25,6 +29,7 @@ class TSDF:
 
     self.df = df
     self.sequence_col = '' if sequence_col is None else sequence_col
+    self.platform = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
@@ -155,6 +160,37 @@ class TSDF:
 
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
+
+  def isnotebookenv(self):
+    try:
+      shell = get_ipython().__class__.__name__
+      if shell == "ZMQInteractiveShell":
+         return True  # Jupyter notebook or qtconsole
+      elif shell == "TerminalInteractiveShell":
+         return False  # Terminal running IPython
+      else:
+         return False  # Other type (?)
+    except NameError:
+      return False
+
+  def show(self, n = 20, truncate = True, vertical = False):
+    if self.platform == "DATABRICKS" or self.isnotebookenv() == False:
+        self.df.show(n,truncate,vertical)
+    elif self.isnotebookenv():
+        # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
+        display(HTML("<style>pre { white-space: pre !important; }</style>"))
+        self.df.show(n,truncate,vertical)
+    else:
+        self.df.show(n,truncate = False) # default show method behaviour in case all condition fails
+
+  def display(self):
+    if self.platform == "DATABRICKS":
+        display(self.df)
+    elif self.isnotebookenv():
+        display(HTML("<style>pre { white-space: pre !important; }</style>"))
+        self.df.show(truncate=False, vertical=False)
+    else:
+        raise Exception("\"display\" method not available. Please use \"show\" method instead")
 
   def describe(self):
     """
