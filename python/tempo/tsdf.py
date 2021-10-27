@@ -29,9 +29,13 @@ class TSDF:
 
     self.df = df
     self.sequence_col = '' if sequence_col is None else sequence_col
-    self.platform = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
+    """
+    self.platform = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
+    """
+    This variable is to ensure the correct behaviour of the show and display methods are called based on the platform 
+    where the code is running from. 
     """
   ##
   ## Helper functions
@@ -161,7 +165,11 @@ class TSDF:
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
 
-  def isnotebookenv(self):
+  def __isnotebookenv(self):
+    """
+    This method returns a boolean value signifying whether the environemnt is a notebook environment
+    capable of rendering HTML or not.
+    """
     try:
       shell = get_ipython().__class__.__name__
       if shell == "ZMQInteractiveShell":
@@ -174,9 +182,38 @@ class TSDF:
       return False
 
   def show(self, n = 20, truncate = True, vertical = False):
-    if self.platform == "DATABRICKS" or self.isnotebookenv() == False:
+    """
+    pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of rows to show.
+    truncate : bool or int, optional
+        If set to ``True``, truncate strings longer than 20 chars by default.
+        If set to a number greater than one, truncates long strings to length ``truncate``
+        and align cells right.
+    vertical : bool, optional
+        If set to ``True``, print output rows vertically (one line
+        per column value).
+
+    Example to show usage
+    ---------------------
+    from pyspark.sql.functions import *
+
+    phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+
+    from tempo import *
+
+    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+
+    # Call show method here
+    phone_accel_tsdf.show()
+
+    """
+    if self.platform == "DATABRICKS" or self.__isnotebookenv() == False:
         self.df.show(n,truncate,vertical)
-    elif self.isnotebookenv():
+    elif self.__isnotebookenv():
         # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
         display(HTML("<style>pre { white-space: pre !important; }</style>"))
         self.df.show(n,truncate,vertical)
@@ -184,9 +221,26 @@ class TSDF:
         self.df.show(n,truncate = False) # default show method behaviour in case all condition fails
 
   def display(self):
+    """
+    display methods equivalent for TSDF object
+
+    Example to show usage
+    ---------------------
+    from pyspark.sql.functions import *
+
+    phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+
+    from tempo import *
+
+    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+
+    # Calling display method here
+    phone_accel_tsdf.display()
+
+    """
     if self.platform == "DATABRICKS":
         display(self.df)
-    elif self.isnotebookenv():
+    elif self.__isnotebookenv():
         display(HTML("<style>pre { white-space: pre !important; }</style>"))
         self.df.show(truncate=False, vertical=False)
     else:
