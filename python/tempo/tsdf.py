@@ -1,10 +1,10 @@
 import tempo.resample as rs
 import tempo.io as tio
 
-import os
-from IPython.display import display
+from utils import __isnotebookenv, PLATFORM
+
+from IPython.display import display as ipydisplay
 from IPython.core.display import HTML
-from IPython import get_ipython
 import logging
 from functools import reduce
 
@@ -12,7 +12,7 @@ import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 logger = logging.getLogger(__name__)
-
+env_boolean = __isnotebookenv()
 
 class TSDF:
 
@@ -32,11 +32,7 @@ class TSDF:
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
-    self.platform = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
-    """
-    This variable is to ensure the correct behaviour of the show and display methods are called based on the platform 
-    where the code is running from. 
-    """
+
   ##
   ## Helper functions
   ##
@@ -165,22 +161,6 @@ class TSDF:
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
 
-  def __isnotebookenv(self):
-    """
-    This method returns a boolean value signifying whether the environemnt is a notebook environment
-    capable of rendering HTML or not.
-    """
-    try:
-      shell = get_ipython().__class__.__name__
-      if shell == "ZMQInteractiveShell":
-         return True  # Jupyter notebook or qtconsole
-      elif shell == "TerminalInteractiveShell":
-         return False  # Terminal running IPython
-      else:
-         return False  # Other type (?)
-    except NameError:
-      return False
-
   def show(self, n = 20, truncate = True, vertical = False):
     """
     pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
@@ -211,40 +191,14 @@ class TSDF:
     phone_accel_tsdf.show()
 
     """
-    if self.platform == "DATABRICKS" or self.__isnotebookenv() == False:
+    if PLATFORM == "DATABRICKS" or env_boolean == False:
         self.df.show(n,truncate,vertical)
-    elif self.__isnotebookenv():
+    elif env_boolean:
         # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
-        display(HTML("<style>pre { white-space: pre !important; }</style>"))
+        ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
         self.df.show(n,truncate,vertical)
     else:
         self.df.show(n,truncate = False) # default show method behaviour in case all condition fails
-
-  def display(self):
-    """
-    display methods equivalent for TSDF object
-
-    Example to show usage
-    ---------------------
-    from pyspark.sql.functions import *
-
-    phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
-
-    from tempo import *
-
-    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
-
-    # Calling display method here
-    phone_accel_tsdf.display()
-
-    """
-    if self.platform == "DATABRICKS":
-        display(self.df)
-    elif self.__isnotebookenv():
-        display(HTML("<style>pre { white-space: pre !important; }</style>"))
-        self.df.show(truncate=False, vertical=False)
-    else:
-        raise Exception("\"display\" method not available. Please use \"show\" method instead")
 
   def describe(self):
     """
