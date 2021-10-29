@@ -1,7 +1,7 @@
 import tempo.resample as rs
 import tempo.io as tio
 
-from utils import __isnotebookenv, PLATFORM
+from utils import ENV_BOOLEAN, PLATFORM
 
 from IPython.display import display as ipydisplay
 from IPython.core.display import HTML
@@ -12,7 +12,7 @@ import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 logger = logging.getLogger(__name__)
-env_boolean = __isnotebookenv()
+
 
 class TSDF:
 
@@ -191,9 +191,9 @@ class TSDF:
     phone_accel_tsdf.show()
 
     """
-    if PLATFORM == "DATABRICKS" or env_boolean == False:
+    if PLATFORM == "DATABRICKS" or ENV_BOOLEAN == False:
         self.df.show(n,truncate,vertical)
-    elif env_boolean:
+    elif ENV_BOOLEAN:
         # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
         ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
         self.df.show(n,truncate,vertical)

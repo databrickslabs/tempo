@@ -39,6 +39,9 @@ def display_html(df):
         print("Display method not available for this object (╯‵□′)╯︵┻━┻")
 
 
+ENV_BOOLEAN = __isnotebookenv()
+
+
 if PLATFORM == "DATABRICKS":
     user_ns = get_ipython().user_ns
     # Under 'display' key in user_ns the original databricks display method is present
