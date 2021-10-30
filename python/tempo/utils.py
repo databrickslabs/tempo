@@ -5,6 +5,8 @@ import os
 from pyspark.sql.dataframe import DataFrame
 from pandas import DataFrame as pandasDataFrame
 
+from tempo import TSDF
+
 PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
 """
 This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
@@ -46,9 +48,19 @@ if PLATFORM == "DATABRICKS":
     user_ns = get_ipython().user_ns
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
-    display = user_ns['display']
+    def display_improvised(obj):
+        if isinstance(obj, TSDF):
+            user_ns['display'](obj.df)
+        else:
+            user_ns['display'](obj)
+    display = display_improvised
 elif __isnotebookenv():
-    display = display_html
+    def display_html_improvised(obj):
+        if isinstance(obj, TSDF):
+            display_html(obj.df)
+        else:
+            display_html(obj)
+    display = display_html_improvised
 else:
     display = None
 
