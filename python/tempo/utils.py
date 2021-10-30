@@ -44,14 +44,14 @@ ENV_BOOLEAN = __isnotebookenv()
 
 
 if PLATFORM == "DATABRICKS":
-    user_ns = get_ipython().user_ns
+    method = get_ipython().user_ns['display']
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
     def display_improvised(obj):
         if type(obj).__name__ == 'TSDF':
-            user_ns['display'](obj.df)
+            method(obj.df)
         else:
-            user_ns['display'](obj)
+            method(obj)
     display = display_improvised
 elif __isnotebookenv():
     def display_html_improvised(obj):
