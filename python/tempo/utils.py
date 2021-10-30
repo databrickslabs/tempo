@@ -5,7 +5,7 @@ import os
 from pyspark.sql.dataframe import DataFrame
 from pandas import DataFrame as pandasDataFrame
 
-from tempo import TSDF
+from tempo.tsdf import TSDF
 
 PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
 """
