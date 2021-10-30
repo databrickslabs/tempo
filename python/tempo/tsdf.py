@@ -1,7 +1,7 @@
 import tempo.resample as rs
 import tempo.io as tio
 
-from utils import ENV_BOOLEAN, PLATFORM
+from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 from IPython.display import display as ipydisplay
 from IPython.core.display import HTML
