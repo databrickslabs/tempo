@@ -166,20 +166,18 @@ class TSDF:
     pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
     Parameters
     ----------
-    cols : str, :class:`Column`, or list
-        column names (string) or expressions (:class:`Column`).
+    cols : str or list of strs
+        column names (string).
         If one of the column names is '*', that column is expanded to include all columns
-        in the current :class:`DataFrame`.
+        in the current :class:`TSDF`.
 
     Examples
     --------
-    >>> df.select('*').collect()
+    >>> tsdf.select('*').collect()
     [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
-    >>> df.select('name', 'age').collect()
+    >>> tsdf.select('name', 'age').collect()
     [Row(name='Alice', age=2), Row(name='Bob', age=5)]
-    >>> df.select(df.name, (df.age + 10).alias('age')).collect()
-    [Row(name='Alice', age=12), Row(name='Bob', age=15)]
-
+    
     """
     # The columns which will be a mandatory requirement while selecting from TSDFs
     seq_col_stub = [] if bool(self.sequence_col) == False else [self.sequence_col]
