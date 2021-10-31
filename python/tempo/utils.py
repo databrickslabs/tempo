@@ -37,7 +37,7 @@ def display_html(df):
     elif isinstance(df, pandasDataFrame):
         df.head()
     else:
-        print("Display method not available for this object (╯‵□′)╯︵┻━┻")
+        print("'display' method not available for this object (╯‵□′)╯︵┻━┻")
 
 
 ENV_BOOLEAN = __isnotebookenv()
@@ -61,7 +61,7 @@ elif __isnotebookenv():
             display_html(obj)
     display = display_html_improvised
 else:
-    print("Display method not available (╯‵□′)╯︵┻━┻")
+    print("'display' method not available in this environment (╯‵□′)╯︵┻━┻ Use show method instead.")
     display = None
 
 """
