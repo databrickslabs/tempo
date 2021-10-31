@@ -185,7 +185,7 @@ class TSDF:
     seq_col_stub = [] if bool(self.sequence_col) == False else [self.sequence_col]
     mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
     if (set(mandatory_cols).issubset(set(cols))):
-      return TSDF(self.df.select(cols), self.ts_col, self.partitionCols, self.sequence_col)
+      return TSDF(self.df.select(*cols), self.ts_col, self.partitionCols, self.sequence_col)
     else:
       raise Exception("In TSDF's select statement original ts_col, partitionCols and seq_col_stub(optional) must be present")
 
