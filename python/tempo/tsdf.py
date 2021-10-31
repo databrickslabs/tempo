@@ -161,6 +161,34 @@ class TSDF:
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
 
+  def select(self, *cols):
+    """
+    pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
+    Parameters
+    ----------
+    cols : str, :class:`Column`, or list
+        column names (string) or expressions (:class:`Column`).
+        If one of the column names is '*', that column is expanded to include all columns
+        in the current :class:`DataFrame`.
+
+    Examples
+    --------
+    >>> df.select('*').collect()
+    [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
+    >>> df.select('name', 'age').collect()
+    [Row(name='Alice', age=2), Row(name='Bob', age=5)]
+    >>> df.select(df.name, (df.age + 10).alias('age')).collect()
+    [Row(name='Alice', age=12), Row(name='Bob', age=15)]
+
+    """
+    # The columns which will be a mandatory requirement while selecting from TSDFs
+    seq_col_stub = [] if bool(self.sequence_col) == False else [self.sequence_col]
+    mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
+    if (set(mandatory_cols).issubset(set(cols))):
+      return TSDF(self.df.select(cols), self.ts_col, self.partitionCols, self.sequence_col)
+    else:
+      raise Exception("In TSDF's select statement original ts_col, partitionCols and seq_col_stub(optional) must be present")
+
   def show(self, n = 20, truncate = True, vertical = False):
     """
     pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
