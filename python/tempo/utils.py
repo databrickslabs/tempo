@@ -61,6 +61,7 @@ elif __isnotebookenv():
             display_html(obj)
     display = display_html_improvised
 else:
+    print("Display method not available for this object (╯‵□′)╯︵┻━┻")
     display = None
 
 """
