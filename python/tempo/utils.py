@@ -40,14 +40,12 @@ def display_html(df):
         df.head()
     else:
         logger.error("'display' method not available for this object")
-        print("'display' method not available for this object")
 
 def display_unavailable(df):
     """
     This method is called when display method is not available in the environment.
     """
     logger.error("'display' method not available in this environment. Use 'show' method instead.")
-    print("'display' method not available in this environment. Use 'show' method instead.")
 
 ENV_BOOLEAN = __isnotebookenv()
 
