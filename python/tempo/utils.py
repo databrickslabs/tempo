@@ -2,9 +2,11 @@ from IPython.display import display as ipydisplay
 from IPython.core.display import HTML
 from IPython import get_ipython
 import os
+import logging
 from pyspark.sql.dataframe import DataFrame
-from pandas import DataFrame as pandasDataFrame
 
+
+logger = logging.getLogger(__name__)
 PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
 """
 This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
@@ -37,11 +39,17 @@ def display_html(df):
     elif isinstance(df, pandasDataFrame):
         df.head()
     else:
-        print("'display' method not available for this object (╯‵□′)╯︵┻━┻")
+        logger.error("'display' method not available for this object")
+        print("'display' method not available for this object")
 
+def display_unavailable(df):
+    """
+    This method is called when display method is not available in the environment.
+    """
+    logger.error("'display' method not available in this environment. Use 'show' method instead.")
+    print("'display' method not available in this environment. Use 'show' method instead.")
 
 ENV_BOOLEAN = __isnotebookenv()
-
 
 if PLATFORM == "DATABRICKS":
     method = get_ipython().user_ns['display']
@@ -60,9 +68,8 @@ elif __isnotebookenv():
         else:
             display_html(obj)
     display = display_html_improvised
-else:
-    print("'display' method not available in this environment (╯‵□′)╯︵┻━┻  Use 'show' method instead.")
-    display = None
+else:    
+    display = display_unavailable
 
 """
 display method's equivalent for TSDF object
