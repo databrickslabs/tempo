@@ -6,5 +6,5 @@ pyspark-stubs==3.0.0
 python-dateutil==2.8.1
 pytz==2020.1
 six==1.15.0
-wheel==0.34.2
+wheel==0.37.0
 ipython==7.28.0
