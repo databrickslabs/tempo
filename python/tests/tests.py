@@ -6,7 +6,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
 from tempo.tsdf import TSDF
-from tempo.utils import display, display_html_improvised, display_improvised, display_unavailable, __isnotebookenv, \
+from tempo.utils import display, display_html_improvised, display_improvised, display_unavailable, ENV_BOOLEAN, \
     PLATFORM
 
 
@@ -384,7 +384,7 @@ class UtilsTest(SparkTest):
         """Test of the display utility"""
         if PLATFORM == 'DATABRICKS':
             self.assertEqual(id(display),id(display_improvised))
-        elif __isnotebookenv():
+        elif ENV_BOOLEAN:
             self.assertEqual(id(display),id(display_html_improvised))
         else:
             self.assertEqual(id(display),id(display_unavailable))
