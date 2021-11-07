@@ -6,8 +6,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 
 from tempo.tsdf import TSDF
-from tempo.utils import display, display_html_improvised, display_improvised, display_unavailable, ENV_BOOLEAN, \
-    PLATFORM
+from tempo.utils import *
 
 
 class SparkTest(unittest.TestCase):

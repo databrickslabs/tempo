@@ -14,6 +14,10 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/databrickslabs/tempo',
     packages=find_packages(where=".", include=["tempo"]),
+    install_requires=[
+     'ipython',
+     'pandas'
+    ],
     extras_require=dict(tests=["pytest"]),
     classifiers=[
         'Programming Language :: Python :: 3',
