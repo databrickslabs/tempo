@@ -4,6 +4,7 @@ from IPython import get_ipython
 import os
 import logging
 from pyspark.sql.dataframe import DataFrame
+from pandas import DataFrame as pandasDataFrame
 
 
 logger = logging.getLogger(__name__)
