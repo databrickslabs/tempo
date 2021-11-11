@@ -1,7 +1,7 @@
 import tempo.resample as rs
 import tempo.io as tio
 
-from tempo.utils import ENV_BOOLEAN, PLATFORM
+from tempo.utils import ENV_BOOLEAN, PLATFORM, set_timestep, tempo_fourier_util
 
 from IPython.display import display as ipydisplay
 from IPython.core.display import HTML
@@ -531,3 +531,51 @@ class TSDF:
       bars = bars.select(sel_and_sort)
 
       return(TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
+
+  def fourier_transform(self, timestep, value_col):
+      value_col = self.__validated_column(self.df, value_col)
+      set_timestep(timestep)
+      if self.sequence_col:
+        data = self.df.orderBy(self.ts_col,self.sequence_col)
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(value_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(value_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+      else:
+        data = self.df.orderBy(self.ts_col)
+        if self.partitionCols == []:
+          data = data.withColumn("dummy_group",f.lit("dummy_val"))
+          data = data.select(f.col("dummy_group"),self.ts_col,f.col(value_col))
+          return_schema = ",".join(
+              [f"{i[0]} {i[1]}" for i in data.dtypes]
+              +
+              ["freq double", "ft_real double", "ft_imag double"]
+          )
+          result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+          result = result.drop("dummy_group")
+        else:
+          group_cols = self.partitionCols
+          data = data.select(*group_cols, self.ts_col, f.col(value_col))
+          return_schema = ",".join(
+              [f"{i[0]} {i[1]}" for i in data.dtypes]
+              +
+              ["freq double", "ft_real double", "ft_imag double"]
+          )
+          result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+
+      return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)

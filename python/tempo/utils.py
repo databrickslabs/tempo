@@ -5,6 +5,8 @@ import os
 import logging
 from pyspark.sql.dataframe import DataFrame
 from pandas import DataFrame as pandasDataFrame
+import numpy as np
+from scipy.fft import fft, fftfreq
 
 
 logger = logging.getLogger(__name__)
@@ -86,3 +88,26 @@ phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["Us
 # Calling display method here
 display(phone_accel_tsdf)
 """
+TIMESTEP = 1
+
+def set_timestep(n = 1):
+    global TIMESTEP
+    TIMESTEP = n
+
+def get_timestep():
+    global TIMESTEP
+    return TIMESTEP
+
+def tempo_fourier_util(pdf):
+    select_cols = list(pdf.columns)
+    y = np.array(pdf['val'])
+    tran = fft(y)
+    r = tran.real
+    i = tran.imag
+    pdf['ft_real'] = r
+    pdf['ft_imag'] = i
+    N = tran.shape
+    timestep = get_timestep()
+    xf = fftfreq(N[0], timestep)
+    pdf['freq'] = xf
+    return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
