@@ -314,6 +314,51 @@ class AsOfJoinTest(SparkTest):
         self.assertDataFramesEqual(joined_df, dfExpected)
 
 
+class FourierTransformTest(SparkTest):
+
+    def test_fourier_transform(self):
+        """Test of fourier transform functionality in TSDF objects"""
+        schema = StructType([StructField("group",StringType()),
+                             StructField("time",LongType()),
+                             StructField("val",DoubleType())])
+
+        expectedSchema = StructType([StructField("group",StringType()),
+                                     StructField("time",LongType()),
+                                     StructField("val",DoubleType()),
+                                     StructField("freq",DoubleType()),
+                                     StructField("ft_real",DoubleType()),
+                                     StructField("ft_imag",DoubleType())])
+
+        data = [["Emissions", 1949, 2206.690829],
+                ["Emissions", 1950, 2382.046176],
+                ["Emissions", 1951, 2526.687327],
+                ["Emissions", 1952, 2473.373964],
+                ["WindGen", 1980, 0.0],
+                ["WindGen", 1981, 0.0],
+                ["WindGen", 1982, 0.0],
+                ["WindGen", 1983, 0.029667962]]
+
+        expected_data = [["Emissions", 1949, 2206.690829, 0.0, 9588.798296, -0.0],
+                         ["Emissions", 1950, 2382.046176, 0.25, -319.996498, 91.32778800000006],
+                         ["Emissions", 1951, 2526.687327, -0.5, -122.0419839999995, -0.0],
+                         ["Emissions", 1952, 2473.373964, -0.25, -319.996498, -91.32778800000006],
+                         ["WindGen", 1980, 0.0, 0.0, 0.029667962, -0.0],
+                         ["WindGen", 1981, 0.0, 0.25, 0.0, 0.029667962],
+                         ["WindGen", 1982, 0.0, -0.5, -0.029667962, -0.0],
+                         ["WindGen", 1983, 0.029667962, -0.25, 0.0, -0.029667962]]
+
+        # construct dataframes
+        df = self.buildTestDF(schema, data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, ts_col="time", partition_cols=["group"])
+        result_tsdf = tsdf_left.fourier_transform(1, 'val')
+
+        # should be equal to the expected dataframe
+        self.assertDataFramesEqual(result_tsdf, dfExpected)
+
+
 class RangeStatsTest(SparkTest):
 
     def test_range_stats(self):
