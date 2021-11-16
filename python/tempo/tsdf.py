@@ -542,19 +542,19 @@ class TSDF:
 
         return (TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
 
-    def fourier_transform(self, timestep, value_col):
+    def fourier_transform(self, timestep, valueCol):
         """
         Function to fourier transform the time series to its frequency domain representation.
         :param timestep: timestep value to be used for getting the frequency scale
-        :param value_col: name of the time domain data column which will be transformed
+        :param valueCol: name of the time domain data column which will be transformed
         """
-        value_col = self.__validated_column(self.df, value_col)
+        valueCol = self.__validated_column(self.df, valueCol)
         set_timestep(timestep)
         if self.sequence_col:
             data = self.df.orderBy(self.ts_col, self.sequence_col)
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
-                data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(value_col))
+                data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
@@ -564,7 +564,7 @@ class TSDF:
                 result = result.drop("dummy_group")
             else:
                 group_cols = self.partitionCols
-                data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(value_col))
+                data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
@@ -575,7 +575,7 @@ class TSDF:
             data = self.df.orderBy(self.ts_col)
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
-                data = data.select(f.col("dummy_group"), self.ts_col, f.col(value_col))
+                data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
@@ -585,7 +585,7 @@ class TSDF:
                 result = result.drop("dummy_group")
             else:
                 group_cols = self.partitionCols
-                data = data.select(*group_cols, self.ts_col, f.col(value_col))
+                data = data.select(*group_cols, self.ts_col, f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
