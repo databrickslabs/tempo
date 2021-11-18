@@ -348,8 +348,8 @@ class FourierTransformTest(SparkTest):
                          ["WindGen", 1983, 0.029667962, -0.25, 0.0, -0.029667962]]
 
         # construct dataframes
-        df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+        df = self.buildTestDF(schema, data, ts_cols=['time'])
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ts_cols=['time'])
 
         # convert to TSDF
         tsdf_left = TSDF(df, ts_col="time", partition_cols=["group"])
