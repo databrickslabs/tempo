@@ -356,7 +356,7 @@ class FourierTransformTest(SparkTest):
         result_tsdf = tsdf_left.fourier_transform(1, 'val')
 
         # should be equal to the expected dataframe
-        self.assertDataFramesEqual(result_tsdf, dfExpected)
+        self.assertDataFramesEqual(result_tsdf.df, dfExpected)
 
 
 class RangeStatsTest(SparkTest):

@@ -16,31 +16,33 @@ Support. You are not expected to provide support for Your Contributions, except 
 Notification. It is your responsibility to notify Databricks when any change is required to the list of Authorized Users, or to the Corporation's Primary Point of Contact with Databricks.  You agree to notify Databricks of any facts or circumstances of which you become aware that would make the representations or warranties herein inaccurate in any respect.
 This CLA is governed by the laws of the State of California and applicable U.S. Federal law. Any choice of law rules will not apply.
 Please check one of the applicable statement below. Please do NOT mark both statements:
- 	I am signing on behalf of myself as an individual and no other person or entity, including my employer, has or will have rights with respect my Contributions.
- 	I am signing on behalf of my employer or a legal entity and I have the actual authority to contractually bind such entity (the Corporation).
 
-Name*:
+ 	✔ I am signing on behalf of myself as an individual and no other person or entity, including my employer, has or will have rights with respect my Contributions.
 
+ 	❌ I am signing on behalf of my employer or a legal entity and I have the actual authority to contractually bind such entity (the Corporation).
 
-Corporation Entity Name (if applicable):
-
-
-Title or Role (if applicable):
+Name*: Souvik Pratiher
 
 
-Mailing Address*:
+Corporation Entity Name (if applicable): Daimler AG
 
 
-Email*:
+Title or Role (if applicable): Software Engineer (Cloud and Database)
 
 
-Signature*:
+Mailing Address*: Bangalore, Karnataka, India
 
 
-Date*:
+Email*: spratiher9@gmail.com
 
 
-Github Username (if applicable):
+Signature*: Souvik Pratiher
+
+
+Date*: 20/11/2021
+
+
+Github Username (if applicable): [Spratiher9](https://github.com/Spratiher9)
 
 
 Primary Point of Contact (if not you) (please provide name and email and Github username, if applicable):
