@@ -124,10 +124,10 @@ class TSDF:
     if tsPartitionVal is not None:
       for column in df.columns:
         if (column.startswith("non_null")):
-          newCol = column.replace("non_null_ct", "")
           # Avoid collect() calls when explicitly ignoring the warnings about null values due to lookback window.
           if not ignore_null_warning:
             any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
+            newCol = column.replace("non_null_ct", "")
             if any_blank_vals:
               logger.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
           df = df.drop(column)
