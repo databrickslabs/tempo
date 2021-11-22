@@ -1,6 +1,10 @@
 import tempo.resample as rs
 import tempo.io as tio
 
+from tempo.utils import ENV_BOOLEAN, PLATFORM
+
+from IPython.display import display as ipydisplay
+from IPython.core.display import HTML
 import logging
 from functools import reduce
 
@@ -28,6 +32,7 @@ class TSDF:
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
+
   ##
   ## Helper functions
   ##
@@ -155,6 +160,71 @@ class TSDF:
 
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
+
+  def select(self, *cols):
+    """
+    pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
+    Parameters
+    ----------
+    cols : str or list of strs
+        column names (string).
+        If one of the column names is '*', that column is expanded to include all columns
+        in the current :class:`TSDF`.
+
+    Examples
+    --------
+    >>> tsdf.select('*').collect()
+    [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
+    >>> tsdf.select('name', 'age').collect()
+    [Row(name='Alice', age=2), Row(name='Bob', age=5)]
+    
+    """
+    # The columns which will be a mandatory requirement while selecting from TSDFs
+    seq_col_stub = [] if bool(self.sequence_col) == False else [self.sequence_col]
+    mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
+    if (set(mandatory_cols).issubset(set(cols))):
+      return TSDF(self.df.select(*cols), self.ts_col, self.partitionCols, self.sequence_col)
+    else:
+      raise Exception("In TSDF's select statement original ts_col, partitionCols and seq_col_stub(optional) must be present")
+
+  def show(self, n = 20, truncate = True, vertical = False):
+    """
+    pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of rows to show.
+    truncate : bool or int, optional
+        If set to ``True``, truncate strings longer than 20 chars by default.
+        If set to a number greater than one, truncates long strings to length ``truncate``
+        and align cells right.
+    vertical : bool, optional
+        If set to ``True``, print output rows vertically (one line
+        per column value).
+
+    Example to show usage
+    ---------------------
+    from pyspark.sql.functions import *
+
+    phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+
+    from tempo import *
+
+    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+
+    # Call show method here
+    phone_accel_tsdf.show()
+
+    """
+    if PLATFORM == "DATABRICKS" or ENV_BOOLEAN == False:
+        self.df.show(n,truncate,vertical)
+    elif ENV_BOOLEAN:
+        # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
+        ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
+        self.df.show(n,truncate,vertical)
+    else:
+        self.df.show(n,truncate = False) # default show method behaviour in case all condition fails
 
   def describe(self):
     """

@@ -14,13 +14,13 @@ The purpose of this project is to make time series manipulation with Spark simpl
 
 Python - pip install in Databricks notebooks using:
 
-```
+```shell
 %pip install dbl-tempo
 ```
 
 Install locally using: 
 
-```
+```shell
 pip install dbl-tempo
 ```
 
@@ -50,7 +50,7 @@ Data source is UCI public accelerometer data available at this URL https://archi
 
 #### 0. Read in Data 
 
-```
+```python
 from pyspark.sql.functions import * 
 
 phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
@@ -58,6 +58,9 @@ phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/h
 from tempo import * 
 
 phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+
+display(phone_accel_tsdf)
+
 ```
 
 #### 1. Resample and Visualize
@@ -67,7 +70,7 @@ Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days
 
 Note: You can upsample any missing values by using an option in the resample interface (fill = True)
 
-```
+```python
 # ts_col = timestamp column on which to sort fact and source table
 # partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
 
@@ -96,7 +99,7 @@ fig.show()
 </p>
 
 
-```
+```python
 from pyspark.sql.functions import * 
 
 watch_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Watch_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
@@ -104,9 +107,11 @@ watch_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/h
 watch_accel_tsdf = TSDF(watch_accel_df, ts_col="event_ts", partition_cols = ["User"])
 
 # Applying AS OF join to TSDF datasets
-joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="phone_accel").df
+joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="phone_accel")
 
-joined_df.show(10, False)
+display(joined_df)
+# We can use show() also 
+# joined_df.show(10, False)
 ```
 
 #### 3. Skew Join Optimized AS OF Join
@@ -121,9 +126,12 @@ tsPartitionVal = value to break up each partition into time brackets
 fraction = overlap fraction
 right_prefix = prefix used for source columns when merged into fact table
 
-```
-joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="watch_accel", tsPartitionVal = 10, fraction = 0.1).df
-joined_df.show(10, False)
+```python
+joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="watch_accel", tsPartitionVal = 10, fraction = 0.1)
+
+display(joined_df)
+# We can use show() also
+# joined_df.show(10, False)
 ```
 
 #### 4 - Approximate Exponential Moving Average
@@ -134,9 +142,12 @@ Parameters:
 
 window = number of lagged values to compute for moving average
 
-```
-ema_trades = watch_accel_tsdf.EMA("x", window = 50).df
-ema_trades.show(10, False)
+```python
+ema_trades = watch_accel_tsdf.EMA("x", window = 50)
+
+display(ema_trades)
+# We can use show() also
+# ema_trades.show(10, False)
 ```
 
 #### 5 - Simple Moving Average
@@ -147,8 +158,8 @@ Parameters:
 
 rangeBackWindowSecs = number of seconds to look back
 
-```
-moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600).df
+```python
+moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
