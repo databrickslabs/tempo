@@ -126,7 +126,7 @@ def tempo_fourier_util(pdf):
     This method is meant to be called from Tempo TSDF as a pandas function API on Spark
     """
     select_cols = list(pdf.columns)
-    y = np.array(pdf['val'])
+    y = np.array(pdf['tdval'])
     tran = fft(y)
     r = tran.real
     i = tran.imag

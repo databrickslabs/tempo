@@ -555,48 +555,48 @@ class TSDF:
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
                 data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
-                    "val", f.col(valueCol))
+                    "tdval", f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("dummy_group","val")
+                result = result.drop("dummy_group","tdval")
             else:
                 group_cols = self.partitionCols
                 data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
-                    "val", f.col(valueCol))
+                    "tdval", f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("val")
+                result = result.drop("tdval")
         else:
             data = self.df.orderBy(self.ts_col)
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
                 data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol)).withColumn(
-                    "val", f.col(valueCol))
+                    "tdval", f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("dummy_group","val")
+                result = result.drop("dummy_group","tdval")
             else:
                 group_cols = self.partitionCols
                 data = data.select(*group_cols, self.ts_col, f.col(valueCol)).withColumn(
-                    "val", f.col(valueCol))
+                    "tdval", f.col(valueCol))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("val")
+                result = result.drop("tdval")
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
