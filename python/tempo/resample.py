@@ -1,10 +1,9 @@
+import tempo
+
 import pyspark.sql.functions as f
-from datetime import *
-from pyspark.sql.types import *
 from pyspark.sql.window import Window
 
 # define global frequency options
-import tempo
 
 SEC = 'sec'
 MIN = 'min'

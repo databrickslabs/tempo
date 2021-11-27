@@ -11,6 +11,7 @@ scala/tempo/target
 scala/tempo/project/target/
 scala/tempo/project/project/target/
 scala/target/stream/*
+.bsp
 
 # local delta tables
 **/spark-warehouse
