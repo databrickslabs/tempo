@@ -1,17 +1,24 @@
 import tempo.resample as rs
 import tempo.io as tio
 
-from tempo.utils import ENV_BOOLEAN, PLATFORM, set_timestep, tempo_fourier_util
+from tempo.utils import ENV_BOOLEAN, PLATFORM  # , set_timestep, tempo_fourier_util
 
 from IPython.display import display as ipydisplay
 from IPython.core.display import HTML
 import logging
+import numpy as np
+from scipy.fft import fft, fftfreq
 from functools import reduce
 
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 logger = logging.getLogger(__name__)
+
+TIMESTEP = 1
+"""
+This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default   
+"""
 
 
 class TSDF:
@@ -542,14 +549,41 @@ class TSDF:
 
         return (TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
 
+    def set_timestep(self, n=1):
+        """
+        This method is called to set the TIMESTEP value for a Time series.
+        """
+        global TIMESTEP
+        TIMESTEP = n
+
     def fourier_transform(self, timestep, valueCol):
         """
         Function to fourier transform the time series to its frequency domain representation.
         :param timestep: timestep value to be used for getting the frequency scale
         :param valueCol: name of the time domain data column which will be transformed
         """
+
+        def tempo_fourier_util(pdf):
+            """
+            This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
+            This method is meant to be called from Tempo TSDF as a pandas function API on Spark
+            """
+            # global TIMESTEP
+            select_cols = list(pdf.columns)
+            y = np.array(pdf['tdval'])
+            tran = fft(y)
+            r = tran.real
+            i = tran.imag
+            pdf['ft_real'] = r
+            pdf['ft_imag'] = i
+            N = tran.shape
+            # timestep = TIMESTEP
+            xf = fftfreq(N[0], timestep)
+            pdf['freq'] = xf
+            return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
+
         valueCol = self.__validated_column(self.df, valueCol)
-        set_timestep(timestep)
+        self.set_timestep(timestep)
         if self.sequence_col:
             data = self.df.orderBy(self.ts_col, self.sequence_col)
             if self.partitionCols == []:
@@ -562,7 +596,7 @@ class TSDF:
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("dummy_group","tdval")
+                result = result.drop("dummy_group", "tdval")
             else:
                 group_cols = self.partitionCols
                 data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
@@ -586,7 +620,7 @@ class TSDF:
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("dummy_group","tdval")
+                result = result.drop("dummy_group", "tdval")
             else:
                 group_cols = self.partitionCols
                 data = data.select(*group_cols, self.ts_col, f.col(valueCol)).withColumn(
