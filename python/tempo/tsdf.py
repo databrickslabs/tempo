@@ -543,12 +543,6 @@ class TSDF:
 
         return (TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
 
-    # def set_timestep(self, n=1):
-    #     """
-    #     This method is called to set the TIMESTEP value for a Time series.
-    #     """
-    #     self.timestep = n
-
     def fourier_transform(self, timestep, valueCol):
         """
         Function to fourier transform the time series to its frequency domain representation.
