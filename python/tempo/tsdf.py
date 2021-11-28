@@ -15,10 +15,10 @@ from pyspark.sql.window import Window
 
 logger = logging.getLogger(__name__)
 
-TIMESTEP = 1
-"""
-This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default   
-"""
+# TIMESTEP = 1
+# """
+# This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default
+# """
 
 
 class TSDF:
@@ -38,6 +38,10 @@ class TSDF:
         self.sequence_col = '' if sequence_col is None else sequence_col
         """
         Make sure DF is ordered by its respective ts_col and partition columns.
+        """
+        self.timestep = 1
+        """
+        This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default   
         """
 
     ##
@@ -553,8 +557,7 @@ class TSDF:
         """
         This method is called to set the TIMESTEP value for a Time series.
         """
-        global TIMESTEP
-        TIMESTEP = n
+        self.timestep = n
 
     def fourier_transform(self, timestep, valueCol):
         """
