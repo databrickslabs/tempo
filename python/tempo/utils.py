@@ -1,12 +1,11 @@
-from IPython.display import display as ipydisplay
-from IPython.core.display import HTML
-from IPython import get_ipython
-import os
 import logging
-from pyspark.sql.dataframe import DataFrame
+import os
+
+from IPython import get_ipython
+from IPython.core.display import HTML
+from IPython.display import display as ipydisplay
 from pandas import DataFrame as pandasDataFrame
-# import numpy as np
-# from scipy.fft import fft, fftfreq
+from pyspark.sql.dataframe import DataFrame
 
 logger = logging.getLogger(__name__)
 PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
@@ -97,43 +96,3 @@ phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["Us
 # Calling display method here
 display(phone_accel_tsdf)
 """
-
-# TIMESTEP = 1
-# """
-# This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default
-# """
-#
-#
-# def set_timestep(n=1):
-#     """
-#     This method is called to set the TIMESTEP value for a Time series.
-#     """
-#     global TIMESTEP
-#     TIMESTEP = n
-#
-#
-# def get_timestep():
-#     """
-#     This method is called to get TIMESTEP value for a Time series inside the tempo_fourier_util method
-#     """
-#     global TIMESTEP
-#     return TIMESTEP
-#
-#
-# def tempo_fourier_util(pdf):
-#     """
-#     This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
-#     This method is meant to be called from Tempo TSDF as a pandas function API on Spark
-#     """
-#     select_cols = list(pdf.columns)
-#     y = np.array(pdf['tdval'])
-#     tran = fft(y)
-#     r = tran.real
-#     i = tran.imag
-#     pdf['ft_real'] = r
-#     pdf['ft_imag'] = i
-#     N = tran.shape
-#     timestep = get_timestep()
-#     xf = fftfreq(N[0], timestep)
-#     pdf['freq'] = xf
-#     return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]

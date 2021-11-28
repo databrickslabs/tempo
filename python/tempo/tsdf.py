@@ -1,24 +1,18 @@
-import tempo.resample as rs
-import tempo.io as tio
-
-from tempo.utils import ENV_BOOLEAN, PLATFORM  # , set_timestep, tempo_fourier_util
-
-from IPython.display import display as ipydisplay
-from IPython.core.display import HTML
 import logging
-import numpy as np
-from scipy.fft import fft, fftfreq
 from functools import reduce
 
+import numpy as np
 import pyspark.sql.functions as f
+from IPython.core.display import HTML
+from IPython.display import display as ipydisplay
 from pyspark.sql.window import Window
+from scipy.fft import fft, fftfreq
+
+import tempo.io as tio
+import tempo.resample as rs
+from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 logger = logging.getLogger(__name__)
-
-# TIMESTEP = 1
-# """
-# This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default
-# """
 
 
 class TSDF:
@@ -39,10 +33,6 @@ class TSDF:
         """
         Make sure DF is ordered by its respective ts_col and partition columns.
         """
-        # self.timestep = 1
-        # """
-        # This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default
-        # """
 
     ##
     ## Helper functions
