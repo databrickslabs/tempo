@@ -581,7 +581,7 @@ class TSDF:
             pdf['ft_imag'] = i
             N = tran.shape
             # timestep = TIMESTEP
-            xf = fftfreq(N[0], timestep)
+            xf = fftfreq(N[0], self.timestep)
             pdf['freq'] = xf
             return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
 
