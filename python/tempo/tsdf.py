@@ -39,10 +39,10 @@ class TSDF:
         """
         Make sure DF is ordered by its respective ts_col and partition columns.
         """
-        self.timestep = 1
-        """
-        This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default   
-        """
+        # self.timestep = 1
+        # """
+        # This constant is for initializing the TIMESTEP value of a time series as 1 sec, by default
+        # """
 
     ##
     ## Helper functions
@@ -553,11 +553,11 @@ class TSDF:
 
         return (TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
 
-    def set_timestep(self, n=1):
-        """
-        This method is called to set the TIMESTEP value for a Time series.
-        """
-        self.timestep = n
+    # def set_timestep(self, n=1):
+    #     """
+    #     This method is called to set the TIMESTEP value for a Time series.
+    #     """
+    #     self.timestep = n
 
     def fourier_transform(self, timestep, valueCol):
         """
@@ -581,12 +581,12 @@ class TSDF:
             pdf['ft_imag'] = i
             N = tran.shape
             # timestep = TIMESTEP
-            xf = fftfreq(N[0], self.timestep)
+            xf = fftfreq(N[0], timestep)
             pdf['freq'] = xf
             return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
 
         valueCol = self.__validated_column(self.df, valueCol)
-        self.set_timestep(timestep)
+        # self.set_timestep(timestep)
         if self.sequence_col:
             data = self.df.orderBy(self.ts_col, self.sequence_col)
             if self.partitionCols == []:
