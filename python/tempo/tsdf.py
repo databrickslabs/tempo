@@ -289,6 +289,7 @@ class TSDF:
     :param right_prefix - optional prefix for right-hand data frame
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
+    :param ignore_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
     """
 
     if (tsPartitionVal is not None):
