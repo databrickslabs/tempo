@@ -555,7 +555,6 @@ class TSDF:
             This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
             This method is meant to be called from Tempo TSDF as a pandas function API on Spark
             """
-            # global TIMESTEP
             select_cols = list(pdf.columns)
             y = np.array(pdf['tdval'])
             tran = fft(y)
@@ -564,15 +563,13 @@ class TSDF:
             pdf['ft_real'] = r
             pdf['ft_imag'] = i
             N = tran.shape
-            # timestep = TIMESTEP
             xf = fftfreq(N[0], timestep)
             pdf['freq'] = xf
             return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
 
         valueCol = self.__validated_column(self.df, valueCol)
-        # self.set_timestep(timestep)
+        data = self.df
         if self.sequence_col:
-            data = self.df.orderBy(self.ts_col, self.sequence_col)
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
                 data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
@@ -596,7 +593,6 @@ class TSDF:
                 result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
                 result = result.drop("tdval")
         else:
-            data = self.df.orderBy(self.ts_col)
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
                 data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol)).withColumn(
