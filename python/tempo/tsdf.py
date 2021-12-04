@@ -556,6 +556,7 @@ class TSDF:
             This method is meant to be called from Tempo TSDF as a pandas function API on Spark
             """
             select_cols = list(pdf.columns)
+            pdf.sort_values(by=['tpoints'], inplace=True, ascending=True)
             y = np.array(pdf['tdval'])
             tran = fft(y)
             r = tran.real
@@ -573,47 +574,47 @@ class TSDF:
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
                 data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
-                    "tdval", f.col(valueCol))
+                    "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("dummy_group", "tdval")
+                result = result.drop("dummy_group", "tdval", "tpoints")
             else:
                 group_cols = self.partitionCols
                 data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
-                    "tdval", f.col(valueCol))
+                    "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("tdval")
+                result = result.drop("tdval", "tpoints")
         else:
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", f.lit("dummy_val"))
                 data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol)).withColumn(
-                    "tdval", f.col(valueCol))
+                    "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("dummy_group", "tdval")
+                result = result.drop("dummy_group", "tdval", "tpoints")
             else:
                 group_cols = self.partitionCols
                 data = data.select(*group_cols, self.ts_col, f.col(valueCol)).withColumn(
-                    "tdval", f.col(valueCol))
+                    "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
                     +
                     ["freq double", "ft_real double", "ft_imag double"]
                 )
                 result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
-                result = result.drop("tdval")
+                result = result.drop("tdval", "tpoints")
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
