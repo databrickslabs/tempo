@@ -1,6 +1,8 @@
-# ignore IntelliJ/PyCharm IDE files
+# ignore IntelliJ/PyCharm/VSCode IDE files
 .idea
 *.iml
+.vscode
+
 
 # coverage files
 .coverage
