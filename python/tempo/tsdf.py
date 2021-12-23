@@ -1,15 +1,17 @@
-import tempo.resample as rs
-import tempo.io as tio
-
-from tempo.utils import ENV_BOOLEAN, PLATFORM
-
-from IPython.display import display as ipydisplay
-from IPython.core.display import HTML
 import logging
 from functools import reduce
+from typing import List
 
 import pyspark.sql.functions as f
+from IPython.core.display import HTML
+from IPython.display import display as ipydisplay
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
+
+import tempo.io as tio
+import tempo.resample as rs
+from tempo.interpol import Interpolation
+from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 logger = logging.getLogger(__name__)
 
@@ -516,6 +518,32 @@ class TSDF:
     rs.validateFuncExists(func)
     enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return(enriched_tsdf)
+
+  def interpolate(self, target_cols: List[str], sample_freq: str, sample_func: str, fill: str, ts_col: str = None, partition_cols: List[str]=None):
+    """
+    function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
+    will be filled based on the fill calculation.
+
+    :param target_cols: columns that should be interpolated
+    :param sample_freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param sample_func: function used to aggregate input
+    :param fill: function used to fill missing values e.g. linear, null, zero, back, forward
+    :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
+    :param partition_cols: specify other partition_cols, by default this uses the partition_cols within the TSDF object
+    :return: TSDF object with interpolated data
+    """
+
+    # Set defaults for timestamp column and partition columns
+    if ts_col ==None:
+      ts_col = self.ts_col
+    if partition_cols == None:
+      partition_cols = self.partitionCols
+      
+    interpolate_service: Interpolation = Interpolation()
+    tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, sample_freq, sample_func, fill)
+     
+    return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
   def calc_bars(tsdf, freq, func = None, metricCols = None, fill = None):
 

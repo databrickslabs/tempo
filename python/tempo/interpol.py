@@ -15,8 +15,6 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.window import Window
 
-from tempo import *
-
 # Interpolation fill options
 fill_options = ["zero", "null", "back", "forward", "linear"]
 supported_target_col_types = ["double", "float"]
@@ -228,14 +226,14 @@ class Interpolation:
 
     def interpolate(
         self,
-        tsdf: TSDF,
+        tsdf,
         ts_col: str,
         partition_cols: List[str],
         target_cols: List[str],
         sample_freq: str,
         sample_func: str,
         fill: str,
-    ) -> TSDF:
+    ) -> DataFrame:
         """
         Apply interpolation to TSDF.
 

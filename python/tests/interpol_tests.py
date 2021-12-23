@@ -1,5 +1,4 @@
 import pyspark.sql.functions as F
-from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 from python.tempo.interpol import Interpolation
 from python.tests.tests import SparkTest
