@@ -31,12 +31,12 @@ class Interpolation:
 
         :linear_udf register linear calculation UDF
         """
-        self.linear_udf = udf(Interpolation.__calc_linear, FloatType())
+        self.__linear_udf = udf(Interpolation.__calc_linear, FloatType())
 
     @staticmethod
     def __calc_linear(epoch, epoch_ff, epoch_bf, value_ff, value_bf, value):
         """
-        UDF for calculating linear interpolation on a DataFrame.
+        User defined function for calculating linear interpolation on a DataFrame.
 
         :param epoch  - Original epoch timestamp of the column to be interpolated.
         :param epoch_ff   -  Forward filled epoch timestamp of the column to be interpolated.
@@ -215,7 +215,7 @@ class Interpolation:
         if fill == "linear":
             output_df = output_df.withColumn(
                 target_col,
-                self.linear_udf(
+                self.__linear_udf(
                     ts_col,
                     "readtime_ff",
                     "readtime_bf",
@@ -257,14 +257,15 @@ class Interpolation:
             freq=sample_freq, func=sample_func, metricCols=target_cols
         ).df
 
-        # Columns for joining series
+        # Build columns list to joining the two sampled series
         join_cols: List[str] = partition_cols + [ts_col]
 
+        # Get series zero filled
         zero_fill: DataFrame = tsdf.resample(
             freq=sample_freq, func=sample_func, fill=True, metricCols=target_cols
         ).df.select(*join_cols)
 
-        # Join Sampled DataFrames - Generate Complete Timeseries
+        # Join sampled DataFrames - generate complete timeseries
         joined_series: DataFrame = zero_fill.join(
             no_fill,
             join_cols,
