@@ -14,7 +14,7 @@ from pyspark.sql.functions import (
     unix_timestamp,
     when,
 )
-from pyspark.sql.types import FloatType
+from pyspark.sql.types import DoubleType, FloatType
 from pyspark.sql.window import Window
 
 from tempo import *
@@ -31,7 +31,7 @@ class Interpolation:
 
         :linear_udf register linear calculation UDF
         """
-        self.__linear_udf = udf(Interpolation.__calc_linear, FloatType())
+        self.__linear_udf = udf(Interpolation.__calc_linear, DoubleType())
 
     @staticmethod
     def __calc_linear(epoch, epoch_ff, epoch_bf, value_ff, value_bf, value):
@@ -253,6 +253,7 @@ class Interpolation:
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
 
         # Resample and Normalize Columns
+        # TODO: Resampling twice, possible optimization is to see if we can do it only resample once
         no_fill: DataFrame = tsdf.resample(
             freq=sample_freq, func=sample_func, metricCols=target_cols
         ).df
