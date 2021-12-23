@@ -280,7 +280,7 @@ class InterpolationTest(SparkTest):
         assert_df_equality(expected_df, actual_df)
 
     def test_linear_fill_interpolation(self):
-        """Test forward fill interpolation."""
+        """Test linear fill interpolation."""
         self.buildTestingDataFrame()
 
         expected_schema = StructType(

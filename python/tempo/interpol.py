@@ -10,11 +10,9 @@ from pyspark.sql.functions import (
     last,
     lit,
     to_timestamp,
-    udf,
     unix_timestamp,
     when,
 )
-from pyspark.sql.types import DoubleType, FloatType
 from pyspark.sql.window import Window
 
 from tempo import *
@@ -25,18 +23,11 @@ supported_target_col_types = ["double", "float"]
 
 
 class Interpolation:
-    def __init__(self):
+    def __calc_linear_spark(
+        self, df: DataFrame, epoch, epoch_ff, epoch_bf, value_ff, value_bf, value
+    ):
         """
-        Constructor
-
-        :linear_udf register linear calculation UDF
-        """
-        self.__linear_udf = udf(Interpolation.__calc_linear, DoubleType())
-
-    @staticmethod
-    def __calc_linear(epoch, epoch_ff, epoch_bf, value_ff, value_bf, value):
-        """
-        User defined function for calculating linear interpolation on a DataFrame.
+        Native Spark function for calculating linear interpolation on a DataFrame.
 
         :param epoch  - Original epoch timestamp of the column to be interpolated.
         :param epoch_ff   -  Forward filled epoch timestamp of the column to be interpolated.
@@ -45,12 +36,20 @@ class Interpolation:
         :param value_bf  - Backfilled value of the column to be interpolated.
         :param value   -  Original value of the column to be interpolated.
         """
-        if epoch_bf == epoch_ff:
-            return value
-        else:
-            m = (value_ff - value_bf) / (epoch_ff - epoch_bf)
-            value_linear = value_bf + m * (epoch - epoch_bf)
-            return value_linear
+        cols: List[str] = df.columns
+        cols.remove(value)
+        expr: str = f"""
+        case when {value_bf} = {value_ff} then {value}
+        else 
+            ({value_ff}-{value_bf})
+            /({epoch_ff}-{epoch_bf})
+            *({epoch}-{epoch_bf}) 
+            + {value_bf}
+        end as {value}
+        """
+        interpolated: DataFrame = df.selectExpr(*cols, expr)
+        # Preserve column order
+        return interpolated.select(*df.columns)
 
     # TODO: Currently not being used. But will useful for interpolating arbitrary ranges.
     def get_time_range(self, df: DataFrame, ts_col: str) -> Tuple[str]:
@@ -213,16 +212,16 @@ class Interpolation:
 
         # Handle linear fill
         if fill == "linear":
-            output_df = output_df.withColumn(
-                target_col,
-                self.__linear_udf(
+            output_df = output_df.transform(
+                lambda df: self.__calc_linear_spark(
+                    df,
                     ts_col,
                     "readtime_ff",
                     "readtime_bf",
                     "readvalue_ff",
                     "readvalue_bf",
                     target_col,
-                ),
+                )
             )
 
         return output_df
