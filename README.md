@@ -163,6 +163,20 @@ moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
+#### 6 - Fourier Transform
+
+Method for transforming the time series to frequency domain based on the distinguished data column 
+
+Parameters: 
+
+timestep = timestep value to be used for getting the frequency scale
+
+valueCol = name of the time domain data column which will be transformed
+
+```python
+ft_df = tsdf.fourier_transform(timestep=1, valueCol="data_col")
+display(ft_df)
+```
 
 
 ## Project Support

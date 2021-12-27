@@ -166,15 +166,21 @@ metrics : ["advertiser_impressions", "publisher_net_revenue"]
 
 The code to run to produce the stacked table with anomalies is: 
 
-```
-from tempo.tsdf import TSDF
-from tempo.ad import *
+#### 7 - Fourier Transform
 
-calc_anomalies(spark, 'ad.yaml')
-```
-The above yaml and code defines an output table with suffix ```_class1``. Select the results from your table in the metastore using this `SELECT` statement:
+Method for transforming the time series to frequency domain based on the distinguished data column 
 
-select * from tempo.revenue_hourly_2021_class1
+Parameters: 
+
+timestep = timestep value to be used for getting the frequency scale
+
+valueCol = name of the time domain data column which will be transformed
+
+```python
+ft_df = tsdf.fourier_transform(timestep=1, valueCol="data_col")
+display(ft_df)
+```
+
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.

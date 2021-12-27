@@ -9,8 +9,16 @@ from IPython.core.display import HTML
 import logging
 from functools import reduce
 
+import numpy as np
 import pyspark.sql.functions as f
+from IPython.core.display import HTML
+from IPython.display import display as ipydisplay
 from pyspark.sql.window import Window
+from scipy.fft import fft, fftfreq
+
+import tempo.io as tio
+import tempo.resample as rs
+from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +83,12 @@ class TSDF:
     Add prefix to all specified columns.
     """
 
-    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], ''.join([prefix,col_list[idx]])),
+    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix, col_list[idx]])),
                 range(len(col_list)), self.df)
 
-    ts_col = ''.join([prefix, self.ts_col])
-    seq_col = ''.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
-    return TSDF(df, ts_col, self.partitionCols, sequence_col = seq_col)
+    ts_col = '_'.join([prefix, self.ts_col])
+    seq_col = '_'.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
+    return TSDF(df, ts_col, self.partitionCols, sequence_col=seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
     """
@@ -290,7 +298,7 @@ class TSDF:
     :param fraction - overlap fraction
     """
 
-    # first block of logic checks whether a standard range join will suffice
+        # first block of logic checks whether a standard range join will suffice
     left_df = self.df
     right_df = right_tsdf.df
 
@@ -313,7 +321,7 @@ class TSDF:
          left_prefix += '_'
       else:
          left_prefix = ''
-          
+
       if right_prefix != '':
           right_prefix+= '_'
 
@@ -574,3 +582,79 @@ class TSDF:
       bars = bars.select(sel_and_sort)
 
       return(TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
+
+  def fourier_transform(self, timestep, valueCol):
+    """
+    Function to fourier transform the time series to its frequency domain representation.
+    :param timestep: timestep value to be used for getting the frequency scale
+    :param valueCol: name of the time domain data column which will be transformed
+    """
+
+    def tempo_fourier_util(pdf):
+        """
+        This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
+        This method is meant to be called from Tempo TSDF as a pandas function API on Spark
+        """
+        select_cols = list(pdf.columns)
+        pdf.sort_values(by=['tpoints'], inplace=True, ascending=True)
+        y = np.array(pdf['tdval'])
+        tran = fft(y)
+        r = tran.real
+        i = tran.imag
+        pdf['ft_real'] = r
+        pdf['ft_imag'] = i
+        N = tran.shape
+        xf = fftfreq(N[0], timestep)
+        pdf['freq'] = xf
+        return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
+
+    valueCol = self.__validated_column(self.df, valueCol)
+    data = self.df
+    if self.sequence_col:
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("tdval", "tpoints")
+    else:
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("tdval", "tpoints")
+
+    return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
