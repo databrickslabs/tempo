@@ -348,7 +348,6 @@ class Interpolation:
 
         # Join output_list into single DataFrame to output
         output: DataFrame = output_list[0]
-        output.cache()
         for right_df in output_list[1:]:
             output: DataFrame = output.join(right_df, on=join_cols, how="left")
 
