@@ -316,5 +316,4 @@ class InterpolationTest(SparkTest):
             sample_func="mean",
             fill="linear",
         )
-
         assert_df_equality(expected_df, actual_df)
