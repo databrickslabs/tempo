@@ -7,7 +7,9 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import (
     col,
     first,
+    lag,
     last,
+    lead,
     lit,
     to_timestamp,
     unix_timestamp,
@@ -17,7 +19,7 @@ from pyspark.sql.window import Window
 
 # Interpolation fill options
 fill_options = ["zero", "null", "back", "forward", "linear"]
-supported_target_col_types = ["double", "float"]
+supported_target_col_types = ['int', 'bigint', 'float', 'double']
 
 
 class Interpolation:
@@ -249,26 +251,54 @@ class Interpolation:
         self.__validate_fill(fill)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
 
-        # Resample and Normalize Columns
-        # TODO: Resampling twice, possible optimization is to see if we can do it only resample once
+        # Build columns list to join the sampled series with the generated series
+        join_cols: List[str] = partition_cols + [ts_col]
+
+        # Resample and Normalize Input
         no_fill: DataFrame = tsdf.resample(
             freq=sample_freq, func=sample_func, metricCols=target_cols
         ).df
 
-        # Build columns list to joining the two sampled series
-        join_cols: List[str] = partition_cols + [ts_col]
+        # Generate missing values in series
+        filled_series: DataFrame = (
+            (
+                no_fill.withColumn(
+                    "PreviousTimestamp",
+                    lag(no_fill[ts_col]).over(
+                        Window.partitionBy(*partition_cols).orderBy(ts_col)
+                    ),
+                )
+                .withColumn(
+                    "NextTimestamp",
+                    lead(no_fill[ts_col]).over(
+                        Window.partitionBy(*partition_cols).orderBy(ts_col)
+                    ),
+                )
+                .withColumn(
+                    "PreviousTimestamp",
+                    when(
+                        (
+                            col("PreviousTimestamp").isNull()
+                            & col("NextTimestamp").isNull()
+                        ),
+                        col(ts_col),
+                    ).otherwise(col("PreviousTimestamp")),
+                )
+                .selectExpr(
+                    *join_cols,
+                    f"explode(sequence(PreviousTimestamp, {ts_col}, interval {sample_freq})) as new_{ts_col}",
+                )
+            )
+            .drop(ts_col)
+            .withColumnRenamed(f"new_{ts_col}", ts_col)
+        )
 
-        # Get series zero filled
-        zero_fill: DataFrame = tsdf.resample(
-            freq=sample_freq, func=sample_func, fill=True, metricCols=target_cols
-        ).df.select(*join_cols)
-
-        # Join sampled DataFrames - generate complete timeseries
-        joined_series: DataFrame = zero_fill.join(
+        # Join DataFrames - generate complete timeseries
+        joined_series: DataFrame = filled_series.join(
             no_fill,
             join_cols,
             "left",
-        )
+        ).drop("PreviousTimestamp", "NextTimestamp")
 
         # Perform interpolation on each target column
         output_list: List[DataFrame] = []

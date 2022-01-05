@@ -519,29 +519,36 @@ class TSDF:
     enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return(enriched_tsdf)
 
-  def interpolate(self, target_cols: List[str], sample_freq: str, sample_func: str, fill: str, ts_col: str = None, partition_cols: List[str]=None):
+  def interpolate(self, freq: str, func: str, fill: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None):
     """
     function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
     will be filled based on the fill calculation.
 
     :param target_cols: columns that should be interpolated
-    :param sample_freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
-    :param sample_func: function used to aggregate input
+    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param func: function used to aggregate input
     :param fill: function used to fill missing values e.g. linear, null, zero, back, forward
     :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
-    :param partition_cols: specify other partition_cols, by default this uses the partition_cols within the TSDF object
+    :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
     :return: TSDF object with interpolated data
     """
 
-    # Set defaults for timestamp column and partition columns
-    if ts_col ==None:
+    # Set defaults for target columns, timestamp column and partition columns
+    if ts_col is None:
       ts_col = self.ts_col
-    if partition_cols == None:
+    if partition_cols is  None:
       partition_cols = self.partitionCols
-      
+    if target_cols is None: 
+      prohibited_cols: List[str] = partition_cols + [ts_col]
+      summarizable_types = ['int', 'bigint', 'float', 'double']
+      # filter columns to find summarizable columns
+      target_cols = [datatype[0] for datatype in self.df.dtypes if
+                          ((datatype[1] in summarizable_types) and
+                          (datatype[0].lower() not in prohibited_cols))]
+
     interpolate_service: Interpolation = Interpolation()
     tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
-    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, sample_freq, sample_func, fill)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, fill)
      
     return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
