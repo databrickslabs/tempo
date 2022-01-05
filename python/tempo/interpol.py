@@ -19,7 +19,7 @@ from pyspark.sql.window import Window
 
 # Interpolation fill options
 fill_options = ["zero", "null", "back", "forward", "linear"]
-supported_target_col_types = ["double", "float"]
+supported_target_col_types = ['int', 'bigint', 'float', 'double']
 
 
 class Interpolation:
