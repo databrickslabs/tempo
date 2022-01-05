@@ -54,6 +54,7 @@ class InterpolationTest(SparkTest):
                 ts_col="event_ts",
                 func="mean",
                 method="abcd",
+                show_interpolated=True,
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -72,6 +73,7 @@ class InterpolationTest(SparkTest):
                 ts_col="event_ts",
                 func="mean",
                 method="zero",
+                show_interpolated=True,
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -90,6 +92,7 @@ class InterpolationTest(SparkTest):
                 ts_col="event_ts",
                 func="mean",
                 method="zero",
+                show_interpolated=True,
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -108,6 +111,7 @@ class InterpolationTest(SparkTest):
                 ts_col="value_a",
                 func="mean",
                 method="zero",
+                show_interpolated=True,
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -151,6 +155,7 @@ class InterpolationTest(SparkTest):
             ts_col="event_ts",
             func="mean",
             method="zero",
+            show_interpolated=True,
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -192,6 +197,7 @@ class InterpolationTest(SparkTest):
             ts_col="event_ts",
             func="mean",
             method="null",
+            show_interpolated=True,
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -233,6 +239,7 @@ class InterpolationTest(SparkTest):
             ts_col="event_ts",
             func="mean",
             method="back",
+            show_interpolated=True,
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -273,6 +280,7 @@ class InterpolationTest(SparkTest):
             ts_col="event_ts",
             func="mean",
             method="forward",
+            show_interpolated=True,
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -314,5 +322,45 @@ class InterpolationTest(SparkTest):
             ts_col="event_ts",
             func="mean",
             method="linear",
+            show_interpolated=True,
+        )
+        assert_df_equality(expected_df, actual_df)
+
+    def test_hide_if_interpolated(self):
+        """Test linear fill interpolation."""
+        self.buildTestingDataFrame()
+
+        expected_schema = StructType(
+            [
+                StructField("partition_a", StringType()),
+                StructField("partition_b", StringType()),
+                StructField("event_ts", StringType()),
+                StructField("value_a", DoubleType()),
+                StructField("value_b", DoubleType())
+            ]
+        )
+
+        expected_data = [
+            ["A", "A-1", "2020-01-01 00:01:00", 349.2099914550781, 10.0],
+            ["A", "A-1", "2020-01-01 00:01:30", 350.26499938964844, 8.5],
+            ["A", "A-1", "2020-01-01 00:02:00", 351.32000732421875, 7.0],
+            ["A", "A-2", "2020-01-01 00:01:00", 346.76499938964844, 8.5],
+            ["B", "B-1", "2020-01-01 00:01:00", 362.1000061035156, 4.0 ],
+            ["B", "B-2", "2020-01-01 00:01:00", 361.1000061035156, 5.0],
+            ["B", "B-2", "2020-01-01 00:01:30", 355.7100067138672, 5.5],
+            ["B", "B-2", "2020-01-01 00:02:00", 350.32000732421875, 6.0],
+        ]
+
+        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+
+        actual_df: DataFrame = self.interpolate_helper.interpolate(
+            tsdf=self.input_tsdf,
+            partition_cols=["partition_a", "partition_b"],
+            target_cols=["value_a", "value_b"],
+            freq="30 seconds",
+            ts_col="event_ts",
+            func="mean",
+            method="linear",
+            show_interpolated=False,
         )
         assert_df_equality(expected_df, actual_df)

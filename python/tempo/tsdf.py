@@ -519,7 +519,7 @@ class TSDF:
     enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return(enriched_tsdf)
 
-  def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None):
+  def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
     """
     function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
     will be filled based on the fill calculation.
@@ -530,6 +530,7 @@ class TSDF:
     :param fill: function used to fill missing values e.g. linear, null, zero, back, forward
     :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
     :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
+    :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
     :return: TSDF object with interpolated data
     """
 
@@ -548,7 +549,7 @@ class TSDF:
 
     interpolate_service: Interpolation = Interpolation()
     tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
-    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
      
     return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 

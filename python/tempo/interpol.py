@@ -235,6 +235,7 @@ class Interpolation:
         freq: str,
         func: str,
         method: str,
+        show_interpolated: bool
     ) -> DataFrame:
         """
         Apply interpolation to TSDF.
@@ -246,6 +247,7 @@ class Interpolation:
         :param fill   - interpolation function to fill missing values
         :param ts_col   - timestamp column name
         :param partition_cols  - partition columns names
+        :param show_interpolated  - show if row is interpolated?
         """
         # Validate parameters
         self.__validate_fill(method)
@@ -303,11 +305,13 @@ class Interpolation:
         # Perform interpolation on each target column
         output_list: List[DataFrame] = []
         for target_col in target_cols:
-            # Mark columns that are interpolated
-            marked_series: DataFrame = joined_series.withColumn(
-                f"is_{target_col}_interpolated",
-                when(col(target_col).isNull(), True).otherwise(False),
-            )
+            # Mark columns that are interpolated is flag is set to True
+            marked_series:DataFrame = joined_series
+            if show_interpolated is True:
+                marked_series: DataFrame = joined_series.withColumn(
+                    f"is_{target_col}_interpolated",
+                    when(col(target_col).isNull(), True).otherwise(False),
+                )
 
             # Add surrogate ts_col to get missing values
             with_surrogate_ts: DataFrame = marked_series.withColumn(
