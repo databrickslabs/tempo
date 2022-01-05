@@ -18,7 +18,7 @@ from pyspark.sql.functions import (
 from pyspark.sql.window import Window
 
 # Interpolation fill options
-fill_options = ["zero", "null", "back", "forward", "linear"]
+method_options = ["zero", "null", "back", "forward", "linear"]
 supported_target_col_types = ['int', 'bigint', 'float', 'double']
 
 
@@ -86,15 +86,15 @@ class Interpolation:
             col("id").cast("timestamp").alias("generated_ts")
         )
 
-    def __validate_fill(self, fill: str):
+    def __validate_fill(self, method: str):
         """
         Validate if the fill provided is within the allowed list of values.
 
         :param fill - Fill type e.g. "zero", "null", "back", "forward", "linear"
         """
-        if fill not in fill_options:
+        if method not in method_options:
             raise ValueError(
-                f"Please select from one of the following fill options: {fill_options}"
+                f"Please select from one of the following fill options: {method_options}"
             )
 
     def __validate_col(
@@ -178,7 +178,7 @@ class Interpolation:
         partition_cols: List[str],
         ts_col: str,
         target_col: str,
-        fill: str,
+        method: str,
     ) -> DataFrame:
         """
         Apply interpolation to column.
@@ -196,22 +196,22 @@ class Interpolation:
         output_df: DataFrame = filled_series
 
         # Handle zero fill
-        if fill == "zero":
+        if method == "zero":
             output_df = filled_series.withColumn(
                 target_col,
                 when(col(target_col).isNotNull(), col(target_col)).otherwise(lit(0)),
             )
 
         # Handle forward fill
-        if fill == "forward":
+        if method == "forward":
             output_df = filled_series.withColumn(target_col, col("readvalue_ff"))
 
         # Handle backwards fill
-        if fill == "back":
+        if method == "back":
             output_df = filled_series.withColumn(target_col, col("readvalue_bf"))
 
         # Handle linear fill
-        if fill == "linear":
+        if method == "linear":
             output_df = output_df.transform(
                 lambda df: self.__calc_linear_spark(
                     df,
@@ -232,23 +232,23 @@ class Interpolation:
         ts_col: str,
         partition_cols: List[str],
         target_cols: List[str],
-        sample_freq: str,
-        sample_func: str,
-        fill: str,
+        freq: str,
+        func: str,
+        method: str,
     ) -> DataFrame:
         """
         Apply interpolation to TSDF.
 
         :param tsdf  - input TSDF
         :param target_cols   - numeric columns to interpolate
-        :param sample_freq  - frequency at which to sample
-        :param sample_func   - aggregate function for sampling
+        :param freq  - frequency at which to sample
+        :param func   - aggregate function for sampling
         :param fill   - interpolation function to fill missing values
         :param ts_col   - timestamp column name
         :param partition_cols  - partition columns names
         """
         # Validate parameters
-        self.__validate_fill(fill)
+        self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
 
         # Build columns list to join the sampled series with the generated series
@@ -256,7 +256,7 @@ class Interpolation:
 
         # Resample and Normalize Input
         no_fill: DataFrame = tsdf.resample(
-            freq=sample_freq, func=sample_func, metricCols=target_cols
+            freq=freq, func=func, metricCols=target_cols
         ).df
 
         # Generate missing values in series
@@ -286,7 +286,7 @@ class Interpolation:
                 )
                 .selectExpr(
                     *join_cols,
-                    f"explode(sequence(PreviousTimestamp, {ts_col}, interval {sample_freq})) as new_{ts_col}",
+                    f"explode(sequence(PreviousTimestamp, {ts_col}, interval {freq})) as new_{ts_col}",
                 )
             )
             .drop(ts_col)
@@ -322,7 +322,7 @@ class Interpolation:
 
             # # Interpolate target columns
             interpolated_result: DataFrame = self.__interpolate_column(
-                epoch_series, partition_cols, ts_col, target_col, fill
+                epoch_series, partition_cols, ts_col, target_col, method
             )
 
             # Denormalize output

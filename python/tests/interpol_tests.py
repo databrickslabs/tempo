@@ -50,10 +50,10 @@ class InterpolationTest(SparkTest):
                 tsdf=self.input_tsdf,
                 partition_cols=["partition_a", "partition_b"],
                 target_cols=["value_a", "value_b"],
-                sample_freq="30 seconds",
+                freq="30 seconds",
                 ts_col="event_ts",
-                sample_func="mean",
-                fill="abcd",
+                func="mean",
+                method="abcd",
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -68,10 +68,10 @@ class InterpolationTest(SparkTest):
                 tsdf=self.input_tsdf,
                 partition_cols=["partition_a", "partition_b"],
                 target_cols=["partition_a", "value_b"],
-                sample_freq="30 seconds",
+                freq="30 seconds",
                 ts_col="event_ts",
-                sample_func="mean",
-                fill="zero",
+                func="mean",
+                method="zero",
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -86,10 +86,10 @@ class InterpolationTest(SparkTest):
                 tsdf=self.input_tsdf,
                 partition_cols=["partition_c", "partition_b"],
                 target_cols=["value_a", "value_b"],
-                sample_freq="30 seconds",
+                freq="30 seconds",
                 ts_col="event_ts",
-                sample_func="mean",
-                fill="zero",
+                func="mean",
+                method="zero",
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -104,10 +104,10 @@ class InterpolationTest(SparkTest):
                 tsdf=self.input_tsdf,
                 partition_cols=["partition_a", "partition_b"],
                 target_cols=["value_a", "value_b"],
-                sample_freq="30 seconds",
+                freq="30 seconds",
                 ts_col="value_a",
-                sample_func="mean",
-                fill="zero",
+                func="mean",
+                method="zero",
             )
         except ValueError as e:
             self.assertEqual(type(e), ValueError)
@@ -147,10 +147,10 @@ class InterpolationTest(SparkTest):
             tsdf=self.input_tsdf,
             partition_cols=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
-            sample_freq="30 seconds",
+            freq="30 seconds",
             ts_col="event_ts",
-            sample_func="mean",
-            fill="zero",
+            func="mean",
+            method="zero",
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -188,10 +188,10 @@ class InterpolationTest(SparkTest):
             tsdf=self.input_tsdf,
             partition_cols=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
-            sample_freq="30 seconds",
+            freq="30 seconds",
             ts_col="event_ts",
-            sample_func="mean",
-            fill="null",
+            func="mean",
+            method="null",
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -229,15 +229,14 @@ class InterpolationTest(SparkTest):
             tsdf=self.input_tsdf,
             partition_cols=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
-            sample_freq="30 seconds",
+            freq="30 seconds",
             ts_col="event_ts",
-            sample_func="mean",
-            fill="back",
+            func="mean",
+            method="back",
         )
 
         assert_df_equality(expected_df, actual_df)
 
-    def test_forward_fill_interpolation(self):
         """Test forward fill interpolation."""
         self.buildTestingDataFrame()
 
@@ -270,10 +269,10 @@ class InterpolationTest(SparkTest):
             tsdf=self.input_tsdf,
             partition_cols=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
-            sample_freq="30 seconds",
+            freq="30 seconds",
             ts_col="event_ts",
-            sample_func="mean",
-            fill="forward",
+            func="mean",
+            method="forward",
         )
 
         assert_df_equality(expected_df, actual_df)
@@ -311,9 +310,9 @@ class InterpolationTest(SparkTest):
             tsdf=self.input_tsdf,
             partition_cols=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
-            sample_freq="30 seconds",
+            freq="30 seconds",
             ts_col="event_ts",
-            sample_func="mean",
-            fill="linear",
+            func="mean",
+            method="linear",
         )
         assert_df_equality(expected_df, actual_df)
