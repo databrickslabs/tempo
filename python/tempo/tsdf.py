@@ -108,8 +108,22 @@ class TSDF:
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
-    # splitting off the condition as we want different columns in the reduce if we are implementing the skew AS OF join
-    if tsPartitionVal is None:
+    if ignoreNulls is False:
+        if tsPartitionVal is not None:
+            raise ValueError("Disabling null skipping with a partition value is not supported yet.")
+        df = reduce(
+            lambda df, idx:
+                df.withColumn(
+                    right_cols[idx],
+                    f.last(
+                        f.when(f.col("rec_ind") == -1, f.struct(right_cols[idx])).otherwise(None),
+                        True  # ignore nulls because it indicates rows from the left side
+                    ).over(window_spec)),
+            range(len(right_cols)), self.df)
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.col(right_cols[idx])[right_cols[idx]]),
+                    range(len(right_cols)), df)
+    elif tsPartitionVal is None:
+        # splitting off the condition as we want different columns in the reduce if implementing the skew AS OF join
         df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)),
                      range(len(right_cols)), self.df)
     else:
