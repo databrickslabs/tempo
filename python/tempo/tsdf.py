@@ -98,7 +98,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls):
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -110,13 +110,27 @@ class TSDF:
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
-    # splitting off the condition as we want different columns in the reduce if we are implementing the skew AS OF join
-    if tsPartitionVal is None:
-        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
+    if ignoreNulls is False:
+        if tsPartitionVal is not None:
+            raise ValueError("Disabling null skipping with a partition value is not supported yet.")
+        df = reduce(
+            lambda df, idx:
+                df.withColumn(
+                    right_cols[idx],
+                    f.last(
+                        f.when(f.col("rec_ind") == -1, f.struct(right_cols[idx])).otherwise(None),
+                        True  # ignore nulls because it indicates rows from the left side
+                    ).over(window_spec)),
+            range(len(right_cols)), self.df)
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.col(right_cols[idx])[right_cols[idx]]),
+                    range(len(right_cols)), df)
+    elif tsPartitionVal is None:
+        # splitting off the condition as we want different columns in the reduce if implementing the skew AS OF join
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)),
                      range(len(right_cols)), self.df)
     else:
         df = reduce(
-            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)).withColumn(
+            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)).withColumn(
                 'non_null_ct' + right_cols[idx], f.count(right_cols[idx]).over(window_spec)),
             range(len(right_cols)), self.df)
 
@@ -277,7 +291,7 @@ class TSDF:
         return(full_smry)
         pass
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -289,6 +303,7 @@ class TSDF:
     :param right_prefix - optional prefix for right-hand data frame
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
+    :param skipNulls - whether to skip nulls when joining in values
     """
 
     if (tsPartitionVal is not None):
@@ -329,10 +344,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
