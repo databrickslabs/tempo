@@ -145,7 +145,7 @@ moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
-#### 5 - Interpolation
+#### 6 - Interpolation
 
 Interpolate a series to fill in missing values using a specified function. The following interpolation methods are supported: 
 
