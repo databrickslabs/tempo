@@ -524,17 +524,17 @@ class TSDF:
     function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
     will be filled based on the fill calculation.
 
-    :param target_cols: columns that should be interpolated
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
     :param func: function used to aggregate input
-    :param fill: function used to fill missing values e.g. linear, null, zero, back, forward
+    :param method: function used to fill missing values e.g. linear, null, zero, back, forward
+    :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
     :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
     :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
     :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
-    :return: TSDF object with interpolated data
+    :return: new TSDF object containing interpolated data
     """
 
-    # Set defaults for target columns, timestamp column and partition columns
+    # Set defaults for target columns, timestamp column and partition columns when not provided
     if ts_col is None:
       ts_col = self.ts_col
     if partition_cols is  None:
@@ -542,8 +542,9 @@ class TSDF:
     if target_cols is None: 
       prohibited_cols: List[str] = partition_cols + [ts_col]
       summarizable_types = ['int', 'bigint', 'float', 'double']
-      # filter columns to find summarizable columns
-      target_cols = [datatype[0] for datatype in self.df.dtypes if
+
+      # get summarizable find summarizable columns
+      target_cols:List[str] = [datatype[0] for datatype in self.df.dtypes if
                           ((datatype[1] in summarizable_types) and
                           (datatype[0].lower() not in prohibited_cols))]
 

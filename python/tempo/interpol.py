@@ -1,19 +1,8 @@
 import sys
-from datetime import datetime, time
-from typing import List, Tuple
+from typing import List
 
-from pyspark.sql import SparkSession as spark
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import (
-    col,
-    expr,
-    first,
-    lag,
-    last,
-    lead,
-    lit,
-    when,
-)
+from pyspark.sql.functions import col, expr, first, last, lead, lit, when
 from pyspark.sql.window import Window
 
 # Interpolation fill options
@@ -75,15 +64,11 @@ class Interpolation:
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
 
-        :param timestamp  - Original timestamp of the column to be interpolated.
-        :param next_timestamp   -  Forward filled timestamp of the column to be interpolated.
-        :param previous_timestamp  - Backfilled timestamp of the column to be interpolated.
-        :param next_value   -  Forward filled value of the column to be interpolated.
-        :param value   -  Original value of the column to be interpolated.
+        :param df  - prepared dataframe to be interpolated
+        :param ts_col  - timeseries column name
+        :param target_col  - column to be interpolated
         """
-        cols: List[str] = df.columns
-        cols.remove(target_col)
-        expr = f"""
+        interpolation_expr = f"""
         case when is_interpolated_{target_col} = false then {target_col}
             when {target_col} is null then 
             (next_null_{target_col} - previous_{target_col})
@@ -97,13 +82,16 @@ class Interpolation:
             + {target_col}
         end as {target_col}
         """
-        interpolated: DataFrame = df.selectExpr(*cols, expr)
+
+        # remove target column to avoid duplication during interpolation expression
+        cols: List[str] = df.columns
+        cols.remove(target_col)
+        interpolated: DataFrame = df.selectExpr(*cols, interpolation_expr)
         # Preserve column order
         return interpolated.select(*df.columns)
 
     def __interpolate_column(
         self,
-        freq: str,
         series: DataFrame,
         ts_col: str,
         target_col: str,
@@ -114,20 +102,20 @@ class Interpolation:
 
         :param series  - input DataFrame
         :param ts_col   - timestamp column name
-        :param target_col   - numeric column to interpolate
-        :param fill   - interpolation function to fill missing values
+        :param target_col   - column to interpolate
+        :param method   - interpolation function to fill missing values
         """
-
         output_df: DataFrame = series
 
-        expr_flag = f"""
+        # create new column for if target column is interpolated
+        flag_expr = f"""
         CASE WHEN {target_col} is null and is_ts_interpolated = false THEN true
              WHEN is_ts_interpolated = true THEN true
         ELSE false
         END AS is_interpolated_{target_col}
         """
         output_df = output_df.withColumn(
-            f"is_interpolated_{target_col}", expr(expr_flag)
+            f"is_interpolated_{target_col}", expr(flag_expr)
         )
 
         # Handle zero fill
@@ -157,10 +145,11 @@ class Interpolation:
                     col(f"previous_{target_col}"),
                 ).otherwise(col(target_col)),
             )
-        # Handle backwards fill-  when target column is null use current value, otherwise use next value.
+        # Handle backwards fill 
         if method == "back":
             output_df = output_df.withColumn(
                 target_col,
+                # Handle case when subsequent value is null
                 when(
                     (col(f"is_interpolated_{target_col}") == True)
                     & (
@@ -169,6 +158,7 @@ class Interpolation:
                     ),
                     col(f"next_null_{target_col}"),
                 ).otherwise(
+                    # Handle standard backwards fill
                     when(
                         col(f"is_interpolated_{target_col}") == True,
                         col(f"next_{target_col}"),
@@ -186,17 +176,32 @@ class Interpolation:
 
         return output_df
 
-    def generate_time_series_fill(
+    def __generate_time_series_fill(
         self, df: DataFrame, partition_cols: List[str], ts_col: str
     ) -> DataFrame:
+        """
+        Create additional timeseries columns for previous and next timestamps
+
+        :param df  - input DataFrame
+        :param partition_cols   - partition column names
+        :param ts_col   - timestamp column name
+        """
         return df.withColumn("previous_timestamp", col(ts_col),).withColumn(
             "next_timestamp",
             lead(df[ts_col]).over(Window.partitionBy(*partition_cols).orderBy(ts_col)),
         )
 
-    def generate_column_time_fill(
+    def __generate_column_time_fill(
         self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
     ) -> DataFrame:
+        """
+        Create timeseries columns for previous and next timestamps for a specific target column
+
+        :param df  - input DataFrame
+        :param partition_cols   - partition column names
+        :param ts_col   - timestamp column name
+        :param target_col   - target column name
+        """
         return df.withColumn(
             f"previous_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
@@ -213,9 +218,17 @@ class Interpolation:
             ),
         )
 
-    def generate_target_fill(
+    def __generate_target_fill(
         self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
     ) -> DataFrame:
+        """
+        Create columns for previous and next value for a specific target column
+
+        :param df  - input DataFrame
+        :param partition_cols   - partition column names
+        :param ts_col   - timestamp column name
+        :param target_col   - target column name
+        """
         return (
             df.withColumn(
                 f"previous_{target_col}",
@@ -225,6 +238,7 @@ class Interpolation:
                     .rowsBetween(-sys.maxsize, 0)
                 ),
             )
+            # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
                 first(df[target_col], ignorenulls=True).over(
@@ -253,18 +267,19 @@ class Interpolation:
         show_interpolated: bool,
     ) -> DataFrame:
         """
-        Apply interpolation to TSDF.
+        Apply interpolation.
 
         :param tsdf  - input TSDF
-        :param target_cols   - numeric columns to interpolate
-        :param freq  - frequency at which to sample
-        :param func   - aggregate function for sampling
-        :param fill   - interpolation function to fill missing values
         :param ts_col   - timestamp column name
+        :param target_cols   - numeric columns to interpolate
         :param partition_cols  - partition columns names
+        :param freq  - frequency at which to sample
+        :param func   - aggregate function used for sampling to the specified interval
+        :param method   - interpolation function usded to fill missing values
         :param show_interpolated  - show if row is interpolated?
+        :return DataFrame 
         """
-        # Validate parameters
+        # Validate input parameters
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
 
@@ -274,22 +289,23 @@ class Interpolation:
         ).df
 
         # Fill timeseries for nearest values
-        time_series_filled = self.generate_time_series_fill(
+        time_series_filled = self.__generate_time_series_fill(
             resampled_input, partition_cols, ts_col
         )
 
         # Generate surrogate timestamps for each target column
+        # This is required if multuple columns are being interpolated and may contain nulls
         add_column_time: DataFrame = time_series_filled
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"event_ts_{column}",
                 when(col(column).isNull(), None).otherwise(col(ts_col)),
             )
-            add_column_time = self.generate_column_time_fill(
+            add_column_time = self.__generate_column_time_fill(
                 add_column_time, partition_cols, ts_col, column
             )
 
-        # Handle Right Side Edge
+        # Handle edge case if last value (latest) is null
         edge_filled = add_column_time.withColumn(
             "next_timestamp",
             when(
@@ -300,7 +316,7 @@ class Interpolation:
         # Fill target column for nearest values
         target_column_filled = edge_filled
         for column in target_cols:
-            target_column_filled = self.generate_target_fill(
+            target_column_filled = self.__generate_target_fill(
                 target_column_filled, partition_cols, ts_col, column
             )
 
@@ -340,13 +356,16 @@ class Interpolation:
                 f"{ts_col}_{target_col}",
             )
 
+        # Remove non-required columns
         output: DataFrame = interpolated_result.drop(
             "previous_timestamp", "next_timestamp"
         )
 
+        # Hide is_interpolated columns based on flag
         if show_interpolated is False:
             interpolated_col_names = ["is_ts_interpolated"]
             for column in target_cols:
                 interpolated_col_names.append(f"is_interpolated_{column}")
             output = output.drop(*interpolated_col_names)
+
         return output
