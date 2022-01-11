@@ -1,7 +1,7 @@
 name: build
 on:
   push:
-    branches: [master, scala_refactor]
+    branches: [master, scala_refactor,troubleshooting]
 jobs:
   run:
     runs-on: ${{ matrix.os }}
@@ -25,8 +25,7 @@ jobs:
       run: |
         pip install -r requirements.txt
         pip install coverage
-        coverage run -m unittest 
+        coverage run -m unittest discover -s tests -p '*_tests.py'
         coverage xml
-
     - name: Publish test coverage
       uses: codecov/codecov-action@v1
