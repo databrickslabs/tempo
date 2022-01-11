@@ -145,7 +145,67 @@ moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
+#### 5 - Interpolation
 
+Interpolate a series to fill in missing values using a specified function. The following interpolation methods are supported: 
+
+- Zero Fill : `zero`
+- Null Fill: `null`
+- Backwards Fill: `back`
+- Forwards Fill: `forward`
+- Linear Fill: `linear`
+
+This method automatically first re-samples the input dataset into a given frequency, then performs interpolation on the sampled time-series dataset
+
+Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day. For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min', 'max', 'mean'. 
+
+`NULL` values after re-sampling are treated the same as missing values. Ability to specify `NULL` as a valid value is currently not supported.
+
+Valid columns data types for interpolation are: `["int", "bigint", "float", "double"]`.
+
+```python
+# Create instance of the TSDF class
+input_tsdf = TSDF(
+            input_df,
+            partition_cols=["partition_a", "partition_b"],
+            ts_col="event_ts",
+        )
+
+# What the following interpolation method does is:
+# 1. Interpolate columnA and columnBN into 30 second intervals, 
+# 2. Aggregate data within existing intervals using mean, 
+# 3. Calculate and fill in any missing or null values using linear fill
+# Note: If target_cols is not specified, by default all valid columns will be interpolated
+interpolated_tsdf = input_tsdf.interpolate(
+    freq="30 seconds",
+    func="mean",
+    method="linear",
+    target_cols= ["columnA","columnB"]
+)
+
+# Alternatively it's also possible to override default TSDF parameters.
+# e.g. partition_cols, ts_col a
+interpolated_tsdf = input_tsdf.interpolate(
+    partition_cols=["partition_c"],
+    ts_col="other_event_ts"
+    freq="30 seconds",
+    func="mean",
+    method="linear",
+    
+)
+
+# The show_interpolated flag can be set to `True` to show additional boolean columns 
+# for a given row that shows if a column has been interpolated.
+interpolated_tsdf = input_tsdf.interpolate(
+    partition_cols=["partition_c"],
+    ts_col="other_event_ts"
+    freq="30 seconds",
+    func="mean",
+    method="linear",
+    target_cols= ["columnA","columnB"],
+    show_interpolated=True,
+)
+```
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.
