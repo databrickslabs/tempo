@@ -162,7 +162,6 @@ Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days
 `NULL` values after re-sampling are treated the same as missing values. Ability to specify `NULL` as a valid value is currently not supported.
 
 Valid columns data types for interpolation are: `["int", "bigint", "float", "double"]`.
-
 ```python
 # Create instance of the TSDF class
 input_tsdf = TSDF(
@@ -179,8 +178,9 @@ input_tsdf = TSDF(
 interpolated_tsdf = input_tsdf.interpolate(
     freq="30 seconds",
     func="mean",
-    method="linear",
-    target_cols= ["columnA","columnB"]
+    target_cols= ["columnA","columnB"],
+    method="linear"
+
 )
 
 # Alternatively it's also possible to override default TSDF parameters.
@@ -190,8 +190,8 @@ interpolated_tsdf = input_tsdf.interpolate(
     ts_col="other_event_ts"
     freq="30 seconds",
     func="mean",
-    method="linear",
-    
+    target_cols= ["columnA","columnB"],
+    method="linear"
 )
 
 # The show_interpolated flag can be set to `True` to show additional boolean columns 
