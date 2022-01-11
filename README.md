@@ -11,6 +11,7 @@ The purpose of this project is to make time series manipulation with Spark simpl
 [![image](https://github.com/databrickslabs/tempo/workflows/build/badge.svg)](https://github.com/databrickslabs/tempo/actions?query=workflow%3Abuild)
 [![codecov](https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg)](https://codecov.io/gh/databrickslabs/tempo)
 [![Downloads](https://pepy.tech/badge/dbl-tempo/month)](https://pepy.tech/project/dbl-tempo)
+[![PyPI version](https://badge.fury.io/py/dbl-tempo.svg)](https://badge.fury.io/py/dbl-tempo)
 
 ## Using the Project
 
@@ -165,7 +166,22 @@ moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
-#### 6 - Interpolation
+
+#### 6 - Fourier Transform
+
+Method for transforming the time series to frequency domain based on the distinguished data column 
+
+Parameters: 
+
+timestep = timestep value to be used for getting the frequency scale
+
+valueCol = name of the time domain data column which will be transformed
+
+```python
+ft_df = tsdf.fourier_transform(timestep=1, valueCol="data_col")
+display(ft_df)
+```
+#### 7 - Interpolation
 
 Interpolate a series to fill in missing values using a specified function. The following interpolation methods are supported: 
 

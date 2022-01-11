@@ -1,12 +1,19 @@
+from pyspark.sql import SparkSession
+
 import logging
 from functools import reduce
 from typing import List
 
+import numpy as np
 import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
+from scipy.fft import fft, fftfreq
+
+import tempo.io as tio
+import tempo.resample as rs
+from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 import tempo.io as tio
 import tempo.resample as rs
@@ -76,12 +83,12 @@ class TSDF:
     Add prefix to all specified columns.
     """
 
-    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix,col_list[idx]])),
+    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix, col_list[idx]])),
                 range(len(col_list)), self.df)
 
     ts_col = '_'.join([prefix, self.ts_col])
     seq_col = '_'.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
-    return TSDF(df, ts_col, self.partitionCols, sequence_col = seq_col)
+    return TSDF(df, ts_col, self.partitionCols, sequence_col=seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
     """
@@ -291,7 +298,7 @@ class TSDF:
         return(full_smry)
         pass
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, override_legacy=False):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -306,6 +313,44 @@ class TSDF:
     :param skipNulls - whether to skip nulls when joining in values
     """
 
+        # first block of logic checks whether a standard range join will suffice
+    left_df = self.df
+    right_df = right_tsdf.df
+
+    spark = (SparkSession.builder.appName("myapp").getOrCreate())
+
+    left_plan = left_df._jdf.queryExecution().logical()
+    left_bytes = spark._jsparkSession.sessionState().executePlan(left_plan).optimizedPlan().stats().sizeInBytes()
+    right_plan = right_df._jdf.queryExecution().logical()
+    right_bytes = spark._jsparkSession.sessionState().executePlan(right_plan).optimizedPlan().stats().sizeInBytes()
+
+    # choose 30MB as the cutoff for the broadcast
+    bytes_threshold = 30*1024*1024
+    if (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold) | override_legacy:
+      spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
+      partition_cols = right_tsdf.partitionCols
+      left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
+      right_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols)))
+      new_left_cols = left_cols
+      if left_prefix:
+         left_prefix += '_'
+      else:
+         left_prefix = ''
+
+      if right_prefix != '':
+          right_prefix+= '_'
+
+      w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
+      new_left_ts_col = left_prefix + self.ts_col
+      new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
+      new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
+      quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + right_tsdf.ts_col).over(w))
+      quotes_df_w_lag_tsdf = TSDF(quotes_df_w_lag, partition_cols=right_tsdf.partitionCols, ts_col= right_prefix + right_tsdf.ts_col)
+      left_df = left_df.select(*new_left_cols)
+      res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[new_left_ts_col].between(f.col(right_prefix + right_tsdf.ts_col), f.coalesce(f.col('lead_' + right_tsdf.ts_col), f.lit('2099-01-01').cast("timestamp")))).drop('lead_' + right_tsdf.ts_col)
+      return(TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col))
+    # end of block checking to see if standard Spark SQL join will work
+
     if (tsPartitionVal is not None):
       logger.warning("You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
 
@@ -316,6 +361,10 @@ class TSDF:
     left_df = self.df
     right_df = right_tsdf.df
 
+    if left_prefix:
+        left_prefix = left_prefix + '_'
+    if right_prefix:
+        right_prefix = right_prefix + '_'
 
     # validate timestamp datatypes match
     self.__validateTsColMatch(right_tsdf)
@@ -583,3 +632,79 @@ class TSDF:
       bars = bars.select(sel_and_sort)
 
       return(TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
+
+  def fourier_transform(self, timestep, valueCol):
+    """
+    Function to fourier transform the time series to its frequency domain representation.
+    :param timestep: timestep value to be used for getting the frequency scale
+    :param valueCol: name of the time domain data column which will be transformed
+    """
+
+    def tempo_fourier_util(pdf):
+        """
+        This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
+        This method is meant to be called from Tempo TSDF as a pandas function API on Spark
+        """
+        select_cols = list(pdf.columns)
+        pdf.sort_values(by=['tpoints'], inplace=True, ascending=True)
+        y = np.array(pdf['tdval'])
+        tran = fft(y)
+        r = tran.real
+        i = tran.imag
+        pdf['ft_real'] = r
+        pdf['ft_imag'] = i
+        N = tran.shape
+        xf = fftfreq(N[0], timestep)
+        pdf['freq'] = xf
+        return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
+
+    valueCol = self.__validated_column(self.df, valueCol)
+    data = self.df
+    if self.sequence_col:
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("tdval", "tpoints")
+    else:
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("tdval", "tpoints")
+
+    return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)

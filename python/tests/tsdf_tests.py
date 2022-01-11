@@ -177,6 +177,12 @@ class AsOfJoinTest(SparkTest):
                                      StructField("right_event_ts", StringType()),
                                      StructField("right_bid_pr", FloatType()),
                                      StructField("right_ask_pr", FloatType())])
+        expectedSchemaNoRightPrefix = StructType([StructField("symbol", StringType()),
+                                     StructField("left_event_ts", StringType()),
+                                     StructField("left_trade_pr", FloatType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("bid_pr", FloatType()),
+                                     StructField("ask_pr", FloatType())])
 
         left_data = [["S1", "2020-08-01 00:00:10", 349.21],
                      ["S1", "2020-08-01 00:01:12", 351.32],
@@ -204,74 +210,19 @@ class AsOfJoinTest(SparkTest):
         tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
 
         joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right").df
+        non_prefix_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix = '').df
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual(joined_df, dfExpected)
 
-    def test_asof_join_skip_nulls_disabled(self):
-        """AS-OF Join with skip nulls disabled"""
-        leftSchema = StructType([StructField("symbol", StringType()),
-                                 StructField("event_ts", StringType()),
-                                 StructField("trade_pr", FloatType())])
+        noRightPrefixdfExpected = self.buildTestDF(expectedSchemaNoRightPrefix, expected_data, ["left_event_ts", "event_ts"])
+        self.assertDataFramesEqual(non_prefix_joined_df, noRightPrefixdfExpected)
 
-        rightSchema = StructType([StructField("symbol", StringType()),
-                                  StructField("event_ts", StringType()),
-                                  StructField("bid_pr", FloatType()),
-                                  StructField("ask_pr", FloatType())])
+        spark_sql_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right", override_legacy=True).df
+        spark_sql_joined_df.show(10, False)
+        dfExpected.show(10, False)
+        self.assertDataFramesEqual(spark_sql_joined_df, dfExpected)
 
-        expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("left_event_ts", StringType()),
-                                     StructField("left_trade_pr", FloatType()),
-                                     StructField("right_event_ts", StringType()),
-                                     StructField("right_bid_pr", FloatType()),
-                                     StructField("right_ask_pr", FloatType())])
-
-        left_data = [["S1", "2020-08-01 00:00:10", 349.21],
-                     ["S1", "2020-08-01 00:01:12", 351.32],
-                     ["S1", "2020-09-01 00:02:10", 361.1],
-                     ["S1", "2020-09-01 00:19:12", 362.1]]
-
-        right_data = [["S1", "2020-08-01 00:00:01", 345.11, 351.12],
-                      ["S1", "2020-08-01 00:01:05", None, 353.13],
-                      ["S1", "2020-09-01 00:02:01", None, None],
-                      ["S1", "2020-09-01 00:15:01", 359.21, 365.31]]
-
-        expected_data_skip_nulls = [
-            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
-            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 345.11, 353.13],
-            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 345.11, 353.13],
-            ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31]]
-
-        expected_data_skip_nulls_disabled = [
-            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
-            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", None, 353.13],
-            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", None, None],
-            ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31]]
-
-        # Construct dataframes
-        dfLeft = self.buildTestDF(leftSchema, left_data)
-        dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpectedSkipNulls = self.buildTestDF(
-            expectedSchema, expected_data_skip_nulls, ["left_event_ts", "right_event_ts"]
-        )
-        dfExpectedSkipNullsDisabled = self.buildTestDF(
-            expectedSchema, expected_data_skip_nulls_disabled, ["left_event_ts", "right_event_ts"]
-        )
-
-        tsdf_left = TSDF(dfLeft, ts_col="event_ts", partition_cols=["symbol"])
-        tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
-
-        # perform the join with skip nulls enabled (default)
-        joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right").df
-
-        # joined dataframe should equal the expected dataframe with nulls skipped
-        self.assertDataFramesEqual(joined_df, dfExpectedSkipNulls)
-
-        # perform the join with skip nulls disabled
-        joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right", skipNulls=False).df
-
-        # joined dataframe should equal the expected dataframe without nulls skipped
-        self.assertDataFramesEqual(joined_df, dfExpectedSkipNullsDisabled)
 
     def test_sequence_number_sort(self):
         """Skew AS-OF Join with Partition Window Test"""
@@ -377,6 +328,51 @@ class AsOfJoinTest(SparkTest):
                                        tsPartitionVal=10, fraction=0.1).df
 
         self.assertDataFramesEqual(joined_df, dfExpected)
+
+
+class FourierTransformTest(SparkTest):
+
+    def test_fourier_transform(self):
+        """Test of fourier transform functionality in TSDF objects"""
+        schema = StructType([StructField("group",StringType()),
+                             StructField("time",LongType()),
+                             StructField("val",DoubleType())])
+
+        expectedSchema = StructType([StructField("group",StringType()),
+                                     StructField("time",LongType()),
+                                     StructField("val",DoubleType()),
+                                     StructField("freq",DoubleType()),
+                                     StructField("ft_real",DoubleType()),
+                                     StructField("ft_imag",DoubleType())])
+
+        data = [["Emissions", 1949, 2206.690829],
+                ["Emissions", 1950, 2382.046176],
+                ["Emissions", 1951, 2526.687327],
+                ["Emissions", 1952, 2473.373964],
+                ["WindGen", 1980, 0.0],
+                ["WindGen", 1981, 0.0],
+                ["WindGen", 1982, 0.0],
+                ["WindGen", 1983, 0.029667962]]
+
+        expected_data = [["Emissions", 1949, 2206.690829, 0.0, 9588.798296, -0.0],
+                         ["Emissions", 1950, 2382.046176, 0.25, -319.996498, 91.32778800000006],
+                         ["Emissions", 1951, 2526.687327, -0.5, -122.0419839999995, -0.0],
+                         ["Emissions", 1952, 2473.373964, -0.25, -319.996498, -91.32778800000006],
+                         ["WindGen", 1980, 0.0, 0.0, 0.029667962, -0.0],
+                         ["WindGen", 1981, 0.0, 0.25, 0.0, 0.029667962],
+                         ["WindGen", 1982, 0.0, -0.5, -0.029667962, -0.0],
+                         ["WindGen", 1983, 0.029667962, -0.25, 0.0, -0.029667962]]
+
+        # construct dataframes
+        df = self.buildTestDF(schema, data, ts_cols=['time'])
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ts_cols=['time'])
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, ts_col="time", partition_cols=["group"])
+        result_tsdf = tsdf_left.fourier_transform(1, 'val')
+
+        # should be equal to the expected dataframe
+        self.assertDataFramesEqual(result_tsdf.df, dfExpected)
 
 
 class RangeStatsTest(SparkTest):
