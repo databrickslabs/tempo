@@ -1,7 +1,7 @@
 name: build
 on:
   push:
-    branches: [master, scala_refactor,troubleshooting]
+    branches: [master, scala_refactor]
 jobs:
   run:
     runs-on: ${{ matrix.os }}
