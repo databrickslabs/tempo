@@ -8,7 +8,9 @@
 ## Project Description
 The purpose of this project is to make time series manipulation with Spark simpler. Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths, featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
 
+[![image](https://github.com/databrickslabs/tempo/workflows/build/badge.svg)](https://github.com/databrickslabs/tempo/actions?query=workflow%3Abuild)
 [![codecov](https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg)](https://codecov.io/gh/databrickslabs/tempo)
+[![Downloads](https://pepy.tech/badge/dbl-tempo/month)](https://pepy.tech/project/dbl-tempo)
 
 ## Using the Project
 
@@ -197,8 +199,9 @@ input_tsdf = TSDF(
 interpolated_tsdf = input_tsdf.interpolate(
     freq="30 seconds",
     func="mean",
-    method="linear",
-    target_cols= ["columnA","columnB"]
+    target_cols= ["columnA","columnB"],
+    method="linear"
+
 )
 
 # Alternatively it's also possible to override default TSDF parameters.
@@ -208,8 +211,8 @@ interpolated_tsdf = input_tsdf.interpolate(
     ts_col="other_event_ts"
     freq="30 seconds",
     func="mean",
-    method="linear",
-    
+    target_cols= ["columnA","columnB"],
+    method="linear"
 )
 
 # The show_interpolated flag can be set to `True` to show additional boolean columns 
