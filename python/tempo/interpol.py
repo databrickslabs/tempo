@@ -344,7 +344,7 @@ class Interpolation:
         for target_col in target_cols:
             # Interpolate target columns
             interpolated_result: DataFrame = self.__interpolate_column(
-                freq, interpolated_result, ts_col, target_col, method
+                interpolated_result, ts_col, target_col, method
             )
 
             interpolated_result = interpolated_result.drop(
