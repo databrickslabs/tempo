@@ -1,5 +1,3 @@
-from pyspark.sql import SparkSession
-
 import logging
 from functools import reduce
 from typing import List
@@ -8,12 +6,9 @@ import numpy as np
 import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
+from pyspark.sql import SparkSession
 from pyspark.sql.window import Window
 from scipy.fft import fft, fftfreq
-
-import tempo.io as tio
-import tempo.resample as rs
-from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 import tempo.io as tio
 import tempo.resample as rs
