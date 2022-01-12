@@ -8,7 +8,6 @@ from pyspark.sql.types import *
 from tempo.tsdf import TSDF
 from tempo.utils import *
 
-
 class SparkTest(unittest.TestCase):
     ##
     ## Fixtures
