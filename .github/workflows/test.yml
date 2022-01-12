@@ -20,7 +20,7 @@ jobs:
     - name: Set Spark env
       run: |
         export SPARK_LOCAL_IP=127.0.0.1
-        export SPARK_SUBMIT_OPTS="--illegal-access=permit -Dio.netty.tryReflectionSetAccessible=true "
+        export SPARK_SUBMIT_OPTS="--illegal-access=permit -Dio.netty.tryReflectionSetAccessible=true"
     - name: Generate coverage report
       working-directory: ./python
       run: |
