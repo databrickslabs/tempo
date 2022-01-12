@@ -76,12 +76,19 @@ class TSDF:
     """
     Add prefix to all specified columns.
     """
+    if prefix != '':
+        prefix = prefix + '_'
 
-    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix, col_list[idx]])),
+    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], ''.join([prefix, col_list[idx]])),
                 range(len(col_list)), self.df)
 
-    ts_col = '_'.join([prefix, self.ts_col])
-    seq_col = '_'.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
+
+    if prefix == '':
+      ts_col = self.ts_col
+      seq_col = self.sequence_col if self.sequence_col else self.sequence_col
+    else:
+      ts_col = ''.join([prefix, self.ts_col])
+      seq_col = ''.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
     return TSDF(df, ts_col, self.partitionCols, sequence_col=seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
@@ -99,7 +106,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls):
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -111,13 +118,27 @@ class TSDF:
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
-    # splitting off the condition as we want different columns in the reduce if we are implementing the skew AS OF join
-    if tsPartitionVal is None:
-        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
+    if ignoreNulls is False:
+        if tsPartitionVal is not None:
+            raise ValueError("Disabling null skipping with a partition value is not supported yet.")
+        df = reduce(
+            lambda df, idx:
+                df.withColumn(
+                    right_cols[idx],
+                    f.last(
+                        f.when(f.col("rec_ind") == -1, f.struct(right_cols[idx])).otherwise(None),
+                        True  # ignore nulls because it indicates rows from the left side
+                    ).over(window_spec)),
+            range(len(right_cols)), self.df)
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.col(right_cols[idx])[right_cols[idx]]),
+                    range(len(right_cols)), df)
+    elif tsPartitionVal is None:
+        # splitting off the condition as we want different columns in the reduce if implementing the skew AS OF join
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)),
                      range(len(right_cols)), self.df)
     else:
         df = reduce(
-            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)).withColumn(
+            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)).withColumn(
                 'non_null_ct' + right_cols[idx], f.count(right_cols[idx]).over(window_spec)),
             range(len(right_cols)), self.df)
 
@@ -176,9 +197,9 @@ class TSDF:
 
     Examples
     --------
-    >>> tsdf.select('*').collect()
+    tsdf.select('*').collect()
     [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
-    >>> tsdf.select('name', 'age').collect()
+    tsdf.select('name', 'age').collect()
     [Row(name='Alice', age=2), Row(name='Bob', age=5)]
     
     """
@@ -278,7 +299,8 @@ class TSDF:
         return(full_smry)
         pass
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, override_legacy=False):
+
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -290,6 +312,7 @@ class TSDF:
     :param right_prefix - optional prefix for right-hand data frame
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
+    :param skipNulls - whether to skip nulls when joining in values
     """
 
         # first block of logic checks whether a standard range join will suffice
@@ -305,19 +328,19 @@ class TSDF:
 
     # choose 30MB as the cutoff for the broadcast
     bytes_threshold = 30*1024*1024
-    if (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold) | override_legacy:
+    if (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold):
       spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
       partition_cols = right_tsdf.partitionCols
       left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
       right_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols)))
       new_left_cols = left_cols
-      if left_prefix:
-         left_prefix += '_'
-      else:
-         left_prefix = ''
+      #if left_prefix:
+      #   left_prefix += '_'
+      #else:
+      #   left_prefix = ''
 
-      if right_prefix != '':
-          right_prefix+= '_'
+      #if right_prefix != '':
+      #    right_prefix+= '_'
 
       w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
       new_left_ts_col = left_prefix + self.ts_col
@@ -340,10 +363,10 @@ class TSDF:
     left_df = self.df
     right_df = right_tsdf.df
 
-    if left_prefix:
-        left_prefix = left_prefix + '_'
-    if right_prefix:
-        right_prefix = right_prefix + '_'
+    #if left_prefix:
+    #    left_prefix = left_prefix + '_'
+    #if right_prefix:
+    #    right_prefix = right_prefix + '_'
 
     # validate timestamp datatypes match
     self.__validateTsColMatch(right_tsdf)
@@ -372,10 +395,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
