@@ -16,7 +16,8 @@ setuptools.setup(
     packages=find_packages(where=".", include=["tempo"]),
     install_requires=[
      'ipython',
-     'pandas'
+     'pandas',
+     'scipy'
     ],
     extras_require=dict(tests=["pytest"]),
     classifiers=[

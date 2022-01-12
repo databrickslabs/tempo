@@ -196,9 +196,9 @@ class TSDF:
 
     Examples
     --------
-    >>> tsdf.select('*').collect()
+    tsdf.select('*').collect()
     [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
-    >>> tsdf.select('name', 'age').collect()
+    tsdf.select('name', 'age').collect()
     [Row(name='Alice', age=2), Row(name='Bob', age=5)]
     
     """
