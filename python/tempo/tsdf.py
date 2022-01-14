@@ -593,7 +593,7 @@ class TSDF:
 
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
     :param func: function used to aggregate input
-    :param method: function used to fill missing values e.g. linear, null, zero, back, forward
+    :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
     :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
     :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
     :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object

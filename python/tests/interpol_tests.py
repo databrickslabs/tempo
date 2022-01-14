@@ -263,7 +263,7 @@ class InterpolationUnitTest(InterpolationTest):
             freq="30 seconds",
             ts_col="event_ts",
             func="mean",
-            method="back",
+            method="bfill",
             show_interpolated=True,
         )
 
@@ -303,7 +303,7 @@ class InterpolationUnitTest(InterpolationTest):
             freq="30 seconds",
             ts_col="event_ts",
             func="mean",
-            method="forward",
+            method="ffill",
             show_interpolated=True,
         )
 

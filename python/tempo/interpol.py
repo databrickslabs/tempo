@@ -6,7 +6,7 @@ from pyspark.sql.functions import col, expr, first, last, lead, lit, when
 from pyspark.sql.window import Window
 
 # Interpolation fill options
-method_options = ["zero", "null", "back", "forward", "linear"]
+method_options = ["zero", "null", "bfill", "ffill", "linear"]
 supported_target_col_types = ["int", "bigint", "float", "double"]
 
 
@@ -15,7 +15,7 @@ class Interpolation:
         """
         Validate if the fill provided is within the allowed list of values.
 
-        :param fill - Fill type e.g. "zero", "null", "back", "forward", "linear"
+        :param fill - Fill type e.g. "zero", "null", "bfill", "ffill", "linear"
         """
         if method not in method_options:
             raise ValueError(
@@ -137,7 +137,7 @@ class Interpolation:
             )
 
         # Handle forward fill
-        if method == "forward":
+        if method == "ffill":
             output_df = output_df.withColumn(
                 target_col,
                 when(
@@ -146,7 +146,7 @@ class Interpolation:
                 ).otherwise(col(target_col)),
             )
         # Handle backwards fill 
-        if method == "back":
+        if method == "bfill":
             output_df = output_df.withColumn(
                 target_col,
                 # Handle case when subsequent value is null
