@@ -7,6 +7,7 @@ import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
 from scipy.fft import fft, fftfreq
 
@@ -583,7 +584,7 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    enriched_df = rs.aggregate(self, freq, func, metricCols, prefix, fill)
+    enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
 
   def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
@@ -617,7 +618,7 @@ class TSDF:
 
     interpolate_service: Interpolation = Interpolation(is_resampled=False)
     tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
-    interpolated_df = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
      
     return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
