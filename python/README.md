@@ -188,8 +188,8 @@ Interpolate a series to fill in missing values using a specified function. The f
 
 - Zero Fill : `zero`
 - Null Fill: `null`
-- Backwards Fill: `back`
-- Forwards Fill: `forward`
+- Backwards Fill: `bfill`
+- Forwards Fill: `ffill`
 - Linear Fill: `linear`
 
 This method automatically first re-samples the input dataset into a given frequency, then performs interpolation on the sampled time-series dataset
