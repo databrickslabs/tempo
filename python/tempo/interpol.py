@@ -11,6 +11,9 @@ supported_target_col_types = ["int", "bigint", "float", "double"]
 
 
 class Interpolation:
+    def __init__(self, is_resampled: bool):
+        self.is_resampled = is_resampled
+
     def __validate_fill(self, method: str):
         """
         Validate if the fill provided is within the allowed list of values.
@@ -145,7 +148,7 @@ class Interpolation:
                     col(f"previous_{target_col}"),
                 ).otherwise(col(target_col)),
             )
-        # Handle backwards fill 
+        # Handle backwards fill
         if method == "bfill":
             output_df = output_df.withColumn(
                 target_col,
@@ -246,8 +249,7 @@ class Interpolation:
                     .orderBy(ts_col)
                     .rowsBetween(0, sys.maxsize)
                 ),
-            )
-            .withColumn(
+            ).withColumn(
                 f"next_{target_col}",
                 lead(df[target_col]).over(
                     Window.partitionBy(*partition_cols).orderBy(ts_col)
@@ -277,20 +279,25 @@ class Interpolation:
         :param func   - aggregate function used for sampling to the specified interval
         :param method   - interpolation function usded to fill missing values
         :param show_interpolated  - show if row is interpolated?
-        :return DataFrame 
+        :return DataFrame
         """
         # Validate input parameters
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
 
-        # Resample and Normalize Input
-        resampled_input: DataFrame = tsdf.resample(
-            freq=freq, func=func, metricCols=target_cols
-        ).df
+        # Only select required columns for interpolation
+        input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
+        sampled_input: DataFrame = tsdf.df.select(*input_cols)
 
+        if self.is_resampled is False:
+            # Resample and Normalize Input
+            sampled_input: DataFrame = tsdf.resample(
+                freq=freq, func=func, metricCols=target_cols
+            ).df
+ 
         # Fill timeseries for nearest values
         time_series_filled = self.__generate_time_series_fill(
-            resampled_input, partition_cols, ts_col
+            sampled_input, partition_cols, ts_col
         )
 
         # Generate surrogate timestamps for each target column

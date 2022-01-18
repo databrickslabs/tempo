@@ -583,8 +583,8 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
-    return(enriched_tsdf)
+    enriched_df = rs.aggregate(self, freq, func, metricCols, prefix, fill)
+    return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
 
   def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
     """
@@ -615,9 +615,9 @@ class TSDF:
                           ((datatype[1] in summarizable_types) and
                           (datatype[0].lower() not in prohibited_cols))]
 
-    interpolate_service: Interpolation = Interpolation()
+    interpolate_service: Interpolation = Interpolation(is_resampled=False)
     tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
-    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
+    interpolated_df = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
      
     return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
@@ -711,3 +711,46 @@ class TSDF:
             result = result.drop("tdval", "tpoints")
 
     return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+
+
+class _ResampledTSDF(TSDF):
+    def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None, freq = None, func = None):
+        super(_ResampledTSDF, self).__init__(df, ts_col, partition_cols, sequence_col)
+        self.__freq = freq
+        self.__func = func
+
+    def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False):
+      """
+      function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
+      will be filled based on the fill calculation.
+
+      :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+      :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+      :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+      :return: new TSDF object containing interpolated data
+      """
+
+      # Set defaults for target columns, timestamp column and partition columns when not provided
+      if target_cols is None: 
+        prohibited_cols: List[str] = self.partitionCols + [self.ts_col]
+        summarizable_types = ['int', 'bigint', 'float', 'double']
+
+        # get summarizable find summarizable columns
+        target_cols:List[str] = [datatype[0] for datatype in self.df.dtypes if
+                            ((datatype[1] in summarizable_types) and
+                            (datatype[0].lower() not in prohibited_cols))]
+
+      interpolate_service: Interpolation = Interpolation(is_resampled=True)
+      tsdf_input = TSDF(self.df, ts_col = self.ts_col, partition_cols=self.partitionCols)
+      interpolated_df = interpolate_service.interpolate(
+          tsdf=tsdf_input,
+          ts_col=self.ts_col,
+          partition_cols=self.partitionCols,
+          target_cols=target_cols,
+          freq=self.__freq,
+          func=self.__func,
+          method=method,
+          show_interpolated=show_interpolated,
+      )
+      
+      return TSDF(interpolated_df, ts_col = self.ts_col, partition_cols=self.partitionCols)
