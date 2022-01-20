@@ -192,13 +192,16 @@ Interpolate a series to fill in missing values using a specified function. The f
 - Forwards Fill: `ffill`
 - Linear Fill: `linear`
 
-This method automatically first re-samples the input dataset into a given frequency, then performs interpolation on the sampled time-series dataset
+The `interpolate` method can either be use in conjunction with `resample` or independently.
+
+If `interpolate` is not chained after a `resample` operation, the method automatically first re-samples the input dataset into a given frequency, then performs interpolation on the sampled time-series dataset.
 
 Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day. For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min', 'max', 'mean'. 
 
 `NULL` values after re-sampling are treated the same as missing values. Ability to specify `NULL` as a valid value is currently not supported.
 
 Valid columns data types for interpolation are: `["int", "bigint", "float", "double"]`.
+
 ```python
 # Create instance of the TSDF class
 input_tsdf = TSDF(
@@ -207,11 +210,18 @@ input_tsdf = TSDF(
             ts_col="event_ts",
         )
 
+
+# What the following chain of operation does is:
+# 1. Aggregate all valid numeric columns using mean into 30 second intervals
+# 2. Interpolate any missing intervals or null values using linear fill
+# Note: When chaining interpolate after a resample, there is no need to provide a freq or func parameter. Only method is required.
+interpolated_tsdf = input_tsdf.resample(freq="30 seconds", func="mean").interpolate(
+    method="linear"
+)
+
 # What the following interpolation method does is:
-# 1. Interpolate columnA and columnBN into 30 second intervals, 
-# 2. Aggregate data within existing intervals using mean, 
-# 3. Calculate and fill in any missing or null values using linear fill
-# Note: If target_cols is not specified, by default all valid columns will be interpolated
+# 1. Aggregate columnA and columnBN  using mean into 30 second intervals
+# 2. Interpolate any missing intervals or null values using linear fill
 interpolated_tsdf = input_tsdf.interpolate(
     freq="30 seconds",
     func="mean",
@@ -242,6 +252,7 @@ interpolated_tsdf = input_tsdf.interpolate(
     target_cols= ["columnA","columnB"],
     show_interpolated=True,
 )
+
 ```
 
 ## Project Support
