@@ -211,19 +211,16 @@ input_tsdf = TSDF(
 
 
 # What the following chain of operation does is:
-# 1. Interpolate columnA and columnBN into 30 second intervals, 
-# 2. Aggregate data within existing intervals using mean, 
-# 3. Calculate and fill in any missing or null values using linear fill
+# 1. Aggregate all valid numeric columns using mean into 30 second intervals
+# 2. Interpolate any missing intervals or null values using linear fill
 # Note: When chaining interpolate after a resample, there is no need to provide a freq or func parameter. Only method is required.
-# Note: If target_cols is not specified, by default all valid columns will be interpolated
 interpolated_tsdf = input_tsdf.resample(freq="30 seconds", func="mean").interpolate(
     method="linear"
 )
 
 # What the following interpolation method does is:
-# 1. Interpolate columnA and columnBN into 30 second intervals, 
-# 2. Aggregate data within existing intervals using mean, 
-# 3. Calculate and fill in any missing or null values using linear fill
+# 1. Aggregate columnA and columnBN  using mean into 30 second intervals
+# 2. Interpolate any missing intervals or null values using linear fill
 interpolated_tsdf = input_tsdf.interpolate(
     freq="30 seconds",
     func="mean",
