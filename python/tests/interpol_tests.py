@@ -4,6 +4,7 @@ from tempo.interpol import Interpolation
 from chispa.dataframe_comparer import *
 from tempo.tsdf import TSDF
 from tempo.utils import *
+import unittest
 
 
 class InterpolationTest(SparkTest):
@@ -543,3 +544,48 @@ class InterpolationIntegrationTest(InterpolationTest):
         )
 
         assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+
+    def test_defaults_with_resampled_df(self):
+        """Verify interpolation can be chained with resample within the TSDF class"""
+        self.buildTestingDataFrame()
+
+        expected_data = [
+            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None],
+            ["A", "A-1", "2020-01-01 00:00:30", 0.0, None],
+            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0],
+            ["A", "A-1", "2020-01-01 00:01:30", 2.0, 2.0],
+            ["A", "A-1", "2020-01-01 00:02:00", 2.0, 2.0],
+            ["A", "A-1", "2020-01-01 00:02:30", 2.0, 2.0],
+            ["A", "A-1", "2020-01-01 00:03:00", 2.0, 2.0],
+            ["A", "A-1", "2020-01-01 00:03:30", 2.0, 7.0],
+            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0],
+            ["A", "A-1", "2020-01-01 00:04:30", 8.0, 8.0],
+            ["A", "A-1", "2020-01-01 00:05:00", 8.0, 8.0],
+            ["A", "A-1", "2020-01-01 00:05:30", 11.0, 8.0],
+        ]
+
+        expected_schema = StructType(
+            [
+                StructField("partition_a", StringType()),
+                StructField("partition_b", StringType()),
+                StructField("event_ts", StringType(), False),
+                StructField("value_a", DoubleType()),
+                StructField("value_b", DoubleType())
+            ]
+        )
+
+        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+
+        actual_df: DataFrame = (
+            self.simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
+            .interpolate(
+                method="ffill"
+            )
+            .df
+        )
+
+        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+
+## MAIN
+if __name__ == '__main__':
+    unittest.main()
