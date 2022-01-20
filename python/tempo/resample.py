@@ -114,7 +114,7 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     if fill:
       res = imputes.join(res, tsdf.partitionCols + [tsdf.ts_col], "leftouter").na.fill(0, metrics)
 
-    return(tempo.TSDF(res, ts_col = tsdf.ts_col, partition_cols = tsdf.partitionCols))
+    return res
 
 
 def checkAllowableFreq(tsdf, freq):

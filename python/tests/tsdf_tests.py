@@ -8,7 +8,6 @@ from pyspark.sql.types import *
 from tempo.tsdf import TSDF
 from tempo.utils import *
 
-
 class SparkTest(unittest.TestCase):
     ##
     ## Fixtures
@@ -18,6 +17,8 @@ class SparkTest(unittest.TestCase):
                       .config("spark.jars.packages", "io.delta:delta-core_2.12:0.7.0") \
                       .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
                       .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") \
+                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") \
                       .master("local") \
                       .getOrCreate())
         self.spark.conf.set("spark.sql.shuffle.partitions", 1)
@@ -214,7 +215,6 @@ class AsOfJoinTest(SparkTest):
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual(joined_df, dfExpected)
-
 
         noRightPrefixdfExpected = self.buildTestDF(expectedSchemaNoRightPrefix, expected_data, ["left_event_ts", "event_ts"])
 

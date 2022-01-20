@@ -1,17 +1,19 @@
-from pyspark.sql import SparkSession
-
 import logging
 from functools import reduce
+from typing import List
 
 import numpy as np
 import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
+from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
 from scipy.fft import fft, fftfreq
 
 import tempo.io as tio
 import tempo.resample as rs
+from tempo.interpol import Interpolation
 from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 logger = logging.getLogger(__name__)
@@ -582,8 +584,43 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
-    return(enriched_tsdf)
+    enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
+    return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
+
+  def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
+    """
+    function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
+    will be filled based on the fill calculation.
+
+    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param func: function used to aggregate input
+    :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+    :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+    :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
+    :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
+    :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+    :return: new TSDF object containing interpolated data
+    """
+
+    # Set defaults for target columns, timestamp column and partition columns when not provided
+    if ts_col is None:
+      ts_col = self.ts_col
+    if partition_cols is  None:
+      partition_cols = self.partitionCols
+    if target_cols is None: 
+      prohibited_cols: List[str] = partition_cols + [ts_col]
+      summarizable_types = ['int', 'bigint', 'float', 'double']
+
+      # get summarizable find summarizable columns
+      target_cols:List[str] = [datatype[0] for datatype in self.df.dtypes if
+                          ((datatype[1] in summarizable_types) and
+                          (datatype[0].lower() not in prohibited_cols))]
+
+    interpolate_service: Interpolation = Interpolation(is_resampled=False)
+    tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
+     
+    return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
   def calc_bars(tsdf, freq, func = None, metricCols = None, fill = None):
 
@@ -675,3 +712,45 @@ class TSDF:
             result = result.drop("tdval", "tpoints")
 
     return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+
+
+class _ResampledTSDF(TSDF):
+    def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None, freq = None, func = None):
+        super(_ResampledTSDF, self).__init__(df, ts_col, partition_cols, sequence_col)
+        self.__freq = freq
+        self.__func = func
+
+    def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False):
+      """
+      function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
+
+      :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+      :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+      :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+      :return: new TSDF object containing interpolated data
+      """
+
+      # Set defaults for target columns, timestamp column and partition columns when not provided
+      if target_cols is None: 
+        prohibited_cols: List[str] = self.partitionCols + [self.ts_col]
+        summarizable_types = ['int', 'bigint', 'float', 'double']
+
+        # get summarizable find summarizable columns
+        target_cols:List[str] = [datatype[0] for datatype in self.df.dtypes if
+                            ((datatype[1] in summarizable_types) and
+                            (datatype[0].lower() not in prohibited_cols))]
+
+      interpolate_service: Interpolation = Interpolation(is_resampled=True)
+      tsdf_input = TSDF(self.df, ts_col = self.ts_col, partition_cols=self.partitionCols)
+      interpolated_df = interpolate_service.interpolate(
+          tsdf=tsdf_input,
+          ts_col=self.ts_col,
+          partition_cols=self.partitionCols,
+          target_cols=target_cols,
+          freq=self.__freq,
+          func=self.__func,
+          method=method,
+          show_interpolated=show_interpolated,
+      )
+      
+      return TSDF(interpolated_df, ts_col = self.ts_col, partition_cols=self.partitionCols)
