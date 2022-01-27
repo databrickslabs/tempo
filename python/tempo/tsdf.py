@@ -302,7 +302,7 @@ class TSDF:
         pass
 
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True, sql_join_opt=False):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -330,7 +330,7 @@ class TSDF:
 
     # choose 30MB as the cutoff for the broadcast
     bytes_threshold = 30*1024*1024
-    if (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold):
+    if sql_join_opt & ((left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)):
       spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
       partition_cols = right_tsdf.partitionCols
       left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
