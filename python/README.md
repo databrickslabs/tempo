@@ -146,29 +146,7 @@ moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
-#### 6 - Anomaly Detection
-
-First create a local yaml file containing tables you wish to create anomalies for: 
-
-Note: Use `%sh` in Databricks or just run a bash command in your local directory as follows:
-
-```
-echo """
-table1:
-database : "default"
-name : "revenue_hourly_2021"
-ts_col : "timestamp"
-lookback_window : "84600"
-mode : "new"
-# include any grouping columns or metrics you wish to detect anomalies on
-partition_cols : ["winner"]
-metrics : ["advertiser_impressions", "publisher_net_revenue"]
-""" > ad.yaml
-```
-
-The code to run to produce the stacked table with anomalies is: 
-
-#### 7 - Fourier Transform
+#### 6 - Fourier Transform
 
 Method for transforming the time series to frequency domain based on the distinguished data column 
 
@@ -183,7 +161,7 @@ ft_df = tsdf.fourier_transform(timestep=1, valueCol="data_col")
 display(ft_df)
 ```
 
-#### 8- Interpolation
+#### 7- Interpolation
 Interpolate a series to fill in missing values using a specified function. The following interpolation methods are supported: 
 
 - Zero Fill : `zero`

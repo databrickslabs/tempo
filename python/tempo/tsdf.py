@@ -317,7 +317,7 @@ class TSDF:
     :param skipNulls - whether to skip nulls when joining in values
     """
 
-        # first block of logic checks whether a standard range join will suffice
+    # first block of logic checks whether a standard range join will suffice
     left_df = self.df
     right_df = right_tsdf.df
 
@@ -336,13 +336,6 @@ class TSDF:
       left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
       right_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols)))
       new_left_cols = left_cols
-      #if left_prefix:
-      #   left_prefix += '_'
-      #else:
-      #   left_prefix = ''
-
-      #if right_prefix != '':
-      #    right_prefix+= '_'
 
       w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
       new_left_ts_col = left_prefix + self.ts_col
@@ -364,11 +357,6 @@ class TSDF:
     # prefix non-partition columns, to avoid duplicated columns.
     left_df = self.df
     right_df = right_tsdf.df
-
-    #if left_prefix:
-    #    left_prefix = left_prefix + '_'
-    #if right_prefix:
-    #    right_prefix = right_prefix + '_'
 
     # validate timestamp datatypes match
     self.__validateTsColMatch(right_tsdf)
