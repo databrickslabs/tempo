@@ -336,11 +336,12 @@ class TSDF:
       left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
       right_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols)))
 
-      w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
       left_prefix = ('' if ((left_prefix is None) | (left_prefix == '')) else left_prefix + '_')
       right_prefix = ('' if ((right_prefix is None) | (right_prefix == '')) else right_prefix + '_')
+
+      w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
+
       new_left_ts_col = left_prefix + self.ts_col
-      new_right_ts_col = right_prefix + self.ts_col
       new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
       new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
       [print(C) for C in new_right_cols]
