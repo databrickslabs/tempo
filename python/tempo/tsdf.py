@@ -341,6 +341,7 @@ class TSDF:
       left_prefix = ('' if left_prefix is None else left_prefix + '_')
       right_prefix = ('' if right_prefix is None else right_prefix + '_')
       new_left_ts_col = left_prefix + self.ts_col
+      new_right_ts_col = right_prefix + self.ts_col
       new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
       new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
       quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + right_tsdf.ts_col).over(w))
