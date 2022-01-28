@@ -338,6 +338,7 @@ class TSDF:
       new_left_cols = left_cols
 
       w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
+      left_prefix = ('' if left_prefix is None else left_prefix + '_')
       new_left_ts_col = left_prefix + self.ts_col
       new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
       new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
