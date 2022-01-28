@@ -344,7 +344,6 @@ class TSDF:
       new_left_ts_col = left_prefix + self.ts_col
       new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
       new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
-      [print(C) for C in new_right_cols]
       quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + right_tsdf.ts_col).over(w))
       left_df = left_df.select(*new_left_cols)
       res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[new_left_ts_col].between(f.col(right_prefix + right_tsdf.ts_col), f.coalesce(f.col('lead_' + right_tsdf.ts_col), f.lit('2099-01-01').cast("timestamp")))).drop('lead_' + right_tsdf.ts_col)
