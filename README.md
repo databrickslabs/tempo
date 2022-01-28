@@ -8,7 +8,10 @@
 ## Project Description
 The purpose of this project is to make time series manipulation with Spark simpler. Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths, featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
 
+[![image](https://github.com/databrickslabs/tempo/workflows/build/badge.svg)](https://github.com/databrickslabs/tempo/actions?query=workflow%3Abuild)
 [![codecov](https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg)](https://codecov.io/gh/databrickslabs/tempo)
+[![Downloads](https://pepy.tech/badge/dbl-tempo/month)](https://pepy.tech/project/dbl-tempo)
+[![PyPI version](https://badge.fury.io/py/dbl-tempo.svg)](https://badge.fury.io/py/dbl-tempo)
 
 ## Using the Project
 
@@ -164,6 +167,92 @@ moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
 
+#### 6 - Fourier Transform
+
+Method for transforming the time series to frequency domain based on the distinguished data column 
+
+Parameters: 
+
+timestep = timestep value to be used for getting the frequency scale
+
+valueCol = name of the time domain data column which will be transformed
+
+```python
+ft_df = tsdf.fourier_transform(timestep=1, valueCol="data_col")
+display(ft_df)
+```
+#### 7 - Interpolation
+
+Interpolate a series to fill in missing values using a specified function. The following interpolation methods are supported: 
+
+- Zero Fill : `zero`
+- Null Fill: `null`
+- Backwards Fill: `bfill`
+- Forwards Fill: `ffill`
+- Linear Fill: `linear`
+
+The `interpolate` method can either be use in conjunction with `resample` or independently.
+
+If `interpolate` is not chained after a `resample` operation, the method automatically first re-samples the input dataset into a given frequency, then performs interpolation on the sampled time-series dataset.
+
+Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day. For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min', 'max', 'mean'. 
+
+`NULL` values after re-sampling are treated the same as missing values. Ability to specify `NULL` as a valid value is currently not supported.
+
+Valid columns data types for interpolation are: `["int", "bigint", "float", "double"]`.
+
+```python
+# Create instance of the TSDF class
+input_tsdf = TSDF(
+            input_df,
+            partition_cols=["partition_a", "partition_b"],
+            ts_col="event_ts",
+        )
+
+
+# What the following chain of operation does is:
+# 1. Aggregate all valid numeric columns using mean into 30 second intervals
+# 2. Interpolate any missing intervals or null values using linear fill
+# Note: When chaining interpolate after a resample, there is no need to provide a freq or func parameter. Only method is required.
+interpolated_tsdf = input_tsdf.resample(freq="30 seconds", func="mean").interpolate(
+    method="linear"
+)
+
+# What the following interpolation method does is:
+# 1. Aggregate columnA and columnBN  using mean into 30 second intervals
+# 2. Interpolate any missing intervals or null values using linear fill
+interpolated_tsdf = input_tsdf.interpolate(
+    freq="30 seconds",
+    func="mean",
+    target_cols= ["columnA","columnB"],
+    method="linear"
+
+)
+
+# Alternatively it's also possible to override default TSDF parameters.
+# e.g. partition_cols, ts_col a
+interpolated_tsdf = input_tsdf.interpolate(
+    partition_cols=["partition_c"],
+    ts_col="other_event_ts"
+    freq="30 seconds",
+    func="mean",
+    target_cols= ["columnA","columnB"],
+    method="linear"
+)
+
+# The show_interpolated flag can be set to `True` to show additional boolean columns 
+# for a given row that shows if a column has been interpolated.
+interpolated_tsdf = input_tsdf.interpolate(
+    partition_cols=["partition_c"],
+    ts_col="other_event_ts"
+    freq="30 seconds",
+    func="mean",
+    method="linear",
+    target_cols= ["columnA","columnB"],
+    show_interpolated=True,
+)
+
+```
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.

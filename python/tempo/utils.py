@@ -1,11 +1,11 @@
-from IPython.display import display as ipydisplay
-from IPython.core.display import HTML
-from IPython import get_ipython
-import os
 import logging
-from pyspark.sql.dataframe import DataFrame
-from pandas import DataFrame as pandasDataFrame
+import os
 
+from IPython import get_ipython
+from IPython.core.display import HTML
+from IPython.display import display as ipydisplay
+from pandas import DataFrame as pandasDataFrame
+from pyspark.sql.dataframe import DataFrame
 
 logger = logging.getLogger(__name__)
 PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
@@ -13,6 +13,7 @@ PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() els
 This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
 where the code is running from. 
 """
+
 
 def __isnotebookenv():
     """
@@ -30,17 +31,19 @@ def __isnotebookenv():
     except NameError:
         return False
 
+
 def display_html(df):
     """
     Display method capable of displaying the dataframe in a formatted HTML structured output
     """
     ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
-    if isinstance(df,DataFrame):
+    if isinstance(df, DataFrame):
         df.show(truncate=False, vertical=False)
     elif isinstance(df, pandasDataFrame):
         df.head()
     else:
         logger.error("'display' method not available for this object")
+
 
 def display_unavailable(df):
     """
@@ -48,10 +51,13 @@ def display_unavailable(df):
     """
     logger.error("'display' method not available in this environment. Use 'show' method instead.")
 
+
 ENV_BOOLEAN = __isnotebookenv()
 
 if PLATFORM == "DATABRICKS":
     method = get_ipython().user_ns['display']
+
+
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
     def display_improvised(obj):
@@ -59,6 +65,8 @@ if PLATFORM == "DATABRICKS":
             method(obj.df)
         else:
             method(obj)
+
+
     display = display_improvised
 elif __isnotebookenv():
     def display_html_improvised(obj):
@@ -66,8 +74,10 @@ elif __isnotebookenv():
             display_html(obj.df)
         else:
             display_html(obj)
+
+
     display = display_html_improvised
-else:    
+else:
     display = display_unavailable
 
 """

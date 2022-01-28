@@ -8,7 +8,6 @@ from pyspark.sql.types import *
 from tempo.tsdf import TSDF
 from tempo.utils import *
 
-
 class SparkTest(unittest.TestCase):
     ##
     ## Fixtures
@@ -18,6 +17,8 @@ class SparkTest(unittest.TestCase):
                       .config("spark.jars.packages", "io.delta:delta-core_2.12:0.7.0") \
                       .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
                       .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") \
+                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") \
                       .master("local") \
                       .getOrCreate())
         self.spark.conf.set("spark.sql.shuffle.partitions", 1)
@@ -177,6 +178,12 @@ class AsOfJoinTest(SparkTest):
                                      StructField("right_event_ts", StringType()),
                                      StructField("right_bid_pr", FloatType()),
                                      StructField("right_ask_pr", FloatType())])
+        expectedSchemaNoRightPrefix = StructType([StructField("symbol", StringType()),
+                                     StructField("left_event_ts", StringType()),
+                                     StructField("left_trade_pr", FloatType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("bid_pr", FloatType()),
+                                     StructField("ask_pr", FloatType())])
 
         left_data = [["S1", "2020-08-01 00:00:10", 349.21],
                      ["S1", "2020-08-01 00:01:12", 351.32],
@@ -204,9 +211,17 @@ class AsOfJoinTest(SparkTest):
         tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
 
         joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right").df
+        non_prefix_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix = '').df
 
         # joined dataframe should equal the expected dataframe
         self.assertDataFramesEqual(joined_df, dfExpected)
+
+        noRightPrefixdfExpected = self.buildTestDF(expectedSchemaNoRightPrefix, expected_data, ["left_event_ts", "event_ts"])
+
+        self.assertDataFramesEqual(non_prefix_joined_df, noRightPrefixdfExpected)
+
+        spark_sql_joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right").df
+        self.assertDataFramesEqual(spark_sql_joined_df, dfExpected)
 
     def test_asof_join_skip_nulls_disabled(self):
         """AS-OF Join with skip nulls disabled"""
@@ -377,6 +392,51 @@ class AsOfJoinTest(SparkTest):
                                        tsPartitionVal=10, fraction=0.1).df
 
         self.assertDataFramesEqual(joined_df, dfExpected)
+
+
+class FourierTransformTest(SparkTest):
+
+    def test_fourier_transform(self):
+        """Test of fourier transform functionality in TSDF objects"""
+        schema = StructType([StructField("group",StringType()),
+                             StructField("time",LongType()),
+                             StructField("val",DoubleType())])
+
+        expectedSchema = StructType([StructField("group",StringType()),
+                                     StructField("time",LongType()),
+                                     StructField("val",DoubleType()),
+                                     StructField("freq",DoubleType()),
+                                     StructField("ft_real",DoubleType()),
+                                     StructField("ft_imag",DoubleType())])
+
+        data = [["Emissions", 1949, 2206.690829],
+                ["Emissions", 1950, 2382.046176],
+                ["Emissions", 1951, 2526.687327],
+                ["Emissions", 1952, 2473.373964],
+                ["WindGen", 1980, 0.0],
+                ["WindGen", 1981, 0.0],
+                ["WindGen", 1982, 0.0],
+                ["WindGen", 1983, 0.029667962]]
+
+        expected_data = [["Emissions", 1949, 2206.690829, 0.0, 9588.798296, -0.0],
+                         ["Emissions", 1950, 2382.046176, 0.25, -319.996498, 91.32778800000006],
+                         ["Emissions", 1951, 2526.687327, -0.5, -122.0419839999995, -0.0],
+                         ["Emissions", 1952, 2473.373964, -0.25, -319.996498, -91.32778800000006],
+                         ["WindGen", 1980, 0.0, 0.0, 0.029667962, -0.0],
+                         ["WindGen", 1981, 0.0, 0.25, 0.0, 0.029667962],
+                         ["WindGen", 1982, 0.0, -0.5, -0.029667962, -0.0],
+                         ["WindGen", 1983, 0.029667962, -0.25, 0.0, -0.029667962]]
+
+        # construct dataframes
+        df = self.buildTestDF(schema, data, ts_cols=['time'])
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ts_cols=['time'])
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, ts_col="time", partition_cols=["group"])
+        result_tsdf = tsdf_left.fourier_transform(1, 'val')
+
+        # should be equal to the expected dataframe
+        self.assertDataFramesEqual(result_tsdf.df, dfExpected)
 
 
 class RangeStatsTest(SparkTest):
