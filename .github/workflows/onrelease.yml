@@ -46,7 +46,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.LABS_PYPI_TOKEN }}
-          packages_dir: python/
+          packages_dir: python/dist/
 
       - name: Create Release
         id: create_release
