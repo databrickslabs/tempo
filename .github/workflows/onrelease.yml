@@ -34,12 +34,15 @@ jobs:
         run: python -m pip install --upgrade pip
 
       - name: Install dependencies
+        working-directory: ./python
         run: pip install -U -r requirements.txt
 
       - name: Build dist
+        working-directory: ./python
         run: python setup.py clean bdist_wheel
 
       - name: Publish a Python distribution to PyPI
+        working-directory: ./python
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
