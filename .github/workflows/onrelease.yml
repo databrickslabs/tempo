@@ -42,11 +42,11 @@ jobs:
         run: python setup.py clean bdist_wheel
 
       - name: Publish a Python distribution to PyPI
-        working-directory: ./python
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.LABS_PYPI_TOKEN }}
+          packages_dir: python/
 
       - name: Create Release
         id: create_release
