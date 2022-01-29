@@ -11,7 +11,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [ 3.9 ]
+        python-version: [ 3.7 ]
         os: [ ubuntu-latest ]
 
     steps:
