@@ -10,4 +10,4 @@ python-dateutil==2.8.1
 pytz==2020.1
 scipy==1.7.3
 six==1.15.0
-wheel==0.34.2
+wheel==0.37.1
