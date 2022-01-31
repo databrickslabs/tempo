@@ -47,16 +47,3 @@ jobs:
           user: __token__
           password: ${{ secrets.LABS_PYPI_TOKEN }}
           packages_dir: python/dist/
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release for version ${{ github.ref }}. Please refer to CHANGELOG.md for detailed information.
-          draft: false
-          prerelease: false
