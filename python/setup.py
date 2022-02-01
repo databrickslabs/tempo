@@ -22,7 +22,7 @@ setuptools.setup(
     extras_require=dict(tests=["pytest"]),
     classifiers=[
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
+        'License :: Other/Proprietary License',
         'Operating System :: OS Independent',
         ],
     )
