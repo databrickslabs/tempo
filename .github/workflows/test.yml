@@ -1,7 +1,7 @@
 name: build
 on:
   push:
-    branches: [master]
+    branches: [master, python_bump_reqs]
 jobs:
   run:
     runs-on: ${{ matrix.os }}
