@@ -5,7 +5,7 @@ pandas==1.4.0
 py4j==0.10.9.3
 pyarrow==6.0.1
 pyspark==3.2.1
-pyspark-stubs==3.0.0
+pyspark-stubs==3.0.0.post3
 python-dateutil==2.8.2
 pytz==2020.1
 scipy==1.7.3
