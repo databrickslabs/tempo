@@ -1,8 +1,5 @@
 # tempo - Time Series Utilities for Data Teams Using Databricks
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/ts_in_fs.png" width="300px"/>
-</p>
 
 
 ## Project Description
@@ -33,7 +30,7 @@ The entry point into all features for time series analysis in tempo is a TSDF ob
 #### Sample Reference Architecture for Capital Markets
 
 <p align="center">
-  <img src="ts_in_fs.png" width="700px"/>
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/ts_in_fs.png" width="700px"/>
 </p>
 
 ## Quickstart - Python 
@@ -86,7 +83,7 @@ fig.show()
 
 
 <p align="center">
-  <img src="AS_OF_Join.png" width="700px"/>
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/AS_OF_Join.png" width="700px"/>
 </p>
 
 
