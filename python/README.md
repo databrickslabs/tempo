@@ -1,6 +1,8 @@
 # tempo - Time Series Utilities for Data Teams Using Databricks
 
-
+<p align="center">
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/tempo%20-%20light%20background.svg" width="700px"/>
+</p>
 
 ## Project Description
 The purpose of this project is to make time series manipulation with Spark simpler. Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths, featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
