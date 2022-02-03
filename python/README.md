@@ -1,9 +1,8 @@
 # tempo - Time Series Utilities for Data Teams Using Databricks
 
 <p align="center">
-  <img src="tempo - light background.svg" width="300px"/>
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/tempo%20-%20light%20background.svg" width="300px"/>
 </p>
-
 
 ## Project Description
 The purpose of this project is to make time series manipulation with Spark simpler. Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths, featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
@@ -33,7 +32,7 @@ The entry point into all features for time series analysis in tempo is a TSDF ob
 #### Sample Reference Architecture for Capital Markets
 
 <p align="center">
-  <img src="ts_in_fs.png" width="700px"/>
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/ts_in_fs.png" width="700px"/>
 </p>
 
 ## Quickstart - Python 
@@ -86,7 +85,7 @@ fig.show()
 
 
 <p align="center">
-  <img src="AS_OF_Join.png" width="700px"/>
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/AS_OF_Join.png" width="700px"/>
 </p>
 
 
