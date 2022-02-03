@@ -98,7 +98,7 @@ fig.show()
 
 
 <p align="center">
-  <img src="AS_OF_Join.png" width="700px"/>
+  <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/AS_OF_Join.png" width="700px"/>
 </p>
 
 
