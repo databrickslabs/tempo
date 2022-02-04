@@ -287,6 +287,7 @@ class Interpolation:
 
         # Only select required columns for interpolation
         input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
+        sampled_input: DataFrame = tsdf.df.select(*input_cols)
 
         if self.is_resampled is False:
             # Resample and Normalize Input
