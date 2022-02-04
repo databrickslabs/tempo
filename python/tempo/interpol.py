@@ -305,7 +305,7 @@ class Interpolation:
         add_column_time: DataFrame = time_series_filled
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
-                f"event_ts_{column}",
+                f"{ts_col}_{column}",
                 when(col(column).isNull(), None).otherwise(col(ts_col)),
             )
             add_column_time = self.__generate_column_time_fill(
