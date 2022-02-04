@@ -1,15 +1,20 @@
-import tempo.resample as rs
-import tempo.io as tio
-
-from tempo.utils import ENV_BOOLEAN, PLATFORM
-
-from IPython.display import display as ipydisplay
-from IPython.core.display import HTML
 import logging
 from functools import reduce
+from typing import List
 
+import numpy as np
 import pyspark.sql.functions as f
+from IPython.core.display import HTML
+from IPython.display import display as ipydisplay
+from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
+from scipy.fft import fft, fftfreq
+
+import tempo.io as tio
+import tempo.resample as rs
+from tempo.interpol import Interpolation
+from tempo.utils import ENV_BOOLEAN, PLATFORM
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +78,20 @@ class TSDF:
     """
     Add prefix to all specified columns.
     """
+    if prefix != '':
+        prefix = prefix + '_'
 
-    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], '_'.join([prefix,col_list[idx]])),
+    df = reduce(lambda df, idx: df.withColumnRenamed(col_list[idx], ''.join([prefix, col_list[idx]])),
                 range(len(col_list)), self.df)
 
-    ts_col = '_'.join([prefix, self.ts_col])
-    seq_col = '_'.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
-    return TSDF(df, ts_col, self.partitionCols, sequence_col = seq_col)
+
+    if prefix == '':
+      ts_col = self.ts_col
+      seq_col = self.sequence_col if self.sequence_col else self.sequence_col
+    else:
+      ts_col = ''.join([prefix, self.ts_col])
+      seq_col = ''.join([prefix, self.sequence_col]) if self.sequence_col else self.sequence_col
+    return TSDF(df, ts_col, self.partitionCols, sequence_col=seq_col)
 
   def __addColumnsFromOtherDF(self, other_cols):
     """
@@ -96,7 +108,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignore_null_warning):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls, suppress_null_warning):
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -108,13 +120,27 @@ class TSDF:
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
-    # splitting off the condition as we want different columns in the reduce if we are implementing the skew AS OF join
-    if tsPartitionVal is None:
-        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)),
+    if ignoreNulls is False:
+        if tsPartitionVal is not None:
+            raise ValueError("Disabling null skipping with a partition value is not supported yet.")
+        df = reduce(
+            lambda df, idx:
+                df.withColumn(
+                    right_cols[idx],
+                    f.last(
+                        f.when(f.col("rec_ind") == -1, f.struct(right_cols[idx])).otherwise(None),
+                        True  # ignore nulls because it indicates rows from the left side
+                    ).over(window_spec)),
+            range(len(right_cols)), self.df)
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.col(right_cols[idx])[right_cols[idx]]),
+                    range(len(right_cols)), df)
+    elif tsPartitionVal is None:
+        # splitting off the condition as we want different columns in the reduce if implementing the skew AS OF join
+        df = reduce(lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)),
                      range(len(right_cols)), self.df)
     else:
         df = reduce(
-            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], True).over(window_spec)).withColumn(
+            lambda df, idx: df.withColumn(right_cols[idx], f.last(right_cols[idx], ignoreNulls).over(window_spec)).withColumn(
                 'non_null_ct' + right_cols[idx], f.count(right_cols[idx]).over(window_spec)),
             range(len(right_cols)), self.df)
 
@@ -125,7 +151,7 @@ class TSDF:
       for column in df.columns:
         if (column.startswith("non_null")):
           # Avoid collect() calls when explicitly ignoring the warnings about null values due to lookback window.
-          if not ignore_null_warning and logger.isEnabledFor(logging.WARNING):
+          if not suppress_null_warning and logger.isEnabledFor(logging.WARNING):
             any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
             newCol = column.replace("non_null_ct", "")
             if any_blank_vals:
@@ -175,9 +201,9 @@ class TSDF:
 
     Examples
     --------
-    >>> tsdf.select('*').collect()
+    tsdf.select('*').collect()
     [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
-    >>> tsdf.select('name', 'age').collect()
+    tsdf.select('name', 'age').collect()
     [Row(name='Alice', age=2), Row(name='Bob', age=5)]
     
     """
@@ -277,7 +303,7 @@ class TSDF:
         return(full_smry)
         pass
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, ignore_null_warning=False):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True, sql_join_opt=False, suppress_null_warning=False):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
@@ -289,8 +315,44 @@ class TSDF:
     :param right_prefix - optional prefix for right-hand data frame
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
-    :param ignore_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
+    :param skipNulls - whether to skip nulls when joining in values
+    :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
+    :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
     """
+
+    # first block of logic checks whether a standard range join will suffice
+    left_df = self.df
+    right_df = right_tsdf.df
+
+    spark = (SparkSession.builder.appName("myapp").getOrCreate())
+
+    left_plan = left_df._jdf.queryExecution().logical()
+    left_bytes = spark._jsparkSession.sessionState().executePlan(left_plan).optimizedPlan().stats().sizeInBytes()
+    right_plan = right_df._jdf.queryExecution().logical()
+    right_bytes = spark._jsparkSession.sessionState().executePlan(right_plan).optimizedPlan().stats().sizeInBytes()
+
+    # choose 30MB as the cutoff for the broadcast
+    bytes_threshold = 30*1024*1024
+    if sql_join_opt & ((left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)):
+      spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
+      partition_cols = right_tsdf.partitionCols
+      left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
+      right_cols = list(set(right_df.columns).difference(set(right_tsdf.partitionCols)))
+
+      left_prefix = ('' if ((left_prefix is None) | (left_prefix == '')) else left_prefix + '_')
+      right_prefix = ('' if ((right_prefix is None) | (right_prefix == '')) else right_prefix + '_')
+
+      w = Window.partitionBy(*partition_cols).orderBy(right_prefix + right_tsdf.ts_col)
+
+      new_left_ts_col = left_prefix + self.ts_col
+      new_left_cols = [f.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
+      new_right_cols = [f.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
+      quotes_df_w_lag = right_df.select(*new_right_cols).withColumn("lead_" + right_tsdf.ts_col, f.lead(right_prefix + right_tsdf.ts_col).over(w))
+      left_df = left_df.select(*new_left_cols)
+      res = left_df.join(quotes_df_w_lag, partition_cols).where(left_df[new_left_ts_col].between(f.col(right_prefix + right_tsdf.ts_col), f.coalesce(f.col('lead_' + right_tsdf.ts_col), f.lit('2099-01-01').cast("timestamp")))).drop('lead_' + right_tsdf.ts_col)
+      return(TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col))
+
+    # end of block checking to see if standard Spark SQL join will work
 
     if (tsPartitionVal is not None):
       logger.warning("You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys")
@@ -301,7 +363,6 @@ class TSDF:
     # prefix non-partition columns, to avoid duplicated columns.
     left_df = self.df
     right_df = right_tsdf.df
-
 
     # validate timestamp datatypes match
     self.__validateTsColMatch(right_tsdf)
@@ -330,10 +391,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, ignore_null_warning)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls, suppress_null_warning)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, ignore_null_warning)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls, suppress_null_warning)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
@@ -517,8 +578,43 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    enriched_tsdf = rs.aggregate(self, freq, func, metricCols, prefix, fill)
-    return(enriched_tsdf)
+    enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
+    return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
+
+  def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
+    """
+    function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
+    will be filled based on the fill calculation.
+
+    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param func: function used to aggregate input
+    :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+    :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+    :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
+    :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
+    :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+    :return: new TSDF object containing interpolated data
+    """
+
+    # Set defaults for target columns, timestamp column and partition columns when not provided
+    if ts_col is None:
+      ts_col = self.ts_col
+    if partition_cols is  None:
+      partition_cols = self.partitionCols
+    if target_cols is None: 
+      prohibited_cols: List[str] = partition_cols + [ts_col]
+      summarizable_types = ['int', 'bigint', 'float', 'double']
+
+      # get summarizable find summarizable columns
+      target_cols:List[str] = [datatype[0] for datatype in self.df.dtypes if
+                          ((datatype[1] in summarizable_types) and
+                          (datatype[0].lower() not in prohibited_cols))]
+
+    interpolate_service: Interpolation = Interpolation(is_resampled=False)
+    tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
+     
+    return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
   def calc_bars(tsdf, freq, func = None, metricCols = None, fill = None):
 
@@ -534,3 +630,121 @@ class TSDF:
       bars = bars.select(sel_and_sort)
 
       return(TSDF(bars, resample_open.ts_col, resample_open.partitionCols))
+
+  def fourier_transform(self, timestep, valueCol):
+    """
+    Function to fourier transform the time series to its frequency domain representation.
+    :param timestep: timestep value to be used for getting the frequency scale
+    :param valueCol: name of the time domain data column which will be transformed
+    """
+
+    def tempo_fourier_util(pdf):
+        """
+        This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
+        This method is meant to be called from Tempo TSDF as a pandas function API on Spark
+        """
+        select_cols = list(pdf.columns)
+        pdf.sort_values(by=['tpoints'], inplace=True, ascending=True)
+        y = np.array(pdf['tdval'])
+        tran = fft(y)
+        r = tran.real
+        i = tran.imag
+        pdf['ft_real'] = r
+        pdf['ft_imag'] = i
+        N = tran.shape
+        xf = fftfreq(N[0], timestep)
+        pdf['freq'] = xf
+        return pdf[select_cols + ['freq', 'ft_real', 'ft_imag']]
+
+    valueCol = self.__validated_column(self.df, valueCol)
+    data = self.df
+    if self.sequence_col:
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, self.sequence_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("tdval", "tpoints")
+    else:
+        if self.partitionCols == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.partitionCols
+            data = data.select(*group_cols, self.ts_col, f.col(valueCol)).withColumn(
+                "tdval", f.col(valueCol)).withColumn("tpoints", f.col(self.ts_col))
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                +
+                ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(tempo_fourier_util, return_schema)
+            result = result.drop("tdval", "tpoints")
+
+    return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+
+
+class _ResampledTSDF(TSDF):
+    def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None, freq = None, func = None):
+        super(_ResampledTSDF, self).__init__(df, ts_col, partition_cols, sequence_col)
+        self.__freq = freq
+        self.__func = func
+
+    def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False):
+      """
+      function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
+
+      :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+      :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+      :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+      :return: new TSDF object containing interpolated data
+      """
+
+      # Set defaults for target columns, timestamp column and partition columns when not provided
+      if target_cols is None: 
+        prohibited_cols: List[str] = self.partitionCols + [self.ts_col]
+        summarizable_types = ['int', 'bigint', 'float', 'double']
+
+        # get summarizable find summarizable columns
+        target_cols:List[str] = [datatype[0] for datatype in self.df.dtypes if
+                            ((datatype[1] in summarizable_types) and
+                            (datatype[0].lower() not in prohibited_cols))]
+
+      interpolate_service: Interpolation = Interpolation(is_resampled=True)
+      tsdf_input = TSDF(self.df, ts_col = self.ts_col, partition_cols=self.partitionCols)
+      interpolated_df = interpolate_service.interpolate(
+          tsdf=tsdf_input,
+          ts_col=self.ts_col,
+          partition_cols=self.partitionCols,
+          target_cols=target_cols,
+          freq=self.__freq,
+          func=self.__func,
+          method=method,
+          show_interpolated=show_interpolated,
+      )
+      
+      return TSDF(interpolated_df, ts_col = self.ts_col, partition_cols=self.partitionCols)
