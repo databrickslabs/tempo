@@ -294,7 +294,7 @@ class Interpolation:
             sampled_input: DataFrame = tsdf.resample(
                 freq=freq, func=func, metricCols=target_cols
             ).df
- 
+
         # Fill timeseries for nearest values
         time_series_filled = self.__generate_time_series_fill(
             sampled_input, partition_cols, ts_col
