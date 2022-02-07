@@ -4,6 +4,7 @@ from typing import List
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import col, expr, first, last, lead, lit, when
 from pyspark.sql.window import Window
+from tempo.resample import checkAllowableFreq, freq_dict
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -40,6 +41,7 @@ class Interpolation:
         :param target_col -  Target column to be validated
         :param ts_col -  Timestamp column to be validated
         """
+
         for column in partition_cols:
             if column not in str(df.columns):
                 raise ValueError(
@@ -284,6 +286,10 @@ class Interpolation:
         # Validate input parameters
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
+
+        # Convert Frequency using resample dictionary
+        parsed_freq = checkAllowableFreq(freq)
+        freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
 
         # Only select required columns for interpolation
         input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
