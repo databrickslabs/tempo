@@ -257,6 +257,7 @@ class InterpolationUnitTest(InterpolationTest):
 
         expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
 
+  
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
             partition_cols=["partition_a", "partition_b"],
