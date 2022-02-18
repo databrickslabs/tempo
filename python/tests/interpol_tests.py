@@ -257,6 +257,7 @@ class InterpolationUnitTest(InterpolationTest):
 
         expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
 
+  
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
             partition_cols=["partition_a", "partition_b"],
@@ -465,17 +466,24 @@ class InterpolationIntegrationTest(InterpolationTest):
             [
                 StructField("partition_a", StringType()),
                 StructField("partition_b", StringType()),
-                StructField("event_ts", StringType(), False),
+                StructField("other_ts_col", StringType(), False),
                 StructField("value_a", DoubleType()),
                 StructField("is_ts_interpolated", BooleanType(), False),
                 StructField("is_interpolated_value_a", BooleanType(), False),
             ]
         )
 
-        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+        # Modify input DataFrame using different ts_col
+        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data, ts_cols = ["other_ts_col"])
 
-        actual_df: DataFrame = self.simple_input_tsdf.interpolate(
-            ts_col="event_ts",
+        input_tsdf = TSDF(
+            self.simple_input_tsdf.df.withColumnRenamed("event_ts","other_ts_col"),
+            partition_cols=["partition_a", "partition_b"],
+            ts_col="other_ts_col",
+        )
+
+        actual_df: DataFrame = input_tsdf.interpolate(
+            ts_col="other_ts_col",
             show_interpolated=True,
             partition_cols=["partition_a", "partition_b"],
             target_cols=["value_a"],
