@@ -108,7 +108,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls, suppress_null_warning):
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -150,10 +150,12 @@ class TSDF:
     if tsPartitionVal is not None:
       for column in df.columns:
         if (column.startswith("non_null")):
-          any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
-          newCol = column.replace("non_null_ct", "")
-          if any_blank_vals:
-            logger.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
+          # Avoid collect() calls when explicitly ignoring the warnings about null values due to lookback window.
+          if not suppress_null_warning or logger.isEnabledFor(logging.WARNING):
+            any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
+            newCol = column.replace("non_null_ct", "")
+            if any_blank_vals:
+              logger.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
           df = df.drop(column)
 
 
@@ -302,12 +304,14 @@ class TSDF:
         pass
 
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True, sql_join_opt=False):
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True, sql_join_opt=False, suppress_null_warning=False):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
 
-    NOTE: partition cols have to be the same for both Dataframes.
+    NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
+    enabled also.
+
     Parameters
     :param right_tsdf - right-hand data frame containing columns to merge in
     :param left_prefix - optional prefix for base data frame
@@ -315,6 +319,8 @@ class TSDF:
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
     :param skipNulls - whether to skip nulls when joining in values
+    :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
+    :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
     """
 
     # first block of logic checks whether a standard range join will suffice
@@ -388,10 +394,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls, suppress_null_warning)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls, suppress_null_warning)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
