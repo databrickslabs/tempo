@@ -151,7 +151,7 @@ class TSDF:
       for column in df.columns:
         if (column.startswith("non_null")):
           # Avoid collect() calls when explicitly ignoring the warnings about null values due to lookback window.
-          if not suppress_null_warning and logger.isEnabledFor(logging.WARNING):
+          if not suppress_null_warning or logger.isEnabledFor(logging.WARNING):
             any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
             newCol = column.replace("non_null_ct", "")
             if any_blank_vals:
@@ -309,7 +309,9 @@ class TSDF:
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
 
-    NOTE: partition cols have to be the same for both Dataframes.
+    NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
+    enabled also.
+
     Parameters
     :param right_tsdf - right-hand data frame containing columns to merge in
     :param left_prefix - optional prefix for base data frame
