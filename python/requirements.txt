@@ -1,5 +1,5 @@
 ipython==8.0.1
-numpy==1.21.0
+numpy==1.22.2
 chispa==0.8.2
 pandas==1.4.1
 pyarrow==7.0.0
