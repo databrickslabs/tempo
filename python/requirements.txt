@@ -1,7 +1,7 @@
 ipython==8.0.1
 numpy==1.22.2
 chispa==0.8.2
-pandas==1.4.0
+pandas==1.4.1
 pyarrow==7.0.0
 pyspark==3.2.1
 python-dateutil==2.8.2
