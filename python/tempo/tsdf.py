@@ -304,6 +304,14 @@ class TSDF:
         pass
 
   def __getBytesFromPlan(self, df, spark):
+      """
+      Internal helper function to obtain how many bytes in memory the Spark data frame is likely to take up. This is an upper bound and is obtained from the plan details in Spark
+
+      Parameters
+      :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
+      :param spark - Spark session which is used to query the view obtained from the Spark data frame
+      """
+      
       df.createOrReplaceTempView("view")
       plan = spark.sql("explain cost select * from view").collect()[0][0]
 
