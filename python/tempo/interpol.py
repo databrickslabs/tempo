@@ -213,10 +213,12 @@ class Interpolation:
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            first(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
+            # last+orderBy-desc instead of first because of
+            # https://issues.apache.org/jira/browse/SPARK-36844
+            last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
-                .orderBy(ts_col)
-                .rowsBetween(0, Window.unboundedFollowing)
+                .orderBy(col(ts_col).desc())
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         )
 
