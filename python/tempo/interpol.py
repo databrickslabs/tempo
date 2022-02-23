@@ -241,12 +241,14 @@ class Interpolation:
                 ),
             )
             # Handle if subsequent value is null
+            # We use last+orderBy(col(ts_col).desc()) instead of first+orderBy(
+            # ts_col) because of https://issues.apache.org/jira/browse/SPARK-36844
             .withColumn(
                 f"next_null_{target_col}",
-                first(df[target_col], ignorenulls=True).over(
+                last(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
-                    .orderBy(ts_col)
-                    .rowsBetween(0, Window.unboundedFollowing)
+                    .orderBy(col(ts_col).desc())
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             ).withColumn(
                 f"next_{target_col}",
