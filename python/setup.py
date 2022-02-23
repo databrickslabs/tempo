@@ -1,7 +1,7 @@
 import setuptools
 from setuptools import find_packages
 
-from python.libversioner import get_version
+from libversioner import get_version
 
 with open('./README.md', 'r') as fh:
     long_description = fh.read()
