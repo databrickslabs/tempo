@@ -1,12 +1,14 @@
 import setuptools
 from setuptools import find_packages
 
+from python.libversioner import get_version
+
 with open('./README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name='dbl-tempo',
-    version='0.1.6',
+    version=get_version('dbl-tempo', major=False, minor=True, micro=False),
     author='Ricardo Portilla, Tristan Nixon, Max Thone, Sonali Guleria',
     author_email='labs@databricks.com',
     description='Spark Time Series Utility Package',
