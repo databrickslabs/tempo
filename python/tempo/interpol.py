@@ -1,4 +1,3 @@
-import sys
 from typing import List
 
 from pyspark.sql.dataframe import DataFrame
@@ -210,14 +209,14 @@ class Interpolation:
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
                 .orderBy(ts_col)
-                .rowsBetween(-sys.maxsize, 0)
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
             first(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
                 .orderBy(ts_col)
-                .rowsBetween(0, sys.maxsize)
+                .rowsBetween(0, Window.unboundedFollowing)
             ),
         )
 
@@ -238,7 +237,7 @@ class Interpolation:
                 last(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
                     .orderBy(ts_col)
-                    .rowsBetween(-sys.maxsize, 0)
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             )
             # Handle if subsequent value is null
@@ -247,7 +246,7 @@ class Interpolation:
                 first(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
                     .orderBy(ts_col)
-                    .rowsBetween(0, sys.maxsize)
+                    .rowsBetween(0, Window.unboundedFollowing)
                 ),
             ).withColumn(
                 f"next_{target_col}",
