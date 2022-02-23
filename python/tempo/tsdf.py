@@ -108,7 +108,7 @@ class TSDF:
 
     return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
-  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls):
+  def __getLastRightRow(self, left_ts_col, right_cols, sequence_col, tsPartitionVal, ignoreNulls, suppress_null_warning):
     """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
     
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -150,10 +150,12 @@ class TSDF:
     if tsPartitionVal is not None:
       for column in df.columns:
         if (column.startswith("non_null")):
-          any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
-          newCol = column.replace("non_null_ct", "")
-          if any_blank_vals:
-            logger.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
+          # Avoid collect() calls when explicitly ignoring the warnings about null values due to lookback window.
+          if not suppress_null_warning or logger.isEnabledFor(logging.WARNING):
+            any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
+            newCol = column.replace("non_null_ct", "")
+            if any_blank_vals:
+              logger.warning("Column " + newCol + " had no values within the lookback window. Consider using a larger window to avoid missing values. If this is the first record in the data frame, this warning can be ignored.")
           df = df.drop(column)
 
 
@@ -301,13 +303,44 @@ class TSDF:
         return(full_smry)
         pass
 
+  def __getBytesFromPlan(self, df, spark):
+      """
+      Internal helper function to obtain how many bytes in memory the Spark data frame is likely to take up. This is an upper bound and is obtained from the plan details in Spark
 
-  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True, sql_join_opt=False):
+      Parameters
+      :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
+      :param spark - Spark session which is used to query the view obtained from the Spark data frame
+      """
+      
+      df.createOrReplaceTempView("view")
+      plan = spark.sql("explain cost select * from view").collect()[0][0]
+
+      import re
+
+      result = re.search(r"sizeInBytes=.*(['\)])", plan, re.MULTILINE).group(0).replace(")", "")
+      size = result.split("=")[1].split(" ")[0]
+      units = result.split("=")[1].split(" ")[1]
+
+      ## perform to MB for threshold check
+      if units == 'GiB':
+          bytes = float(size) * 1024 * 1024 * 1024
+      elif units == 'MiB':
+          bytes = float(size) * 1024 * 1024
+      elif units == 'KiB':
+          bytes = float(size) * 1024
+      else:
+          bytes = float(size)
+
+      return bytes
+
+  def asofJoin(self, right_tsdf, left_prefix=None, right_prefix="right", tsPartitionVal=None, fraction=0.5, skipNulls=True, sql_join_opt=False, suppress_null_warning=False):
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
 
-    NOTE: partition cols have to be the same for both Dataframes.
+    NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
+    enabled also.
+
     Parameters
     :param right_tsdf - right-hand data frame containing columns to merge in
     :param left_prefix - optional prefix for base data frame
@@ -315,21 +348,20 @@ class TSDF:
     :param tsPartitionVal - value to break up each partition into time brackets
     :param fraction - overlap fraction
     :param skipNulls - whether to skip nulls when joining in values
+    :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
+    :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
     """
 
     # first block of logic checks whether a standard range join will suffice
     left_df = self.df
     right_df = right_tsdf.df
 
-    spark = (SparkSession.builder.appName("myapp").getOrCreate())
-
-    left_plan = left_df._jdf.queryExecution().logical()
-    left_bytes = spark._jsparkSession.sessionState().executePlan(left_plan).optimizedPlan().stats().sizeInBytes()
-    right_plan = right_df._jdf.queryExecution().logical()
-    right_bytes = spark._jsparkSession.sessionState().executePlan(right_plan).optimizedPlan().stats().sizeInBytes()
+    spark = (SparkSession.builder.getOrCreate())
+    left_bytes = self.__getBytesFromPlan(left_df, spark)
+    right_bytes = self.__getBytesFromPlan(right_df, spark)
 
     # choose 30MB as the cutoff for the broadcast
-    bytes_threshold = 30*1024*1024
+    bytes_threshold = 30 * 1024 * 1024
     if sql_join_opt & ((left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)):
       spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
       partition_cols = right_tsdf.partitionCols
@@ -388,10 +420,10 @@ class TSDF:
 
     # perform asof join.
     if tsPartitionVal is None:
-        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
+        asofDF = combined_df.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls, suppress_null_warning)
     else:
         tsPartitionDF = combined_df.__getTimePartitions(tsPartitionVal, fraction=fraction)
-        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls)
+        asofDF = tsPartitionDF.__getLastRightRow(left_tsdf.ts_col, right_columns, right_tsdf.sequence_col, tsPartitionVal, skipNulls, suppress_null_warning)
 
         # Get rid of overlapped data and the extra columns generated from timePartitions
         df = asofDF.df.filter(f.col("is_original") == 1).drop("ts_partition","is_original")
