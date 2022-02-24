@@ -8,7 +8,7 @@ except ImportError:
     from pip._vendor.packaging.version import parse
 
 
-def get_version(package: str, major: bool = False, minor: bool = False, micro: bool = False) -> str:
+def get_version(package: str, major: bool = False, minor: bool = False, micro: bool = False, env: str = 'PROD') -> str:
     """
     This function is for getting the version of package from PyPI and generate a updated version number
     for the new build. Or an initial version number if the package is being released for the first time
@@ -36,11 +36,16 @@ def get_version(package: str, major: bool = False, minor: bool = False, micro: b
     :type minor: boolean
     :param micro: MICRO VERSION NUMBER Flag
     :type micro: boolean
+    :param env: PyPI Environment where package details is pulled from
+    :type env: string
     :return: The updated version number
     :rtype: string
     """
-    # API endpoint of PyPI
-    url_pattern = 'https://pypi.python.org/pypi/{package}/json'
+    # API endpoint of PyPI based on environment
+    if env.upper() == 'PROD':
+        url_pattern = 'https://pypi.python.org/pypi/{package}/json'
+    elif env.upper() == 'TEST':
+        url_pattern = 'https://test.pypi.org/pypi/{package}/json'
     # Getting our package specific details
     req = requests.get(url_pattern.format(package=package))
     # Initializing a zero version
