@@ -593,20 +593,14 @@ class TSDF:
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
-  def withGroupedStats(self, type='range', colsToSummarize=[], freq = None):
+  def withGroupedStats(self, colsToSummarize=[], freq = None):
       """
       Create a wider set of stats based on all numeric columns by default
       Users can choose which columns they want to summarize also. These stats are:
-      mean/count/min/max/sum/std deviation/zscore
-      :param type - this is created in case we want to extend these stats to lookback over a fixed number of rows instead of ranging over column values
+      mean/count/min/max/sum/std deviation
       :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
-      :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
-      Assumptions:
-           1. The features are summarized over a rolling window that ranges back
-           2. The range back window can be specified by the user
-           3. Sequence numbers are not yet supported for the sort
-           4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
-       """
+      :param freq - frequency (provide a string of the form '1 min', '30 seconds' and we interpret the window to use to aggregate
+      """
 
       # identify columns to summarize if not provided
       # these should include all numeric columns that
@@ -629,7 +623,6 @@ class TSDF:
 
       # compute column summaries
       selectedCols = []
-      derivedCols = []
       for metric in colsToSummarize:
           selectedCols.append(f.mean(f.col(metric)).alias('mean_' + metric))
           selectedCols.append(f.count(f.col(metric)).alias('count_' + metric))
@@ -639,7 +632,7 @@ class TSDF:
           selectedCols.append(f.stddev(f.col(metric)).alias('stddev_' + metric))
 
       selected_df = self.df.groupBy(self.partitionCols + [agg_window]).agg(*selectedCols)
-      summary_df = selected_df.select(*selected_df.columns, *derivedCols).withColumn(self.ts_col, f.col('window').start).drop('window')
+      summary_df = selected_df.select(*selected_df.columns).withColumn(self.ts_col, f.col('window').start).drop('window')
 
       return TSDF(summary_df, self.ts_col, self.partitionCols)
 
