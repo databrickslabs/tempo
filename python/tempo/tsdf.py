@@ -593,19 +593,19 @@ class TSDF:
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
-  def withGroupedStats(self, colsToSummarize=[], freq = None):
+  def withGroupedStats(self, metricCols=[], freq = None):
       """
       Create a wider set of stats based on all numeric columns by default
       Users can choose which columns they want to summarize also. These stats are:
       mean/count/min/max/sum/std deviation
-      :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
+      :param metricCols - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
       :param freq - frequency (provide a string of the form '1 min', '30 seconds' and we interpret the window to use to aggregate
       """
 
       # identify columns to summarize if not provided
       # these should include all numeric columns that
       # are not the timestamp column and not any of the partition columns
-      if not colsToSummarize:
+      if not metricCols:
           # columns we should never summarize
           prohibited_cols = [self.ts_col.lower()]
           if self.partitionCols:
@@ -613,7 +613,7 @@ class TSDF:
           # types that can be summarized
           summarizable_types = ['int', 'bigint', 'float', 'double']
           # filter columns to find summarizable columns
-          colsToSummarize = [datatype[0] for datatype in self.df.dtypes if
+          metricCols = [datatype[0] for datatype in self.df.dtypes if
                              ((datatype[1] in summarizable_types) and
                               (datatype[0].lower() not in prohibited_cols))]
 
@@ -623,7 +623,7 @@ class TSDF:
 
       # compute column summaries
       selectedCols = []
-      for metric in colsToSummarize:
+      for metric in metricCols:
           selectedCols.append(f.mean(f.col(metric)).alias('mean_' + metric))
           selectedCols.append(f.count(f.col(metric)).alias('count_' + metric))
           selectedCols.append(f.min(f.col(metric)).alias('min_' + metric))
