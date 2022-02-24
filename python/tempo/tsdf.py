@@ -593,6 +593,56 @@ class TSDF:
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
+  def withGroupedStats(self, type='range', colsToSummarize=[], freq = None):
+      """
+      Create a wider set of stats based on all numeric columns by default
+      Users can choose which columns they want to summarize also. These stats are:
+      mean/count/min/max/sum/std deviation/zscore
+      :param type - this is created in case we want to extend these stats to lookback over a fixed number of rows instead of ranging over column values
+      :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
+      :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
+      Assumptions:
+           1. The features are summarized over a rolling window that ranges back
+           2. The range back window can be specified by the user
+           3. Sequence numbers are not yet supported for the sort
+           4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
+       """
+
+      # identify columns to summarize if not provided
+      # these should include all numeric columns that
+      # are not the timestamp column and not any of the partition columns
+      if not colsToSummarize:
+          # columns we should never summarize
+          prohibited_cols = [self.ts_col.lower()]
+          if self.partitionCols:
+              prohibited_cols.extend([pc.lower() for pc in self.partitionCols])
+          # types that can be summarized
+          summarizable_types = ['int', 'bigint', 'float', 'double']
+          # filter columns to find summarizable columns
+          colsToSummarize = [datatype[0] for datatype in self.df.dtypes if
+                             ((datatype[1] in summarizable_types) and
+                              (datatype[0].lower() not in prohibited_cols))]
+
+      # build window
+      parsed_freq = rs.checkAllowableFreq(self, freq)
+      agg_window = f.window(f.col(self.ts_col), "{} {}".format(parsed_freq[0], rs.freq_dict[parsed_freq[1]]))
+
+      # compute column summaries
+      selectedCols = []
+      derivedCols = []
+      for metric in colsToSummarize:
+          selectedCols.append(f.mean(f.col(metric)).alias('mean_' + metric))
+          selectedCols.append(f.count(f.col(metric)).alias('count_' + metric))
+          selectedCols.append(f.min(f.col(metric)).alias('min_' + metric))
+          selectedCols.append(f.max(f.col(metric)).alias('max_' + metric))
+          selectedCols.append(f.sum(f.col(metric)).alias('sum_' + metric))
+          selectedCols.append(f.stddev(f.col(metric)).alias('stddev_' + metric))
+
+      selected_df = self.df.groupBy(self.partitionCols + [agg_window]).agg(*selectedCols)
+      summary_df = selected_df.select(*selected_df.columns, *derivedCols).withColumn(self.ts_col, f.col('window').start).drop('window')
+
+      return TSDF(summary_df, self.ts_col, self.partitionCols)
+
   def write(self, spark, tabName, optimizationCols = None):
     tio.write(self, spark, tabName, optimizationCols)
 
