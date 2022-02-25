@@ -244,7 +244,7 @@ Group by partition columns and a frequency to get the minimum, maximum, count, m
 
 ```python
 grouped_stats = watch_accel_tsdf.withGroupedStats(metricCols = ["y"], freq="1 minute")
-grouped_stats.select('event_ts', 'x', 'y', 'z', 'mean_y', 'sum_y', 'count_y').show(10, False)
+display(grouped_stats)
 ```
 
 
