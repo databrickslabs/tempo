@@ -254,6 +254,20 @@ interpolated_tsdf = input_tsdf.interpolate(
 
 ```
 
+#### 8 - Grouped Stats by Frequency
+
+Group by partition columns and a frequency to get the minimum, maximum, count, mean, standard deviation, and sum for all or some subset of numeric columns.
+
+Parameters: 
+
+freq = (required) Frequency at which the grouping should take place - acceptable parameters are strings of the form "1 minute", "40 seconds", etc.
+metrics = (optional) List of columns to compute metrics for. These should be numeric columns.
+
+```python
+grouped_stats = watch_accel_tsdf.withGroupedStats("y", freq="1 minute")
+grouped_stats.select('event_ts', 'x', 'y', 'z', 'mean_y', 'sum_y', 'count_y').show(10, False)
+```
+
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.
 
