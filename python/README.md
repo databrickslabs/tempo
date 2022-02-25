@@ -236,10 +236,11 @@ interpolated_tsdf = input_tsdf.interpolate(
 
 Group by partition columns and a frequency to get the minimum, maximum, count, mean, standard deviation, and sum for all or some subset of numeric columns.
 
-Parameters: 
+###### Parameters: 
 
-freq = (required) Frequency at which the grouping should take place - acceptable parameters are strings of the form "1 minute", "40 seconds", etc.
-metricCols = (optional) List of columns to compute metrics for. These should be numeric columns.
+`freq` = (required) Frequency at which the grouping should take place - acceptable parameters are strings of the form "1 minute", "40 seconds", etc.
+
+`metricCols` = (optional) List of columns to compute metrics for. These should be numeric columns.
 
 ```python
 grouped_stats = watch_accel_tsdf.withGroupedStats("y", freq="1 minute")
