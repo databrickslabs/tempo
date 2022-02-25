@@ -505,7 +505,8 @@ class RangeStatsTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
         schema = StructType([StructField("symbol", StringType()),
                              StructField("event_ts", StringType()),
-                             StructField("trade_pr", FloatType())])
+                             StructField("trade_pr", FloatType()),
+                             StructField("index", IntegerType())])
 
         expectedSchema = StructType([StructField("symbol", StringType()),
                                      StructField("event_ts", StringType()),
@@ -514,16 +515,22 @@ class RangeStatsTest(SparkTest):
                                      StructField("min_trade_pr", FloatType()),
                                      StructField("max_trade_pr", FloatType()),
                                      StructField("sum_trade_pr", FloatType()),
-                                     StructField("stddev_trade_pr", FloatType())])
+                                     StructField("stddev_trade_pr", FloatType()),
+                                     StructField("mean_index", IntegerType()),
+                                     StructField("count_index", IntegerType(), nullable=False),
+                                     StructField("min_index", IntegerType()),
+                                     StructField("max_index", IntegerType()),
+                                     StructField("sum_index", IntegerType()),
+                                     StructField("stddev_index", IntegerType())])
 
-        data = [["S1", "2020-08-01 00:00:10", 349.21],
-                ["S1", "2020-08-01 00:00:33", 351.32],
-                ["S1", "2020-09-01 00:02:10", 361.1],
-                ["S1", "2020-09-01 00:02:49", 362.1]]
+        data = [["S1", "2020-08-01 00:00:10", 349.21, 1],
+                ["S1", "2020-08-01 00:00:33", 351.32, 1],
+                ["S1", "2020-09-01 00:02:10", 361.1, 1],
+                ["S1", "2020-09-01 00:02:49", 362.1, 1]]
 
         expected_data = [
-            ["S1", "2020-08-01 00:00:00", 350.26, 2, 349.21, 351.32, 700.53, 1.49],
-            ["S1", "2020-09-01 00:02:00", 361.6, 2, 361.1, 362.1, 723.2, 0.71]]
+            ["S1", "2020-08-01 00:00:00", 350.26, 2, 349.21, 351.32, 700.53, 1.49, 1, 2, 1, 1, 2, 0],
+            ["S1", "2020-09-01 00:02:00", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 1, 2, 1, 1, 2, 0]]
 
         # construct dataframes
         df = self.buildTestDF(schema, data)
