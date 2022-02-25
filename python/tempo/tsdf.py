@@ -593,6 +593,44 @@ class TSDF:
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
+  def withGroupedStats(self, metricCols=[], freq = None):
+      """
+      Create a wider set of stats based on all numeric columns by default
+      Users can choose which columns they want to summarize also. These stats are:
+      mean/count/min/max/sum/std deviation
+      :param metricCols - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
+      :param freq - frequency (provide a string of the form '1 min', '30 seconds' and we interpret the window to use to aggregate
+      """
+
+      # identify columns to summarize if not provided
+      # these should include all numeric columns that
+      # are not the timestamp column and not any of the partition columns
+      if not metricCols:
+          # columns we should never summarize
+          prohibited_cols = [self.ts_col.lower()]
+          if self.partitionCols:
+              prohibited_cols.extend([pc.lower() for pc in self.partitionCols])
+          # types that can be summarized
+          summarizable_types = ['int', 'bigint', 'float', 'double']
+          # filter columns to find summarizable columns
+          metricCols = [datatype[0] for datatype in self.df.dtypes if
+                             ((datatype[1] in summarizable_types) and
+                              (datatype[0].lower() not in prohibited_cols))]
+
+      # build window
+      parsed_freq = rs.checkAllowableFreq(self, freq)
+      agg_window = f.window(f.col(self.ts_col), "{} {}".format(parsed_freq[0], rs.freq_dict[parsed_freq[1]]))
+
+      # compute column summaries
+      selectedCols = []
+      reduce(lambda selectedCols, metric:
+          selectedCols.extend([f.mean(f.col(metric)).alias('mean_' + metric), f.count(f.col(metric)).alias('count_' + metric), f.min(f.col(metric)).alias('min_' + metric), f.max(f.col(metric)).alias('max_' + metric), f.sum(f.col(metric)).alias('sum_' + metric), f.stddev(f.col(metric)).alias('stddev_' + metric)]), metricCols, selectedCols)
+
+      selected_df = self.df.groupBy(self.partitionCols + [agg_window]).agg(*selectedCols)
+      summary_df = selected_df.select(*selected_df.columns).withColumn(self.ts_col, f.col('window').start).drop('window')
+
+      return TSDF(summary_df, self.ts_col, self.partitionCols)
+
   def write(self, spark, tabName, optimizationCols = None):
     tio.write(self, spark, tabName, optimizationCols)
 

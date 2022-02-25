@@ -501,6 +501,61 @@ class RangeStatsTest(SparkTest):
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
 
+    def test_group_stats(self):
+        """Test of range stats for 20 minute rolling window"""
+        schema = StructType([StructField("symbol", StringType()),
+                             StructField("event_ts", StringType()),
+                             StructField("trade_pr", FloatType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("mean_trade_pr", FloatType()),
+                                     StructField("count_trade_pr", LongType(), nullable=False),
+                                     StructField("min_trade_pr", FloatType()),
+                                     StructField("max_trade_pr", FloatType()),
+                                     StructField("sum_trade_pr", FloatType()),
+                                     StructField("stddev_trade_pr", FloatType())])
+
+        data = [["S1", "2020-08-01 00:00:10", 349.21],
+                ["S1", "2020-08-01 00:00:33", 351.32],
+                ["S1", "2020-09-01 00:02:10", 361.1],
+                ["S1", "2020-09-01 00:02:49", 362.1]]
+
+        expected_data = [
+            ["S1", "2020-08-01 00:00:00", 350.26, 2, 349.21, 351.32, 700.53, 1.49],
+            ["S1", "2020-09-01 00:02:00", 361.6, 2, 361.1, 362.1, 723.2, 0.71]]
+
+        # construct dataframes
+        df = self.buildTestDF(schema, data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, partition_cols=["symbol"])
+
+        # using lookback of 20 minutes
+        featured_df = tsdf_left.withGroupedStats(freq = '1 min').df
+
+        # cast to decimal with precision in cents for simplicity
+        featured_df = featured_df.select(F.col("symbol"), F.col("event_ts"),
+                                         F.col("mean_trade_pr").cast("decimal(5, 2)"),
+                                         F.col("count_trade_pr"),
+                                         F.col("min_trade_pr").cast("decimal(5,2)"),
+                                         F.col("max_trade_pr").cast("decimal(5,2)"),
+                                         F.col("sum_trade_pr").cast("decimal(5,2)"),
+                                         F.col("stddev_trade_pr").cast("decimal(5,2)"))
+
+        # cast to decimal with precision in cents for simplicity
+        dfExpected = dfExpected.select(F.col("symbol"), F.col("event_ts"),
+                                       F.col("mean_trade_pr").cast("decimal(5, 2)"),
+                                       F.col("count_trade_pr"),
+                                       F.col("min_trade_pr").cast("decimal(5,2)"),
+                                       F.col("max_trade_pr").cast("decimal(5,2)"),
+                                       F.col("sum_trade_pr").cast("decimal(5,2)"),
+                                       F.col("stddev_trade_pr").cast("decimal(5,2)"))
+
+        # should be equal to the expected dataframe
+        self.assertDataFramesEqual(featured_df, dfExpected)
+
 
 class UtilsTest(SparkTest):
 
@@ -649,7 +704,7 @@ class ResampleTest(SparkTest):
             ["S1", "2020-09-01 00:15:00", 0.0, 362.1, 4.0]
         ]
 
-        expected_bars = [
+        expected_bars  = [
             ['S1', '2020-08-01 00:00:00', 340.21, 9.0, 349.21, 10.0, 340.21, 9.0, 349.21, 10.0],
             ['S1', '2020-08-01 00:01:00', 350.32, 6.0, 353.32, 8.0, 350.32, 6.0, 353.32, 8.0],
             ['S1', '2020-09-01 00:01:00', 361.1, 5.0, 361.1, 5.0, 361.1, 5.0, 361.1, 5.0],
