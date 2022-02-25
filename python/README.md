@@ -240,10 +240,10 @@ Group by partition columns and a frequency to get the minimum, maximum, count, m
 
 `freq` = (required) Frequency at which the grouping should take place - acceptable parameters are strings of the form "1 minute", "40 seconds", etc.
 
-`metricCols` = (optional) List of columns to compute metrics for. These should be numeric columns.
+`metricCols` = (optional) List of columns to compute metrics for. These should be numeric columns. If this is not supplied, this method will compute stats on all numeric columns in the TSDF
 
 ```python
-grouped_stats = watch_accel_tsdf.withGroupedStats("y", freq="1 minute")
+grouped_stats = watch_accel_tsdf.withGroupedStats(metricCols = ["y"], freq="1 minute")
 grouped_stats.select('event_ts', 'x', 'y', 'z', 'mean_y', 'sum_y', 'count_y').show(10, False)
 ```
 
