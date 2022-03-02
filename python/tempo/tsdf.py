@@ -151,7 +151,10 @@ class TSDF:
       for column in df.columns:
         if (column.startswith("non_null")):
           # Avoid collect() calls when explicitly ignoring the warnings about null values due to lookback window.
-          if not suppress_null_warning or logger.isEnabledFor(logging.WARNING):
+          # if setting suppress_null_warning to True and warning logger is enabled for other part of the code, 
+          # it would make sense to not log warning in this function while allowing other part of the code to continue to log warning. 
+          # So it makes more sense for and than or on this line
+          if not suppress_null_warning and logger.isEnabledFor(logging.WARNING):
             any_blank_vals = (df.agg({column: 'min'}).collect()[0][0] == 0)
             newCol = column.replace("non_null_ct", "")
             if any_blank_vals:
