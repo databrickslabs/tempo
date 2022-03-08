@@ -34,13 +34,32 @@ class TSDF:
 
     self.df = df
     self.sequence_col = '' if sequence_col is None else sequence_col
+
+    if (df.schema[ts_col].dataType == "StringType"):
+        sample_ts = df.limit(1).collect()[0][0]
+        self.__validate_ts_string(sample_ts)
+        self.__add_double_ts().withColumnRenamed("double_ts", self.ts_col)
+
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
 
+
   ##
   ## Helper functions
   ##
+
+  def __add_double_ts(self):
+      self.df = self.df.withColumn("nanos", (f.when(f.col(self.ts_col).contains("."),
+                                     f.concat(f.lit("0."), f.split(f.col(self.ts_col), '\.')[1])).otherwise(0)).cast(
+          "double")).withColumn("double_ts", f.col(self.ts_col).cast("long") + f.col("nanos"))
+
+  def __validate_ts_string(ts_text):
+      import datetime
+      try:
+          datetime.datetime.strptime(ts_text, '%Y-%m-%dT%H:%M:%S')
+      except ValueError:
+          raise ValueError("Incorrect data format, should be YYYY-MM-DD HH:MM:SS")
 
   def __validated_column(self,df,colname):
     if type(colname) != str:
@@ -436,11 +455,12 @@ class TSDF:
     return asofDF
 
 
-  def __baseWindow(self):
+  def __baseWindow(self, sort_col = None):
     # add all sort keys - time is first, unique sequence number breaks the tie
 
-    ptntl_sort_keys = [self.ts_col, self.sequence_col]
-    sort_keys = [f.col(col_name).cast("long") for col_name in ptntl_sort_keys if col_name != '']
+    sort_col = self.ts_col if not sort_col else sort_col
+    ptntl_sort_keys = [sort_col, self.sequence_col]
+    sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
 
     w = Window().orderBy(sort_keys)
     if self.partitionCols:
@@ -448,8 +468,8 @@ class TSDF:
     return w
 
 
-  def __rangeBetweenWindow(self, range_from, range_to):
-    return self.__baseWindow().rangeBetween(range_from, range_to)
+  def __rangeBetweenWindow(self, range_from, range_to, sort_col = None):
+    return self.__baseWindow(sort_col).rangeBetween(range_from, range_to)
 
 
   def __rowsBetweenWindow(self, rows_from, rows_to):
@@ -577,7 +597,12 @@ class TSDF:
                                  (datatype[0].lower() not in prohibited_cols))]
 
           # build window
-          w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
+          if (str(self.df.schema[self.ts_col].dataType) == 'TimestampType'):
+              self.__add_double_ts()
+              prohibited_cols.extend(["double_ts"])
+              w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0, sort_col="double_ts")
+          else:
+              w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
 
           # compute column summaries
           selectedCols = self.df.columns
@@ -592,7 +617,7 @@ class TSDF:
               derivedCols.append(
                       ((f.col(metric) - f.col('mean_' + metric)) / f.col('stddev_' + metric)).alias("zscore_" + metric))
           selected_df = self.df.select(*selectedCols)
-          summary_df = selected_df.select(*selected_df.columns, *derivedCols)
+          summary_df = selected_df.select(*selected_df.columns, *derivedCols).drop("double_ts")
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
