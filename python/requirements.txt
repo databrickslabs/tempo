@@ -10,3 +10,7 @@ scipy==1.8.0
 six==1.16.0
 wheel==0.37.1
 semver==2.13.0
+sphinx-autobuild==2021.3.14
+furo==2022.2.23
+sphinx-copybutton==0.5.0
+Sphinx==4.4.0
