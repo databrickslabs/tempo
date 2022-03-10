@@ -1,8 +1,7 @@
-import sys
 from typing import List
 
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import col, expr, first, last, lead, lit, when
+from pyspark.sql.functions import col, expr, last, lead, lit, when
 from pyspark.sql.window import Window
 from tempo.resample import checkAllowableFreq, freq_dict
 
@@ -212,14 +211,14 @@ class Interpolation:
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
                 .orderBy(ts_col)
-                .rowsBetween(-sys.maxsize, 0)
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            first(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
+            last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
-                .orderBy(ts_col)
-                .rowsBetween(0, sys.maxsize)
+                .orderBy(col(ts_col).desc())
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         )
 
