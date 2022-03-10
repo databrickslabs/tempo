@@ -240,16 +240,16 @@ class Interpolation:
                 last(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
                     .orderBy(ts_col)
-                    .rowsBetween(-sys.maxsize, 0)
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
-                first(df[target_col], ignorenulls=True).over(
+                last(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
-                    .orderBy(ts_col)
-                    .rowsBetween(0, sys.maxsize)
+                    .orderBy(col(ts_col).desc())
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             ).withColumn(
                 f"next_{target_col}",
