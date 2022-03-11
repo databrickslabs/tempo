@@ -622,7 +622,7 @@ class TSDF:
                               (datatype[0].lower() not in prohibited_cols))]
 
       # build window
-      parsed_freq = rs.checkAllowableFreq(self, freq)
+      parsed_freq = rs.checkAllowableFreq(freq)
       agg_window = f.window(f.col(self.ts_col), "{} {}".format(parsed_freq[0], rs.freq_dict[parsed_freq[1]]))
 
       # compute column summaries

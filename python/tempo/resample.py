@@ -29,7 +29,7 @@ def __appendAggKey(tsdf, freq = None):
     :return: triple - 1) return a TSDF with a new aggregate key (called agg_key) 2) return the period for use in interpolation, 3) return the time increment (also necessary for interpolation)
     """
     df = tsdf.df
-    parsed_freq = checkAllowableFreq(tsdf, freq)
+    parsed_freq = checkAllowableFreq(freq)
     agg_window = f.window(f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]]))
 
     df = df.withColumn("agg_key", agg_window)
@@ -117,7 +117,7 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     return res
 
 
-def checkAllowableFreq(tsdf, freq):
+def checkAllowableFreq(freq):
     if freq not in allowableFreqs:
       try:
           periods = freq.lower().split(" ")[0].strip()
