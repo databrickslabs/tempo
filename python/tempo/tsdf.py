@@ -198,9 +198,9 @@ class TSDF:
     Parameters
     ----------
     cols : str or list of strs
-        column names (string).
-        If one of the column names is '*', that column is expanded to include all columns
-        in the current :class:`TSDF`.
+    column names (string).
+    If one of the column names is '*', that column is expanded to include all columns
+    in the current :class:`TSDF`.
 
     Examples
     --------
@@ -225,14 +225,14 @@ class TSDF:
     Parameters
     ----------
     n : int, optional
-        Number of rows to show.
+    Number of rows to show.
     truncate : bool or int, optional
-        If set to ``True``, truncate strings longer than 20 chars by default.
-        If set to a number greater than one, truncates long strings to length ``truncate``
-        and align cells right.
+    If set to ``True``, truncate strings longer than 20 chars by default.
+    If set to a number greater than one, truncates long strings to length ``truncate``
+    and align cells right.
     vertical : bool, optional
-        If set to ``True``, print output rows vertically (one line
-        per column value).
+    If set to ``True``, print output rows vertically (one line
+    per column value).
 
     Example to show usage
     ---------------------
@@ -555,11 +555,12 @@ class TSDF:
           :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
           :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
           Assumptions:
-               1. The features are summarized over a rolling window that ranges back
-               2. The range back window can be specified by the user
-               3. Sequence numbers are not yet supported for the sort
-               4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
-           """
+
+          1. The features are summarized over a rolling window that ranges back
+          2. The range back window can be specified by the user
+          3. Sequence numbers are not yet supported for the sort
+          4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
+          """
 
           # identify columns to summarize if not provided
           # these should include all numeric columns that

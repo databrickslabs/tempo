@@ -333,7 +333,10 @@ Once in the main project folder, build into a wheel using the following command:
 Releasing the Project
 ---------------------
 
-Instructions for how to release a version of the project
+Details on how a version of the project is released will be added soon.
+
+We will include details regarding which versions make it to Github releases and which versions are actually published
+in `PyPI <https://pypi.org/project/dbl-tempo/>`_ for general public.
 
 
 
