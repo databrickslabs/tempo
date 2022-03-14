@@ -393,6 +393,53 @@ class AsOfJoinTest(SparkTest):
 
         self.assertDataFramesEqual(joined_df, dfExpected)
 
+    def test_asof_join_nanos(self):
+        """As of join with nanosecond timestamps currently fails bc timestamps are explicitly casted in the tests"""
+        leftSchema = StructType([StructField("symbol", StringType()),
+                                 StructField("event_ts", StringType()),
+                                 StructField("trade_pr", FloatType())])
+
+        rightSchema = StructType([StructField("symbol", StringType()),
+                                  StructField("event_ts", StringType()),
+                                  StructField("bid_pr", FloatType()),
+                                  StructField("ask_pr", FloatType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("trade_pr", FloatType()),
+                                     StructField("quote_asof_event_ts", StringType()),
+                                     StructField("quote_asof_bid_pr", FloatType()),
+                                     StructField("quote_asof_ask_pr", FloatType())])
+
+        left_data = [["S1", "2022-01-01 09:59:59.123456789", 349.21],
+                     ["S1", "2022-01-01 10:00:00.123456788", 351.32],
+                     ["S1", "2022-01-01 10:00:00.123456789", 361.12],
+                     ["S1", "2022-01-01 10:00:01.123456789", 364.31], ]
+
+        right_data = [["S1", "2022-01-01 10:00:00.1234567", 345.11, 351.12],
+                      ["S1", "2022-01-01 10:00:00.12345671", 348.10, 353.13],
+                      ["S1", "2022-01-01 10:00:00.12345675", 358.93, 365.12],
+                      ["S1", "2022-01-01 10:00:00.12345677", 358.91, 365.33],
+                      ["S1", "2022-01-01 10:00:01.10000001", 359.21, 365.31]]
+
+        expected_data = [
+            ["S1", "2022-01-01 09:59:59.123456789", 349.21, None, None, None],
+            ["S1", "2022-01-01 10:00:00.123456788", 351.32, "2022-01-01 10:00:00.12345677", 358.91, 365.33],
+            ["S1", "2022-01-01 10:00:00.123456789", 361.12, "2022-01-01 10:00:00.12345677", 358.91, 365.33],
+            ["S1", "2022-01-01 10:00:01.123456789", 364.31, "2022-01-01 10:00:01.10000001", 359.21, 365.31]]
+
+        dfLeft = self.buildTestDF(leftSchema, left_data)
+        dfRight = self.buildTestDF(rightSchema, right_data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+
+        tsdf_left = TSDF(dfLeft, ts_col="event_ts", partition_cols=["symbol"])
+        tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
+
+        joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right",
+                                       tsPartitionVal=10, fraction=0.1).df
+
+        self.assertDataFramesEqual(joined_df, dfExpected)
+
 
 class FourierTransformTest(SparkTest):
 
