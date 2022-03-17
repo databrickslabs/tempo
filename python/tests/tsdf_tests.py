@@ -516,8 +516,8 @@ class RangeStatsTest(SparkTest):
             ["S1", "2020-09-01 00:19:12", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 0.71]]
 
         # construct dataframes
-        df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+        df = self.buildTestDF(schema, data).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
+        dfExpected = self.buildTestDF(expectedSchema, expected_data).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
