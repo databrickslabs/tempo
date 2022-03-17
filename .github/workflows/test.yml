@@ -15,7 +15,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
       - name: Install Git
-        run: 'apt-get install git'
+        run: 'sudo apt-get install -y git'
       - name: Copy Requirements
         uses: canastro/copy-file-action@master
         with:
