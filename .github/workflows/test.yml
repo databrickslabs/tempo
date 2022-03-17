@@ -17,7 +17,14 @@ jobs:
       - name: Install Git
         run: 'sudo apt-get install -y git'
       - name: Test Git
-        run: 'git describe --abbrev=0 --tags'
+        run: |
+          # setup the username and email. I tend to use 'GitHub Actions Bot' with no email by default
+          git --version
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git status
+          git tag
+          git describe
       - name: Copy Requirements
         uses: canastro/copy-file-action@master
         with:
