@@ -13,10 +13,12 @@
 from datetime import date
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../python'))
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, root_path)
 
+from version import get_latest_git_tag
 
 # -- Project information -----------------------------------------------------
 
@@ -25,7 +27,7 @@ copyright = f'{date.today().year}, Databricks Labs'
 author = 'Databricks Labs'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.10'
+release = get_latest_git_tag()
 
 
 # -- General configuration ---------------------------------------------------
