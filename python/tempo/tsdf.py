@@ -603,7 +603,7 @@ class TSDF:
                                  (datatype[0].lower() not in prohibited_cols))]
 
           # build window
-          if (str(self.df.schema[self.ts_col].dataType) == 'StringType'):
+          if (str(self.df.schema[self.ts_col].dataType) == 'TimestampType'):
               self.__add_double_ts()
               prohibited_cols.extend(["double_ts"])
               w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0, sort_col="double_ts")
