@@ -55,9 +55,9 @@ class TSDF:
       """
       self.df = self.df.withColumn("nanos", (f.when(f.col(self.ts_col).contains("."), f.concat(f.lit("0."), f.split(f.col(self.ts_col), '\.')[1]))
                                              .otherwise(0)).cast("double")) \
-          .withColumn("long_ts", f.when(f.col(self.ts_col).contains("."), f.split(f.col(self.ts_col), '\.')[0])
-                      .otherwise(f.col(self.ts_col)).cast("timestamp").cast("long")) \
+          .withColumn("long_ts", f.col(self.ts_col).cast("timestamp").cast("long")) \
           .withColumn("double_ts", f.col("long_ts") + f.col("nanos"))\
+          .drop("nanos")\
           .drop("long_ts")
 
   def __validate_ts_string(self, ts_text):
@@ -603,7 +603,7 @@ class TSDF:
                                  (datatype[0].lower() not in prohibited_cols))]
 
           # build window
-          if (str(self.df.schema[self.ts_col].dataType) == 'TimestampType'):
+          if (str(self.df.schema[self.ts_col].dataType) == 'StringType'):
               self.__add_double_ts()
               prohibited_cols.extend(["double_ts"])
               w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0, sort_col="double_ts")
