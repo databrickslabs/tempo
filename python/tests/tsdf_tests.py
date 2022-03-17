@@ -1,5 +1,6 @@
 import logging
 import unittest
+import re
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -41,10 +42,14 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        # convert all timestamp columns
-        #for tsc in ts_cols:
-        #    df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
-
+        #check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
+        for tsc in ts_cols:
+            ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
+            ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
+            decimal_pattern = "[.]\d+"
+            if re.match(ts_pattern, str(ts_value)) is not None:
+                if re.search(decimal_pattern, ts_value) is None or len(re.search(decimal_pattern, ts_value)[0]) <= 4:
+                    df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
     ##
@@ -431,7 +436,7 @@ class AsOfJoinTest(SparkTest):
 
         dfLeft = self.buildTestDF(leftSchema, left_data)
         dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ts_cols=["left_event_ts"])
 
         tsdf_left = TSDF(dfLeft, ts_col="event_ts", partition_cols=["symbol"])
         tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
@@ -516,8 +521,8 @@ class RangeStatsTest(SparkTest):
             ["S1", "2020-09-01 00:19:12", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 0.71]]
 
         # construct dataframes
-        df = self.buildTestDF(schema, data).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
-        dfExpected = self.buildTestDF(expectedSchema, expected_data).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
+        df = self.buildTestDF(schema, data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data)
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
@@ -581,7 +586,7 @@ class RangeStatsTest(SparkTest):
 
         # construct dataframes
         df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
+        dfExpected = self.buildTestDF(expectedSchema, expected_data)
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
@@ -684,9 +689,9 @@ class ResampleTest(SparkTest):
 
         # construct dataframes
         df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
-        expected_30s_df = self.buildTestDF(expected_30m_Schema, expected_data_30m).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
-        barsExpected = self.buildTestDF(expectedBarsSchema, expected_bars).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
+        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+        expected_30s_df = self.buildTestDF(expected_30m_Schema, expected_data_30m)
+        barsExpected = self.buildTestDF(expectedBarsSchema, expected_bars)
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
@@ -768,8 +773,8 @@ class ResampleTest(SparkTest):
         # construct dataframes
         df = self.buildTestDF(schema, data)
         dfExpected = self.buildTestDF(expectedSchema, expected_data)
-        expected_30s_df = self.buildTestDF(expected_30m_Schema, expected_data_30m).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
-        barsExpected = self.buildTestDF(expectedBarsSchema, expected_bars).withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
+        expected_30s_df = self.buildTestDF(expected_30m_Schema, expected_data_30m)
+        barsExpected = self.buildTestDF(expectedBarsSchema, expected_bars)
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
@@ -777,8 +782,7 @@ class ResampleTest(SparkTest):
         resample_30m = tsdf_left.resample(freq="5 minutes", func="mean", fill=True).df.withColumn("trade_pr", F.round(
             F.col('trade_pr'), 2))
 
-        bars = tsdf_left.calc_bars(freq='min', metricCols=['trade_pr', 'trade_pr_2']).df\
-            .withColumn("event_ts",  F.to_timestamp(F.col("event_ts")))
+        bars = tsdf_left.calc_bars(freq='min', metricCols=['trade_pr', 'trade_pr_2']).df
 
         upsampled = resample_30m.filter(
             F.col("event_ts").isin('2020-08-01 00:00:00', '2020-08-01 00:05:00', '2020-09-01 00:00:00',
