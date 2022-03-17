@@ -35,3 +35,4 @@ venv
 
 # other misc ignore
 .DS_Store
+/docs/_build/
