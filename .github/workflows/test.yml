@@ -29,7 +29,9 @@ jobs:
           source: "python/requirements.txt"
           target: "docs/requirements.txt"
       - name: Build HTML
-        uses: ammaraskar/sphinx-action@0.4
+        run: |
+          cd ./docs/
+          make html
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
