@@ -13,14 +13,16 @@ jobs:
       PYTHON: '3.9'
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: '0'
       - name: Config Git
         run: |
           # setup the username and email. I tend to use 'GitHub Actions Bot' with no email by default
           git --version
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
-          git describe --abbrev=0 --tags --always
+          git describe --abbrev=0 --tags
       - name: Copy Requirements
         uses: canastro/copy-file-action@master
         with:
