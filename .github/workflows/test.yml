@@ -20,8 +20,6 @@ jobs:
           git --version
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
-          git status
-          git tag
           git describe --abbrev=0 --tags
       - name: Copy Requirements
         uses: canastro/copy-file-action@master
