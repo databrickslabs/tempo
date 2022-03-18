@@ -53,17 +53,19 @@ class TSDF:
   def __add_double_ts(self):
       """ Add a double (epoch) version of the string timestamp out to nanos
       """
-      self.df = self.df.withColumn("nanos", (f.when(f.col(self.ts_col).contains("."),
-                                     f.concat(f.lit("0."), f.split(f.col(self.ts_col), '\.')[1])).otherwise(0)).cast(
-          "double")).withColumn("double_ts", f.col(self.ts_col).cast("long") + f.col("nanos"))
+      self.df = self.df.withColumn("nanos", (f.when(f.col(self.ts_col).contains("."), f.concat(f.lit("0."), f.split(f.col(self.ts_col), '\.')[1]))
+                                             .otherwise(0)).cast("double")) \
+          .withColumn("long_ts", f.col(self.ts_col).cast("timestamp").cast("long")) \
+          .withColumn("double_ts", f.col("long_ts") + f.col("nanos"))\
+          .drop("nanos")\
+          .drop("long_ts")
 
   def __validate_ts_string(self, ts_text):
-      """ Validate the format for the string"""
-      import datetime
-      try:
-          datetime.datetime.strptime(ts_text, '%Y-%m-%dT%H:%M:%S')
-      except ValueError:
-          raise ValueError("Incorrect data format, should be YYYY-MM-DD HH:MM:SS")
+      """Validate the format for the string using Regex matching for ts_string"""
+      import re
+      ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
+      if re.match(ts_pattern, ts_text) is None:
+          raise ValueError("Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]")
 
   def __validated_column(self, df,colname):
     if type(colname) != str:

@@ -1,5 +1,6 @@
 import logging
 import unittest
+import re
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -41,10 +42,14 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        # convert all timestamp columns
+        #check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
         for tsc in ts_cols:
-            df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
-
+            ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
+            ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
+            decimal_pattern = "[.]\d+"
+            if re.match(ts_pattern, str(ts_value)) is not None:
+                if re.search(decimal_pattern, ts_value) is None or len(re.search(decimal_pattern, ts_value)[0]) <= 4:
+                    df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
     ##
@@ -393,6 +398,53 @@ class AsOfJoinTest(SparkTest):
 
         self.assertDataFramesEqual(joined_df, dfExpected)
 
+    def test_asof_join_nanos(self):
+        """As of join with nanosecond timestamps"""
+        leftSchema = StructType([StructField("symbol", StringType()),
+                                 StructField("event_ts", StringType()),
+                                 StructField("trade_pr", FloatType())])
+
+        rightSchema = StructType([StructField("symbol", StringType()),
+                                  StructField("event_ts", StringType()),
+                                  StructField("bid_pr", FloatType()),
+                                  StructField("ask_pr", FloatType())])
+
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("left_event_ts", StringType()),
+                                     StructField("left_trade_pr", FloatType()),
+                                     StructField("right_event_ts", StringType()),
+                                     StructField("right_ask_pr", FloatType()),
+                                     StructField("right_bid_pr", FloatType())]
+                                     )
+
+        left_data = [["S1", "2022-01-01 09:59:59.123456789", 349.21],
+                     ["S1", "2022-01-01 10:00:00.123456788", 351.32],
+                     ["S1", "2022-01-01 10:00:00.123456789", 361.12],
+                     ["S1", "2022-01-01 10:00:01.123456789", 364.31], ]
+
+        right_data = [["S1", "2022-01-01 10:00:00.1234567", 345.11, 351.12],
+                      ["S1", "2022-01-01 10:00:00.12345671", 348.10, 353.13],
+                      ["S1", "2022-01-01 10:00:00.12345675", 358.93, 365.12],
+                      ["S1", "2022-01-01 10:00:00.12345677", 358.91, 365.33],
+                      ["S1", "2022-01-01 10:00:01.10000001", 359.21, 365.31]]
+
+        expected_data = [
+            ["S1", "2022-01-01 09:59:59.123456789", 349.21, None, None, None],
+            ["S1", "2022-01-01 10:00:00.123456788", 351.32, "2022-01-01 10:00:00.12345677", 365.33, 358.91],
+            ["S1", "2022-01-01 10:00:00.123456789", 361.12, "2022-01-01 10:00:00.12345677", 365.33, 358.91],
+            ["S1", "2022-01-01 10:00:01.123456789", 364.31, "2022-01-01 10:00:01.10000001", 365.31, 359.21]]
+
+        dfLeft = self.buildTestDF(leftSchema, left_data)
+        dfRight = self.buildTestDF(rightSchema, right_data)
+        dfExpected = self.buildTestDF(expectedSchema, expected_data, ts_cols=["left_event_ts"])
+
+        tsdf_left = TSDF(dfLeft, ts_col="event_ts", partition_cols=["symbol"])
+        tsdf_right = TSDF(dfRight, ts_col="event_ts", partition_cols=["symbol"])
+
+        joined_df = tsdf_left.asofJoin(tsdf_right, left_prefix="left", right_prefix="right").df
+
+        self.assertDataFramesEqual(joined_df, dfExpected)
+
 
 class FourierTransformTest(SparkTest):
 
@@ -735,6 +787,8 @@ class ResampleTest(SparkTest):
         upsampled = resample_30m.filter(
             F.col("event_ts").isin('2020-08-01 00:00:00', '2020-08-01 00:05:00', '2020-09-01 00:00:00',
                                    '2020-09-01 00:15:00'))
+
+        #test upsample summary
         self.assertDataFramesEqual(upsampled, expected_30s_df)
 
         # test bars summary
@@ -744,18 +798,12 @@ class ResampleTest(SparkTest):
 class DeltaWriteTest(SparkTest):
 
     def test_write_to_delta(self):
-        """Test of range stats for 20 minute rolling window"""
+        """Test table write to delta format"""
         schema = StructType([StructField("symbol", StringType()),
                              StructField("date", StringType()),
                              StructField("event_ts", StringType()),
                              StructField("trade_pr", FloatType()),
                              StructField("trade_pr_2", FloatType())])
-
-        expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("event_ts", StringType()),
-                                     StructField("date", StringType()),
-                                     StructField("trade_pr_2", FloatType()),
-                                     StructField("trade_pr", FloatType())])
 
         data = [["S1", "SAME_DT", "2020-08-01 00:00:10", 349.21, 10.0],
                 ["S1", "SAME_DT", "2020-08-01 00:00:11", 340.21, 9.0],
@@ -765,27 +813,18 @@ class DeltaWriteTest(SparkTest):
                 ["S1", "SAME_DT", "2020-09-01 00:01:12", 361.1, 5.0],
                 ["S1", "SAME_DT", "2020-09-01 00:19:12", 362.1, 4.0]]
 
-        expected_data = [
-            ["S1", "2020-08-01 00:00:00", "SAME_DT", 10.0, 349.21],
-            ["S1", "2020-08-01 00:01:00", "SAME_DT", 8.0, 353.32],
-            ["S1", "2020-09-01 00:01:00", "SAME_DT", 5.0, 361.1],
-            ["S1", "2020-09-01 00:19:00", "SAME_DT", 4.0, 362.1]]
-
-        # construct dataframes
+        # construct dataframe
         df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
 
         # convert to TSDF
-        tsdf_left = TSDF(df, partition_cols=["symbol"])
+        tsdf_left = TSDF(df, partition_cols=["symbol"], ts_col="event_ts")
 
-        # using lookback of 20 minutes
-        # featured_df = tsdf_left.resample(freq = "min", func = "closest_lead").df
+        #test write to delta
         tsdf_left.write(self.spark, "my_table")
         logging.info('delta table count ' + str(self.spark.table("my_table").count()))
 
         # should be equal to the expected dataframe
         assert self.spark.table("my_table").count() == 7
-        # self.assertDataFramesEqual(tsdf_left.df, tsdf_left.df)
 
 
 ## MAIN
