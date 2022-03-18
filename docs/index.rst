@@ -27,6 +27,9 @@ tempo - Time Series Utilities for Data Teams Using Databricks
 .. image:: https://badge.fury.io/py/dbl-tempo.svg
    :target: https://badge.fury.io/py/dbl-tempo
    :alt: PyPI Version
+.. image:: https://img.shields.io/badge/docs-ghpages-lemon
+   :target: https://tempo.github.io
+   :alt: Deployed in github pages with sphinx-action
 
 The purpose of this project is to make time series manipulation with Spark simpler.
 Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths,
@@ -43,6 +46,8 @@ Tempo is very easy to use:
     from tempo import *
     phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
     display(phone_accel_tsdf)
+
+.. _direct-git-install:
 
 Installing
 ----------
@@ -79,8 +84,22 @@ pre-processing to time-series analytics & machine learning!
 License
 -------
 
-tempo is made available under ``databricks`` License. For more details, see
+Tempo is made available under ``databricks`` License. For more details, see
 `LICENSE <https://github.com/databrickslabs/tempo/blob/master/LICENSE>`_.
+
+Docs on Github Pages
+--------------------
+
+Tempo's `sphinx documentation is hosted on github pages <https://www.sphinx-doc.org/en/master/tutorial/deploying.html#id5>`_
+and has been integrated with the project's github actions.
+
+The documentation is updated and kept in line with the latest version that has been
+`published on PyPI <https://pypi.org/project/dbl-tempo/>`_ and as such there is no guarantee that features and
+functionality that you get from :ref:`installing tempo directly from the github repo <direct-git-install>` will be
+documented here.
+
+For support on those functionalities please feel free to reach out to the :doc:`tempo-team`.
+
 
 Contributing
 ------------
