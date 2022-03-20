@@ -35,7 +35,7 @@ The purpose of this project is to make time series manipulation with Spark simpl
 Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths,
 featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
 
-Time series on Spark & Photon with tempo is highly performant for historical analysis. We are simplifying all of the
+Time Series on Spark & Photon with tempo is highly performant for historical analysis. We are simplifying all of the
 common functions to make development more easy.
 
 Tempo is very easy to use:
