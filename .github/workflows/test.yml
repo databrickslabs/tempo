@@ -3,47 +3,6 @@ on:
   push:
     branches: '*'
 jobs:
-  build-docs:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest ]
-    env:
-      OS: ${{ matrix.os }}
-      PYTHON: '3.9'
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: '0'
-      - name: Config Git
-        run: |
-          # setup the username and email. I tend to use 'GitHub Actions Bot' with no email by default
-          git --version
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
-          git describe --abbrev=0 --tags
-      - name: Copy Requirements
-        uses: canastro/copy-file-action@master
-        with:
-          source: "python/requirements.txt"
-          target: "docs/requirements.txt"
-      - name: Build HTML
-        run: |
-          cd ./docs/
-          make html
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v1
-        with:
-          name: html-docs
-          path: docs/_build/html/
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/master'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build/html
-
   run:
     runs-on: ${{ matrix.os }}
     strategy:
