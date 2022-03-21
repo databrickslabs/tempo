@@ -3,7 +3,7 @@ name: docs
 
 on:
   push:
-    branches: '*'
+    branches: ['*']
 
 jobs:
   build-docs:
@@ -21,11 +21,11 @@ jobs:
           fetch-depth: '0'
       - name: Config Git
         run: |
-        # setup the username and email. I tend to use 'GitHub Actions Bot' with no email by default
-        git --version
-        git config user.name "GitHub Actions Bot"
-        git config user.email "<>"
-        git describe --abbrev=0 --tags
+          # setup the username and email. I tend to use 'GitHub Actions Bot' with no email by default
+          git --version
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git describe --abbrev=0 --tags
       - name: Copy Requirements
         uses: canastro/copy-file-action@master
         with:
@@ -33,8 +33,8 @@ jobs:
           target: "docs/requirements.txt"
       - name: Build HTML
         run: |
-        cd ./docs/
-        make html
+          cd ./docs/
+          make html
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
