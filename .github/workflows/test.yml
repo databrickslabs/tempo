@@ -1,32 +1,54 @@
+
 name: build
+
 on:
+  pull_request:
+    types: [ opened, synchronize ]
   push:
-    branches: '*'
+    branches: [ master ]
+
 jobs:
   run:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
+        python-version: [ 3.9 ]
     env:
       OS: ${{ matrix.os }}
-      PYTHON: '3.9'
+      PYTHON: ${{ matrix.python-version }}
+
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Python
+
+    - name: Checkout code
+      uses: actions/checkout@master
+
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@master
       with:
-        python-version: 3.9
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Dependencies
+      working-directory: ./python
+      run: |
+        python -m pip install --upgrade pip
+        pip install -U -r requirements.txt
+
     - name: Set Spark env
       run: |
         export SPARK_LOCAL_IP=127.0.0.1
         export SPARK_SUBMIT_OPTS="--illegal-access=permit -Dio.netty.tryReflectionSetAccessible=true"
+
+    - name: Unit Tests
+      working-directory: ./python
+      run: python -m unittest discover -p "*_tests.py"
+
     - name: Generate coverage report
       working-directory: ./python
       run: |
-        pip install -r requirements.txt
         pip install coverage
         coverage run -m unittest discover -s tests -p '*_tests.py'
         coverage xml
+
     - name: Publish test coverage
       uses: codecov/codecov-action@v1
