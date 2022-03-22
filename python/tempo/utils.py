@@ -8,7 +8,7 @@ from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 
 logger = logging.getLogger(__name__)
-PLATFORM = "DATABRICKS" if "DATABRICKS_RUNTIME_VERSION" in os.environ.keys() else "NON_DATABRICKS"
+PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
 """
 This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
 where the code is running from. 
