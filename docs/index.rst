@@ -27,9 +27,9 @@ tempo - Time Series Utilities for Data Teams Using Databricks
 .. image:: https://badge.fury.io/py/dbl-tempo.svg
    :target: https://badge.fury.io/py/dbl-tempo
    :alt: PyPI Version
-.. image:: https://img.shields.io/badge/docs-ghpages-lemon
-   :target: https://tempo.github.io
-   :alt: Deployed in github pages with sphinx-action
+.. image:: https://github.com/databrickslabs/tempo/actions/workflows/docs.yml/badge.svg
+   :target: https://databrickslabs.github.io/tempo/
+   :alt: Tempo sphinx docs
 
 The purpose of this project is to make time series manipulation with Spark simpler.
 Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths,
