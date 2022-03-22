@@ -2,8 +2,10 @@
 name: build
 
 on:
+  pull_request:
+    types: [ opened, synchronize ]
   push:
-    branches: [ '*' ]
+    branches: [ master ]
 
 jobs:
   run:
