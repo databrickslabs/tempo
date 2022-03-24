@@ -10,6 +10,7 @@ The purpose of this project is to make time series manipulation with Spark simpl
 [![image](https://github.com/databrickslabs/tempo/workflows/build/badge.svg)](https://github.com/databrickslabs/tempo/actions?query=workflow%3Abuild)
 [![codecov](https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg)](https://codecov.io/gh/databrickslabs/tempo)
 [![Downloads](https://pepy.tech/badge/dbl-tempo/month)](https://pepy.tech/project/dbl-tempo)
+[![docs](https://github.com/databrickslabs/tempo/actions/workflows/docs.yml/badge.svg)](https://databrickslabs.github.io/tempo/)
 
 ## Using the Project
 
