@@ -65,7 +65,7 @@ class TSDF:
   def __validate_ts_string(self, ts_text):
       """Validate the format for the string using Regex matching for ts_string"""
       import re
-      ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
+      ts_pattern = "^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
       if re.match(ts_pattern, ts_text) is None:
           raise ValueError("Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]")
 
