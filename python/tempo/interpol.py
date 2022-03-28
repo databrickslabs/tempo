@@ -1,9 +1,9 @@
-import sys
 from typing import List
 
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import col, expr, first, last, lead, lit, when
+from pyspark.sql.functions import col, expr, last, lead, lit, when
 from pyspark.sql.window import Window
+from tempo.resample import checkAllowableFreq, freq_dict
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -40,6 +40,7 @@ class Interpolation:
         :param target_col -  Target column to be validated
         :param ts_col -  Timestamp column to be validated
         """
+
         for column in partition_cols:
             if column not in str(df.columns):
                 raise ValueError(
@@ -210,14 +211,14 @@ class Interpolation:
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
                 .orderBy(ts_col)
-                .rowsBetween(-sys.maxsize, 0)
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            first(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
+            last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 Window.partitionBy(*partition_cols)
-                .orderBy(ts_col)
-                .rowsBetween(0, sys.maxsize)
+                .orderBy(col(ts_col).desc())
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         )
 
@@ -238,16 +239,16 @@ class Interpolation:
                 last(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
                     .orderBy(ts_col)
-                    .rowsBetween(-sys.maxsize, 0)
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
-                first(df[target_col], ignorenulls=True).over(
+                last(df[target_col], ignorenulls=True).over(
                     Window.partitionBy(*partition_cols)
-                    .orderBy(ts_col)
-                    .rowsBetween(0, sys.maxsize)
+                    .orderBy(col(ts_col).desc())
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             ).withColumn(
                 f"next_{target_col}",
@@ -284,6 +285,10 @@ class Interpolation:
         # Validate input parameters
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
+
+        # Convert Frequency using resample dictionary
+        parsed_freq = checkAllowableFreq(freq)
+        freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
 
         # Only select required columns for interpolation
         input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
