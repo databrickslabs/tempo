@@ -221,12 +221,12 @@ For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min'
 `NULL` values after re-sampling are treated the same as missing values. Ability to specify `NULL` as a valid value is
 currently not supported.
 
-.. dropdown:: Valid columns data types for interpolation are
+Valid columns data types for interpolation are
 
-    * ``Int``
-    * ``BigInt``
-    * ``Float``
-    * ``Double``
+* ``Int``
+* ``BigInt``
+* ``Float``
+* ``Double``
 
 .. code-block:: python
 
