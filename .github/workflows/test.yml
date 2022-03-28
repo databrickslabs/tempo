@@ -2,10 +2,8 @@
 name: build
 
 on:
-  pull_request:
-    types: [ opened, synchronize ]
   push:
-    branches: [ master ]
+    branches: [ '*' ]
 
 jobs:
   run:
@@ -38,10 +36,6 @@ jobs:
       run: |
         export SPARK_LOCAL_IP=127.0.0.1
         export SPARK_SUBMIT_OPTS="--illegal-access=permit -Dio.netty.tryReflectionSetAccessible=true"
-
-    - name: Unit Tests
-      working-directory: ./python
-      run: python -m unittest discover -p "*_tests.py"
 
     - name: Generate coverage report
       working-directory: ./python

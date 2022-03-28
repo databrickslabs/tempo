@@ -105,6 +105,9 @@ class SparkTest(unittest.TestCase):
 
 class BasicTests(SparkTest):
 
+    def test_always_fails(self):
+        assert 0 == 1
+
     def test_describe(self):
         """AS-OF Join with out a time-partition test"""
         leftSchema = StructType([StructField("symbol", StringType()),
