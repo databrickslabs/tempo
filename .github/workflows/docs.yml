@@ -3,8 +3,9 @@ name: docs
 
 on:
   push:
-    tags:
-      - 'v*' # only release a versioned tag, such as v.X.Y.Z
+    branches: [ '*' ]
+    #tags:
+    #  - 'v*' # only release a versioned tag, such as v.X.Y.Z
 
 jobs:
   build-docs:
@@ -36,7 +37,7 @@ jobs:
           path: docs/_build/html/
       - name: Deploy 🚀
         uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/master'
+        #if: $${{ github.ref }} == 'refs/heads/master'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/_build/html
