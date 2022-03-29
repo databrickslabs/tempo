@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="tempo.utils" href="tempo.utils.html" /><link rel="prev" title="tempo.resample" href="tempo.resample.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing.html" /><link rel="prev" title="tempo.utils" href="tempo.utils.html" />
 
     <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
-        <title>tempo.io - Tempo 0.1.14 documentation</title>
+        <title>tempo.interpol - Tempo 0.1.14 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
@@ -172,9 +172,9 @@
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">API Reference</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="tempo.tsdf.html">tempo.tsdf</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tempo.resample.html">tempo.resample</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">tempo.io</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tempo.io.html">tempo.io</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tempo.utils.html">tempo.utils</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tempo.interpol.html">tempo.interpol</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
@@ -212,19 +212,30 @@
           </label>
         </div>
         <article role="main">
-          <section id="tempo-io">
-<h1>tempo.io<a class="headerlink" href="#tempo-io" title="Permalink to this headline">#</a></h1>
+          <section id="tempo-interpol">
+<h1>tempo.interpol<a class="headerlink" href="#tempo-interpol" title="Permalink to this headline">#</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Some of the function docstrings are not in line with the standard RST pattern so they maybe renderred incorrectly.
 We are fixing them. They will be updated very soon. Thank you for your patience and support.</p>
 </div>
-<dl class="py function">
-<dt class="sig sig-object py" id="tempo.io.write">
-<span class="sig-prename descclassname"><span class="pre">tempo.io.</span></span><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tsdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spark</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tabName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizationCols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/io.html#write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.io.write" title="Permalink to this definition">#</a></dt>
-<dd><p>param: tsdf: input TSDF object to write
-param: tabName Delta output table name
-param: optimizationCols list of columns to optimize on (time)</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="tempo.interpol.Interpolation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tempo.interpol.</span></span><span class="sig-name descname"><span class="pre">Interpolation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_resampled</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/interpol.html#Interpolation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.interpol.Interpolation" title="Permalink to this definition">#</a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="tempo.interpol.Interpolation.interpolate">
+<span class="sig-name descname"><span class="pre">interpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tsdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ts_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_interpolated</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">→</span> <span class="sig-return-typehint"><span class="pre">pyspark.sql.dataframe.DataFrame</span></span></span><a class="reference internal" href="../_modules/tempo/interpol.html#Interpolation.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.interpol.Interpolation.interpolate" title="Permalink to this definition">#</a></dt>
+<dd><p>Apply interpolation.</p>
+<p>:param tsdf  - input TSDF
+:param ts_col   - timestamp column name
+:param target_cols   - numeric columns to interpolate
+:param partition_cols  - partition columns names
+:param freq  - frequency at which to sample
+:param func   - aggregate function used for sampling to the specified interval
+:param method   - interpolation function usded to fill missing values
+:param show_interpolated  - show if row is interpolated?
+:return DataFrame</p>
+</dd></dl>
 </dd></dl>
 </section>
 
@@ -233,23 +244,23 @@ param: optimizationCols list of columns to optimize on (time)</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="tempo.utils.html">
+          <a class="next-page" href="../contributing.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">tempo.utils</div>
+                <div class="title">Contributing</div>
               </div>
               <svg><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="tempo.resample.html">
+          <a class="prev-page" href="tempo.utils.html">
               <svg><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">tempo.resample</div>
+                <div class="title">tempo.utils</div>
                 
               </div>
             </a>

@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="API Reference" href="reference/index.html" /><link rel="prev" title="tempo - Time Series Utilities for Data Teams Using Databricks" href="index.html" />
 
-    <link rel="shortcut icon" href="_static/favicon.svg"/><meta name="generator" content="sphinx-4.4.0, furo 2022.02.23"/>
-        <title>User Guide - Tempo 0.1.12 documentation</title>
+    <link rel="shortcut icon" href="_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
+        <title>User Guide - Tempo 0.1.14 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=3c656993158f05539f962c5cea52a5e6c184bb8c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
@@ -26,20 +26,22 @@
   --color-brand-content: #7C4DFF;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  --color-brand-primary: #7C4DFF;
-  --color-brand-content: #7C4DFF;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   --color-brand-primary: #7C4DFF;
   --color-brand-content: #7C4DFF;
   
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+      }
     }
   }
 </style></head>
@@ -129,7 +131,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">Tempo 0.1.12 documentation</div></a>
+      <a href="index.html"><div class="brand">Tempo 0.1.14 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -156,7 +158,7 @@
     <img class="sidebar-logo only-dark" src="_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.12 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.14 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -172,6 +174,7 @@
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.resample.html">tempo.resample</a></li>
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.io.html">tempo.io</a></li>
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.utils.html">tempo.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
@@ -398,21 +401,14 @@ dataset into a given frequency, then performs interpolation on the sampled time-
 For the accepted functions to aggregate data, options are ‘floor’, ‘ceil’, ‘min’, ‘max’, ‘mean’.</p>
 <p><cite>NULL</cite> values after re-sampling are treated the same as missing values. Ability to specify <cite>NULL</cite> as a valid value is
 currently not supported.</p>
-<details class="sphinx-bs dropdown card mb-3">
-<summary class="summary-title card-header">
-Valid columns data types for interpolation are<div class="summary-down docutils">
-<svg aria-hidden="true" class="octicon octicon-chevron-down" height="24" version="1.1" viewbox="0 0 24 24" width="24"><path d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z" fill-rule="evenodd"></path></svg></div>
-<div class="summary-up docutils">
-<svg aria-hidden="true" class="octicon octicon-chevron-up" height="24" version="1.1" viewbox="0 0 24 24" width="24"><path d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z" fill-rule="evenodd"></path></svg></div>
-</summary><div class="summary-content card-body docutils">
+<p>Valid columns data types for interpolation are</p>
 <ul class="simple">
-<li><p class="card-text"><code class="docutils literal notranslate"><span class="pre">Int</span></code></p></li>
-<li><p class="card-text"><code class="docutils literal notranslate"><span class="pre">BigInt</span></code></p></li>
-<li><p class="card-text"><code class="docutils literal notranslate"><span class="pre">Float</span></code></p></li>
-<li><p class="card-text"><code class="docutils literal notranslate"><span class="pre">Double</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Int</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BigInt</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Float</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Double</span></code></p></li>
 </ul>
-</div>
-</details><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create instance of the TSDF class</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create instance of the TSDF class</span>
 <span class="n">input_tsdf</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span>
             <span class="n">input_df</span><span class="p">,</span>
             <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">"partition_a"</span><span class="p">,</span> <span class="s2">"partition_b"</span><span class="p">],</span>

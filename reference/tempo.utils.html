@@ -3,12 +3,12 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing.html" /><link rel="prev" title="tempo.io" href="tempo.io.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="tempo.interpol" href="tempo.interpol.html" /><link rel="prev" title="tempo.io" href="tempo.io.html" />
 
-    <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.4.0, furo 2022.02.23"/>
-        <title>tempo.utils - Tempo 0.1.12 documentation</title>
+    <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
+        <title>tempo.utils - Tempo 0.1.14 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=3c656993158f05539f962c5cea52a5e6c184bb8c" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
@@ -26,20 +26,22 @@
   --color-brand-content: #7C4DFF;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  --color-brand-primary: #7C4DFF;
-  --color-brand-content: #7C4DFF;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   --color-brand-primary: #7C4DFF;
   --color-brand-content: #7C4DFF;
   
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+      }
     }
   }
 </style></head>
@@ -129,7 +131,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Tempo 0.1.12 documentation</div></a>
+      <a href="../index.html"><div class="brand">Tempo 0.1.14 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -156,7 +158,7 @@
     <img class="sidebar-logo only-dark" src="../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.12 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.14 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -172,6 +174,7 @@
 <li class="toctree-l2"><a class="reference internal" href="tempo.resample.html">tempo.resample</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tempo.io.html">tempo.io</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">tempo.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
@@ -211,6 +214,11 @@
         <article role="main">
           <section id="tempo-utils">
 <h1>tempo.utils<a class="headerlink" href="#tempo-utils" title="Permalink to this headline">#</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Some of the function docstrings are not in line with the standard RST pattern so they maybe renderred incorrectly.
+We are fixing them. They will be updated very soon. Thank you for your patience and support.</p>
+</div>
 <dl class="py function">
 <dt class="sig sig-object py" id="tempo.utils.__isnotebookenv">
 <span class="sig-prename descclassname"><span class="pre">tempo.utils.</span></span><span class="sig-name descname"><span class="pre">__isnotebookenv</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/utils.html#__isnotebookenv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.utils.__isnotebookenv" title="Permalink to this definition">#</a></dt>
@@ -234,12 +242,12 @@ capable of rendering HTML or not.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../contributing.html">
+          <a class="next-page" href="tempo.interpol.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Contributing</div>
+                <div class="title">tempo.interpol</div>
               </div>
               <svg><use href="#svg-arrow-right"></use></svg>
             </a>

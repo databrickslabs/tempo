@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="tempo.resample" href="tempo.resample.html" /><link rel="prev" title="API Reference" href="index.html" />
 
-    <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.4.0, furo 2022.02.23"/>
-        <title>tempo.tsdf - Tempo 0.1.12 documentation</title>
+    <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
+        <title>tempo.tsdf - Tempo 0.1.14 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=3c656993158f05539f962c5cea52a5e6c184bb8c" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
@@ -26,20 +26,22 @@
   --color-brand-content: #7C4DFF;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  --color-brand-primary: #7C4DFF;
-  --color-brand-content: #7C4DFF;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   --color-brand-primary: #7C4DFF;
   --color-brand-content: #7C4DFF;
   
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+      }
     }
   }
 </style></head>
@@ -129,7 +131,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Tempo 0.1.12 documentation</div></a>
+      <a href="../index.html"><div class="brand">Tempo 0.1.14 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -156,7 +158,7 @@
     <img class="sidebar-logo only-dark" src="../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.12 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.14 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -172,6 +174,7 @@
 <li class="toctree-l2"><a class="reference internal" href="tempo.resample.html">tempo.resample</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tempo.io.html">tempo.io</a></li>
 <li class="toctree-l2"><a class="reference internal" href="tempo.utils.html">tempo.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
@@ -211,10 +214,16 @@
         <article role="main">
           <section id="tempo-tsdf">
 <h1>tempo.tsdf<a class="headerlink" href="#tempo-tsdf" title="Permalink to this headline">#</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Some of the function docstrings are not in line with the standard RST pattern so they maybe renderred incorrectly.
+We are fixing them. They will be updated very soon. Thank you for your patience and support.</p>
+</div>
 <dl class="py class">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tempo.tsdf.</span></span><span class="sig-name descname"><span class="pre">TSDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ts_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'event_ts'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_cols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sequence_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF" title="Permalink to this definition">#</a></dt>
-<dd><dl class="py method">
+<dd><p>This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).</p>
+<dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.EMA">
 <span class="sig-name descname"><span class="pre">EMA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exp_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.EMA"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.EMA" title="Permalink to this definition">#</a></dt>
 <dd><p>Constructs an approximate EMA in the fashion of:
@@ -302,11 +311,6 @@ in the current <a class="reference internal" href="#tempo.tsdf.TSDF" title="temp
 [Row(age=2, name=’Alice’), Row(age=5, name=’Bob’)]
 tsdf.select(‘name’, ‘age’).collect()
 [Row(name=’Alice’, age=2), Row(name=’Bob’, age=5)]</p>
-</dd></dl>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="tempo.tsdf.TSDF.sequence_col">
-<span class="sig-name descname"><span class="pre">sequence_col</span></span><a class="headerlink" href="#tempo.tsdf.TSDF.sequence_col" title="Permalink to this definition">#</a></dt>
-<dd><p>Make sure DF is ordered by its respective ts_col and partition columns.</p>
 </dd></dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.show">

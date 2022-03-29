@@ -4,10 +4,10 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
-    <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.4.0, furo 2022.02.23"/>
-        <title>tempo.utils - Tempo 0.1.12 documentation</title>
+    <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
+        <title>tempo.utils - Tempo 0.1.14 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=3c656993158f05539f962c5cea52a5e6c184bb8c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
@@ -25,20 +25,22 @@
   --color-brand-content: #7C4DFF;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  --color-brand-primary: #7C4DFF;
-  --color-brand-content: #7C4DFF;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   --color-brand-primary: #7C4DFF;
   --color-brand-content: #7C4DFF;
   
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+      }
     }
   }
 </style></head>
@@ -128,7 +130,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.12 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.14 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -155,7 +157,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.12 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.14 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -171,6 +173,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.resample.html">tempo.resample</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.io.html">tempo.io</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.utils.html">tempo.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
@@ -219,8 +222,10 @@
 <span class="kn">from</span> <span class="nn">pyspark.sql.dataframe</span> <span class="kn">import</span> <span class="n">DataFrame</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-<span class="n">PLATFORM</span> <span class="o">=</span> <span class="s2">"DATABRICKS"</span> <span class="k">if</span> <span class="s2">"DATABRICKS_RUNTIME_VERSION"</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="s2">"NON_DATABRICKS"</span>
+<span class="n">PLATFORM</span> <span class="o">=</span> <span class="s2">"DATABRICKS"</span> <span class="k">if</span> <span class="s2">"DB_HOME"</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="s2">"NON_DATABRICKS"</span>
 <span class="sd">"""</span>
+<span class="sd">DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.</span>
+
 <span class="sd">This constant is to ensure the correct behaviour of the show and display methods are called based on the platform </span>
 <span class="sd">where the code is running from. </span>
 <span class="sd">"""</span>

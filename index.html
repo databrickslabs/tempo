@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="User Guide" href="user-guide.html" />
 
-    <link rel="shortcut icon" href="_static/favicon.svg"/><meta name="generator" content="sphinx-4.4.0, furo 2022.02.23"/>
-        <title>Tempo 0.1.12 documentation</title>
+    <link rel="shortcut icon" href="_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
+        <title>Tempo 0.1.14 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=3c656993158f05539f962c5cea52a5e6c184bb8c" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
@@ -26,20 +26,22 @@
   --color-brand-content: #7C4DFF;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  --color-brand-primary: #7C4DFF;
-  --color-brand-content: #7C4DFF;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   --color-brand-primary: #7C4DFF;
   --color-brand-content: #7C4DFF;
   
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+      }
     }
   }
 </style></head>
@@ -129,7 +131,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="#"><div class="brand">Tempo 0.1.12 documentation</div></a>
+      <a href="#"><div class="brand">Tempo 0.1.14 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -156,7 +158,7 @@
     <img class="sidebar-logo only-dark" src="_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.12 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.14 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -172,6 +174,7 @@
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.resample.html">tempo.resample</a></li>
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.io.html">tempo.io</a></li>
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.utils.html">tempo.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference/tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
@@ -217,10 +220,12 @@
 <a class="reference external image-reference" href="https://codecov.io/gh/databrickslabs/tempo"><img alt="Codecov" src="https://codecov.io/gh/databrickslabs/tempo/branch/master/graph/badge.svg"/></a>
 <a class="reference external image-reference" href="https://pepy.tech/project/dbl-tempo"><img alt="PyPI Monthly Downloads" src="https://pepy.tech/badge/dbl-tempo/month"/></a>
 <a class="reference external image-reference" href="https://badge.fury.io/py/dbl-tempo"><img alt="PyPI Version" src="https://badge.fury.io/py/dbl-tempo.svg"/></a>
+<a class="reference external image-reference" href="https://databrickslabs.github.io/tempo/"><img alt="Tempo sphinx docs" src="https://github.com/databrickslabs/tempo/actions/workflows/docs.yml/badge.svg"/></a>
 <p>The purpose of this project is to make time series manipulation with Spark simpler.
 Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths,
 featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.</p>
-<p><a class="reference internal" href="#who-uses"><span class="std std-ref">Much of the Spark ecosystem already uses</span></a> tempo for time-series analysis and you should too.</p>
+<p>Time Series on Spark &amp; Photon with tempo is highly performant for historical analysis. We are simplifying all of the
+common functions to make development more easy.</p>
 <p>Tempo is very easy to use:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="n">phone_accel_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">"csv"</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">"header"</span><span class="p">,</span> <span class="s2">"true"</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"dbfs:/home/tempo/Phones_accelerometer"</span><span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"event_ts"</span><span class="p">,</span> <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"Arrival_Time"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"timestamp"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"z"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"event_ts_dbl"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"event_ts"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span>
@@ -230,7 +235,7 @@ featurization of time series using lagged values, and Delta Lake optimization on
 </pre></div>
 </div>
 <section id="installing">
-<h2>Installing<a class="headerlink" href="#installing" title="Permalink to this headline">#</a></h2>
+<span id="direct-git-install"></span><h2>Installing<a class="headerlink" href="#installing" title="Permalink to this headline">#</a></h2>
 <p>Tempo can be installed with <a class="reference external" href="https://pip.pypa.io">pip</a></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ pip install dbl-tempo
 </pre></div>
@@ -253,8 +258,18 @@ pre-processing to time-series analytics &amp; machine learning!</p>
 </section>
 <section id="license">
 <h2>License<a class="headerlink" href="#license" title="Permalink to this headline">#</a></h2>
-<p>tempo is made available under <code class="docutils literal notranslate"><span class="pre">databricks</span></code> License. For more details, see
+<p>Tempo is made available under <code class="docutils literal notranslate"><span class="pre">databricks</span></code> License. For more details, see
 <a class="reference external" href="https://github.com/databrickslabs/tempo/blob/master/LICENSE">LICENSE</a>.</p>
+</section>
+<section id="docs-on-github-pages">
+<h2>Docs on Github Pages<a class="headerlink" href="#docs-on-github-pages" title="Permalink to this headline">#</a></h2>
+<p>Tempo’s <a class="reference external" href="https://www.sphinx-doc.org/en/master/tutorial/deploying.html#id5">sphinx documentation is hosted on github pages</a>
+and has been integrated with the project’s github actions.</p>
+<p>The documentation is updated and kept in line with the latest version that has been
+<a class="reference external" href="https://pypi.org/project/dbl-tempo/">published on PyPI</a> and as such there is no guarantee that features and
+functionality that you get from <a class="reference internal" href="#direct-git-install"><span class="std std-ref">installing tempo directly from the github repo</span></a> will be
+documented here.</p>
+<p>For support on those functionalities please feel free to reach out to the <a class="reference internal" href="tempo-team.html"><span class="doc">Tempo Team</span></a>.</p>
 </section>
 <section id="contributing">
 <h2>Contributing<a class="headerlink" href="#contributing" title="Permalink to this headline">#</a></h2>
@@ -320,6 +335,7 @@ pre-processing to time-series analytics &amp; machine learning!</p>
 <li><a class="reference internal" href="#usage">Usage</a></li>
 <li><a class="reference internal" href="#who-uses-tempo">Who uses tempo?</a></li>
 <li><a class="reference internal" href="#license">License</a></li>
+<li><a class="reference internal" href="#docs-on-github-pages">Docs on Github Pages</a></li>
 <li><a class="reference internal" href="#contributing">Contributing</a></li>
 </ul>
 </li>

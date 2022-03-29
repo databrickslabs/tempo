@@ -1,0 +1,646 @@
+<!doctype html>
+<html class="no-js">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
+
+    <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
+        <title>tempo.interpol - Tempo 0.1.14 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=25ceb02ed1c46dc30f2321ff83e92799f69dfdb9" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #7C4DFF;
+  --color-brand-content: #7C4DFF;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">Tempo 0.1.14 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo only-light" src="../../_static/tempo - light background.svg" alt="Light Logo"/>
+    <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">Tempo 0.1.14 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference external" href="https://databricks.com/learn/labs">Databricks Labs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">User Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../reference/index.html">API Reference</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.tsdf.html">tempo.tsdf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.resample.html">tempo.resample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.io.html">tempo.io</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.utils.html">tempo.utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../reference/tempo.interpol.html">tempo.interpol</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tempo-team.html">Tempo Team</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../future-roadmap.html">Future Roadmap</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container"><div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <h1>Source code for tempo.interpol</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">from</span> <span class="nn">pyspark.sql.dataframe</span> <span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">col</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">lead</span><span class="p">,</span> <span class="n">lit</span><span class="p">,</span> <span class="n">when</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql.window</span> <span class="kn">import</span> <span class="n">Window</span>
+<span class="kn">from</span> <span class="nn">tempo.resample</span> <span class="kn">import</span> <span class="n">checkAllowableFreq</span><span class="p">,</span> <span class="n">freq_dict</span>
+
+<span class="c1"># Interpolation fill options</span>
+<span class="n">method_options</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"zero"</span><span class="p">,</span> <span class="s2">"null"</span><span class="p">,</span> <span class="s2">"bfill"</span><span class="p">,</span> <span class="s2">"ffill"</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">]</span>
+<span class="n">supported_target_col_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"int"</span><span class="p">,</span> <span class="s2">"bigint"</span><span class="p">,</span> <span class="s2">"float"</span><span class="p">,</span> <span class="s2">"double"</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Interpolation"><a class="viewcode-back" href="../../reference/tempo.interpol.html#tempo.interpol.Interpolation">[docs]</a><span class="k">class</span> <span class="nc">Interpolation</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_resampled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_resampled</span> <span class="o">=</span> <span class="n">is_resampled</span>
+
+    <span class="k">def</span> <span class="nf">__validate_fill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Validate if the fill provided is within the allowed list of values.</span>
+
+<span class="sd">        :param fill - Fill type e.g. "zero", "null", "bfill", "ffill", "linear"</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">method_options</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Please select from one of the following fill options: </span><span class="si">{</span><span class="n">method_options</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__validate_col</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">target_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Validate if target column exists and is of numeric type, and validates if partition column exists.</span>
+
+<span class="sd">        :param df -  DataFrame to be validated</span>
+<span class="sd">        :param partition_cols -  Partition columns to be validated</span>
+<span class="sd">        :param target_col -  Target column to be validated</span>
+<span class="sd">        :param ts_col -  Timestamp column to be validated</span>
+<span class="sd">        """</span>
+
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">partition_cols</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Partition Column: '</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">' does not exist in DataFrame."</span>
+                <span class="p">)</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">target_cols</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Target Column: '</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">' does not exist in DataFrame."</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">dtypes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supported_target_col_types</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Target Column needs to be one of the following types: </span><span class="si">{</span><span class="n">supported_target_col_types</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ts_col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Timestamp Column: '</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">' does not exist in DataFrame."</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span><span class="o">.</span><span class="n">dtypes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">"timestamp"</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Timestamp Column needs to be of timestamp type."</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__calc_linear_spark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Native Spark function for calculating linear interpolation on a DataFrame.</span>
+
+<span class="sd">        :param df  - prepared dataframe to be interpolated</span>
+<span class="sd">        :param ts_col  - timeseries column name</span>
+<span class="sd">        :param target_col  - column to be interpolated</span>
+<span class="sd">        """</span>
+        <span class="n">interpolation_expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"""</span>
+<span class="s2">        case when is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"> = false then </span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">            when </span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"> is null then </span>
+<span class="s2">            (next_null_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"> - previous_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">)</span>
+<span class="s2">            /(unix_timestamp(next_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">)-unix_timestamp(previous_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">))</span>
+<span class="s2">            *(unix_timestamp(</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">) - unix_timestamp(previous_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">))</span>
+<span class="s2">            + previous_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">        else </span>
+<span class="s2">            (next_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">)</span>
+<span class="s2">            /(unix_timestamp(next_timestamp)-unix_timestamp(previous_timestamp))</span>
+<span class="s2">            *(unix_timestamp(</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">) - unix_timestamp(previous_timestamp)) </span>
+<span class="s2">            + </span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">        end as </span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">        """</span>
+
+        <span class="c1"># remove target column to avoid duplication during interpolation expression</span>
+        <span class="n">cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span>
+        <span class="n">cols</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">target_col</span><span class="p">)</span>
+        <span class="n">interpolated</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">selectExpr</span><span class="p">(</span><span class="o">*</span><span class="n">cols</span><span class="p">,</span> <span class="n">interpolation_expr</span><span class="p">)</span>
+        <span class="c1"># Preserve column order</span>
+        <span class="k">return</span> <span class="n">interpolated</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">*</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__interpolate_column</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">series</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">target_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">"""</span>
+<span class="sd">        Apply interpolation to column.</span>
+
+<span class="sd">        :param series  - input DataFrame</span>
+<span class="sd">        :param ts_col   - timestamp column name</span>
+<span class="sd">        :param target_col   - column to interpolate</span>
+<span class="sd">        :param method   - interpolation function to fill missing values</span>
+<span class="sd">        """</span>
+        <span class="n">output_df</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">series</span>
+
+        <span class="c1"># create new column for if target column is interpolated</span>
+        <span class="n">flag_expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"""</span>
+<span class="s2">        CASE WHEN </span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"> is null and is_ts_interpolated = false THEN true</span>
+<span class="s2">             WHEN is_ts_interpolated = true THEN true</span>
+<span class="s2">        ELSE false</span>
+<span class="s2">        END AS is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">        """</span>
+        <span class="n">output_df</span> <span class="o">=</span> <span class="n">output_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="n">flag_expr</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Handle zero fill</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"zero"</span><span class="p">:</span>
+            <span class="n">output_df</span> <span class="o">=</span> <span class="n">output_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="n">target_col</span><span class="p">,</span>
+                <span class="n">when</span><span class="p">(</span>
+                    <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">target_col</span><span class="p">)</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">lit</span><span class="p">(</span><span class="mi">0</span><span class="p">)),</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Handle null fill</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"null"</span><span class="p">:</span>
+            <span class="n">output_df</span> <span class="o">=</span> <span class="n">output_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="n">target_col</span><span class="p">,</span>
+                <span class="n">when</span><span class="p">(</span>
+                    <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">target_col</span><span class="p">)</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Handle forward fill</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"ffill"</span><span class="p">:</span>
+            <span class="n">output_df</span> <span class="o">=</span> <span class="n">output_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="n">target_col</span><span class="p">,</span>
+                <span class="n">when</span><span class="p">(</span>
+                    <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"previous_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">target_col</span><span class="p">)),</span>
+            <span class="p">)</span>
+        <span class="c1"># Handle backwards fill</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"bfill"</span><span class="p">:</span>
+            <span class="n">output_df</span> <span class="o">=</span> <span class="n">output_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="n">target_col</span><span class="p">,</span>
+                <span class="c1"># Handle case when subsequent value is null</span>
+                <span class="n">when</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="o">==</span> <span class="kc">True</span><span class="p">)</span>
+                    <span class="o">&amp;</span> <span class="p">(</span>
+                        <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"next_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">()</span>
+                        <span class="o">&amp;</span> <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">())</span>
+                    <span class="p">),</span>
+                    <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"next_null_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                    <span class="c1"># Handle standard backwards fill</span>
+                    <span class="n">when</span><span class="p">(</span>
+                        <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"next_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Handle linear fill</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"linear"</span><span class="p">:</span>
+            <span class="n">output_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__calc_linear_spark</span><span class="p">(</span>
+                <span class="n">output_df</span><span class="p">,</span>
+                <span class="n">ts_col</span><span class="p">,</span>
+                <span class="n">target_col</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output_df</span>
+
+    <span class="k">def</span> <span class="nf">__generate_time_series_fill</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">"""</span>
+<span class="sd">        Create additional timeseries columns for previous and next timestamps</span>
+
+<span class="sd">        :param df  - input DataFrame</span>
+<span class="sd">        :param partition_cols   - partition column names</span>
+<span class="sd">        :param ts_col   - timestamp column name</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"previous_timestamp"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">ts_col</span><span class="p">),)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"next_timestamp"</span><span class="p">,</span>
+            <span class="n">lead</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">ts_col</span><span class="p">])</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">Window</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span><span class="o">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__generate_column_time_fill</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_col</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">"""</span>
+<span class="sd">        Create timeseries columns for previous and next timestamps for a specific target column</span>
+
+<span class="sd">        :param df  - input DataFrame</span>
+<span class="sd">        :param partition_cols   - partition column names</span>
+<span class="sd">        :param ts_col   - timestamp column name</span>
+<span class="sd">        :param target_col   - target column name</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"previous_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="n">last</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span> <span class="n">ignorenulls</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span>
+                <span class="n">Window</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">rowsBetween</span><span class="p">(</span><span class="n">Window</span><span class="o">.</span><span class="n">unboundedPreceding</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"next_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="n">last</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span> <span class="n">ignorenulls</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span>
+                <span class="n">Window</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
+                <span class="o">.</span><span class="n">rowsBetween</span><span class="p">(</span><span class="n">Window</span><span class="o">.</span><span class="n">unboundedPreceding</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__generate_target_fill</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_col</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">"""</span>
+<span class="sd">        Create columns for previous and next value for a specific target column</span>
+
+<span class="sd">        :param df  - input DataFrame</span>
+<span class="sd">        :param partition_cols   - partition column names</span>
+<span class="sd">        :param ts_col   - timestamp column name</span>
+<span class="sd">        :param target_col   - target column name</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"previous_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="n">last</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">target_col</span><span class="p">],</span> <span class="n">ignorenulls</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span>
+                    <span class="n">Window</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">rowsBetween</span><span class="p">(</span><span class="n">Window</span><span class="o">.</span><span class="n">unboundedPreceding</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+            <span class="c1"># Handle if subsequent value is null</span>
+            <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"next_null_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="n">last</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">target_col</span><span class="p">],</span> <span class="n">ignorenulls</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span>
+                    <span class="n">Window</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
+                    <span class="o">.</span><span class="n">rowsBetween</span><span class="p">(</span><span class="n">Window</span><span class="o">.</span><span class="n">unboundedPreceding</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="p">),</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"next_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="n">lead</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">target_col</span><span class="p">])</span><span class="o">.</span><span class="n">over</span><span class="p">(</span>
+                    <span class="n">Window</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span><span class="o">.</span><span class="n">orderBy</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="Interpolation.interpolate"><a class="viewcode-back" href="../../reference/tempo.interpol.html#tempo.interpol.Interpolation.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tsdf</span><span class="p">,</span>
+        <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">target_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">func</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">show_interpolated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">"""</span>
+<span class="sd">        Apply interpolation.</span>
+
+<span class="sd">        :param tsdf  - input TSDF</span>
+<span class="sd">        :param ts_col   - timestamp column name</span>
+<span class="sd">        :param target_cols   - numeric columns to interpolate</span>
+<span class="sd">        :param partition_cols  - partition columns names</span>
+<span class="sd">        :param freq  - frequency at which to sample</span>
+<span class="sd">        :param func   - aggregate function used for sampling to the specified interval</span>
+<span class="sd">        :param method   - interpolation function usded to fill missing values</span>
+<span class="sd">        :param show_interpolated  - show if row is interpolated?</span>
+<span class="sd">        :return DataFrame</span>
+<span class="sd">        """</span>
+        <span class="c1"># Validate input parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__validate_fill</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__validate_col</span><span class="p">(</span><span class="n">tsdf</span><span class="o">.</span><span class="n">df</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">,</span> <span class="n">target_cols</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">)</span>
+
+        <span class="c1"># Convert Frequency using resample dictionary</span>
+        <span class="n">parsed_freq</span> <span class="o">=</span> <span class="n">checkAllowableFreq</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+        <span class="n">freq</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">parsed_freq</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">freq_dict</span><span class="p">[</span><span class="n">parsed_freq</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="c1"># Only select required columns for interpolation</span>
+        <span class="n">input_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="o">*</span><span class="n">target_cols</span><span class="p">]</span>
+        <span class="n">sampled_input</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">tsdf</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">*</span><span class="n">input_cols</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_resampled</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="c1"># Resample and Normalize Input</span>
+            <span class="n">sampled_input</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">tsdf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span>
+                <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">func</span><span class="p">,</span> <span class="n">metricCols</span><span class="o">=</span><span class="n">target_cols</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">df</span>
+
+        <span class="c1"># Fill timeseries for nearest values</span>
+        <span class="n">time_series_filled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__generate_time_series_fill</span><span class="p">(</span>
+            <span class="n">sampled_input</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">,</span> <span class="n">ts_col</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Generate surrogate timestamps for each target column</span>
+        <span class="c1"># This is required if multuple columns are being interpolated and may contain nulls</span>
+        <span class="n">add_column_time</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">time_series_filled</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">target_cols</span><span class="p">:</span>
+            <span class="n">add_column_time</span> <span class="o">=</span> <span class="n">add_column_time</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)),</span>
+            <span class="p">)</span>
+            <span class="n">add_column_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__generate_column_time_fill</span><span class="p">(</span>
+                <span class="n">add_column_time</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="n">column</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Handle edge case if last value (latest) is null</span>
+        <span class="n">edge_filled</span> <span class="o">=</span> <span class="n">add_column_time</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"next_timestamp"</span><span class="p">,</span>
+            <span class="n">when</span><span class="p">(</span>
+                <span class="n">col</span><span class="p">(</span><span class="s2">"next_timestamp"</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="n">expr</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">+ interval </span><span class="si">{</span><span class="n">freq</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"next_timestamp"</span><span class="p">)),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Fill target column for nearest values</span>
+        <span class="n">target_column_filled</span> <span class="o">=</span> <span class="n">edge_filled</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">target_cols</span><span class="p">:</span>
+            <span class="n">target_column_filled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__generate_target_fill</span><span class="p">(</span>
+                <span class="n">target_column_filled</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="n">column</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Generate missing timeseries values</span>
+        <span class="n">exploded_series</span> <span class="o">=</span> <span class="n">target_column_filled</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"new_</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="n">expr</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"explode(sequence(</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">, next_timestamp - interval </span><span class="si">{</span><span class="n">freq</span><span class="si">}</span><span class="s2">, interval </span><span class="si">{</span><span class="n">freq</span><span class="si">}</span><span class="s2"> )) as timestamp"</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="c1"># Mark rows that are interpolated if flag is set to True</span>
+        <span class="n">flagged_series</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">exploded_series</span>
+
+        <span class="n">flagged_series</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">exploded_series</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="s2">"is_ts_interpolated"</span><span class="p">,</span>
+                <span class="n">when</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"new_</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="o">!=</span> <span class="n">col</span><span class="p">(</span><span class="n">ts_col</span><span class="p">),</span> <span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="kc">False</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">ts_col</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"new_</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="sa">f</span><span class="s2">"new_</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
+        <span class="p">)</span>
+
+        <span class="c1"># # Perform interpolation on each target column</span>
+        <span class="n">interpolated_result</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">flagged_series</span>
+        <span class="k">for</span> <span class="n">target_col</span> <span class="ow">in</span> <span class="n">target_cols</span><span class="p">:</span>
+            <span class="c1"># Interpolate target columns</span>
+            <span class="n">interpolated_result</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__interpolate_column</span><span class="p">(</span>
+                <span class="n">interpolated_result</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="n">target_col</span><span class="p">,</span> <span class="n">method</span>
+            <span class="p">)</span>
+
+            <span class="n">interpolated_result</span> <span class="o">=</span> <span class="n">interpolated_result</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"previous_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"next_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"previous_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"next_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"next_null_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Remove non-required columns</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">interpolated_result</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
+            <span class="s2">"previous_timestamp"</span><span class="p">,</span> <span class="s2">"next_timestamp"</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Hide is_interpolated columns based on flag</span>
+        <span class="k">if</span> <span class="n">show_interpolated</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">interpolated_col_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"is_ts_interpolated"</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">target_cols</span><span class="p">:</span>
+                <span class="n">interpolated_col_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"is_interpolated_</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="o">*</span><span class="n">interpolated_col_names</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output</span></div></div>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Databricks Labs
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/databrickslabs/tempo" aria-label="GitHub">
+                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+            </a>
+              <a class="muted-link fa-brands fa-uncharted" href="https://databricks.com/learn/labs" aria-label="Databricks Labs"></a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/scripts/furo.js"></script>
+    <script src="../../_static/clipboard.min.js"></script>
+    <script src="../../_static/copybutton.js"></script>
+    </body>
+</html>
