@@ -36,15 +36,40 @@ class TSDF:
 
     self.df = df
     self.sequence_col = '' if sequence_col is None else sequence_col
+
+    ## Add customized check for string type for the timestamp. If we see a string, we will proactively created a double version of the string timestamp for sorting purposes and rename to ts_col
+    if (df.schema[ts_col].dataType == "StringType"):
+        sample_ts = df.limit(1).collect()[0][0]
+        self.__validate_ts_string(sample_ts)
+        self.__add_double_ts().withColumnRenamed("double_ts", self.ts_col)
+
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
+
 
   ##
   ## Helper functions
   ##
 
-  def __validated_column(self,df,colname):
+  def __add_double_ts(self):
+      """ Add a double (epoch) version of the string timestamp out to nanos
+      """
+      self.df = self.df.withColumn("nanos", (f.when(f.col(self.ts_col).contains("."), f.concat(f.lit("0."), f.split(f.col(self.ts_col), '\.')[1]))
+                                             .otherwise(0)).cast("double")) \
+          .withColumn("long_ts", f.col(self.ts_col).cast("timestamp").cast("long")) \
+          .withColumn("double_ts", f.col("long_ts") + f.col("nanos"))\
+          .drop("nanos")\
+          .drop("long_ts")
+
+  def __validate_ts_string(self, ts_text):
+      """Validate the format for the string using Regex matching for ts_string"""
+      import re
+      ts_pattern = "^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
+      if re.match(ts_pattern, ts_text) is None:
+          raise ValueError("Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]")
+
+  def __validated_column(self, df,colname):
     if type(colname) != str:
       raise TypeError(f"Column names must be of type str; found {type(colname)} instead!")
     if colname.lower() not in [col.lower() for col in df.columns]:
@@ -438,11 +463,12 @@ class TSDF:
     return asofDF
 
 
-  def __baseWindow(self):
+  def __baseWindow(self, sort_col = None):
     # add all sort keys - time is first, unique sequence number breaks the tie
 
-    ptntl_sort_keys = [self.ts_col, self.sequence_col]
-    sort_keys = [f.col(col_name).cast("long") for col_name in ptntl_sort_keys if col_name != '']
+    sort_col = self.ts_col if not sort_col else sort_col
+    ptntl_sort_keys = [sort_col, self.sequence_col]
+    sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
 
     w = Window().orderBy(sort_keys)
     if self.partitionCols:
@@ -450,8 +476,8 @@ class TSDF:
     return w
 
 
-  def __rangeBetweenWindow(self, range_from, range_to):
-    return self.__baseWindow().rangeBetween(range_from, range_to)
+  def __rangeBetweenWindow(self, range_from, range_to, sort_col = None):
+    return self.__baseWindow(sort_col).rangeBetween(range_from, range_to)
 
 
   def __rowsBetweenWindow(self, rows_from, rows_to):
@@ -580,7 +606,12 @@ class TSDF:
                                  (datatype[0].lower() not in prohibited_cols))]
 
           # build window
-          w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
+          if (str(self.df.schema[self.ts_col].dataType) == 'TimestampType'):
+              self.__add_double_ts()
+              prohibited_cols.extend(["double_ts"])
+              w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0, sort_col="double_ts")
+          else:
+              w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
 
           # compute column summaries
           selectedCols = self.df.columns
@@ -595,7 +626,7 @@ class TSDF:
               derivedCols.append(
                       ((f.col(metric) - f.col('mean_' + metric)) / f.col('stddev_' + metric)).alias("zscore_" + metric))
           selected_df = self.df.select(*selectedCols)
-          summary_df = selected_df.select(*selected_df.columns, *derivedCols)
+          summary_df = selected_df.select(*selected_df.columns, *derivedCols).drop("double_ts")
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
