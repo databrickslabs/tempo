@@ -141,9 +141,8 @@ class TSDF:
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
     since it is no longer used in subsequent methods.
     """
-    ptntl_sort_keys = [self.ts_col, sequence_col]
+    ptntl_sort_keys = [self.ts_col, 'rec_ind', sequence_col]
     sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
-    sort_keys.append('rec_ind')
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
