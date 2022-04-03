@@ -57,19 +57,29 @@ def display_unavailable(df):
 ENV_BOOLEAN = __isnotebookenv()
 
 if PLATFORM == "DATABRICKS":
-    method = get_ipython().user_ns['display']
+
+    # This below check is for ensuring compatibility with Databricks DLT runtimes
+    # This if logic ensures that the custom user's namespace of DLT runtimes
+    # which doesn't have PythonShell's Display object in the namespace doesn't result in an error.
+    if (
+            ('create_dlt_table_fn' not in list(get_ipython().user_ns.keys()))
+            and
+            ('dlt_sql_fn' not in list(get_ipython().user_ns.keys()))
+    ):
+        method = get_ipython().user_ns['display']
+
+        # Under 'display' key in user_ns the original databricks display method is present
+        # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
+        def display_improvised(obj):
+            if type(obj).__name__ == 'TSDF':
+                method(obj.df)
+            else:
+                method(obj)
 
 
-    # Under 'display' key in user_ns the original databricks display method is present
-    # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
-    def display_improvised(obj):
-        if type(obj).__name__ == 'TSDF':
-            method(obj.df)
-        else:
-            method(obj)
-
-
-    display = display_improvised
+        display = display_improvised
+    else:
+        display = display_unavailable
 elif __isnotebookenv():
     def display_html_improvised(obj):
         if type(obj).__name__ == 'TSDF':
