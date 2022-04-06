@@ -1,11 +1,7 @@
-from IPython import get_ipython
+from utils import __notdltruntime
 
 from tempo.tsdf import TSDF
-if (
-            ('create_dlt_table_fn' not in list(get_ipython().user_ns.keys()))
-            and
-            ('dlt_sql_fn' not in list(get_ipython().user_ns.keys()))
-    ):
+if __notdltruntime():
     from tempo.utils import display
 
     '''
