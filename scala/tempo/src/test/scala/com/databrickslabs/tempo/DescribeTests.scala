@@ -42,7 +42,7 @@ class DescribeTests
 		// joined dataframe should equal the expected dataframe
 		// self.assertDataFramesEqual(res, dfExpected)
 		assert(res.count == 7)
-		assert(res.select(max(col("unique_ts_count"))).collect()(0)(0) == "1")
+		assert(res.select(max(col("unique_time_series_count"))).collect()(0)(0) == "1")
 		assert(res.select(col("min_ts").cast("string")).collect()(0)(0) == "2020-08-01 00:00:10")
 		assert(res.select(col("max_ts").cast("string")).collect()(0)(0) == "2020-09-01 00:19:12")
 	}
