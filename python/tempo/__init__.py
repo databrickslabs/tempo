@@ -1,4 +1,4 @@
-from utils import __notdltruntime
+from tempo.utils import __notdltruntime
 
 from tempo.tsdf import TSDF
 if __notdltruntime():
