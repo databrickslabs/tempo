@@ -9,6 +9,7 @@ from pyspark.sql.dataframe import DataFrame
 
 logger = logging.getLogger(__name__)
 PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
+
 """
 DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.
 
@@ -16,17 +17,7 @@ This constant is to ensure the correct behaviour of the show and display methods
 where the code is running from. 
 """
 
-
-def __not_dlt_runtime():
-    if type(get_ipython()) != type(None):
-        user_namespace_keys = list(get_ipython().user_ns.keys())
-        check_bool = (('create_dlt_table_fn' not in user_namespace_keys) and ('dlt_sql_fn' not in user_namespace_keys))
-        return check_bool
-    else:
-        return False
-
-
-def __isnotebookenv():
+def __is_capable_of_html_rendering():
     """
     This method returns a boolean value signifying whether the environment is a notebook environment
     capable of rendering HTML or not.
@@ -63,38 +54,28 @@ def display_unavailable(df):
     logger.error("'display' method not available in this environment. Use 'show' method instead.")
 
 
-ENV_BOOLEAN = __isnotebookenv()
-
-if PLATFORM == "DATABRICKS":
-
-    # This below check is for ensuring compatibility with Databricks DLT runtimes
-    # This if logic ensures that the custom user's namespace of DLT runtimes
-    # which doesn't have PythonShell's Display object in the namespace doesn't result in an error.
-    if __not_dlt_runtime():
-        method = get_ipython().user_ns['display']
+ENV_BOOLEAN = __is_capable_of_html_rendering()
 
 
-        # Under 'display' key in user_ns the original databricks display method is present
-        # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
-        def display_improvised(obj):
-            if type(obj).__name__ == 'TSDF':
-                method(obj.df)
-            else:
-                method(obj)
+if (PLATFORM == "DATABRICKS") and (type(get_ipython()) != type(None)) and ('display' in get_ipython().user_ns.keys()):
+    method = get_ipython().user_ns['display']
+    # Under 'display' key in user_ns the original databricks display method is present
+    # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
+    def display_improvised(obj):
+        if type(obj).__name__ == 'TSDF':
+            method(obj.df)
+        else:
+            method(obj)
+    display = display_improvised
 
-
-        display = display_improvised
-    else:
-        display = display_unavailable
-elif __isnotebookenv():
+elif ENV_BOOLEAN:
     def display_html_improvised(obj):
         if type(obj).__name__ == 'TSDF':
             display_html(obj.df)
         else:
             display_html(obj)
-
-
     display = display_html_improvised
+
 else:
     display = display_unavailable
 
