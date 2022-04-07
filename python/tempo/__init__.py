@@ -1,7 +1,7 @@
-from tempo.utils import __notdltruntime
+from tempo.utils import __not_dlt_runtime
 
 from tempo.tsdf import TSDF
-if __notdltruntime():
+if __not_dlt_runtime():
     from tempo.utils import display
 
     '''

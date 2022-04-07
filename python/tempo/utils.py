@@ -17,7 +17,7 @@ where the code is running from.
 """
 
 
-def __notdltruntime():
+def __not_dlt_runtime():
     if type(get_ipython()) != type(None):
         user_namespace_keys = list(get_ipython().user_ns.keys())
         check_bool = (('create_dlt_table_fn' not in user_namespace_keys) and ('dlt_sql_fn' not in user_namespace_keys))
@@ -70,7 +70,7 @@ if PLATFORM == "DATABRICKS":
     # This below check is for ensuring compatibility with Databricks DLT runtimes
     # This if logic ensures that the custom user's namespace of DLT runtimes
     # which doesn't have PythonShell's Display object in the namespace doesn't result in an error.
-    if __notdltruntime():
+    if __not_dlt_runtime():
         method = get_ipython().user_ns['display']
 
 
