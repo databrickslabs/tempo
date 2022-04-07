@@ -18,9 +18,12 @@ where the code is running from.
 
 
 def __notdltruntime():
-    user_namespace_keys = list(get_ipython().user_ns.keys())
-    check_bool = (('create_dlt_table_fn' not in user_namespace_keys) and ('dlt_sql_fn' not in user_namespace_keys))
-    return check_bool
+    if type(get_ipython()) != type(None):
+        user_namespace_keys = list(get_ipython().user_ns.keys())
+        check_bool = (('create_dlt_table_fn' not in user_namespace_keys) and ('dlt_sql_fn' not in user_namespace_keys))
+        return check_bool
+    else:
+        return False
 
 
 def __isnotebookenv():
@@ -69,6 +72,7 @@ if PLATFORM == "DATABRICKS":
     # which doesn't have PythonShell's Display object in the namespace doesn't result in an error.
     if __notdltruntime():
         method = get_ipython().user_ns['display']
+
 
         # Under 'display' key in user_ns the original databricks display method is present
         # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
