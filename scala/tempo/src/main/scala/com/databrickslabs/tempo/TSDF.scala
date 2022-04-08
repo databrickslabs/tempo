@@ -453,6 +453,7 @@ private[tempo] sealed class BaseTSDF(val df: DataFrame,
 		val global_smry_rec = desc_stats.limit(1).select(non_summary_cols_blank: _*)
 
 		val full_smry = global_smry_rec.union(desc_stats)
+		val full_smry = full_smry.withColumnRenamed("unique_ts_count","unique_time_series_count")
 
     return(full_smry)
 	}

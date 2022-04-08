@@ -324,6 +324,7 @@ class TSDF:
     global_smry_rec = desc_stats.limit(1).select(f.lit('global').alias("summary"),f.lit(unique_ts).alias("unique_ts_count"), f.lit(min_ts).alias("min_ts"), f.lit(max_ts).alias("max_ts"), f.lit(gran).alias("granularity"), *[f.lit(" ").alias(c) for c in non_summary_cols])
 
     full_smry = global_smry_rec.union(desc_stats)
+    full_smry = full_smry.withColumnRenamed("unique_ts_count","unique_time_series_count")
 
     try:
         dbutils.fs.ls("/")
