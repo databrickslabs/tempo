@@ -19,7 +19,7 @@ setup(
     description='Spark Time Series Utility Package',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/databrickslabs/tempo',
+    url='https://databrickslabs.github.io/tempo/',
     packages=find_packages(where=".", include=["tempo"]),
     install_requires=[
         'ipython',
