@@ -12,6 +12,8 @@ The purpose of this project is to make time series manipulation with Spark simpl
 [![Downloads](https://pepy.tech/badge/dbl-tempo/month)](https://pepy.tech/project/dbl-tempo)
 [![docs](https://github.com/databrickslabs/tempo/actions/workflows/docs.yml/badge.svg)](https://databrickslabs.github.io/tempo/)
 
+## [Docs Published with Github Pages HERE](https://databrickslabs.github.io/tempo/)
+
 ## Using the Project
 
 Python - pip install in Databricks notebooks using:
