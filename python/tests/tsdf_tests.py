@@ -714,6 +714,35 @@ class ResampleTest(SparkTest):
         # test bars summary
         self.assertDataFramesEqual(bars, barsExpected)
 
+    def test_resample_microseconds(self):
+        """Test resampling for microsecond timestamps
+        TODO: check resampling frequency for ms + musec
+        TODO: add expected schema + data
+        TODO: add floor TSDF
+        """
+        schema = StructType([StructField("symbol", StringType()),
+                             StructField("event_ts", StringType()),
+                             StructField("trade_pr", FloatType())])
+
+        data = [["S1", "2022-01-01 09:59:59.122456", 349.21],
+                ["S1", "2022-01-01 10:00:00.1234562", 340.21],
+                ["S1", "2022-01-01 10:00:00.124457", 353.32],
+                ["S1", "2022-01-01 10:00:00.125458", 351.32],
+                ["S1", "2022-01-01 10:00:01.123459", 350.32]]
+
+        expected_schema = StructType([StructField("symbol", StringType()),
+                             StructField("event_ts", StringType()),
+                             StructField("mean_trade_pr", FloatType())])
+
+        df_left = self.buildTestDF(schema, data)
+        tsdf_left = TSDF(df_left, partition_cols=["symbol"])
+        resample_2_microseconds = tsdf_left.resample(freq="2 seconds", func="mean", prefix="mean")
+
+        print("\n\n")
+        resample_2_microseconds.show(10, False)
+        print("\n\n")
+
+
     def test_upsample(self):
         """Test of range stats for 20 minute rolling window"""
         schema = StructType([StructField("symbol", StringType()),
