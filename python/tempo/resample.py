@@ -4,7 +4,7 @@ import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 # define global frequency options
-MUSEC = 'musec'
+MUSEC = 'microsec'
 MS = 'ms'
 SEC = 'sec'
 MIN = 'min'
@@ -18,7 +18,7 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {'musec' : 'microseconds','ms' : 'milliseconds','sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
+freq_dict = {'microsec' : 'microseconds','ms' : 'milliseconds','sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
 
 allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
@@ -119,6 +119,11 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
 
 
 def checkAllowableFreq(freq):
+    """
+    Parses frequency and checks against allowable frequencies
+    :param freq: frequncy at which to upsample/downsample, declared in resample function
+    :return: list of parsed frequency value and time suffix
+    """
     if freq not in allowableFreqs:
       try:
           periods = freq.lower().split(" ")[0].strip()
@@ -127,7 +132,7 @@ def checkAllowableFreq(freq):
           raise ValueError("Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
       if units.startswith(MUSEC):
           return (periods, MUSEC)
-      elif units.startswith(MS):
+      elif units.startswith(MS) | units.startswith("millis"):
           return (periods, MS)
       elif units.startswith(SEC):
           return (periods, SEC)
