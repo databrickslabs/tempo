@@ -747,7 +747,7 @@ class ResampleTest(SparkTest):
 
         data = [["S1", "SAME_DT", "2020-08-01 00:00:10.12345", 349.21, 10.0],
                 ["S1", "SAME_DT", "2020-08-01 00:00:10.123", 340.21, 9.0],
-                ["S1", "SAME_DT", "2020-08-01 00:01:10.124", 353.32, 8.0]]
+                ["S1", "SAME_DT", "2020-08-01 00:00:10.124", 353.32, 8.0]]
 
         expected_data_ms = [
             ["S1", "2020-08-01 00:00:10.123", None, 344.71, 9.5],
@@ -756,7 +756,7 @@ class ResampleTest(SparkTest):
 
         # construct dataframes
         df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data_ms)
+        dfExpected = self.buildTestDF(expected_30m_Schema, expected_data_ms)
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
@@ -764,7 +764,6 @@ class ResampleTest(SparkTest):
         # 30 minute aggregation
         resample_ms = tsdf_left.resample(freq="ms", func="mean").df.withColumn("trade_pr",
                                                                                        F.round(F.col('trade_pr'), 2))
-
         self.assertDataFramesEqual(resample_ms, dfExpected)
 
 
