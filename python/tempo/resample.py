@@ -5,6 +5,7 @@ from pyspark.sql.window import Window
 
 # define global frequency options
 
+MS = 'ms'
 SEC = 'sec'
 MIN = 'min'
 HR = 'hr'
@@ -17,9 +18,9 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
+freq_dict = {'ms' : 'milliseconds', 'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
 
-allowableFreqs = [SEC, MIN, HR, DAY]
+allowableFreqs = [MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 def __appendAggKey(tsdf, freq = None):
@@ -123,7 +124,7 @@ def checkAllowableFreq(freq):
           periods = freq.lower().split(" ")[0].strip()
           units = freq.lower().split(" ")[1].strip()
       except:
-          raise ValueError("Allowable grouping frequencies are sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
+          raise ValueError("Allowable grouping frequencies are ms (millisecond), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
       if units.startswith(SEC):
           return (periods, SEC)
       elif units.startswith(MIN):
