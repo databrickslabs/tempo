@@ -714,33 +714,49 @@ class ResampleTest(SparkTest):
         # test bars summary
         self.assertDataFramesEqual(bars, barsExpected)
 
-    def test_resample_microseconds(self):
-        """Test resampling for microsecond timestamps
-        TODO: check resampling frequency for ms + musec
-        TODO: add expected schema + data
-        TODO: add floor TSDF
-        """
+    def test_resample_millis(self):
+        """Test of resampling for millisecond windows"""
         schema = StructType([StructField("symbol", StringType()),
+                             StructField("date", StringType()),
                              StructField("event_ts", StringType()),
-                             StructField("trade_pr", FloatType())])
+                             StructField("trade_pr", FloatType()),
+                             StructField("trade_pr_2", FloatType())])
 
-        data = [["S1", "2022-01-01 09:59:59.122456", 349.21],
-                ["S1", "2022-01-01 10:00:00.1234562", 340.21],
-                ["S1", "2022-01-01 10:00:00.124457", 353.32],
-                ["S1", "2022-01-01 10:00:00.125458", 351.32],
-                ["S1", "2022-01-01 10:00:01.123459", 350.32]]
+        expectedSchema = StructType([StructField("symbol", StringType()),
+                                     StructField("event_ts", StringType()),
+                                     StructField("floor_trade_pr", FloatType()),
+                                     StructField("floor_date", StringType()),
+                                     StructField("floor_trade_pr_2", FloatType())])
 
-        expected_schema = StructType([StructField("symbol", StringType()),
-                             StructField("event_ts", StringType()),
-                             StructField("mean_trade_pr", FloatType())])
+        expectedSchemaMS = StructType([StructField("symbol", StringType()),
+                                          StructField("event_ts", StringType(), True),
+                                          StructField("date", DoubleType()),
+                                          StructField("trade_pr", DoubleType()),
+                                          StructField("trade_pr_2", DoubleType())])
 
-        df_left = self.buildTestDF(schema, data)
-        tsdf_left = TSDF(df_left, partition_cols=["symbol"])
-        resample_2_microseconds = tsdf_left.resample(freq="2 seconds", func="mean", prefix="mean")
 
-        print("\n\n")
-        resample_2_microseconds.show(10, False)
-        print("\n\n")
+        data = [["S1", "SAME_DT", "2020-08-01 00:00:10.12345", 349.21, 10.0],
+                ["S1", "SAME_DT", "2020-08-01 00:00:10.123", 340.21, 9.0],
+                ["S1", "SAME_DT", "2020-08-01 00:00:10.124", 353.32, 8.0]]
+
+        expected_data_ms = [
+            ["S1", "2020-08-01 00:00:10.123", None, 344.71, 9.5],
+            ["S1", "2020-08-01 00:00:10.124", None, 353.32, 8.0]
+        ]
+
+        # construct dataframes
+        df = self.buildTestDF(schema, data)
+        dfExpected = self.buildTestDF(expectedSchemaMS, expected_data_ms)
+
+        # convert to TSDF
+        tsdf_left = TSDF(df, partition_cols=["symbol"])
+
+        # 30 minute aggregation
+        resample_ms = tsdf_left.resample(freq="ms", func="mean").df.withColumn("trade_pr", F.round(F.col('trade_pr'), 2))
+
+        int_df = TSDF(tsdf_left.df.withColumn("event_ts", F.col("event_ts").cast("timestamp")), partition_cols = ['symbol'])
+        interpolated = int_df.interpolate(freq='ms', func='floor', method='ffill')
+        self.assertDataFramesEqual(resample_ms, dfExpected)
 
 
     def test_upsample(self):
