@@ -18,7 +18,7 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {'ms' : 'milliseconds', 'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
+freq_dict = {'ms' : 'milliseconds', 'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours', "milliseconds" : "milliseconds"}
 
 allowableFreqs = [MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
@@ -125,8 +125,8 @@ def checkAllowableFreq(freq):
           units = freq.lower().split(" ")[1].strip()
       except:
           raise ValueError("Allowable grouping frequencies are ms (millisecond), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
-      if units.startswith(MS):
-          return(periods, MS)
+      if units.startswith(MS) | units.startswith("millis"):
+          return(periods, "milliseconds")
       elif units.startswith(SEC):
           return (periods, SEC)
       elif units.startswith(MIN):

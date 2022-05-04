@@ -734,16 +734,6 @@ class ResampleTest(SparkTest):
                                           StructField("trade_pr", DoubleType()),
                                           StructField("trade_pr_2", DoubleType())])
 
-        expectedBarsSchema = StructType([StructField("symbol", StringType()),
-                                         StructField("event_ts", StringType()),
-                                         StructField("close_trade_pr", FloatType()),
-                                         StructField("close_trade_pr_2", FloatType()),
-                                         StructField("high_trade_pr", FloatType()),
-                                         StructField("high_trade_pr_2", FloatType()),
-                                         StructField("low_trade_pr", FloatType()),
-                                         StructField("low_trade_pr_2", FloatType()),
-                                         StructField("open_trade_pr", FloatType()),
-                                         StructField("open_trade_pr_2", FloatType())])
 
         data = [["S1", "SAME_DT", "2020-08-01 00:00:10.12345", 349.21, 10.0],
                 ["S1", "SAME_DT", "2020-08-01 00:00:10.123", 340.21, 9.0],
@@ -762,8 +752,10 @@ class ResampleTest(SparkTest):
         tsdf_left = TSDF(df, partition_cols=["symbol"])
 
         # 30 minute aggregation
-        resample_ms = tsdf_left.resample(freq="ms", func="mean").df.withColumn("trade_pr",
-                                                                                       F.round(F.col('trade_pr'), 2))
+        resample_ms = tsdf_left.resample(freq="ms", func="mean").df.withColumn("trade_pr", F.round(F.col('trade_pr'), 2))
+
+        int_df = TSDF(tsdf_left.df.withColumn("event_ts", F.col("event_ts").cast("timestamp")), partition_cols = ['symbol'])
+        interpolated = int_df.interpolate(freq='ms', func='floor', method='ffill')
         self.assertDataFramesEqual(resample_ms, dfExpected)
 
 
