@@ -4,15 +4,15 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
-    <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.03.04"/>
-        <title>tempo.resample - Tempo 0.1.16 documentation</title>
+    <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
+        <title>tempo.resample - Tempo 0.1.17 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=935aa2abcc5c1da4283d1dc201fb1f0add16d23a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=25ceb02ed1c46dc30f2321ff83e92799f69dfdb9" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
     
 
@@ -45,10 +45,12 @@
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
@@ -130,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.16 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.17 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -157,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.16 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.17 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -218,7 +220,8 @@
 <span class="kn">from</span> <span class="nn">pyspark.sql.window</span> <span class="kn">import</span> <span class="n">Window</span>
 
 <span class="c1"># define global frequency options</span>
-
+<span class="n">MUSEC</span> <span class="o">=</span> <span class="s1">'microsec'</span>
+<span class="n">MS</span> <span class="o">=</span> <span class="s1">'ms'</span>
 <span class="n">SEC</span> <span class="o">=</span> <span class="s1">'sec'</span>
 <span class="n">MIN</span> <span class="o">=</span> <span class="s1">'min'</span>
 <span class="n">HR</span> <span class="o">=</span> <span class="s1">'hr'</span>
@@ -231,9 +234,9 @@
 <span class="n">average</span> <span class="o">=</span> <span class="s2">"mean"</span>
 <span class="n">ceiling</span> <span class="o">=</span> <span class="s2">"ceil"</span>
 
-<span class="n">freq_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'sec'</span> <span class="p">:</span> <span class="s1">'seconds'</span><span class="p">,</span> <span class="s1">'min'</span> <span class="p">:</span> <span class="s1">'minutes'</span><span class="p">,</span> <span class="s1">'hr'</span> <span class="p">:</span> <span class="s1">'hours'</span><span class="p">,</span> <span class="s1">'day'</span> <span class="p">:</span> <span class="s1">'days'</span><span class="p">,</span> <span class="s1">'hour'</span> <span class="p">:</span> <span class="s1">'hours'</span><span class="p">}</span>
+<span class="n">freq_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'microsec'</span> <span class="p">:</span> <span class="s1">'microseconds'</span><span class="p">,</span><span class="s1">'ms'</span> <span class="p">:</span> <span class="s1">'milliseconds'</span><span class="p">,</span><span class="s1">'sec'</span> <span class="p">:</span> <span class="s1">'seconds'</span><span class="p">,</span> <span class="s1">'min'</span> <span class="p">:</span> <span class="s1">'minutes'</span><span class="p">,</span> <span class="s1">'hr'</span> <span class="p">:</span> <span class="s1">'hours'</span><span class="p">,</span> <span class="s1">'day'</span> <span class="p">:</span> <span class="s1">'days'</span><span class="p">,</span> <span class="s1">'hour'</span> <span class="p">:</span> <span class="s1">'hours'</span><span class="p">}</span>
 
-<span class="n">allowableFreqs</span> <span class="o">=</span> <span class="p">[</span><span class="n">SEC</span><span class="p">,</span> <span class="n">MIN</span><span class="p">,</span> <span class="n">HR</span><span class="p">,</span> <span class="n">DAY</span><span class="p">]</span>
+<span class="n">allowableFreqs</span> <span class="o">=</span> <span class="p">[</span><span class="n">MUSEC</span><span class="p">,</span> <span class="n">MS</span><span class="p">,</span> <span class="n">SEC</span><span class="p">,</span> <span class="n">MIN</span><span class="p">,</span> <span class="n">HR</span><span class="p">,</span> <span class="n">DAY</span><span class="p">]</span>
 <span class="n">allowableFuncs</span> <span class="o">=</span> <span class="p">[</span><span class="n">floor</span><span class="p">,</span> <span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="p">,</span> <span class="n">average</span><span class="p">,</span> <span class="n">ceiling</span><span class="p">]</span>
 
 <div class="viewcode-block" id="__appendAggKey"><a class="viewcode-back" href="../../reference/tempo.resample.html#tempo.resample.__appendAggKey">[docs]</a><span class="k">def</span> <span class="nf">__appendAggKey</span><span class="p">(</span><span class="n">tsdf</span><span class="p">,</span> <span class="n">freq</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
@@ -255,7 +258,7 @@
 <span class="sd">    :param tsdf: input TSDF object</span>
 <span class="sd">    :param func: aggregate function</span>
 <span class="sd">    :param metricCols: columns used for aggregates</span>
-<span class="sd">    :param prefix the metric columns with the aggregate named function</span>
+<span class="sd">    :param prefix: the metric columns with the aggregate named function</span>
 <span class="sd">    :param fill: upsample based on the time increment for 0s in numeric columns</span>
 <span class="sd">    :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values</span>
 <span class="sd">    """</span>
@@ -332,13 +335,22 @@
 
 
 <span class="k">def</span> <span class="nf">checkAllowableFreq</span><span class="p">(</span><span class="n">freq</span><span class="p">):</span>
+    <span class="sd">"""</span>
+<span class="sd">    Parses frequency and checks against allowable frequencies</span>
+<span class="sd">    :param freq: frequncy at which to upsample/downsample, declared in resample function</span>
+<span class="sd">    :return: list of parsed frequency value and time suffix</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">freq</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowableFreqs</span><span class="p">:</span>
       <span class="k">try</span><span class="p">:</span>
           <span class="n">periods</span> <span class="o">=</span> <span class="n">freq</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">" "</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
           <span class="n">units</span> <span class="o">=</span> <span class="n">freq</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">" "</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
       <span class="k">except</span><span class="p">:</span>
-          <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Allowable grouping frequencies are sec (second), min (minute), hr (hour), day. Reformat your frequency as &lt;integer&gt; &lt;day/hour/minute/second&gt;"</span><span class="p">)</span>
-      <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">SEC</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as &lt;integer&gt; &lt;day/hour/minute/second&gt;"</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">MUSEC</span><span class="p">):</span>
+          <span class="k">return</span> <span class="p">(</span><span class="n">periods</span><span class="p">,</span> <span class="n">MUSEC</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">units</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">MS</span><span class="p">)</span> <span class="o">|</span> <span class="n">units</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"millis"</span><span class="p">):</span>
+          <span class="k">return</span> <span class="p">(</span><span class="n">periods</span><span class="p">,</span> <span class="n">MS</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">units</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">SEC</span><span class="p">):</span>
           <span class="k">return</span> <span class="p">(</span><span class="n">periods</span><span class="p">,</span> <span class="n">SEC</span><span class="p">)</span>
       <span class="k">elif</span> <span class="n">units</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">MIN</span><span class="p">):</span>
           <span class="k">return</span> <span class="p">(</span><span class="n">periods</span><span class="p">,</span> <span class="n">MIN</span><span class="p">)</span>
