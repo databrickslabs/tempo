@@ -28,9 +28,9 @@ jobs:
           python-version: "3.9"
       - name: flake8 Lint
         uses: py-actions/flake8@v2
-          with:
-            arg: "--config python/.flake8"
-            path: "./python"
+        with:
+          arg: "--config python/.flake8"
+          path: "./python"
   run:
     runs-on: ${{ matrix.os }}
     strategy:
