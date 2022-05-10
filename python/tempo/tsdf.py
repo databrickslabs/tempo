@@ -218,6 +218,10 @@ class TSDF:
     df = partition_df.union(remainder_df).drop("partition_remainder","ts_col_double")
     return TSDF(df, self.ts_col, self.partitionCols + ['ts_partition'])
 
+  #
+  # Slicing & Selection
+  #
+
   def select(self, *cols):
     """
     pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
@@ -243,6 +247,61 @@ class TSDF:
       return TSDF(self.df.select(*cols), self.ts_col, self.partitionCols, self.sequence_col)
     else:
       raise Exception("In TSDF's select statement original ts_col, partitionCols and seq_col_stub(optional) must be present")
+
+
+  def __slice(self, target_ts, op: str):
+    slice_expr = f.expr(f"{self.ts_col} {op} '{target_ts}'")
+    sliced_df = self.df.where(slice_expr)
+    return TSDF(sliced_df, ts_col=self.ts_col, partition_cols=self.partitionCols, sequence_col=self.sequence_col)
+
+
+  def at(self, ts):
+    return self.__slice(ts, "==")
+
+
+  def before(self, ts):
+    return self.__slice(ts, "<")
+
+
+  def atOrBefore(self, ts):
+    return self.__slice(ts, "<=")
+
+
+  def after(self, ts):
+    return self.__slice(ts, ">")
+
+
+  def atOrAfter(self, ts):
+    return self.__slice(ts, ">=")
+
+
+  def between(self, start_ts, end_ts, inclusive=True):
+    prior_tsdf = self.__slice( end_ts, "<=") if inclusive else self.__slice( end_ts, "<")
+    return prior_tsdf.__slice( start_ts, ">=") if inclusive else prior_tsdf.__slice( start_ts, ">")
+
+
+  def __top_rows_per_series(self, win: Window, n: int):
+    prev_records_df = self.df.withColumn("rows", f.row_number().over(win)).where(f"rows <= {n}").drop("rows")
+    return TSDF(prev_records_df, ts_col=self.ts_col, partition_cols=self.partitionCols, sequence_col=self.sequence_col)
+
+
+  def previous(self, n: int):
+    prev_window = self.__baseWindow(reverse=True)
+    return self.__top_rows_per_series(prev_window, n)
+
+
+  def next(self, n: int):
+    next_window = self.__baseWindow(reverse=False)
+    return self.__top_rows_per_series(next_window, n)
+
+
+  def asOf(self, ts, n: int = 1):
+    return self.atOrBefore(ts).previous(n)
+
+
+  #
+  # Display functions
+  #
 
   def show(self, n = 20, truncate = True, vertical = False):
     """
@@ -463,25 +522,30 @@ class TSDF:
     return asofDF
 
 
-  def __baseWindow(self, sort_col = None):
-    # add all sort keys - time is first, unique sequence number breaks the tie
+  def __baseWindow(self, sort_col = None, reverse = False):
+    # figure out our sorting columns
+    primary_sort_col = self.ts_col if not sort_col else sort_col
+    sort_cols = [primary_sort_col, self.sequence_col] if self.sequence_col else [primary_sort_col]
 
-    sort_col = self.ts_col if not sort_col else sort_col
-    ptntl_sort_keys = [sort_col, self.sequence_col]
-    sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
+    # are we ordering forwards (default) or reveresed?
+    col_fn = f.col
+    if reverse:
+      col_fn = lambda colname: f.col(colname).desc()
 
-    w = Window().orderBy(sort_keys)
+    # our window will be sorted on our sort_cols in the appropriate direction
+    w = Window().orderBy([col_fn(col) for col in sort_cols])
+    # and partitioned by any series IDs
     if self.partitionCols:
       w = w.partitionBy([f.col(elem) for elem in self.partitionCols])
     return w
 
 
-  def __rangeBetweenWindow(self, range_from, range_to, sort_col = None):
-    return self.__baseWindow(sort_col).rangeBetween(range_from, range_to)
+  def __rangeBetweenWindow(self, range_from, range_to, sort_col = None, reverse = False):
+    return self.__baseWindow(sort_col=sort_col,reverse=reverse).rangeBetween(range_from, range_to)
 
 
-  def __rowsBetweenWindow(self, rows_from, rows_to):
-    return self.__baseWindow().rowsBetween(rows_from, rows_to)
+  def __rowsBetweenWindow(self, rows_from, rows_to, reverse = False):
+    return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
 
 
   def withPartitionCols(self, partitionCols):
