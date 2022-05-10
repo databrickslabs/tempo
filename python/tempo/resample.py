@@ -119,14 +119,11 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
 
 
 def checkAllowableFreq(freq):
-<<<<<<< HEAD
-=======
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
     :return: list of parsed frequency value and time suffix
     """
->>>>>>> upstream/master
     if freq not in allowableFreqs:
       try:
           periods = freq.lower().split(" ")[0].strip()
@@ -154,4 +151,3 @@ def validateFuncExists(func):
       raise ValueError("Aggregate function missing. Provide one of the allowable functions: " + ", ".join(allowableFuncs))
   elif (func not in allowableFuncs):
       raise ValueError("Aggregate function is not in the valid list. Provide one of the allowable functions: " + ", ".join(allowableFuncs))
-
