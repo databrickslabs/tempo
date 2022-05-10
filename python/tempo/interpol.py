@@ -164,6 +164,7 @@ class Interpolation:
                 ).otherwise(
                     # Handle standard backwards fill
                     when(
+                        # flake8: noqa: E712
                         col(f"is_interpolated_{target_col}") == True,
                         col(f"next_{target_col}"),
                     ).otherwise(col(f"{target_col}"))

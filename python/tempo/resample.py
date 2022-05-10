@@ -100,7 +100,6 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res = res.select(*groupingCols, *new_cols)
     elif func == min:
         exprs = {x: "min" for x in metricCols}
-        summaryCols = metricCols
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
             set(res.columns).difference(
@@ -114,7 +113,6 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res = res.select(*groupingCols, *new_cols)
     elif func == max:
         exprs = {x: "max" for x in metricCols}
-        summaryCols = metricCols
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
             set(res.columns).difference(
@@ -190,7 +188,7 @@ def checkAllowableFreq(freq):
         try:
             periods = freq.lower().split(" ")[0].strip()
             units = freq.lower().split(" ")[1].strip()
-        except:
+        except ValueError:
             raise ValueError(
                 "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
             )

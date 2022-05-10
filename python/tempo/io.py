@@ -24,7 +24,7 @@ def write(tsdf, spark, tabName, optimizationCols=None):
     else:
         optimizationCols = ["event_time"]
 
-    useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") != None
+    useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
     view_df = df.withColumn("event_dt", f.to_date(f.col(ts_col))).withColumn(
         "event_time",

@@ -62,7 +62,7 @@ ENV_BOOLEAN = __is_capable_of_html_rendering()
 
 if (
     (PLATFORM == "DATABRICKS")
-    and (type(get_ipython()) != type(None))
+    and (not isinstance(get_ipython(), None))
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]

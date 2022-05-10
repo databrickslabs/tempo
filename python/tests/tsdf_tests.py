@@ -11,9 +11,9 @@ from tempo.utils import *
 
 
 class SparkTest(unittest.TestCase):
-    ##
-    ## Fixtures
-    ##
+    #
+    # Fixtures
+    #
     def setUp(self):
         self.spark = (
             SparkSession.builder.appName("myapp")
@@ -39,9 +39,9 @@ class SparkTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.spark.stop()
 
-    ##
-    ## Utility Functions
-    ##
+    #
+    # Utility Functions
+    #
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
         """
@@ -67,9 +67,9 @@ class SparkTest(unittest.TestCase):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
-    ##
-    ## DataFrame Assert Functions
-    ##
+    #
+    # DataFrame Assert Functions
+    #
 
     def assertFieldsEqual(self, fieldA, fieldB):
         """
@@ -168,13 +168,26 @@ class BasicTests(SparkTest):
             ["S1", "2020-09-01 00:15:01", 359.21, 365.31],
         ]
 
-        # fmt: off
         expected_data = [
-                ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
-                ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
-                ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12],
-                ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31]]
-        # fmt: on
+            [
+                "S1",
+                "2020-08-01 00:00:10",
+                349.21,
+                "2020-08-01 00:00:01",
+                345.11,
+                351.12,
+            ],
+            [
+                "S1",
+                "2020-08-01 00:01:12",
+                351.32,
+                "2020-08-01 00:01:05",
+                348.10,
+                353.13,
+            ],
+            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12],
+            ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31],
+        ]
 
         # Construct dataframes
         dfLeft = self.buildTestDF(leftSchema, left_data)

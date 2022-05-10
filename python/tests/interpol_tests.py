@@ -1,4 +1,11 @@
-from pyspark.sql.types import *
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    FloatType,
+    StringType,
+    DoubleType,
+    BooleanType
+)
 from tests.tsdf_tests import SparkTest
 from tempo.interpol import Interpolation
 from chispa.dataframe_comparer import *
@@ -632,6 +639,6 @@ class InterpolationIntegrationTest(InterpolationTest):
         assert_df_equality(expected_df, actual_df, ignore_nullable=True)
 
 
-## MAIN
+# MAIN
 if __name__ == "__main__":
     unittest.main()
