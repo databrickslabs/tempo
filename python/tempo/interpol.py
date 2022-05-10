@@ -18,7 +18,7 @@ class Interpolation:
         """
         Validate if the fill provided is within the allowed list of values.
 
-        :param fill - Fill type e.g. "zero", "null", "bfill", "ffill", "linear"
+        :param fill: Fill type e.g. "zero", "null", "bfill", "ffill", "linear"
         """
         if method not in method_options:
             raise ValueError(
@@ -35,10 +35,10 @@ class Interpolation:
         """
         Validate if target column exists and is of numeric type, and validates if partition column exists.
 
-        :param df -  DataFrame to be validated
-        :param partition_cols -  Partition columns to be validated
-        :param target_col -  Target column to be validated
-        :param ts_col -  Timestamp column to be validated
+        :param df: DataFrame to be validated
+        :param partition_cols: Partition columns to be validated
+        :param target_col: Target column to be validated
+        :param ts_col: Timestamp column to be validated
         """
 
         for column in partition_cols:
@@ -68,9 +68,9 @@ class Interpolation:
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
 
-        :param df  - prepared dataframe to be interpolated
-        :param ts_col  - timeseries column name
-        :param target_col  - column to be interpolated
+        :param df: prepared dataframe to be interpolated
+        :param ts_col: timeseries column name
+        :param target_col: column to be interpolated
         """
         interpolation_expr = f"""
         case when is_interpolated_{target_col} = false then {target_col}
@@ -104,10 +104,10 @@ class Interpolation:
         """
         Apply interpolation to column.
 
-        :param series  - input DataFrame
-        :param ts_col   - timestamp column name
-        :param target_col   - column to interpolate
-        :param method   - interpolation function to fill missing values
+        :param series: input DataFrame
+        :param ts_col: timestamp column name
+        :param target_col: column to interpolate
+        :param method: interpolation function to fill missing values
         """
         output_df: DataFrame = series
 
@@ -186,9 +186,9 @@ class Interpolation:
         """
         Create additional timeseries columns for previous and next timestamps
 
-        :param df  - input DataFrame
-        :param partition_cols   - partition column names
-        :param ts_col   - timestamp column name
+        :param df: input DataFrame
+        :param partition_cols: partition column names
+        :param ts_col: timestamp column name
         """
         return df.withColumn("previous_timestamp", col(ts_col),).withColumn(
             "next_timestamp",
@@ -201,10 +201,10 @@ class Interpolation:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
 
-        :param df  - input DataFrame
-        :param partition_cols   - partition column names
-        :param ts_col   - timestamp column name
-        :param target_col   - target column name
+        :param df: input DataFrame
+        :param partition_cols: partition column names
+        :param ts_col: timestamp column name
+        :param target_col: target column name
         """
         return df.withColumn(
             f"previous_timestamp_{target_col}",
@@ -228,10 +228,10 @@ class Interpolation:
         """
         Create columns for previous and next value for a specific target column
 
-        :param df  - input DataFrame
-        :param partition_cols   - partition column names
-        :param ts_col   - timestamp column name
-        :param target_col   - target column name
+        :param df: input DataFrame
+        :param partition_cols: partition column names
+        :param ts_col: timestamp column name
+        :param target_col: target column name
         """
         return (
             df.withColumn(
@@ -270,17 +270,17 @@ class Interpolation:
         show_interpolated: bool,
     ) -> DataFrame:
         """
-        Apply interpolation.
+        Apply interpolation function.
 
-        :param tsdf  - input TSDF
-        :param ts_col   - timestamp column name
-        :param target_cols   - numeric columns to interpolate
-        :param partition_cols  - partition columns names
-        :param freq  - frequency at which to sample
-        :param func   - aggregate function used for sampling to the specified interval
-        :param method   - interpolation function usded to fill missing values
-        :param show_interpolated  - show if row is interpolated?
-        :return DataFrame
+        :param tsdf: input TSDF
+        :param ts_col: timestamp column name
+        :param target_cols: numeric columns to interpolate
+        :param partition_cols: partition columns names
+        :param freq: frequency at which to sample
+        :param func: aggregate function used for sampling to the specified interval
+        :param method: interpolation function usded to fill missing values
+        :param show_interpolated: show if row is interpolated?
+        :return: DataFrame containing interpolated data.
         """
         # Validate input parameters
         self.__validate_fill(method)
