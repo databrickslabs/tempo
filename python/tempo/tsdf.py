@@ -456,6 +456,7 @@ class TSDF:
         )
 
         try:
+            # flake8: noqa: F821
             dbutils.fs.ls("/")
             return full_smry
         except:
@@ -484,7 +485,7 @@ class TSDF:
         size = result.split("=")[1].split(" ")[0]
         units = result.split("=")[1].split(" ")[1]
 
-        ## perform to MB for threshold check
+        # perform to MB for threshold check
         if units == "GiB":
             bytes = float(size) * 1024 * 1024 * 1024
         elif units == "MiB":

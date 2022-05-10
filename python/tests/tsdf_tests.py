@@ -1421,7 +1421,7 @@ class DeltaWriteTest(SparkTest):
             [
                 StructField("symbol", StringType()),
                 StructField("date", StringType()),
-                StructField("event_ts", StringType()),
+                StructField("event_ts", clearStringType()),
                 StructField("trade_pr", FloatType()),
                 StructField("trade_pr_2", FloatType()),
             ]
@@ -1451,6 +1451,6 @@ class DeltaWriteTest(SparkTest):
         assert self.spark.table("my_table").count() == 7
 
 
-## MAIN
+# MAIN
 if __name__ == "__main__":
     unittest.main()

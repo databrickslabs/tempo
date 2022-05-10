@@ -9,12 +9,28 @@ on:
 jobs:
   black-linting:
     runs-on: ubuntu-latest
+    name: Black Lint
     steps:
       - uses: actions/checkout@v2
       - uses: psf/black@stable
         with:
           options: "--check --verbose"
           src: "./python"
+  flake8-lint:
+    runs-on: ubuntu-latest
+    name: Flake8 Lint
+    steps:
+      - name: Check out source repository
+        uses: actions/checkout@v2
+      - name: Set up Python environment
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+      - name: flake8 Lint
+        uses: py-actions/flake8@v2
+          with:
+            arg: "--config python/.flake8"
+            path: "./python"
   run:
     runs-on: ${{ matrix.os }}
     strategy:
