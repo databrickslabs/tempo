@@ -653,7 +653,7 @@ class TSDF:
 
   def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
     """
-    function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
+    Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
     will be filled based on the fill calculation.
 
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
@@ -786,7 +786,7 @@ class _ResampledTSDF(TSDF):
 
     def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False):
       """
-      function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
+      Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
 
       :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
       :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
