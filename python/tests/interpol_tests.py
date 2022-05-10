@@ -4,7 +4,7 @@ from pyspark.sql.types import (
     FloatType,
     StringType,
     DoubleType,
-    BooleanType
+    BooleanType,
 )
 from tests.tsdf_tests import SparkTest
 from tempo.interpol import Interpolation
