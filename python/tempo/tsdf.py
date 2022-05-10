@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 class TSDF:
-
+  """
+  This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
+  """
   def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col = None):
     """
     Constructor
@@ -34,15 +36,40 @@ class TSDF:
 
     self.df = df
     self.sequence_col = '' if sequence_col is None else sequence_col
+
+    ## Add customized check for string type for the timestamp. If we see a string, we will proactively created a double version of the string timestamp for sorting purposes and rename to ts_col
+    if (df.schema[ts_col].dataType == "StringType"):
+        sample_ts = df.limit(1).collect()[0][0]
+        self.__validate_ts_string(sample_ts)
+        self.__add_double_ts().withColumnRenamed("double_ts", self.ts_col)
+
     """
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
+
 
   ##
   ## Helper functions
   ##
 
-  def __validated_column(self,df,colname):
+  def __add_double_ts(self):
+      """ Add a double (epoch) version of the string timestamp out to nanos
+      """
+      self.df = self.df.withColumn("nanos", (f.when(f.col(self.ts_col).contains("."), f.concat(f.lit("0."), f.split(f.col(self.ts_col), '\.')[1]))
+                                             .otherwise(0)).cast("double")) \
+          .withColumn("long_ts", f.col(self.ts_col).cast("timestamp").cast("long")) \
+          .withColumn("double_ts", f.col("long_ts") + f.col("nanos"))\
+          .drop("nanos")\
+          .drop("long_ts")
+
+  def __validate_ts_string(self, ts_text):
+      """Validate the format for the string using Regex matching for ts_string"""
+      import re
+      ts_pattern = "^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
+      if re.match(ts_pattern, ts_text) is None:
+          raise ValueError("Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]")
+
+  def __validated_column(self, df,colname):
     if type(colname) != str:
       raise TypeError(f"Column names must be of type str; found {type(colname)} instead!")
     if colname.lower() not in [col.lower() for col in df.columns]:
@@ -114,9 +141,8 @@ class TSDF:
     self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
     since it is no longer used in subsequent methods.
     """
-    ptntl_sort_keys = [self.ts_col, sequence_col]
+    ptntl_sort_keys = [self.ts_col, 'rec_ind', sequence_col]
     sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
-    sort_keys.append('rec_ind')
 
     window_spec = Window.partitionBy(self.partitionCols).orderBy(sort_keys).rowsBetween(Window.unboundedPreceding, Window.currentRow)
 
@@ -198,9 +224,9 @@ class TSDF:
     Parameters
     ----------
     cols : str or list of strs
-        column names (string).
-        If one of the column names is '*', that column is expanded to include all columns
-        in the current :class:`TSDF`.
+    column names (string).
+    If one of the column names is '*', that column is expanded to include all columns
+    in the current :class:`TSDF`.
 
     Examples
     --------
@@ -225,14 +251,14 @@ class TSDF:
     Parameters
     ----------
     n : int, optional
-        Number of rows to show.
+    Number of rows to show.
     truncate : bool or int, optional
-        If set to ``True``, truncate strings longer than 20 chars by default.
-        If set to a number greater than one, truncates long strings to length ``truncate``
-        and align cells right.
+    If set to ``True``, truncate strings longer than 20 chars by default.
+    If set to a number greater than one, truncates long strings to length ``truncate``
+    and align cells right.
     vertical : bool, optional
-        If set to ``True``, print output rows vertically (one line
-        per column value).
+    If set to ``True``, print output rows vertically (one line
+    per column value).
 
     Example to show usage
     ---------------------
@@ -298,6 +324,7 @@ class TSDF:
     global_smry_rec = desc_stats.limit(1).select(f.lit('global').alias("summary"),f.lit(unique_ts).alias("unique_ts_count"), f.lit(min_ts).alias("min_ts"), f.lit(max_ts).alias("max_ts"), f.lit(gran).alias("granularity"), *[f.lit(" ").alias(c) for c in non_summary_cols])
 
     full_smry = global_smry_rec.union(desc_stats)
+    full_smry = full_smry.withColumnRenamed("unique_ts_count","unique_time_series_count")
 
     try:
         dbutils.fs.ls("/")
@@ -436,11 +463,12 @@ class TSDF:
     return asofDF
 
 
-  def __baseWindow(self):
+  def __baseWindow(self, sort_col = None):
     # add all sort keys - time is first, unique sequence number breaks the tie
 
-    ptntl_sort_keys = [self.ts_col, self.sequence_col]
-    sort_keys = [f.col(col_name).cast("long") for col_name in ptntl_sort_keys if col_name != '']
+    sort_col = self.ts_col if not sort_col else sort_col
+    ptntl_sort_keys = [sort_col, self.sequence_col]
+    sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != '']
 
     w = Window().orderBy(sort_keys)
     if self.partitionCols:
@@ -448,8 +476,8 @@ class TSDF:
     return w
 
 
-  def __rangeBetweenWindow(self, range_from, range_to):
-    return self.__baseWindow().rangeBetween(range_from, range_to)
+  def __rangeBetweenWindow(self, range_from, range_to, sort_col = None):
+    return self.__baseWindow(sort_col).rangeBetween(range_from, range_to)
 
 
   def __rowsBetweenWindow(self, rows_from, rows_to):
@@ -555,11 +583,12 @@ class TSDF:
           :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
           :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
           Assumptions:
-               1. The features are summarized over a rolling window that ranges back
-               2. The range back window can be specified by the user
-               3. Sequence numbers are not yet supported for the sort
-               4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
-           """
+
+          1. The features are summarized over a rolling window that ranges back
+          2. The range back window can be specified by the user
+          3. Sequence numbers are not yet supported for the sort
+          4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
+          """
 
           # identify columns to summarize if not provided
           # these should include all numeric columns that
@@ -577,7 +606,12 @@ class TSDF:
                                  (datatype[0].lower() not in prohibited_cols))]
 
           # build window
-          w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
+          if (str(self.df.schema[self.ts_col].dataType) == 'TimestampType'):
+              self.__add_double_ts()
+              prohibited_cols.extend(["double_ts"])
+              w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0, sort_col="double_ts")
+          else:
+              w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
 
           # compute column summaries
           selectedCols = self.df.columns
@@ -592,7 +626,7 @@ class TSDF:
               derivedCols.append(
                       ((f.col(metric) - f.col('mean_' + metric)) / f.col('stddev_' + metric)).alias("zscore_" + metric))
           selected_df = self.df.select(*selectedCols)
-          summary_df = selected_df.select(*selected_df.columns, *derivedCols)
+          summary_df = selected_df.select(*selected_df.columns, *derivedCols).drop("double_ts")
 
           return TSDF(summary_df, self.ts_col, self.partitionCols)
 
