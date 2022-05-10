@@ -17,6 +17,7 @@ This constant is to ensure the correct behaviour of the show and display methods
 where the code is running from. 
 """
 
+
 def __is_capable_of_html_rendering():
     """
     This method returns a boolean value signifying whether the environment is a notebook environment
@@ -51,29 +52,38 @@ def display_unavailable(df):
     """
     This method is called when display method is not available in the environment.
     """
-    logger.error("'display' method not available in this environment. Use 'show' method instead.")
+    logger.error(
+        "'display' method not available in this environment. Use 'show' method instead."
+    )
 
 
 ENV_BOOLEAN = __is_capable_of_html_rendering()
 
 
-if (PLATFORM == "DATABRICKS") and (type(get_ipython()) != type(None)) and ('display' in get_ipython().user_ns.keys()):
-    method = get_ipython().user_ns['display']
+if (
+    (PLATFORM == "DATABRICKS")
+    and (type(get_ipython()) != type(None))
+    and ("display" in get_ipython().user_ns.keys())
+):
+    method = get_ipython().user_ns["display"]
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
     def display_improvised(obj):
-        if type(obj).__name__ == 'TSDF':
+        if type(obj).__name__ == "TSDF":
             method(obj.df)
         else:
             method(obj)
+
     display = display_improvised
 
 elif ENV_BOOLEAN:
+
     def display_html_improvised(obj):
-        if type(obj).__name__ == 'TSDF':
+        if type(obj).__name__ == "TSDF":
             display_html(obj.df)
         else:
             display_html(obj)
+
     display = display_html_improvised
 
 else:

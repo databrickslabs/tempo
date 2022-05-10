@@ -62,7 +62,7 @@ class Interpolation:
             )
 
         if df.select(ts_col).dtypes[0][1] != "timestamp":
-            raise ValueError(f"Timestamp Column needs to be of timestamp type.")
+            raise ValueError("Timestamp Column needs to be of timestamp type.")
 
     def __calc_linear_spark(self, df: DataFrame, ts_col: str, target_col: str):
         """
@@ -74,15 +74,15 @@ class Interpolation:
         """
         interpolation_expr = f"""
         case when is_interpolated_{target_col} = false then {target_col}
-            when {target_col} is null then 
+            when {target_col} is null then
             (next_null_{target_col} - previous_{target_col})
             /(unix_timestamp(next_timestamp_{target_col})-unix_timestamp(previous_timestamp_{target_col}))
             *(unix_timestamp({ts_col}) - unix_timestamp(previous_timestamp_{target_col}))
             + previous_{target_col}
-        else 
+        else
             (next_{target_col}-{target_col})
             /(unix_timestamp(next_timestamp)-unix_timestamp(previous_timestamp))
-            *(unix_timestamp({ts_col}) - unix_timestamp(previous_timestamp)) 
+            *(unix_timestamp({ts_col}) - unix_timestamp(previous_timestamp))
             + {target_col}
         end as {target_col}
         """
