@@ -682,7 +682,11 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
-    calculate_time_horizon(self.df, self.ts_col, freq)
+
+    # Throw warning for user to validate that the expected number of output rows is valid.
+    if fill is True:
+        calculate_time_horizon(self.df, self.ts_col, freq)
+        
     enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
 

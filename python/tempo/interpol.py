@@ -3,6 +3,7 @@ from typing import List
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import col, expr, last, lead, lit, when
 from pyspark.sql.window import Window
+from tempo.utils import calculate_time_horizon
 from tempo.resample import checkAllowableFreq, freq_dict
 
 # Interpolation fill options
@@ -285,6 +286,9 @@ class Interpolation:
         # Validate input parameters
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
+
+        # Throw warning for user to validate that the expected number of output rows is valid.
+        calculate_time_horizon(tsdf.df, ts_col, freq)
 
         # Convert Frequency using resample dictionary
         parsed_freq = checkAllowableFreq(freq)

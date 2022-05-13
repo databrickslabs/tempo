@@ -8,8 +8,9 @@ from black import diff
 from numpy import double
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import col, unix_timestamp, max as sparkMax, min as sparkMin
+from pyspark.sql.functions import expr
 from pyspark.sql import SparkSession
+from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
 PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
@@ -39,25 +40,32 @@ def __is_capable_of_html_rendering():
         return False
 
 
+def calculate_time_horizon(df: DataFrame, ts_col: str, freq: str):
+    # Convert Frequency using resample dictionary
+    parsed_freq = checkAllowableFreq(freq)
+    freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
 
-def calculate_time_horizon(df: DataFrame, ts_col: str, freq:str):
+    # Get max, min, and interval in epoch milliseconds
     min_epoch, max_epoch = df.select(
-        unix_timestamp(sparkMin(col(ts_col))),
-        unix_timestamp(sparkMax(col(ts_col))),
+        expr(f"unix_millis(min({ts_col}))"), expr(f"unix_millis(max({ts_col}))")
     ).first()
 
-    spark = (SparkSession.builder.getOrCreate())
-    interval_seconds = spark.sql(
-        f"""select unix_timestamp(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"""
+    interval_ms = df.select(
+        expr(
+            f"unix_millis(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"
+        )
     ).first()[0]
 
-    rounded_min_epoch = min_epoch - (min_epoch%interval_seconds)
-    rounded_max_epoch = max_epoch - (max_epoch%interval_seconds)
+    # Round down to the nearest interval frequency
+    rounded_min_epoch = min_epoch - (min_epoch % interval_ms)
+    rounded_max_epoch = max_epoch - (max_epoch % interval_ms)
 
-    diff_seconds = rounded_max_epoch - rounded_min_epoch
-    num_values = (diff_seconds/interval_seconds)+1
+    diff_ms = rounded_max_epoch - rounded_min_epoch
+    num_values = (diff_ms / interval_ms) + 1
 
-    warnings.warn(f"Time Horizon Warning: The resulting dataframe will contain {num_values} values.")
+    warnings.warn(
+        f"Interpolation/Resample Warning: The resulting dataframe will contain {num_values} values."
+    )
 
 
 def display_html(df):
