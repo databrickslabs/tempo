@@ -4,7 +4,8 @@ import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
 # define global frequency options
-
+MUSEC = 'microsec'
+MS = 'ms'
 SEC = 'sec'
 MIN = 'min'
 HR = 'hr'
@@ -17,9 +18,9 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {'sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
+freq_dict = {'microsec' : 'microseconds','ms' : 'milliseconds','sec' : 'seconds', 'min' : 'minutes', 'hr' : 'hours', 'day' : 'days', 'hour' : 'hours'}
 
-allowableFreqs = [SEC, MIN, HR, DAY]
+allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 def __appendAggKey(tsdf, freq = None):
@@ -41,7 +42,7 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
     :param tsdf: input TSDF object
     :param func: aggregate function
     :param metricCols: columns used for aggregates
-    :param prefix the metric columns with the aggregate named function
+    :param prefix: the metric columns with the aggregate named function
     :param fill: upsample based on the time increment for 0s in numeric columns
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
@@ -118,13 +119,22 @@ def aggregate(tsdf, freq, func, metricCols = None, prefix = None, fill = None):
 
 
 def checkAllowableFreq(freq):
+    """
+    Parses frequency and checks against allowable frequencies
+    :param freq: frequncy at which to upsample/downsample, declared in resample function
+    :return: list of parsed frequency value and time suffix
+    """
     if freq not in allowableFreqs:
       try:
           periods = freq.lower().split(" ")[0].strip()
           units = freq.lower().split(" ")[1].strip()
       except:
-          raise ValueError("Allowable grouping frequencies are sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
-      if units.startswith(SEC):
+          raise ValueError("Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>")
+      if units.startswith(MUSEC):
+          return (periods, MUSEC)
+      elif units.startswith(MS) | units.startswith("millis"):
+          return (periods, MS)
+      elif units.startswith(SEC):
           return (periods, SEC)
       elif units.startswith(MIN):
           return (periods, MIN)
