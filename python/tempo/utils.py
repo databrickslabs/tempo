@@ -36,6 +36,8 @@ def __is_capable_of_html_rendering():
     except NameError:
         return False
 
+class UpsampleWarning(Warning):
+    pass
 
 def calculate_time_horizon(df: DataFrame, ts_col: str, freq: str):
     # Convert Frequency using resample dictionary
@@ -59,9 +61,9 @@ def calculate_time_horizon(df: DataFrame, ts_col: str, freq: str):
 
     diff_ms = rounded_max_epoch - rounded_min_epoch
     num_values = (diff_ms / interval_ms) + 1
-
+    warnings.simplefilter('always', UpsampleWarning)
     warnings.warn(
-        f"Interpolation/Resample Warning: The resulting dataframe will contain {num_values} values."
+        f"Upsample Warning: The resulting dataframe will contain {num_values} values.", UpsampleWarning
     )
 
 

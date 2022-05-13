@@ -58,7 +58,7 @@ class UtilsTest(UtilsTest):
                 self.simple_input_tsdf.df, self.simple_input_tsdf.ts_col, "30 seconds"
             )
             assert (
-                "Interpolation/Resample Warning: The resulting dataframe will contain 12.0 values."
+                "Upsample Warning: The resulting dataframe will contain 12.0 values."
                 == str(w[-1].message)
             )
 
