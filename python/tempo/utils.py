@@ -1,11 +1,15 @@
 import logging
 import os
-
+import warnings
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
+from black import diff
+from numpy import double
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.functions import col, unix_timestamp, max as sparkMax, min as sparkMin
+from pyspark.sql import SparkSession
 
 logger = logging.getLogger(__name__)
 PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
@@ -16,6 +20,7 @@ DB_HOME env variable has been chosen and that's because this variable is a speci
 This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
 where the code is running from. 
 """
+
 
 def __is_capable_of_html_rendering():
     """
@@ -32,6 +37,27 @@ def __is_capable_of_html_rendering():
             return False  # Other type (?)
     except NameError:
         return False
+
+
+
+def calculate_time_horizon(df: DataFrame, ts_col: str, freq:str):
+    min_epoch, max_epoch = df.select(
+        unix_timestamp(sparkMin(col(ts_col))),
+        unix_timestamp(sparkMax(col(ts_col))),
+    ).first()
+
+    spark = (SparkSession.builder.getOrCreate())
+    interval_seconds = spark.sql(
+        f"""select unix_timestamp(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"""
+    ).first()[0]
+
+    rounded_min_epoch = min_epoch - (min_epoch%interval_seconds)
+    rounded_max_epoch = max_epoch - (max_epoch%interval_seconds)
+
+    diff_seconds = rounded_max_epoch - rounded_min_epoch
+    num_values = (diff_seconds/interval_seconds)+1
+
+    warnings.warn(f"Time Horizon Warning: The resulting dataframe will contain {num_values} values.")
 
 
 def display_html(df):
@@ -51,29 +77,38 @@ def display_unavailable(df):
     """
     This method is called when display method is not available in the environment.
     """
-    logger.error("'display' method not available in this environment. Use 'show' method instead.")
+    logger.error(
+        "'display' method not available in this environment. Use 'show' method instead."
+    )
 
 
 ENV_BOOLEAN = __is_capable_of_html_rendering()
 
 
-if (PLATFORM == "DATABRICKS") and (type(get_ipython()) != type(None)) and ('display' in get_ipython().user_ns.keys()):
-    method = get_ipython().user_ns['display']
+if (
+    (PLATFORM == "DATABRICKS")
+    and (type(get_ipython()) != type(None))
+    and ("display" in get_ipython().user_ns.keys())
+):
+    method = get_ipython().user_ns["display"]
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
     def display_improvised(obj):
-        if type(obj).__name__ == 'TSDF':
+        if type(obj).__name__ == "TSDF":
             method(obj.df)
         else:
             method(obj)
+
     display = display_improvised
 
 elif ENV_BOOLEAN:
+
     def display_html_improvised(obj):
-        if type(obj).__name__ == 'TSDF':
+        if type(obj).__name__ == "TSDF":
             display_html(obj.df)
         else:
             display_html(obj)
+
     display = display_html_improvised
 
 else:
