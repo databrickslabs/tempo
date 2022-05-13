@@ -20,19 +20,6 @@ class UtilsTest(SparkTest):
             ]
         )
 
-        self.expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType(), False),
-                StructField("value_a", DoubleType()),
-                StructField("value_b", DoubleType()),
-                StructField("is_ts_interpolated", BooleanType(), False),
-                StructField("is_interpolated_value_a", BooleanType(), False),
-                StructField("is_interpolated_value_b", BooleanType(), False),
-            ]
-        )
-
         simple_data = [
             ["A", "A-1", "2020-01-01 00:00:10", 0.0, None],
             ["A", "A-1", "2020-01-01 00:01:10", 2.0, 2.0],

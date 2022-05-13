@@ -4,12 +4,9 @@ import warnings
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-from black import diff
-from numpy import double
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr
-from pyspark.sql import SparkSession
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
