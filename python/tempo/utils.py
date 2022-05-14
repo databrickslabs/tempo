@@ -7,7 +7,7 @@ from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import expr, max, min, sum, avg, percentile_approx
+from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ where the code is running from.
 """
 
 
-class UpsampleWarning(Warning):
+class ResampleWarning(Warning):
     """
     This class is a warning that is raised when the interpolate or resample with fill methods are called.
     """
@@ -99,21 +99,21 @@ def calculate_time_horizon(
         sum("num_values"),
     ).first()
 
-    warnings.simplefilter("always", UpsampleWarning)
+    warnings.simplefilter("always", ResampleWarning)
     warnings.warn(
         f"""
-            Upsample Metrics Warning: 
+            Resample Metrics Warning: 
                 Earliest Timestamp: {min_ts}
                 Latest Timestamp: {max_ts}
                 No. of Unique Partitions: {normalized_time_df.count()}
-                Min No. Values in Single a Partition: {min_value_partition}
-                Max No. Values in Single a Partition: {max_value_partition}
-                P25 No. Values in Single a Partition: {p25_value_partition}
-                P50 No. Values in Single a Partition: {p50_value_partition}
-                P75 No. Values in Single a Partition: {p75_value_partition}
-                Total No. Values Across All Partitions: {total_values}
+                Resampled Min No. Values in Single a Partition: {min_value_partition}
+                Resampled Max No. Values in Single a Partition: {max_value_partition}
+                Resampled P25 No. Values in Single a Partition: {p25_value_partition}
+                Resampled P50 No. Values in Single a Partition: {p50_value_partition}
+                Resampled P75 No. Values in Single a Partition: {p75_value_partition}
+                Resampled Total No. Values Across All Partitions: {total_values}
         """,
-        UpsampleWarning,
+        ResampleWarning,
     )
 
 

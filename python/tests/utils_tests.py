@@ -72,16 +72,16 @@ class UtilsTest(UtilsTest):
                 ["partition_a", "partition_b"],
             )
             warning_message = """
-            Upsample Metrics Warning: 
+            Resample Metrics Warning: 
                 Earliest Timestamp: 2020-01-01 00:00:10
                 Latest Timestamp: 2020-01-01 00:05:31
                 No. of Unique Partitions: 3
-                Min No. Values in Single a Partition: 7.0
-                Max No. Values in Single a Partition: 12.0
-                P25 No. Values in Single a Partition: 7.0
-                P50 No. Values in Single a Partition: 12.0
-                P75 No. Values in Single a Partition: 12.0
-                Total No. Values Across All Partitions: 31.0
+                Resampled Min No. Values in Single a Partition: 7.0
+                Resampled Max No. Values in Single a Partition: 12.0
+                Resampled P25 No. Values in Single a Partition: 7.0
+                Resampled P50 No. Values in Single a Partition: 12.0
+                Resampled P75 No. Values in Single a Partition: 12.0
+                Resampled Total No. Values Across All Partitions: 31.0
             """
             assert warning_message.strip() == str(w[-1].message).strip()
 
