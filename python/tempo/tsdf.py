@@ -685,8 +685,8 @@ class TSDF:
 
     # Throw warning for user to validate that the expected number of output rows is valid.
     if fill is True:
-        calculate_time_horizon(self.df, self.ts_col, freq)
-        
+        calculate_time_horizon(self.df, self.ts_col, freq, self.partitionCols)
+
     enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
 

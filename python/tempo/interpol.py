@@ -287,12 +287,12 @@ class Interpolation:
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
 
-        # Throw warning for user to validate that the expected number of output rows is valid.
-        calculate_time_horizon(tsdf.df, ts_col, freq)
-
         # Convert Frequency using resample dictionary
         parsed_freq = checkAllowableFreq(freq)
         freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
+
+        # Throw warning for user to validate that the expected number of output rows is valid.
+        calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
 
         # Only select required columns for interpolation
         input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
