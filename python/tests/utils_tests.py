@@ -72,10 +72,22 @@ class UtilsTest(UtilsTest):
                 ["partition_a", "partition_b"],
             )
             print(w[-1].message)
-            # assert (
-            #     "Upsample Warning: The resulting dataframe will contain 12.0 values."
-            #     == str(w[-1].message)
-            # )
+
+            assert (
+                f"""
+                    Upsample Metrics Warning: 
+                        Earliest Timestamp: 2020-01-01 00:00:10
+                        Latest Timestamp: 2020-01-01 00:05:31
+                        No. of Unique Partitions: 3
+                        Min No. Values in Single a Partition: 7.0
+                        Max No. Values in Single a Partition: 12.0
+                        P25 No. Values in Single a Partition: 7.0
+                        P50 No. Values in Single a Partition: 12.0
+                        P75 No. Values in Single a Partition: 12.0
+                        Total No. Values Across All Partitions: 31.0
+                """
+                == str(w[-1].message)
+            )
 
 
 ## MAIN

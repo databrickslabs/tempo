@@ -7,7 +7,7 @@ from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import expr, max, min, sum
+from pyspark.sql.functions import expr, max, min, sum, avg, percentile_approx
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ class UpsampleWarning(Warning):
     """
     This class is a warning that is raised when the interpolate or resample with fill methods are called.
     """
+
     pass
 
 
@@ -78,8 +79,24 @@ def calculate_time_horizon(
         .withColumn("num_values", expr("(diff_ms/interval_ms) +1"))
     )
 
-    min_ts, max_ts, max_value_partition, total_values = normalized_time_df.select(
-        min("min_ts"), max("max_ts"), max("num_values"), sum("num_values")
+    (
+        min_ts,
+        max_ts,
+        min_value_partition,
+        max_value_partition,
+        p25_value_partition,
+        p50_value_partition,
+        p75_value_partition,
+        total_values,
+    ) = normalized_time_df.select(
+        min("min_ts"),
+        max("max_ts"),
+        min("num_values"),
+        max("num_values"),
+        percentile_approx("num_values", 0.25),
+        percentile_approx("num_values", 0.5),
+        percentile_approx("num_values", 0.75),
+        sum("num_values"),
     ).first()
 
     warnings.simplefilter("always", UpsampleWarning)
@@ -89,7 +106,11 @@ def calculate_time_horizon(
                 Earliest Timestamp: {min_ts}
                 Latest Timestamp: {max_ts}
                 No. of Unique Partitions: {normalized_time_df.count()}
+                Min No. Values in Single a Partition: {min_value_partition}
                 Max No. Values in Single a Partition: {max_value_partition}
+                P25 No. Values in Single a Partition: {p25_value_partition}
+                P50 No. Values in Single a Partition: {p50_value_partition}
+                P75 No. Values in Single a Partition: {p75_value_partition}
                 Total No. Values Across All Partitions: {total_values}
         """,
         UpsampleWarning,
