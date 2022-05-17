@@ -5,12 +5,12 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
-        <title>tempo.tsdf - Tempo 0.1.17 documentation</title>
+        <title>tempo.tsdf - Tempo 0.1.18 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -132,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.17 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.18 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -159,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.17 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.18 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -230,7 +230,7 @@
 <span class="kn">import</span> <span class="nn">tempo.io</span> <span class="k">as</span> <span class="nn">tio</span>
 <span class="kn">import</span> <span class="nn">tempo.resample</span> <span class="k">as</span> <span class="nn">rs</span>
 <span class="kn">from</span> <span class="nn">tempo.interpol</span> <span class="kn">import</span> <span class="n">Interpolation</span>
-<span class="kn">from</span> <span class="nn">tempo.utils</span> <span class="kn">import</span> <span class="n">ENV_BOOLEAN</span><span class="p">,</span> <span class="n">PLATFORM</span>
+<span class="kn">from</span> <span class="nn">tempo.utils</span> <span class="kn">import</span> <span class="n">ENV_BOOLEAN</span><span class="p">,</span> <span class="n">PLATFORM</span><span class="p">,</span> <span class="n">calculate_time_horizon</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -898,12 +898,17 @@
 <span class="sd">    :return: TSDF object with sample data using aggregate function</span>
 <span class="sd">    """</span>
     <span class="n">rs</span><span class="o">.</span><span class="n">validateFuncExists</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+    <span class="c1"># Throw warning for user to validate that the expected number of output rows is valid.</span>
+    <span class="k">if</span> <span class="n">fill</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">calculate_time_horizon</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">)</span>
+
     <span class="n">enriched_df</span><span class="p">:</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">rs</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">metricCols</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">fill</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">_ResampledTSDF</span><span class="p">(</span><span class="n">enriched_df</span><span class="p">,</span> <span class="n">ts_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="n">partition_cols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">,</span> <span class="n">freq</span> <span class="o">=</span> <span class="n">freq</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="n">func</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="TSDF.interpolate"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.interpolate">[docs]</a>  <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span><span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_interpolated</span><span class="p">:</span><span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
     <span class="sd">"""</span>
-<span class="sd">    function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values</span>
+<span class="sd">    Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values</span>
 <span class="sd">    will be filled based on the fill calculation.</span>
 
 <span class="sd">    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second</span>
@@ -1036,7 +1041,7 @@
 
 <div class="viewcode-block" id="_ResampledTSDF.interpolate"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf._ResampledTSDF.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">show_interpolated</span><span class="p">:</span><span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
       <span class="sd">"""</span>
-<span class="sd">      function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.</span>
+<span class="sd">      Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.</span>
 
 <span class="sd">      :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill</span>
 <span class="sd">      :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns</span>

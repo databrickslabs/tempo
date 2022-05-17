@@ -5,12 +5,12 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
-        <title>tempo.interpol - Tempo 0.1.17 documentation</title>
+        <title>tempo.interpol - Tempo 0.1.18 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -132,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.17 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.18 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -159,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.17 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.18 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -219,6 +219,7 @@
 <span class="kn">from</span> <span class="nn">pyspark.sql.dataframe</span> <span class="kn">import</span> <span class="n">DataFrame</span>
 <span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">col</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">lead</span><span class="p">,</span> <span class="n">lit</span><span class="p">,</span> <span class="n">when</span>
 <span class="kn">from</span> <span class="nn">pyspark.sql.window</span> <span class="kn">import</span> <span class="n">Window</span>
+<span class="kn">from</span> <span class="nn">tempo.utils</span> <span class="kn">import</span> <span class="n">calculate_time_horizon</span>
 <span class="kn">from</span> <span class="nn">tempo.resample</span> <span class="kn">import</span> <span class="n">checkAllowableFreq</span><span class="p">,</span> <span class="n">freq_dict</span>
 
 <span class="c1"># Interpolation fill options</span>
@@ -234,7 +235,7 @@
         <span class="sd">"""</span>
 <span class="sd">        Validate if the fill provided is within the allowed list of values.</span>
 
-<span class="sd">        :param fill - Fill type e.g. "zero", "null", "bfill", "ffill", "linear"</span>
+<span class="sd">        :param fill: Fill type e.g. "zero", "null", "bfill", "ffill", "linear"</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">method_options</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -251,10 +252,10 @@
         <span class="sd">"""</span>
 <span class="sd">        Validate if target column exists and is of numeric type, and validates if partition column exists.</span>
 
-<span class="sd">        :param df -  DataFrame to be validated</span>
-<span class="sd">        :param partition_cols -  Partition columns to be validated</span>
-<span class="sd">        :param target_col -  Target column to be validated</span>
-<span class="sd">        :param ts_col -  Timestamp column to be validated</span>
+<span class="sd">        :param df: DataFrame to be validated</span>
+<span class="sd">        :param partition_cols: Partition columns to be validated</span>
+<span class="sd">        :param target_col: Target column to be validated</span>
+<span class="sd">        :param ts_col: Timestamp column to be validated</span>
 <span class="sd">        """</span>
 
         <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">partition_cols</span><span class="p">:</span>
@@ -284,9 +285,9 @@
         <span class="sd">"""</span>
 <span class="sd">        Native Spark function for calculating linear interpolation on a DataFrame.</span>
 
-<span class="sd">        :param df  - prepared dataframe to be interpolated</span>
-<span class="sd">        :param ts_col  - timeseries column name</span>
-<span class="sd">        :param target_col  - column to be interpolated</span>
+<span class="sd">        :param df: prepared dataframe to be interpolated</span>
+<span class="sd">        :param ts_col: timeseries column name</span>
+<span class="sd">        :param target_col: column to be interpolated</span>
 <span class="sd">        """</span>
         <span class="n">interpolation_expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"""</span>
 <span class="s2">        case when is_interpolated_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"> = false then </span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2"></span>
@@ -320,10 +321,10 @@
         <span class="sd">"""</span>
 <span class="sd">        Apply interpolation to column.</span>
 
-<span class="sd">        :param series  - input DataFrame</span>
-<span class="sd">        :param ts_col   - timestamp column name</span>
-<span class="sd">        :param target_col   - column to interpolate</span>
-<span class="sd">        :param method   - interpolation function to fill missing values</span>
+<span class="sd">        :param series: input DataFrame</span>
+<span class="sd">        :param ts_col: timestamp column name</span>
+<span class="sd">        :param target_col: column to interpolate</span>
+<span class="sd">        :param method: interpolation function to fill missing values</span>
 <span class="sd">        """</span>
         <span class="n">output_df</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">series</span>
 
@@ -402,9 +403,9 @@
         <span class="sd">"""</span>
 <span class="sd">        Create additional timeseries columns for previous and next timestamps</span>
 
-<span class="sd">        :param df  - input DataFrame</span>
-<span class="sd">        :param partition_cols   - partition column names</span>
-<span class="sd">        :param ts_col   - timestamp column name</span>
+<span class="sd">        :param df: input DataFrame</span>
+<span class="sd">        :param partition_cols: partition column names</span>
+<span class="sd">        :param ts_col: timestamp column name</span>
 <span class="sd">        """</span>
         <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"previous_timestamp"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="n">ts_col</span><span class="p">),)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
             <span class="s2">"next_timestamp"</span><span class="p">,</span>
@@ -417,10 +418,10 @@
         <span class="sd">"""</span>
 <span class="sd">        Create timeseries columns for previous and next timestamps for a specific target column</span>
 
-<span class="sd">        :param df  - input DataFrame</span>
-<span class="sd">        :param partition_cols   - partition column names</span>
-<span class="sd">        :param ts_col   - timestamp column name</span>
-<span class="sd">        :param target_col   - target column name</span>
+<span class="sd">        :param df: input DataFrame</span>
+<span class="sd">        :param partition_cols: partition column names</span>
+<span class="sd">        :param ts_col: timestamp column name</span>
+<span class="sd">        :param target_col: target column name</span>
 <span class="sd">        """</span>
         <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"previous_timestamp_</span><span class="si">{</span><span class="n">target_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
@@ -444,10 +445,10 @@
         <span class="sd">"""</span>
 <span class="sd">        Create columns for previous and next value for a specific target column</span>
 
-<span class="sd">        :param df  - input DataFrame</span>
-<span class="sd">        :param partition_cols   - partition column names</span>
-<span class="sd">        :param ts_col   - timestamp column name</span>
-<span class="sd">        :param target_col   - target column name</span>
+<span class="sd">        :param df: input DataFrame</span>
+<span class="sd">        :param partition_cols: partition column names</span>
+<span class="sd">        :param ts_col: timestamp column name</span>
+<span class="sd">        :param target_col: target column name</span>
 <span class="sd">        """</span>
         <span class="k">return</span> <span class="p">(</span>
             <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
@@ -486,17 +487,17 @@
         <span class="n">show_interpolated</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
         <span class="sd">"""</span>
-<span class="sd">        Apply interpolation.</span>
+<span class="sd">        Apply interpolation function.</span>
 
-<span class="sd">        :param tsdf  - input TSDF</span>
-<span class="sd">        :param ts_col   - timestamp column name</span>
-<span class="sd">        :param target_cols   - numeric columns to interpolate</span>
-<span class="sd">        :param partition_cols  - partition columns names</span>
-<span class="sd">        :param freq  - frequency at which to sample</span>
-<span class="sd">        :param func   - aggregate function used for sampling to the specified interval</span>
-<span class="sd">        :param method   - interpolation function usded to fill missing values</span>
-<span class="sd">        :param show_interpolated  - show if row is interpolated?</span>
-<span class="sd">        :return DataFrame</span>
+<span class="sd">        :param tsdf: input TSDF</span>
+<span class="sd">        :param ts_col: timestamp column name</span>
+<span class="sd">        :param target_cols: numeric columns to interpolate</span>
+<span class="sd">        :param partition_cols: partition columns names</span>
+<span class="sd">        :param freq: frequency at which to sample</span>
+<span class="sd">        :param func: aggregate function used for sampling to the specified interval</span>
+<span class="sd">        :param method: interpolation function usded to fill missing values</span>
+<span class="sd">        :param show_interpolated: show if row is interpolated?</span>
+<span class="sd">        :return: DataFrame containing interpolated data.</span>
 <span class="sd">        """</span>
         <span class="c1"># Validate input parameters</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__validate_fill</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
@@ -505,6 +506,9 @@
         <span class="c1"># Convert Frequency using resample dictionary</span>
         <span class="n">parsed_freq</span> <span class="o">=</span> <span class="n">checkAllowableFreq</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
         <span class="n">freq</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">parsed_freq</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">freq_dict</span><span class="p">[</span><span class="n">parsed_freq</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="c1"># Throw warning for user to validate that the expected number of output rows is valid.</span>
+        <span class="n">calculate_time_horizon</span><span class="p">(</span><span class="n">tsdf</span><span class="o">.</span><span class="n">df</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">)</span>
 
         <span class="c1"># Only select required columns for interpolation</span>
         <span class="n">input_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="o">*</span><span class="n">target_cols</span><span class="p">]</span>

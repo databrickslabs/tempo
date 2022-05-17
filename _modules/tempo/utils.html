@@ -5,12 +5,12 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
-        <title>tempo.utils - Tempo 0.1.17 documentation</title>
+        <title>tempo.utils - Tempo 0.1.18 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -132,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.17 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.18 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -159,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.17 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.18 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -214,14 +214,17 @@
         </div>
         <article role="main">
           <h1>Source code for tempo.utils</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
-
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">IPython</span> <span class="kn">import</span> <span class="n">get_ipython</span>
 <span class="kn">from</span> <span class="nn">IPython.core.display</span> <span class="kn">import</span> <span class="n">HTML</span>
 <span class="kn">from</span> <span class="nn">IPython.display</span> <span class="kn">import</span> <span class="n">display</span> <span class="k">as</span> <span class="n">ipydisplay</span>
 <span class="kn">from</span> <span class="nn">pandas</span> <span class="kn">import</span> <span class="n">DataFrame</span> <span class="k">as</span> <span class="n">pandasDataFrame</span>
 <span class="kn">from</span> <span class="nn">pyspark.sql.dataframe</span> <span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">expr</span><span class="p">,</span> <span class="nb">max</span><span class="p">,</span> <span class="nb">min</span><span class="p">,</span> <span class="nb">sum</span><span class="p">,</span> <span class="n">percentile_approx</span>
+<span class="kn">from</span> <span class="nn">tempo.resample</span> <span class="kn">import</span> <span class="n">checkAllowableFreq</span><span class="p">,</span> <span class="n">freq_dict</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="n">PLATFORM</span> <span class="o">=</span> <span class="s2">"DATABRICKS"</span> <span class="k">if</span> <span class="s2">"DB_HOME"</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="s2">"NON_DATABRICKS"</span>
@@ -232,6 +235,15 @@
 <span class="sd">This constant is to ensure the correct behaviour of the show and display methods are called based on the platform </span>
 <span class="sd">where the code is running from. </span>
 <span class="sd">"""</span>
+
+
+<span class="k">class</span> <span class="nc">ResampleWarning</span><span class="p">(</span><span class="ne">Warning</span><span class="p">):</span>
+    <span class="sd">"""</span>
+<span class="sd">    This class is a warning that is raised when the interpolate or resample with fill methods are called.</span>
+<span class="sd">    """</span>
+
+    <span class="k">pass</span>
+
 
 <span class="k">def</span> <span class="nf">__is_capable_of_html_rendering</span><span class="p">():</span>
     <span class="sd">"""</span>
@@ -248,6 +260,77 @@
             <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># Other type (?)</span>
     <span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span> <span class="nf">calculate_time_horizon</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">freq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">partition_cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<span class="p">):</span>
+    <span class="c1"># Convert Frequency using resample dictionary</span>
+    <span class="n">parsed_freq</span> <span class="o">=</span> <span class="n">checkAllowableFreq</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+    <span class="n">freq</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">parsed_freq</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">freq_dict</span><span class="p">[</span><span class="n">parsed_freq</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="si">}</span><span class="s2">"</span>
+
+    <span class="c1"># Get max and min timestamp per partition</span>
+    <span class="n">partitioned_df</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="o">*</span><span class="n">partition_cols</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span>
+        <span class="nb">max</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">"max_ts"</span><span class="p">),</span>
+        <span class="nb">min</span><span class="p">(</span><span class="n">ts_col</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">"min_ts"</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Generate upscale metrics</span>
+    <span class="n">normalized_time_df</span><span class="p">:</span> <span class="n">DataFrame</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">partitioned_df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"min_epoch_ms"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">"unix_millis(min_ts)"</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"max_epoch_ms"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">"unix_millis(max_ts)"</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"interval_ms"</span><span class="p">,</span>
+            <span class="n">expr</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"unix_millis(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL </span><span class="si">{</span><span class="n">freq</span><span class="si">}</span><span class="s2">)"</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"rounded_min_epoch"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">"min_epoch_ms - (min_epoch_ms </span><span class="si">% i</span><span class="s2">nterval_ms)"</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">"rounded_max_epoch"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">"max_epoch_ms - (max_epoch_ms </span><span class="si">% i</span><span class="s2">nterval_ms)"</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"diff_ms"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">"rounded_max_epoch - rounded_min_epoch"</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">,</span> <span class="n">expr</span><span class="p">(</span><span class="s2">"(diff_ms/interval_ms) +1"</span><span class="p">))</span>
+    <span class="p">)</span>
+
+    <span class="p">(</span>
+        <span class="n">min_ts</span><span class="p">,</span>
+        <span class="n">max_ts</span><span class="p">,</span>
+        <span class="n">min_value_partition</span><span class="p">,</span>
+        <span class="n">max_value_partition</span><span class="p">,</span>
+        <span class="n">p25_value_partition</span><span class="p">,</span>
+        <span class="n">p50_value_partition</span><span class="p">,</span>
+        <span class="n">p75_value_partition</span><span class="p">,</span>
+        <span class="n">total_values</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">=</span> <span class="n">normalized_time_df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="nb">min</span><span class="p">(</span><span class="s2">"min_ts"</span><span class="p">),</span>
+        <span class="nb">max</span><span class="p">(</span><span class="s2">"max_ts"</span><span class="p">),</span>
+        <span class="nb">min</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">),</span>
+        <span class="nb">max</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">),</span>
+        <span class="n">percentile_approx</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">),</span>
+        <span class="n">percentile_approx</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
+        <span class="n">percentile_approx</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">),</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="s2">"num_values"</span><span class="p">),</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"always"</span><span class="p">,</span> <span class="n">ResampleWarning</span><span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"""</span>
+<span class="s2">            Resample Metrics Warning: </span>
+<span class="s2">                Earliest Timestamp: </span><span class="si">{</span><span class="n">min_ts</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Latest Timestamp: </span><span class="si">{</span><span class="n">max_ts</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                No. of Unique Partitions: </span><span class="si">{</span><span class="n">normalized_time_df</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Resampled Min No. Values in Single a Partition: </span><span class="si">{</span><span class="n">min_value_partition</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Resampled Max No. Values in Single a Partition: </span><span class="si">{</span><span class="n">max_value_partition</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Resampled P25 No. Values in Single a Partition: </span><span class="si">{</span><span class="n">p25_value_partition</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Resampled P50 No. Values in Single a Partition: </span><span class="si">{</span><span class="n">p50_value_partition</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Resampled P75 No. Values in Single a Partition: </span><span class="si">{</span><span class="n">p75_value_partition</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">                Resampled Total No. Values Across All Partitions: </span><span class="si">{</span><span class="n">total_values</span><span class="si">}</span><span class="s2"></span>
+<span class="s2">        """</span><span class="p">,</span>
+        <span class="n">ResampleWarning</span><span class="p">,</span>
+    <span class="p">)</span>
 
 
 <div class="viewcode-block" id="display_html"><a class="viewcode-back" href="../../reference/tempo.utils.html#tempo.utils.display_html">[docs]</a><span class="k">def</span> <span class="nf">display_html</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
@@ -267,29 +350,38 @@
     <span class="sd">"""</span>
 <span class="sd">    This method is called when display method is not available in the environment.</span>
 <span class="sd">    """</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">"'display' method not available in this environment. Use 'show' method instead."</span><span class="p">)</span></div>
+    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+        <span class="s2">"'display' method not available in this environment. Use 'show' method instead."</span>
+    <span class="p">)</span></div>
 
 
 <span class="n">ENV_BOOLEAN</span> <span class="o">=</span> <span class="n">__is_capable_of_html_rendering</span><span class="p">()</span>
 
 
-<span class="k">if</span> <span class="p">(</span><span class="n">PLATFORM</span> <span class="o">==</span> <span class="s2">"DATABRICKS"</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">get_ipython</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="s1">'display'</span> <span class="ow">in</span> <span class="n">get_ipython</span><span class="p">()</span><span class="o">.</span><span class="n">user_ns</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-    <span class="n">method</span> <span class="o">=</span> <span class="n">get_ipython</span><span class="p">()</span><span class="o">.</span><span class="n">user_ns</span><span class="p">[</span><span class="s1">'display'</span><span class="p">]</span>
+<span class="k">if</span> <span class="p">(</span>
+    <span class="p">(</span><span class="n">PLATFORM</span> <span class="o">==</span> <span class="s2">"DATABRICKS"</span><span class="p">)</span>
+    <span class="ow">and</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">get_ipython</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+    <span class="ow">and</span> <span class="p">(</span><span class="s2">"display"</span> <span class="ow">in</span> <span class="n">get_ipython</span><span class="p">()</span><span class="o">.</span><span class="n">user_ns</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="p">):</span>
+    <span class="n">method</span> <span class="o">=</span> <span class="n">get_ipython</span><span class="p">()</span><span class="o">.</span><span class="n">user_ns</span><span class="p">[</span><span class="s2">"display"</span><span class="p">]</span>
     <span class="c1"># Under 'display' key in user_ns the original databricks display method is present</span>
     <span class="c1"># to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py</span>
     <span class="k">def</span> <span class="nf">display_improvised</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'TSDF'</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"TSDF"</span><span class="p">:</span>
             <span class="n">method</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">df</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">method</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
     <span class="n">display</span> <span class="o">=</span> <span class="n">display_improvised</span>
 
 <span class="k">elif</span> <span class="n">ENV_BOOLEAN</span><span class="p">:</span>
+
     <span class="k">def</span> <span class="nf">display_html_improvised</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'TSDF'</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"TSDF"</span><span class="p">:</span>
             <span class="n">display_html</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">df</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">display_html</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
     <span class="n">display</span> <span class="o">=</span> <span class="n">display_html_improvised</span>
 
 <span class="k">else</span><span class="p">:</span>
