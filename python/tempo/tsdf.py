@@ -14,7 +14,7 @@ from scipy.fft import fft, fftfreq
 import tempo.io as tio
 import tempo.resample as rs
 from tempo.interpol import Interpolation
-from tempo.utils import ENV_BOOLEAN, PLATFORM
+from tempo.utils import ENV_BOOLEAN, PLATFORM, calculate_time_horizon
 
 logger = logging.getLogger(__name__)
 
@@ -682,6 +682,11 @@ class TSDF:
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
+
+    # Throw warning for user to validate that the expected number of output rows is valid.
+    if fill is True:
+        calculate_time_horizon(self.df, self.ts_col, freq, self.partitionCols)
+
     enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
 
