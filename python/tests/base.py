@@ -1,7 +1,6 @@
 import re
 import unittest
-
-import pandas as pd
+import warnings
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -10,19 +9,30 @@ class SparkTest(unittest.TestCase):
     ##
     ## Fixtures
     ##
-    def setUp(self):
-        self.spark = (SparkSession.builder.appName("myapp") \
-                      .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0") \
-                      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-                      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") \
-                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true") \
-                      .master("local") \
-                      .getOrCreate())
-        self.spark.conf.set("spark.sql.shuffle.partitions", 1)
 
-    def tearDown(self) -> None:
-        self.spark.stop()
+    # Spark Session object
+    spark = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        # create and configure PySpark Session
+        cls.spark = (SparkSession.builder.appName("myapp")
+                      .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
+                      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+                      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
+                      .master("local")
+                      .getOrCreate())
+        cls.spark.conf.set("spark.sql.shuffle.partitions", 1)
+        cls.spark.sparkContext.setLogLevel("ERROR")
+        # filter out ResourceWarning messages
+        warnings.filterwarnings("ignore", category=ResourceWarning)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # shut down Spark
+        cls.spark.stop()
 
     ##
     ## Utility Functions
