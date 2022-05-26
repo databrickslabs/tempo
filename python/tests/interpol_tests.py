@@ -1,11 +1,13 @@
-from pyspark.sql.types import *
-from tests.tsdf_tests import SparkTest
-from tempo.interpol import Interpolation
-from chispa.dataframe_comparer import *
-from tempo.tsdf import TSDF
-from tempo.utils import *
 import unittest
 
+from chispa.dataframe_comparer import *
+from pyspark.sql.types import *
+
+from tempo.interpol import Interpolation
+from tempo.tsdf import TSDF
+from tempo.utils import *
+
+from tests.tsdf_tests import SparkTest
 
 class InterpolationTest(SparkTest):
     def buildTestingDataFrame(self):
