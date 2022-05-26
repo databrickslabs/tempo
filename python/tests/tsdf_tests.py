@@ -619,17 +619,6 @@ class RangeStatsTest(SparkTest):
         self.assertDataFramesEqual(featured_df, dfExpected)
 
 
-class UtilsTest(SparkTest):
-
-    def test_display(self):
-        """Test of the display utility"""
-        if PLATFORM == 'DATABRICKS':
-            self.assertEqual(id(display),id(display_improvised))
-        elif ENV_BOOLEAN:
-            self.assertEqual(id(display),id(display_html_improvised))
-        else:
-            self.assertEqual(id(display),id(display_unavailable))
-
 class ResampleTest(SparkTest):
 
     def test_resample(self):
