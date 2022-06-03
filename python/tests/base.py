@@ -39,11 +39,22 @@ class SparkTest(unittest.TestCase):
     def setUp(self) -> None:
         self.test_data = self.loadTestData(self.id())
 
+    def tearDown(self) -> None:
+        del(self.test_data)
+
     ##
     ## Utility Functions
     ##
-    def get_data_as_sdf(self, name: str):
 
+    def get_data_as_sdf(self, name: str):
+        schema = self.test_data[name]['schema']
+        data = self.test_data[name]['data']
+        return self.spark.createDataFrame(data, schema)
+
+    # TODO:
+    #def get_data_as_tsdf(self, name:str):
+
+    TEST_DATA_FOLDER = "unit_test_data"
 
     def loadTestData(self, test_case_path: str) -> dict:
         """
@@ -52,15 +63,11 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        test_data = {}
         file_name,class_name,func_name = test_case_path.split(".")
-        f = open("unit_test_data/unit_test_data_config.json")
-        data_metadata_from_json = json.load(f)
-        for name,schema_and_data in data_metadata_from_json[file_name][class_name][func_name].items():
-            test_data[name] = self.spark.createDataFrame(schema_and_data["data"],schema_and_data["schema"])
-        f.close()
-        return test_data
-
+        test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
+        with open(test_data_file) as f:
+            data_metadata_from_json = json.load(f)
+            return data_metadata_from_json[file_name][class_name][func_name]
 
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
