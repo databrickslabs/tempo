@@ -1,6 +1,7 @@
 import re
 import unittest
 import warnings
+import json
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -12,6 +13,7 @@ class SparkTest(unittest.TestCase):
 
     # Spark Session object
     spark = None
+    test_data = None
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -34,9 +36,32 @@ class SparkTest(unittest.TestCase):
         # shut down Spark
         cls.spark.stop()
 
+    def setUp(self) -> None:
+        self.test_data = self.loadTestData(self.id())
+
     ##
     ## Utility Functions
     ##
+    def get_data_as_sdf(self, name: str):
+
+
+    def loadTestData(self, test_case_path: str) -> dict:
+        """
+        This function reads our unit test data config json and returns the required data in the
+        correct format (Spark DataFrame, Tempo TSDF or Pandas DataFrame)
+        :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
+        :type test_case_path: str
+        """
+        test_data = {}
+        file_name,class_name,func_name = test_case_path.split(".")
+        f = open("unit_test_data/unit_test_data_config.json")
+        data_metadata_from_json = json.load(f)
+        for name,schema_and_data in data_metadata_from_json[file_name][class_name][func_name].items():
+            test_data[name] = self.spark.createDataFrame(schema_and_data["data"],schema_and_data["schema"])
+        f.close()
+        return test_data
+
+
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
         """
