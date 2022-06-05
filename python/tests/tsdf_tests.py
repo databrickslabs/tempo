@@ -36,38 +36,10 @@ class FourierTransformTest(SparkTest):
 
     def test_fourier_transform(self):
         """Test of fourier transform functionality in TSDF objects"""
-        schema = StructType([StructField("group",StringType()),
-                             StructField("time",LongType()),
-                             StructField("val",DoubleType())])
-
-        expectedSchema = StructType([StructField("group",StringType()),
-                                     StructField("time",LongType()),
-                                     StructField("val",DoubleType()),
-                                     StructField("freq",DoubleType()),
-                                     StructField("ft_real",DoubleType()),
-                                     StructField("ft_imag",DoubleType())])
-
-        data = [["Emissions", 1949, 2206.690829],
-                ["Emissions", 1950, 2382.046176],
-                ["Emissions", 1951, 2526.687327],
-                ["Emissions", 1952, 2473.373964],
-                ["WindGen", 1980, 0.0],
-                ["WindGen", 1981, 0.0],
-                ["WindGen", 1982, 0.0],
-                ["WindGen", 1983, 0.029667962]]
-
-        expected_data = [["Emissions", 1949, 2206.690829, 0.0, 9588.798296, -0.0],
-                         ["Emissions", 1950, 2382.046176, 0.25, -319.996498, 91.32778800000006],
-                         ["Emissions", 1951, 2526.687327, -0.5, -122.0419839999995, -0.0],
-                         ["Emissions", 1952, 2473.373964, -0.25, -319.996498, -91.32778800000006],
-                         ["WindGen", 1980, 0.0, 0.0, 0.029667962, -0.0],
-                         ["WindGen", 1981, 0.0, 0.25, 0.0, 0.029667962],
-                         ["WindGen", 1982, 0.0, -0.5, -0.029667962, -0.0],
-                         ["WindGen", 1983, 0.029667962, -0.25, 0.0, -0.029667962]]
 
         # construct dataframes
-        df = self.buildTestDF(schema, data, ts_cols=['time'])
-        dfExpected = self.buildTestDF(expectedSchema, expected_data, ts_cols=['time'])
+        df = self.get_data_as_sdf('data')
+        dfExpected = self.get_data_as_sdf('expected')
 
         # convert to TSDF
         tsdf_left = TSDF(df, ts_col="time", partition_cols=["group"])
@@ -81,34 +53,10 @@ class RangeStatsTest(SparkTest):
 
     def test_range_stats(self):
         """Test of range stats for 20 minute rolling window"""
-        schema = StructType([StructField("symbol", StringType()),
-                             StructField("event_ts", StringType()),
-                             StructField("trade_pr", FloatType())])
-
-        expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("event_ts", StringType()),
-                                     StructField("mean_trade_pr", FloatType()),
-                                     StructField("count_trade_pr", LongType(), nullable=False),
-                                     StructField("min_trade_pr", FloatType()),
-                                     StructField("max_trade_pr", FloatType()),
-                                     StructField("sum_trade_pr", FloatType()),
-                                     StructField("stddev_trade_pr", FloatType()),
-                                     StructField("zscore_trade_pr", FloatType())])
-
-        data = [["S1", "2020-08-01 00:00:10", 349.21],
-                ["S1", "2020-08-01 00:01:12", 351.32],
-                ["S1", "2020-09-01 00:02:10", 361.1],
-                ["S1", "2020-09-01 00:19:12", 362.1]]
-
-        expected_data = [
-            ["S1", "2020-08-01 00:00:10", 349.21, 1, 349.21, 349.21, 349.21, None, None],
-            ["S1", "2020-08-01 00:01:12", 350.26, 2, 349.21, 351.32, 700.53, 1.49, 0.71],
-            ["S1", "2020-09-01 00:02:10", 361.1, 1, 361.1, 361.1, 361.1, None, None],
-            ["S1", "2020-09-01 00:19:12", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 0.71]]
 
         # construct dataframes
-        df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+        df = self.get_data_as_sdf('data')
+        dfExpected = self.get_data_as_sdf('expected')
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])
@@ -141,38 +89,10 @@ class RangeStatsTest(SparkTest):
 
     def test_group_stats(self):
         """Test of range stats for 20 minute rolling window"""
-        schema = StructType([StructField("symbol", StringType()),
-                             StructField("event_ts", StringType()),
-                             StructField("trade_pr", FloatType()),
-                             StructField("index", IntegerType())])
-
-        expectedSchema = StructType([StructField("symbol", StringType()),
-                                     StructField("event_ts", StringType()),
-                                     StructField("mean_trade_pr", FloatType()),
-                                     StructField("count_trade_pr", LongType(), nullable=False),
-                                     StructField("min_trade_pr", FloatType()),
-                                     StructField("max_trade_pr", FloatType()),
-                                     StructField("sum_trade_pr", FloatType()),
-                                     StructField("stddev_trade_pr", FloatType()),
-                                     StructField("mean_index", IntegerType()),
-                                     StructField("count_index", IntegerType(), nullable=False),
-                                     StructField("min_index", IntegerType()),
-                                     StructField("max_index", IntegerType()),
-                                     StructField("sum_index", IntegerType()),
-                                     StructField("stddev_index", IntegerType())])
-
-        data = [["S1", "2020-08-01 00:00:10", 349.21, 1],
-                ["S1", "2020-08-01 00:00:33", 351.32, 1],
-                ["S1", "2020-09-01 00:02:10", 361.1, 1],
-                ["S1", "2020-09-01 00:02:49", 362.1, 1]]
-
-        expected_data = [
-            ["S1", "2020-08-01 00:00:00", 350.26, 2, 349.21, 351.32, 700.53, 1.49, 1, 2, 1, 1, 2, 0],
-            ["S1", "2020-09-01 00:02:00", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 1, 2, 1, 1, 2, 0]]
 
         # construct dataframes
-        df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
+        df = self.get_data_as_sdf('data')
+        dfExpected = self.get_data_as_sdf('expected')
 
         # convert to TSDF
         tsdf_left = TSDF(df, partition_cols=["symbol"])

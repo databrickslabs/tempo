@@ -5,6 +5,7 @@ import json
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
+from tempo.tsdf import TSDF
 
 class SparkTest(unittest.TestCase):
     ##
@@ -51,15 +52,18 @@ class SparkTest(unittest.TestCase):
         data = self.test_data[name]['data']
         return self.spark.createDataFrame(data, schema)
 
-    # TODO:
-    #def get_data_as_tsdf(self, name:str):
+    def get_data_as_tsdf(self, name:str):
+        df = self.get_data_as_sdf(name)
+        tsdf = TSDF(df, ts_col = self.test_data[name]['ts_col'], partition_cols= self.test_data[name]['partition_cols'],
+                    sequence_col= self.test_data[name]['sequence_col'])
+        return tsdf
 
     TEST_DATA_FOLDER = "unit_test_data"
 
     def loadTestData(self, test_case_path: str) -> dict:
         """
-        This function reads our unit test data config json and returns the required data in the
-        correct format (Spark DataFrame, Tempo TSDF or Pandas DataFrame)
+        This function reads our unit test data config json and returns the required metadata to create the correct
+        format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs)
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
@@ -67,7 +71,7 @@ class SparkTest(unittest.TestCase):
         test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
         with open(test_data_file) as f:
             data_metadata_from_json = json.load(f)
-            return data_metadata_from_json[file_name][class_name][func_name]
+            return data_metadata_from_json[class_name][func_name]
 
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
