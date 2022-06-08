@@ -1,0 +1,258 @@
+{
+  "BasicTests": {
+    "test_describe": {
+      "left": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ]
+        ]
+      },
+      "right": {
+        "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:01",
+            345.11,
+            351.12
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:05",
+            348.10,
+            353.13
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:01",
+            358.93,
+            365.12
+          ],
+          [
+            "S1",
+            "2020-09-01 00:15:01",
+            359.21,
+            365.31
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "symbol string, left_event_ts string, left_trade_pr string, right_event_ts string, right_bid_pr float, right_ask_pr float",
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21,
+            "2020-08-01 00:00:01",
+            345.11,
+            351.12
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32,
+            "2020-08-01 00:01:05",
+            348.10,
+            353.13
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1,
+            "2020-09-01 00:02:01",
+            358.93,
+            365.12
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1,
+            "2020-09-01 00:15:01",
+            359.21,
+            365.31
+          ]
+        ]
+      }
+    }
+  },
+  "FourierTransformTest": {
+    "test_fourier_transform": {
+      "data": {
+        "schema": "group string, time long, val double",
+        "data": [
+          [
+            "Emissions",
+            1949,
+            2206.690829
+          ],
+          [
+            "Emissions",
+            1950,
+            2382.046176
+          ],
+          [
+            "Emissions",
+            1951,
+            2526.687327
+          ],
+          [
+            "Emissions",
+            1952,
+            2473.373964
+          ],
+          [
+            "WindGen",
+            1980,
+            0.0
+          ],
+          [
+            "WindGen",
+            1981,
+            0.0
+          ],
+          [
+            "WindGen",
+            1982,
+            0.0
+          ],
+          [
+            "WindGen",
+            1983,
+            0.029667962
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "group string, time long, val double, freq double, ft_real double, ft_imag double",
+        "data": [
+          [
+            "Emissions",
+            1949,
+            2206.690829,
+            0.0,
+            9588.798296,
+            -0.0
+          ],
+          [
+            "Emissions",
+            1950,
+            2382.046176,
+            0.25,
+            -319.996498,
+            91.32778800000006
+          ],
+          [
+            "Emissions",
+            1951,
+            2526.687327,
+            -0.5,
+            -122.0419839999995,
+            -0.0
+          ],
+          [
+            "Emissions",
+            1952,
+            2473.373964,
+            -0.25,
+            -319.996498,
+            -91.32778800000006
+          ],
+          [
+            "WindGen",
+            1980,
+            0.0,
+            0.0,
+            0.029667962,
+            -0.0
+          ],
+          [
+            "WindGen",
+            1981,
+            0.0,
+            0.25,
+            0.0,
+            0.029667962
+          ],
+          [
+            "WindGen",
+            1982,
+            0.0,
+            -0.5,
+            -0.029667962,
+            -0.0
+          ],
+          [
+            "WindGen",
+            1983,
+            0.029667962,
+            -0.25,
+            0.0,
+            -0.029667962
+          ]
+        ]
+      }
+    }
+  },
+  "RangeStatsTest": {
+    "test_range_stats": {
+      "data": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "data": [
+          ["S1", "2020-08-01 00:00:10", 349.21],
+          ["S1", "2020-08-01 00:01:12", 351.32],
+          ["S1", "2020-09-01 00:02:10", 361.1],
+          ["S1", "2020-09-01 00:19:12", 362.1]
+        ],
+        "partition_cols": ["symbol"],
+        "ts_col": "event_ts",
+        "sequence_col": null
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
+        "data": [
+          ["S1", "2020-08-01 00:00:10", 349.21, 1, 349.21, 349.21, 349.21, null, null],
+          ["S1", "2020-08-01 00:01:12", 350.26, 2, 349.21, 351.32, 700.53, 1.49, 0.71],
+          ["S1", "2020-09-01 00:02:10", 361.1, 1, 361.1, 361.1, 361.1, null, null],
+          ["S1", "2020-09-01 00:19:12", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 0.71]
+        ]
+      }
+    },
+    "test_group_stats": {
+      "data": {
+        "schema": "symbol string, event_ts string, trade_pr float, index integer",
+        "data": [
+          ["S1", "2020-08-01 00:00:10", 349.21, 1],
+          ["S1", "2020-08-01 00:00:33", 351.32, 1],
+          ["S1", "2020-09-01 00:02:10", 361.1, 1],
+          ["S1", "2020-09-01 00:02:49", 362.1, 1]
+        ]
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
+        "data": [
+          ["S1", "2020-08-01 00:00:00", 350.26, 2, 349.21, 351.32, 700.53, 1.49, 1, 2, 1, 1, 2, 0],
+          ["S1", "2020-09-01 00:02:00", 361.6, 2, 361.1, 362.1, 723.2, 0.71, 1, 2, 1, 1, 2, 0]
+        ]
+      }
+    }
+  }
+}
