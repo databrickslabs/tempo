@@ -11,54 +11,54 @@ from tests.tsdf_tests import SparkTest
 
 class InterpolationTest(SparkTest):
     def buildTestingDataFrame(self):
-        schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType()),
-                StructField("value_a", FloatType()),
-                StructField("value_b", FloatType()),
-            ]
-        )
-
-        self.expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType(), False),
-                StructField("value_a", DoubleType()),
-                StructField("value_b", DoubleType()),
-                StructField("is_ts_interpolated", BooleanType(), False),
-                StructField("is_interpolated_value_a", BooleanType(), False),
-                StructField("is_interpolated_value_b", BooleanType(), False),
-            ]
-        )
-
-        # TODO: This data set tests with multiple partitions, should still be implemented at some time.
-        data = [
-            ["A", "A-1", "2020-01-01 00:01:10", 349.21, None],
-            ["A", "A-1", "2020-01-01 00:02:03", None, 4.0],
-            ["A", "A-2", "2020-01-01 00:01:15", 340.21, 9.0],
-            ["B", "B-1", "2020-01-01 00:01:15", 362.1, 4.0],
-            ["A", "A-2", "2020-01-01 00:01:17", 353.32, 8.0],
-            ["B", "B-2", "2020-01-01 00:02:14", None, 6.0],
-            ["A", "A-1", "2020-01-01 00:03:02", 351.32, 7.0],
-            ["B", "B-2", "2020-01-01 00:01:12", 361.1, 5.0],
-        ]
-
-        simple_data = [
-            ["A", "A-1", "2020-01-01 00:00:10", 0.0, None],
-            ["A", "A-1", "2020-01-01 00:01:10", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:01:32", None, None],
-            ["A", "A-1", "2020-01-01 00:02:03", None, None],
-            ["A", "A-1", "2020-01-01 00:03:32", None, 7.0],
-            ["A", "A-1", "2020-01-01 00:04:12", 8.0, 8.0],
-            ["A", "A-1", "2020-01-01 00:05:31", 11.0, None],
-        ]
+        # schema = StructType(
+        #     [
+        #         StructField("partition_a", StringType()),
+        #         StructField("partition_b", StringType()),
+        #         StructField("event_ts", StringType()),
+        #         StructField("value_a", FloatType()),
+        #         StructField("value_b", FloatType()),
+        #     ]
+        # )
+        #
+        # self.expected_schema = StructType(
+        #     [
+        #         StructField("partition_a", StringType()),
+        #         StructField("partition_b", StringType()),
+        #         StructField("event_ts", StringType(), False),
+        #         StructField("value_a", DoubleType()),
+        #         StructField("value_b", DoubleType()),
+        #         StructField("is_ts_interpolated", BooleanType(), False),
+        #         StructField("is_interpolated_value_a", BooleanType(), False),
+        #         StructField("is_interpolated_value_b", BooleanType(), False),
+        #     ]
+        # )
+        #
+        # # TODO: This data set tests with multiple partitions, should still be implemented at some time.
+        # data = [
+        #     ["A", "A-1", "2020-01-01 00:01:10", 349.21, None],
+        #     ["A", "A-1", "2020-01-01 00:02:03", None, 4.0],
+        #     ["A", "A-2", "2020-01-01 00:01:15", 340.21, 9.0],
+        #     ["B", "B-1", "2020-01-01 00:01:15", 362.1, 4.0],
+        #     ["A", "A-2", "2020-01-01 00:01:17", 353.32, 8.0],
+        #     ["B", "B-2", "2020-01-01 00:02:14", None, 6.0],
+        #     ["A", "A-1", "2020-01-01 00:03:02", 351.32, 7.0],
+        #     ["B", "B-2", "2020-01-01 00:01:12", 361.1, 5.0],
+        # ]
+        #
+        # simple_data = [
+        #     ["A", "A-1", "2020-01-01 00:00:10", 0.0, None],
+        #     ["A", "A-1", "2020-01-01 00:01:10", 2.0, 2.0],
+        #     ["A", "A-1", "2020-01-01 00:01:32", None, None],
+        #     ["A", "A-1", "2020-01-01 00:02:03", None, None],
+        #     ["A", "A-1", "2020-01-01 00:03:32", None, 7.0],
+        #     ["A", "A-1", "2020-01-01 00:04:12", 8.0, 8.0],
+        #     ["A", "A-1", "2020-01-01 00:05:31", 11.0, None],
+        # ]
 
         # construct dataframes
-        self.input_df = self.buildTestDF(schema, data)
-        self.simple_input_df = self.buildTestDF(schema, simple_data)
+        self.input_df = self.get_data_as_sdf('input_data')
+        self.simple_input_df = self.get_data_as_sdf('simple_input_data')
 
         # generate TSDF
         self.input_tsdf = TSDF(
@@ -162,22 +162,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, 0.0, False, False, True],
-            ["A", "A-1", "2020-01-01 00:00:30", 0.0, 0.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 0.0, 0.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 0.0, 0.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 0.0, 0.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 0.0, 0.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 0.0, 7.0, False, True, False],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 0.0, 0.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 0.0, 0.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, 0.0, False, False, True],
-        ]
-
-        expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -202,22 +187,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None, False, False, True],
-            ["A", "A-1", "2020-01-01 00:00:30", None, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", None, None, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:00", None, None, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:30", None, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", None, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", None, 7.0, False, True, False],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", None, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", None, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, None, False, False, True],
-        ]
-
-        expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -242,22 +212,8 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, 2.0, False, False, True],
-            ["A", "A-1", "2020-01-01 00:00:30", 2.0, 2.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 8.0, 7.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 8.0, 7.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 8.0, 7.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 8.0, 7.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 8.0, 7.0, False, True, False],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 11.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 11.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, None, False, False, True],
-        ]
 
-        expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
   
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -283,22 +239,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None, False, False, True],
-            ["A", "A-1", "2020-01-01 00:00:30", 0.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 2.0, 2.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 2.0, 2.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 2.0, 2.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 2.0, 2.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 2.0, 7.0, False, True, False],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 8.0, 8.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 8.0, 8.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, 8.0, False, False, True],
-        ]
-
-        expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -323,22 +264,8 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None, False, False, True],
-            ["A", "A-1", "2020-01-01 00:00:30", 1.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 3.0, 3.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 4.0, 4.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 5.0, 5.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 6.0, 6.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 7.0, 7.0, False, True, False],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 9.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 10.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, None, False, False, True],
-        ]
 
-        expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -361,22 +288,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None, False, False, True],
-            ["A", "A-1", "2020-01-01 00:00:30", 1.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 3.0, 3.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 4.0, 4.0, False, True, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 5.0, 5.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 6.0, 6.0, True, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 7.0, 7.0, False, True, False],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0, False, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 9.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 10.0, None, True, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, None, False, False, True],
-        ]
-
-        expected_df: DataFrame = self.buildTestDF(self.expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -401,32 +313,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None],
-            ["A", "A-1", "2020-01-01 00:00:30", 1.0, None],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:01:30", 3.0, 3.0],
-            ["A", "A-1", "2020-01-01 00:02:00", 4.0, 4.0],
-            ["A", "A-1", "2020-01-01 00:02:30", 5.0, 5.0],
-            ["A", "A-1", "2020-01-01 00:03:00", 6.0, 6.0],
-            ["A", "A-1", "2020-01-01 00:03:30", 7.0, 7.0],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0],
-            ["A", "A-1", "2020-01-01 00:04:30", 9.0, None],
-            ["A", "A-1", "2020-01-01 00:05:00", 10.0, None],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, None],
-        ]
-
-        expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType()),
-                StructField("value_a", DoubleType()),
-                StructField("value_b", DoubleType()),
-            ]
-        )
-
-        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -450,32 +337,8 @@ class InterpolationIntegrationTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None],
-            ["A", "A-1", "2020-01-01 00:00:30", 1.0, None],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:01:30", 3.0, 3.0],
-            ["A", "A-1", "2020-01-01 00:02:00", 4.0, 4.0],
-            ["A", "A-1", "2020-01-01 00:02:30", 5.0, 5.0],
-            ["A", "A-1", "2020-01-01 00:03:00", 6.0, 6.0],
-            ["A", "A-1", "2020-01-01 00:03:30", 7.0, 7.0],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0],
-            ["A", "A-1", "2020-01-01 00:04:30", 9.0, None],
-            ["A", "A-1", "2020-01-01 00:05:00", 10.0, None],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, None],
-        ]
 
-        expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType()),
-                StructField("value_a", DoubleType()),
-                StructField("value_b", DoubleType()),
-            ]
-        )
-
-        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected')
 
         actual_df: DataFrame = self.simple_input_tsdf.interpolate(
             freq="30 seconds", func="mean", method="linear"
@@ -487,36 +350,8 @@ class InterpolationIntegrationTest(InterpolationTest):
         """Verify that by specifying optional paramters it will change the result of the interpolation based on those modified params."""
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, False, False],
-            ["A", "A-1", "2020-01-01 00:00:30", 1.0, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 3.0, False, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 4.0, False, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 5.0, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 6.0, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 7.0, False, True],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 9.0, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 10.0, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, False, False],
-        ]
-
-        expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("other_ts_col", StringType(), False),
-                StructField("value_a", DoubleType()),
-                StructField("is_ts_interpolated", BooleanType(), False),
-                StructField("is_interpolated_value_a", BooleanType(), False),
-            ]
-        )
-
         # Modify input DataFrame using different ts_col
-        expected_df: DataFrame = self.buildTestDF(
-            expected_schema, expected_data, ts_cols=["other_ts_col"]
-        )
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         input_tsdf = TSDF(
             self.simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"),
@@ -557,33 +392,7 @@ class InterpolationIntegrationTest(InterpolationTest):
         """Verify interpolation can be chained with resample within the TSDF class"""
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, False, False],
-            ["A", "A-1", "2020-01-01 00:00:30", 1.0, True, True],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, False, False],
-            ["A", "A-1", "2020-01-01 00:01:30", 3.0, False, True],
-            ["A", "A-1", "2020-01-01 00:02:00", 4.0, False, True],
-            ["A", "A-1", "2020-01-01 00:02:30", 5.0, True, True],
-            ["A", "A-1", "2020-01-01 00:03:00", 6.0, True, True],
-            ["A", "A-1", "2020-01-01 00:03:30", 7.0, False, True],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, False, False],
-            ["A", "A-1", "2020-01-01 00:04:30", 9.0, True, True],
-            ["A", "A-1", "2020-01-01 00:05:00", 10.0, True, True],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, False, False],
-        ]
-
-        expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType(), False),
-                StructField("value_a", DoubleType()),
-                StructField("is_ts_interpolated", BooleanType(), False),
-                StructField("is_interpolated_value_a", BooleanType(), False),
-            ]
-        )
-
-        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected')
 
         actual_df: DataFrame = (
             self.simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
@@ -599,32 +408,8 @@ class InterpolationIntegrationTest(InterpolationTest):
         """Verify interpolation can be chained with resample within the TSDF class"""
         self.buildTestingDataFrame()
 
-        expected_data = [
-            ["A", "A-1", "2020-01-01 00:00:00", 0.0, None],
-            ["A", "A-1", "2020-01-01 00:00:30", 0.0, None],
-            ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:01:30", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:02:00", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:02:30", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:03:00", 2.0, 2.0],
-            ["A", "A-1", "2020-01-01 00:03:30", 2.0, 7.0],
-            ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0],
-            ["A", "A-1", "2020-01-01 00:04:30", 8.0, 8.0],
-            ["A", "A-1", "2020-01-01 00:05:00", 8.0, 8.0],
-            ["A", "A-1", "2020-01-01 00:05:30", 11.0, 8.0],
-        ]
 
-        expected_schema = StructType(
-            [
-                StructField("partition_a", StringType()),
-                StructField("partition_b", StringType()),
-                StructField("event_ts", StringType(), False),
-                StructField("value_a", DoubleType()),
-                StructField("value_b", DoubleType()),
-            ]
-        )
-
-        expected_df: DataFrame = self.buildTestDF(expected_schema, expected_data)
+        expected_df: DataFrame = self.get_data_as_sdf('expected')
 
         actual_df: DataFrame = (
             self.simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)

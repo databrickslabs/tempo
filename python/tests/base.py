@@ -50,7 +50,8 @@ class SparkTest(unittest.TestCase):
     def get_data_as_sdf(self, name: str):
         schema = self.test_data[name]['schema']
         data = self.test_data[name]['data']
-        return self.spark.createDataFrame(data, schema)
+        ts_cols = self.test_data[name].get('ts_cols',None)
+        return self.buildTestDF(schema, data, ts_cols)
 
     def get_data_as_tsdf(self, name:str):
         df = self.get_data_as_sdf(name)
