@@ -11,7 +11,7 @@ from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
-PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
+IS_DATABRICKS = ("DB_HOME" in os.environ.keys())
 
 """
 DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.
@@ -139,14 +139,12 @@ def display_unavailable(df):
     )
 
 
-ENV_BOOLEAN = __is_capable_of_html_rendering()
+ENV_CAN_RENDER_HTML = __is_capable_of_html_rendering()
 
 
-if (
-    (PLATFORM == "DATABRICKS")
+if (IS_DATABRICKS
     and (type(get_ipython()) != type(None))
-    and ("display" in get_ipython().user_ns.keys())
-):
+    and ("display" in get_ipython().user_ns.keys())):
     method = get_ipython().user_ns["display"]
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
@@ -158,7 +156,7 @@ if (
 
     display = display_improvised
 
-elif ENV_BOOLEAN:
+elif ENV_CAN_RENDER_HTML:
 
     def display_html_improvised(obj):
         if type(obj).__name__ == "TSDF":

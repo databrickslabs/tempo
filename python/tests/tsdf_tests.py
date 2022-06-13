@@ -32,6 +32,46 @@ class BasicTests(SparkTest):
         assert res.filter(F.col("max_ts") != " ").select(F.col('max_ts').cast("string")).collect()[0][
                    0] == '2020-09-01 00:19:12'
 
+
+    def test_at(self):
+        pass # TODO
+
+
+    def test_before(self):
+        pass # TODO
+
+
+    def test_atOrBefore(self):
+        pass # TODO
+
+
+    def test_after(self):
+        pass #TODO
+
+
+    def test_atOrAfter(self):
+        pass #TODO
+
+
+    def test_between(self):
+        pass #TODO
+
+
+    def test_between_inclusive(self):
+        pass #TODO
+
+
+    def test_previous(self):
+        pass #TODO
+
+
+    def test_next(self):
+        pass #TODO
+
+
+    def test_asOf(self):
+        pass #TODO
+
 class FourierTransformTest(SparkTest):
 
     def test_fourier_transform(self):

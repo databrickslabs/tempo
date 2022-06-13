@@ -54,9 +54,9 @@ class UtilsTest(SparkTest):
 class UtilsTest(UtilsTest):
     def test_display(self):
         """Test of the display utility"""
-        if PLATFORM == "DATABRICKS":
+        if IS_DATABRICKS:
             self.assertEqual(id(display), id(display_improvised))
-        elif ENV_BOOLEAN:
+        elif ENV_CAN_RENDER_HTML:
             self.assertEqual(id(display), id(display_html_improvised))
         else:
             self.assertEqual(id(display), id(display_unavailable))
