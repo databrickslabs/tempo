@@ -9,6 +9,7 @@ from tempo.utils import *
 
 from tests.tsdf_tests import SparkTest
 
+
 class InterpolationTest(SparkTest):
     def buildTestingDataFrame(self):
         schema = StructType(

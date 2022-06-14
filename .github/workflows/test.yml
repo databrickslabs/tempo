@@ -31,7 +31,8 @@ jobs:
         with:
           args: "--config python/.flake8"
           path: "./python"
-  run:
+  test:
+    name: Buid and Test Module
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
