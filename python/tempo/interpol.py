@@ -18,7 +18,6 @@ class Interpolation:
     def __validate_fill(self, method: str):
         """
         Validate if the fill provided is within the allowed list of values.
-
         :param fill: Fill type e.g. "zero", "null", "bfill", "ffill", "linear"
         """
         if method not in method_options:
@@ -35,7 +34,6 @@ class Interpolation:
     ):
         """
         Validate if target column exists and is of numeric type, and validates if partition column exists.
-
         :param df: DataFrame to be validated
         :param partition_cols: Partition columns to be validated
         :param target_col: Target column to be validated
@@ -68,7 +66,6 @@ class Interpolation:
     def __calc_linear_spark(self, df: DataFrame, ts_col: str, target_col: str):
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
-
         :param df: prepared dataframe to be interpolated
         :param ts_col: timeseries column name
         :param target_col: column to be interpolated
@@ -104,7 +101,6 @@ class Interpolation:
     ) -> DataFrame:
         """
         Apply interpolation to column.
-
         :param series: input DataFrame
         :param ts_col: timestamp column name
         :param target_col: column to interpolate
@@ -186,7 +182,6 @@ class Interpolation:
     ) -> DataFrame:
         """
         Create additional timeseries columns for previous and next timestamps
-
         :param df: input DataFrame
         :param partition_cols: partition column names
         :param ts_col: timestamp column name
@@ -201,7 +196,6 @@ class Interpolation:
     ) -> DataFrame:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
-
         :param df: input DataFrame
         :param partition_cols: partition column names
         :param ts_col: timestamp column name
@@ -228,7 +222,6 @@ class Interpolation:
     ) -> DataFrame:
         """
         Create columns for previous and next value for a specific target column
-
         :param df: input DataFrame
         :param partition_cols: partition column names
         :param ts_col: timestamp column name
@@ -273,7 +266,6 @@ class Interpolation:
     ) -> DataFrame:
         """
         Apply interpolation function.
-
         :param tsdf: input TSDF
         :param ts_col: timestamp column name
         :param target_cols: numeric columns to interpolate
