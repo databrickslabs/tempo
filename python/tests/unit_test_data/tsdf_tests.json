@@ -1,30 +1,35 @@
 {
+  "__SharedData": {
+    "foo": {
+      "schema": "symbol string, event_ts string, trade_pr float",
+      "data": [
+        [
+          "S1",
+          "2020-08-01 00:00:10",
+          349.21
+        ],
+        [
+          "S1",
+          "2020-08-01 00:01:12",
+          351.32
+        ],
+        [
+          "S1",
+          "2020-09-01 00:02:10",
+          361.1
+        ],
+        [
+          "S1",
+          "2020-09-01 00:19:12",
+          362.1
+        ]
+      ]
+    }
+  },
   "BasicTests": {
     "test_describe": {
       "left": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ]
-        ]
+        "$ref": "#/__SharedData/foo"
       },
       "right": {
         "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",

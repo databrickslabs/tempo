@@ -1,7 +1,7 @@
 import re
 import unittest
 import warnings
-import json
+import jsonref
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -38,7 +38,7 @@ class SparkTest(unittest.TestCase):
         cls.spark.stop()
 
     def setUp(self) -> None:
-        self.test_data = self.loadTestData(self.id())
+        self.test_data = self.__loadTestData(self.id())
 
     def tearDown(self) -> None:
         del(self.test_data)
@@ -61,7 +61,7 @@ class SparkTest(unittest.TestCase):
 
     TEST_DATA_FOLDER = "unit_test_data"
 
-    def loadTestData(self, test_case_path: str) -> dict:
+    def __loadTestData(self, test_case_path: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
         format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs)
@@ -71,7 +71,7 @@ class SparkTest(unittest.TestCase):
         file_name,class_name,func_name = test_case_path.split(".")
         test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
         with open(test_data_file) as f:
-            data_metadata_from_json = json.load(f)
+            data_metadata_from_json = jsonref.load(f)
             return data_metadata_from_json[class_name][func_name]
 
 
