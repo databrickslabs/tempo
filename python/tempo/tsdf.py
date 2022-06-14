@@ -1,6 +1,3 @@
-
-
-
 import logging
 from functools import reduce
 from typing import List
@@ -197,10 +194,12 @@ class TSDF:
     """
     Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
     are rounded down to the nearest <tsPartitionVal> seconds.
+
     We cast our timestamp column to double instead of using f.unix_timestamp, since it provides more precision.
     
     Additionally, we make these partitions overlapping by adding a remainder df. This way when calculating the
     last right timestamp we will not end up with nulls for the first left timestamp in each partition.
+
     TODO: change ts_partition to accomodate for higher precision than seconds.
     """
     partition_df = (
@@ -228,6 +227,7 @@ class TSDF:
     column names (string).
     If one of the column names is '*', that column is expanded to include all columns
     in the current :class:`TSDF`.
+
     Examples
     --------
     tsdf.select('*').collect()
@@ -247,6 +247,7 @@ class TSDF:
   def show(self, n = 20, truncate = True, vertical = False):
     """
     pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
+
     Parameters
     ----------
     n : int, optional
@@ -258,14 +259,20 @@ class TSDF:
     vertical : bool, optional
     If set to ``True``, print output rows vertically (one line
     per column value).
+
     Example to show usage
     ---------------------
     from pyspark.sql.functions import *
+
     phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+
     from tempo import *
+
     phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+
     # Call show method here
     phone_accel_tsdf.show()
+
     """
     if PLATFORM == "DATABRICKS" or ENV_BOOLEAN == False:
         self.df.show(n,truncate,vertical)
@@ -329,6 +336,7 @@ class TSDF:
   def __getBytesFromPlan(self, df, spark):
       """
       Internal helper function to obtain how many bytes in memory the Spark data frame is likely to take up. This is an upper bound and is obtained from the plan details in Spark
+
       Parameters
       :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
       :param spark - Spark session which is used to query the view obtained from the Spark data frame
@@ -359,8 +367,10 @@ class TSDF:
     """
     Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
     time brackets, which can help alleviate skew.
+
     NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
     enabled also.
+
     Parameters
     :param right_tsdf - right-hand data frame containing columns to merge in
     :param left_prefix - optional prefix for base data frame
@@ -538,6 +548,7 @@ class TSDF:
       some set of features. This function creates a new column containing, for each observation, a 2-D array of the values
       of some number of other columns over a trailing "lookback" window from the previous observation up to some maximum
       number of past observations.
+
       :param featureCols: the names of one or more feature columns to be aggregated into the feature column
       :param lookbackWindowSize: The size of lookback window (in terms of past observations). Must be an integer >= 1
       :param exactSize: If True (the default), then the resulting DataFrame will only include observations where the
@@ -572,6 +583,7 @@ class TSDF:
           :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
           :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
           Assumptions:
+
           1. The features are summarized over a rolling window that ranges back
           2. The range back window can be specified by the user
           3. Sequence numbers are not yet supported for the sort
@@ -683,6 +695,7 @@ class TSDF:
     """
     Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
     will be filled based on the fill calculation.
+
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
     :param func: function used to aggregate input
     :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
@@ -815,6 +828,7 @@ class _ResampledTSDF(TSDF):
     def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False, perform_checks:bool = True):
       """
       Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
+
       :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
       :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
       :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
