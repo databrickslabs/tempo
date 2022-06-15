@@ -813,7 +813,7 @@ class TSDF:
   def write(self, spark, tabName, optimizationCols = None):
     tio.write(self, spark, tabName, optimizationCols)
 
-  def resample(self, freq, func=None, metricCols = None, prefix=None, fill = None):
+  def resample(self, freq, func=None, metricCols = None, prefix=None, fill = None, perform_checks = True):
     """
     function to upsample based on frequency and aggregate function similar to pandas
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
@@ -821,18 +821,19 @@ class TSDF:
     :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
     :param prefix - supply a prefix for the newly sampled columns
     :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
+    :param perform_checks: calculate time horizon and warnings if True (default is True)
     :return: TSDF object with sample data using aggregate function
     """
     rs.validateFuncExists(func)
 
     # Throw warning for user to validate that the expected number of output rows is valid.
-    if fill is True:
+    if fill is True and perform_checks is True:
         calculate_time_horizon(self.df, self.ts_col, freq, self.partitionCols)
 
     enriched_df:DataFrame = rs.aggregate(self, freq, func, metricCols, prefix, fill)
     return (_ResampledTSDF(enriched_df, ts_col = self.ts_col, partition_cols = self.partitionCols, freq = freq, func = func))
 
-  def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False):
+  def interpolate(self, freq: str, func: str, method: str, target_cols: List[str] = None,ts_col: str = None, partition_cols: List[str]=None, show_interpolated:bool = False, perform_checks:bool = True):
     """
     Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
     will be filled based on the fill calculation.
@@ -844,6 +845,7 @@ class TSDF:
     :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
     :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
     :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+    :param perform_checks: calculate time horizon and warnings if True (default is True)
     :return: new TSDF object containing interpolated data
     """
 
@@ -863,7 +865,7 @@ class TSDF:
 
     interpolate_service: Interpolation = Interpolation(is_resampled=False)
     tsdf_input = TSDF(self.df, ts_col = ts_col, partition_cols=partition_cols)
-    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated)
+    interpolated_df:DataFrame = interpolate_service.interpolate(tsdf_input,ts_col, partition_cols,target_cols, freq, func, method, show_interpolated, perform_checks)
      
     return TSDF(interpolated_df, ts_col = ts_col, partition_cols=partition_cols)
 
@@ -965,13 +967,14 @@ class _ResampledTSDF(TSDF):
         self.__freq = freq
         self.__func = func
 
-    def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False):
+    def interpolate(self, method: str, target_cols: List[str] = None, show_interpolated:bool = False, perform_checks:bool = True):
       """
       Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
 
       :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
       :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
       :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+      :param perform_checks: calculate time horizon and warnings if True (default is True)
       :return: new TSDF object containing interpolated data
       """
 
@@ -996,6 +999,7 @@ class _ResampledTSDF(TSDF):
           func=self.__func,
           method=method,
           show_interpolated=show_interpolated,
+          perform_checks=perform_checks
       )
       
       return TSDF(interpolated_df, ts_col = self.ts_col, partition_cols=self.partitionCols)

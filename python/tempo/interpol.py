@@ -269,6 +269,7 @@ class Interpolation:
         func: str,
         method: str,
         show_interpolated: bool,
+        perform_checks:bool = True
     ) -> DataFrame:
         """
         Apply interpolation function.
@@ -281,6 +282,7 @@ class Interpolation:
         :param func: aggregate function used for sampling to the specified interval
         :param method: interpolation function usded to fill missing values
         :param show_interpolated: show if row is interpolated?
+        :param perform_checks: calculate time horizon and warnings if True (default is True)
         :return: DataFrame containing interpolated data.
         """
         # Validate input parameters
@@ -292,7 +294,8 @@ class Interpolation:
         freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
 
         # Throw warning for user to validate that the expected number of output rows is valid.
-        calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
+        if perform_checks:
+            calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
 
         # Only select required columns for interpolation
         input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
