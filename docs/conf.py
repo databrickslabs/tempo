@@ -13,18 +13,17 @@
 from datetime import date
 import os
 import sys
+from version import get_latest_git_tag
 
-sys.path.insert(0, os.path.abspath('../python'))
+sys.path.insert(0, os.path.abspath("../python"))
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, root_path)
 
-from version import get_latest_git_tag
-
 # -- Project information -----------------------------------------------------
 
-project = 'Tempo'
-copyright = f'{date.today().year}, Databricks Labs'
-author = 'Databricks Labs'
+project = "Tempo"
+copyright = f"{date.today().year}, Databricks Labs"
+author = "Databricks Labs"
 
 # The full version, including alpha/beta/rc tags
 release = get_latest_git_tag()
@@ -36,21 +35,21 @@ release = get_latest_git_tag()
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.viewcode',
-    'sphinx_panels',
-    'sphinx_copybutton'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
+    "sphinx_panels",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -58,12 +57,12 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'furo'
+html_theme = "furo"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 html_theme_options = {
     "light_logo": "tempo - light background.svg",
     "dark_logo": "tempo - dark background.svg",
@@ -91,7 +90,7 @@ html_theme_options = {
             "url": "https://databricks.com/learn/labs",
             "html": "",
             "class": "fa-brands fa-uncharted",
-        }
-    ]
+        },
+    ],
 }
-html_favicon = 'favicon.svg'
+html_favicon = "favicon.svg"

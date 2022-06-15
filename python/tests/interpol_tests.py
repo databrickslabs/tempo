@@ -9,6 +9,7 @@ from tempo.utils import *
 
 from tests.tsdf_tests import SparkTest
 
+
 class InterpolationTest(SparkTest):
     def buildTestingDataFrame(self):
         # schema = StructType(
@@ -215,7 +216,6 @@ class InterpolationUnitTest(InterpolationTest):
 
         expected_df: DataFrame = self.get_data_as_sdf('expected_data')
 
-  
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
             partition_cols=["partition_a", "partition_b"],
@@ -283,7 +283,7 @@ class InterpolationUnitTest(InterpolationTest):
     def test_different_freq_abbreviations(self):
         """Test abbreviated frequency values
 
-            e.g. sec and seconds will both work.
+        e.g. sec and seconds will both work.
 
         """
         self.buildTestingDataFrame()
@@ -420,6 +420,6 @@ class InterpolationIntegrationTest(InterpolationTest):
         assert_df_equality(expected_df, actual_df, ignore_nullable=True)
 
 
-## MAIN
+# MAIN
 if __name__ == "__main__":
     unittest.main()
