@@ -42,7 +42,7 @@ class TSDF:
         self.df = df
         self.sequence_col = "" if sequence_col is None else sequence_col
 
-        ## Add customized check for string type for the timestamp. If we see a string, we will proactively created a double version of the string timestamp for sorting purposes and rename to ts_col
+        # Add customized check for string type for the timestamp. If we see a string, we will proactively created a double version of the string timestamp for sorting purposes and rename to ts_col
         if df.schema[ts_col].dataType == "StringType":
             sample_ts = df.limit(1).collect()[0][0]
             self.__validate_ts_string(sample_ts)
@@ -52,9 +52,9 @@ class TSDF:
     Make sure DF is ordered by its respective ts_col and partition columns.
     """
 
-    ##
-    ## Helper functions
-    ##
+    #
+    # Helper functions
+    #
 
     def __add_double_ts(self):
         """Add a double (epoch) version of the string timestamp out to nanos"""
@@ -328,7 +328,7 @@ class TSDF:
 
         """
         # The columns which will be a mandatory requirement while selecting from TSDFs
-        seq_col_stub = [] if bool(self.sequence_col) == False else [self.sequence_col]
+        seq_col_stub = [] if bool(self.sequence_col) is False else [self.sequence_col]
         mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
         if set(mandatory_cols).issubset(set(cols)):
             return TSDF(
@@ -372,7 +372,7 @@ class TSDF:
         phone_accel_tsdf.show()
 
         """
-        if PLATFORM == "DATABRICKS" or ENV_BOOLEAN == False:
+        if PLATFORM == "DATABRICKS" or ENV_BOOLEAN is False:
             self.df.show(n, truncate, vertical)
         elif ENV_BOOLEAN:
             # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
@@ -423,7 +423,7 @@ class TSDF:
             """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
                   when {0} % 60 != 0 then '2-seconds'
                   when {0} % 3600 != 0 then '3-minutes'
-                  when {0} % 86400 != 0 then '4-hours' 
+                  when {0} % 86400 != 0 then '4-hours'
                   else '5-days' end) granularity""".format(
                 double_ts_col
             )
@@ -458,7 +458,7 @@ class TSDF:
         try:
             dbutils.fs.ls("/")
             return full_smry
-        except:
+        except Exception:
             return full_smry
             pass
 
@@ -484,7 +484,7 @@ class TSDF:
         size = result.split("=")[1].split(" ")[0]
         units = result.split("=")[1].split(" ")[1]
 
-        ## perform to MB for threshold check
+        # perform to MB for threshold check
         if units == "GiB":
             bytes = float(size) * 1024 * 1024 * 1024
         elif units == "MiB":

@@ -7,9 +7,9 @@ from pyspark.sql import SparkSession
 
 
 class SparkTest(unittest.TestCase):
-    ##
-    ## Fixtures
-    ##
+    #
+    # Fixtures
+    #
 
     # Spark Session object
     spark = None
@@ -46,9 +46,9 @@ class SparkTest(unittest.TestCase):
         # shut down Spark
         cls.spark.stop()
 
-    ##
-    ## Utility Functions
-    ##
+    #
+    # Utility Functions
+    #
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
         """
@@ -74,9 +74,9 @@ class SparkTest(unittest.TestCase):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
-    ##
-    ## DataFrame Assert Functions
-    ##
+    #
+    # DataFrame Assert Functions
+    #
 
     def assertFieldsEqual(self, fieldA, fieldB):
         """

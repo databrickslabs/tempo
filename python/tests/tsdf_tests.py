@@ -19,26 +19,6 @@ class BasicTests(SparkTest):
             ]
         )
 
-        rightSchema = StructType(
-            [
-                StructField("symbol", StringType()),
-                StructField("event_ts", StringType()),
-                StructField("bid_pr", FloatType()),
-                StructField("ask_pr", FloatType()),
-            ]
-        )
-
-        expectedSchema = StructType(
-            [
-                StructField("symbol", StringType()),
-                StructField("left_event_ts", StringType()),
-                StructField("left_trade_pr", FloatType()),
-                StructField("right_event_ts", StringType()),
-                StructField("right_bid_pr", FloatType()),
-                StructField("right_ask_pr", FloatType()),
-            ]
-        )
-
         left_data = [
             ["S1", "2020-08-01 00:00:10", 349.21],
             ["S1", "2020-08-01 00:01:12", 351.32],
@@ -46,40 +26,8 @@ class BasicTests(SparkTest):
             ["S1", "2020-09-01 00:19:12", 362.1],
         ]
 
-        right_data = [
-            ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
-            ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
-            ["S1", "2020-09-01 00:02:01", 358.93, 365.12],
-            ["S1", "2020-09-01 00:15:01", 359.21, 365.31],
-        ]
-
-        expected_data = [
-            [
-                "S1",
-                "2020-08-01 00:00:10",
-                349.21,
-                "2020-08-01 00:00:01",
-                345.11,
-                351.12,
-            ],
-            [
-                "S1",
-                "2020-08-01 00:01:12",
-                351.32,
-                "2020-08-01 00:01:05",
-                348.10,
-                353.13,
-            ],
-            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12],
-            ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31],
-        ]
-
         # Construct dataframes
         dfLeft = self.buildTestDF(leftSchema, left_data)
-        dfRight = self.buildTestDF(rightSchema, right_data)
-        dfExpected = self.buildTestDF(
-            expectedSchema, expected_data, ["left_event_ts", "right_event_ts"]
-        )
 
         # perform the join
         tsdf_left = TSDF(dfLeft, ts_col="event_ts", partition_cols=["symbol"])
@@ -531,16 +479,6 @@ class ResampleTest(SparkTest):
             ]
         )
 
-        expectedSchema = StructType(
-            [
-                StructField("symbol", StringType()),
-                StructField("event_ts", StringType()),
-                StructField("floor_trade_pr", FloatType()),
-                StructField("floor_date", StringType()),
-                StructField("floor_trade_pr_2", FloatType()),
-            ]
-        )
-
         expectedSchemaMS = StructType(
             [
                 StructField("symbol", StringType()),
@@ -574,11 +512,6 @@ class ResampleTest(SparkTest):
             "trade_pr", F.round(F.col("trade_pr"), 2)
         )
 
-        int_df = TSDF(
-            tsdf_left.df.withColumn("event_ts", F.col("event_ts").cast("timestamp")),
-            partition_cols=["symbol"],
-        )
-        interpolated = int_df.interpolate(freq="ms", func="floor", method="ffill")
         self.assertDataFramesEqual(resample_ms, dfExpected)
 
     def test_upsample(self):
@@ -590,16 +523,6 @@ class ResampleTest(SparkTest):
                 StructField("event_ts", StringType()),
                 StructField("trade_pr", FloatType()),
                 StructField("trade_pr_2", FloatType()),
-            ]
-        )
-
-        expectedSchema = StructType(
-            [
-                StructField("symbol", StringType()),
-                StructField("event_ts", StringType()),
-                StructField("floor_trade_pr", FloatType()),
-                StructField("floor_date", StringType()),
-                StructField("floor_trade_pr_2", FloatType()),
             ]
         )
 
@@ -636,13 +559,6 @@ class ResampleTest(SparkTest):
             ["S1", "SAME_DT", "2020-08-01 00:01:14", 350.32, 6.0],
             ["S1", "SAME_DT", "2020-09-01 00:01:12", 361.1, 5.0],
             ["S1", "SAME_DT", "2020-09-01 00:19:12", 362.1, 4.0],
-        ]
-
-        expected_data = [
-            ["S1", "2020-08-01 00:00:00", 349.21, "SAME_DT", 10.0],
-            ["S1", "2020-08-01 00:01:00", 353.32, "SAME_DT", 8.0],
-            ["S1", "2020-09-01 00:01:00", 361.1, "SAME_DT", 5.0],
-            ["S1", "2020-09-01 00:19:00", 362.1, "SAME_DT", 4.0],
         ]
 
         expected_data_30m = [
@@ -705,7 +621,6 @@ class ResampleTest(SparkTest):
 
         # construct dataframes
         df = self.buildTestDF(schema, data)
-        dfExpected = self.buildTestDF(expectedSchema, expected_data)
         expected_30s_df = self.buildTestDF(expected_30m_Schema, expected_data_30m)
         barsExpected = self.buildTestDF(expectedBarsSchema, expected_bars)
 

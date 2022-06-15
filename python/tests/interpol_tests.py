@@ -635,6 +635,6 @@ class InterpolationIntegrationTest(InterpolationTest):
         assert_df_equality(expected_df, actual_df, ignore_nullable=True)
 
 
-## MAIN
+# MAIN
 if __name__ == "__main__":
     unittest.main()
