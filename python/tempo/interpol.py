@@ -269,7 +269,7 @@ class Interpolation:
         func: str,
         method: str,
         show_interpolated: bool,
-        perform_checks:bool = True
+        perform_checks: bool = True,
     ) -> DataFrame:
         """
         Apply interpolation function.
