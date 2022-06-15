@@ -11,13 +11,13 @@ from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
-IS_DATABRICKS = ("DB_HOME" in os.environ.keys())
+IS_DATABRICKS = "DB_HOME" in os.environ.keys()
 
 """
 DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.
 
-This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
-where the code is running from. 
+This constant is to ensure the correct behaviour of the show and display methods are called based on the platform
+where the code is running from.
 """
 
 
@@ -102,7 +102,7 @@ def calculate_time_horizon(
     warnings.simplefilter("always", ResampleWarning)
     warnings.warn(
         f"""
-            Resample Metrics Warning: 
+            Resample Metrics Warning:
                 Earliest Timestamp: {min_ts}
                 Latest Timestamp: {max_ts}
                 No. of Unique Partitions: {normalized_time_df.count()}
@@ -142,12 +142,15 @@ def display_unavailable(df):
 ENV_CAN_RENDER_HTML = __is_capable_of_html_rendering()
 
 
-if (IS_DATABRICKS
-    and (type(get_ipython()) != type(None))
-    and ("display" in get_ipython().user_ns.keys())):
+if (
+    IS_DATABRICKS
+    and not isinstance(get_ipython(), None)
+    and ("display" in get_ipython().user_ns.keys())
+):
     method = get_ipython().user_ns["display"]
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
+
     def display_improvised(obj):
         if type(obj).__name__ == "TSDF":
             method(obj.df)

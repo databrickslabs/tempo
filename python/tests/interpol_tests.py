@@ -58,8 +58,8 @@ class InterpolationTest(SparkTest):
         # ]
 
         # construct dataframes
-        self.input_df = self.get_data_as_sdf('input_data')
-        self.simple_input_df = self.get_data_as_sdf('simple_input_data')
+        self.input_df = self.get_data_as_sdf("input_data")
+        self.simple_input_df = self.get_data_as_sdf("simple_input_data")
 
         # generate TSDF
         self.input_tsdf = TSDF(
@@ -163,7 +163,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -188,7 +188,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -213,8 +213,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -239,7 +238,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -264,8 +263,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -288,7 +286,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -313,7 +311,7 @@ class InterpolationUnitTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=self.simple_input_tsdf,
@@ -337,8 +335,7 @@ class InterpolationIntegrationTest(InterpolationTest):
         """
         self.buildTestingDataFrame()
 
-
-        expected_df: DataFrame = self.get_data_as_sdf('expected')
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         actual_df: DataFrame = self.simple_input_tsdf.interpolate(
             freq="30 seconds", func="mean", method="linear"
@@ -392,7 +389,7 @@ class InterpolationIntegrationTest(InterpolationTest):
         """Verify interpolation can be chained with resample within the TSDF class"""
         self.buildTestingDataFrame()
 
-        expected_df: DataFrame = self.get_data_as_sdf('expected')
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         actual_df: DataFrame = (
             self.simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
@@ -408,8 +405,7 @@ class InterpolationIntegrationTest(InterpolationTest):
         """Verify interpolation can be chained with resample within the TSDF class"""
         self.buildTestingDataFrame()
 
-
-        expected_df: DataFrame = self.get_data_as_sdf('expected')
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         actual_df: DataFrame = (
             self.simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)

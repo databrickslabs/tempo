@@ -7,10 +7,11 @@ import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from tempo.tsdf import TSDF
 
+
 class SparkTest(unittest.TestCase):
-    ##
-    ## Fixtures
-    ##
+    #
+    # Fixtures
+    #
 
     # Spark Session object
     spark = None
@@ -19,14 +20,25 @@ class SparkTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
-        cls.spark = (SparkSession.builder.appName("myapp")
-                      .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
-                      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-                      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-                      .master("local")
-                      .getOrCreate())
+        cls.spark = (
+            SparkSession.builder.appName("myapp")
+            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
+            .config(
+                "spark.driver.extraJavaOptions",
+                "-Dio.netty.tryReflectionSetAccessible=true",
+            )
+            .config(
+                "spark.executor.extraJavaOptions",
+                "-Dio.netty.tryReflectionSetAccessible=true",
+            )
+            .master("local")
+            .getOrCreate()
+        )
         cls.spark.conf.set("spark.sql.shuffle.partitions", 1)
         cls.spark.sparkContext.setLogLevel("ERROR")
         # filter out ResourceWarning messages
@@ -41,22 +53,26 @@ class SparkTest(unittest.TestCase):
         self.test_data = self.loadTestData(self.id())
 
     def tearDown(self) -> None:
-        del(self.test_data)
+        del self.test_data
 
-    ##
-    ## Utility Functions
-    ##
+    #
+    # Utility Functions
+    #
 
     def get_data_as_sdf(self, name: str):
-        schema = self.test_data[name]['schema']
-        data = self.test_data[name]['data']
-        ts_cols = self.test_data[name].get('ts_cols',None)
+        schema = self.test_data[name]["schema"]
+        data = self.test_data[name]["data"]
+        ts_cols = self.test_data[name].get("ts_cols", None)
         return self.buildTestDF(schema, data, ts_cols)
 
-    def get_data_as_tsdf(self, name:str):
+    def get_data_as_tsdf(self, name: str):
         df = self.get_data_as_sdf(name)
-        tsdf = TSDF(df, ts_col = self.test_data[name]['ts_col'], partition_cols= self.test_data[name]['partition_cols'],
-                    sequence_col= self.test_data[name]['sequence_col'])
+        tsdf = TSDF(
+            df,
+            ts_col=self.test_data[name]["ts_col"],
+            partition_cols=self.test_data[name]["partition_cols"],
+            sequence_col=self.test_data[name]["sequence_col"],
+        )
         return tsdf
 
     TEST_DATA_FOLDER = "unit_test_data"
@@ -68,12 +84,11 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        file_name,class_name,func_name = test_case_path.split(".")
+        file_name, class_name, func_name = test_case_path.split(".")
         test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
         with open(test_data_file) as f:
             data_metadata_from_json = json.load(f)
             return data_metadata_from_json[class_name][func_name]
-
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
         """
@@ -86,19 +101,22 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        #check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
+        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
         for tsc in ts_cols:
             ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
             ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
             decimal_pattern = "[.]\d+"
             if re.match(ts_pattern, str(ts_value)) is not None:
-                if re.search(decimal_pattern, ts_value) is None or len(re.search(decimal_pattern, ts_value)[0]) <= 4:
+                if (
+                    re.search(decimal_pattern, ts_value) is None
+                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
+                ):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
-    ##
-    ## DataFrame Assert Functions
-    ##
+    #
+    # DataFrame Assert Functions
+    #
 
     def assertFieldsEqual(self, fieldA, fieldB):
         """

@@ -11,7 +11,7 @@ class UtilsTest(SparkTest):
     def buildTestingDataFrame(self):
 
         # construct dataframes
-        self.simple_input_df = self.get_data_as_sdf('simple_data')
+        self.simple_input_df = self.get_data_as_sdf("simple_data")
 
         self.simple_input_tsdf = TSDF(
             self.simple_input_df,
