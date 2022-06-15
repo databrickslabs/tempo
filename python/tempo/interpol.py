@@ -128,7 +128,8 @@ class Interpolation:
             output_df = output_df.withColumn(
                 target_col,
                 when(
-                    col(f"is_interpolated_{target_col}") == False, col(target_col)  # noqa: E712
+                    col(f"is_interpolated_{target_col}") == False,  # noqa: E712
+                    col(target_col),
                 ).otherwise(lit(0)),
             )
 
@@ -137,7 +138,8 @@ class Interpolation:
             output_df = output_df.withColumn(
                 target_col,
                 when(
-                    col(f"is_interpolated_{target_col}") == False, col(target_col)  # noqa: E712
+                    col(f"is_interpolated_{target_col}") == False,  # noqa: E712
+                    col(target_col),
                 ).otherwise(None),
             )
 
