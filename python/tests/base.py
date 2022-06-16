@@ -47,16 +47,20 @@ class SparkTest(unittest.TestCase):
     ## Utility Functions
     ##
 
-    def get_data_as_sdf(self, name: str):
-        schema = self.test_data[name]['schema']
-        data = self.test_data[name]['data']
-        ts_cols = self.test_data[name].get('ts_cols',None)
-        return self.buildTestDF(schema, data, ts_cols)
+    def get_data_as_sdf(self, name: str, convert_ts_col=True):
+        td = self.test_data[name]
+        ts_cols = []
+        if convert_ts_col and td.get('ts_col',None):
+            ts_cols = [td['ts_col']]
+        return self.buildTestDF(td['schema'], td['data'], ts_cols)
 
-    def get_data_as_tsdf(self, name:str):
-        df = self.get_data_as_sdf(name)
-        tsdf = TSDF(df, ts_col = self.test_data[name]['ts_col'], partition_cols= self.test_data[name]['partition_cols'],
-                    sequence_col= self.test_data[name]['sequence_col'])
+    def get_data_as_tsdf(self, name:str, convert_ts_col=True):
+        df = self.get_data_as_sdf(name,convert_ts_col)
+        td = self.test_data[name]
+        tsdf = TSDF(df,
+                    ts_col = td['ts_col'],
+                    partition_cols= td.get('partition_cols',None),
+                    sequence_col= td.get('sequence_col',None))
         return tsdf
 
     TEST_DATA_FOLDER = "unit_test_data"
@@ -72,10 +76,17 @@ class SparkTest(unittest.TestCase):
         test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
         with open(test_data_file) as f:
             data_metadata_from_json = jsonref.load(f)
+            # warn if data not present
+            if class_name not in data_metadata_from_json:
+                warnings.warn(f"Could not load test data for {file_name}.{class_name}")
+                return {}
+            if func_name not in data_metadata_from_json[class_name]:
+                warnings.warn(f"Could not load test data for {file_name}.{class_name}.{func_name}")
+                return {}
             return data_metadata_from_json[class_name][func_name]
 
 
-    def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
+    def buildTestDF(self, schema, data, ts_cols=[]):
         """
         Constructs a Spark Dataframe from the given components
         :param schema: the schema to use for the Dataframe

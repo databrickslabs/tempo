@@ -1,6 +1,6 @@
 {
   "UtilsTest": {
-    "buildTestingDataFrame": {
+    "test_calculate_time_horizon": {
       "simple_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
         "data": [
