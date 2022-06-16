@@ -1,4 +1,5 @@
 import re
+import os
 import unittest
 import warnings
 import jsonref
@@ -65,6 +66,22 @@ class SparkTest(unittest.TestCase):
 
     TEST_DATA_FOLDER = "unit_test_data"
 
+    def __getTestDataFilePath(self, test_file_name: str) -> str:
+        # what folder are we running from?
+        cwd = os.path.basename(os.getcwd())
+
+        # build path based on what folder we're in
+        dir_path = './'
+        if cwd == 'tempo':
+            dir_path = './python/tests'
+        elif cwd == 'python':
+            dir_path = './tests'
+        elif cwd != 'tests':
+            raise RuntimeError(f"Cannot locate test data file {test_file_name}, running from dir {os.getcwd()}")
+
+        # return appropriate path
+        return f"{dir_path}/{self.TEST_DATA_FOLDER}/{test_file_name}.json"
+
     def __loadTestData(self, test_case_path: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
@@ -73,8 +90,15 @@ class SparkTest(unittest.TestCase):
         :type test_case_path: str
         """
         file_name,class_name,func_name = test_case_path.split(".")
-        test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
-        with open(test_data_file) as f:
+
+        # find our test data file
+        test_data_file = self.__getTestDataFilePath(file_name)
+        if not os.path.isfile(test_data_file):
+            warnings.warn(f"Could not load test data file {test_data_file}")
+            return {}
+
+        # proces the data file
+        with open(test_data_file,'r') as f:
             data_metadata_from_json = jsonref.load(f)
             # warn if data not present
             if class_name not in data_metadata_from_json:
