@@ -5,10 +5,11 @@ import warnings
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 
+
 class SparkTest(unittest.TestCase):
-    ##
-    ## Fixtures
-    ##
+    #
+    # Fixtures
+    #
 
     # Spark Session object
     spark = None
@@ -16,14 +17,25 @@ class SparkTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
-        cls.spark = (SparkSession.builder.appName("myapp")
-                      .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
-                      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-                      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-                      .master("local")
-                      .getOrCreate())
+        cls.spark = (
+            SparkSession.builder.appName("myapp")
+            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
+            .config(
+                "spark.driver.extraJavaOptions",
+                "-Dio.netty.tryReflectionSetAccessible=true",
+            )
+            .config(
+                "spark.executor.extraJavaOptions",
+                "-Dio.netty.tryReflectionSetAccessible=true",
+            )
+            .master("local")
+            .getOrCreate()
+        )
         cls.spark.conf.set("spark.sql.shuffle.partitions", 1)
         cls.spark.sparkContext.setLogLevel("ERROR")
         # filter out ResourceWarning messages
@@ -34,9 +46,9 @@ class SparkTest(unittest.TestCase):
         # shut down Spark
         cls.spark.stop()
 
-    ##
-    ## Utility Functions
-    ##
+    #
+    # Utility Functions
+    #
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
         """
@@ -49,19 +61,22 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        #check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
+        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
         for tsc in ts_cols:
             ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
             ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
             decimal_pattern = "[.]\d+"
             if re.match(ts_pattern, str(ts_value)) is not None:
-                if re.search(decimal_pattern, ts_value) is None or len(re.search(decimal_pattern, ts_value)[0]) <= 4:
+                if (
+                    re.search(decimal_pattern, ts_value) is None
+                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
+                ):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
-    ##
-    ## DataFrame Assert Functions
-    ##
+    #
+    # DataFrame Assert Functions
+    #
 
     def assertFieldsEqual(self, fieldA, fieldB):
         """

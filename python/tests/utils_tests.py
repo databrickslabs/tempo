@@ -3,7 +3,6 @@ from tests.tsdf_tests import SparkTest
 from tempo.utils import calculate_time_horizon
 from chispa.dataframe_comparer import *
 from tempo.tsdf import TSDF
-from tempo.interpol import Interpolation
 from tempo.utils import *
 import unittest
 
@@ -72,7 +71,7 @@ class UtilsTest(UtilsTest):
                 ["partition_a", "partition_b"],
             )
             warning_message = """
-            Resample Metrics Warning: 
+            Resample Metrics Warning:
                 Earliest Timestamp: 2020-01-01 00:00:10
                 Latest Timestamp: 2020-01-01 00:05:31
                 No. of Unique Partitions: 3
@@ -86,6 +85,6 @@ class UtilsTest(UtilsTest):
             assert warning_message.strip() == str(w[-1].message).strip()
 
 
-## MAIN
+# MAIN
 if __name__ == "__main__":
     unittest.main()
