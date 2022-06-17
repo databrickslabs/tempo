@@ -31,7 +31,11 @@ scala/target/stream/*
 
 # ignore virtual environments
 python/venv
+python/.venv
+python/.env
 venv
+.venv
+.env
 
 # other misc ignore
 .DS_Store
