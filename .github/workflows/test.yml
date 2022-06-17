@@ -7,7 +7,32 @@ on:
     branches: [ 'master' ]
 
 jobs:
-  run:
+  black-linting:
+    runs-on: ubuntu-latest
+    name: Black Lint
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
+        with:
+          options: "--check --verbose"
+          src: "./python"
+  flake8-lint:
+    runs-on: ubuntu-latest
+    name: Flake8 Lint
+    steps:
+      - name: Check out source repository
+        uses: actions/checkout@v2
+      - name: Set up Python environment
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+      - name: flake8 Lint
+        uses: py-actions/flake8@v2
+        with:
+          args: "--config python/.flake8"
+          path: "./python"
+  test:
+    name: Buid and Test Module
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

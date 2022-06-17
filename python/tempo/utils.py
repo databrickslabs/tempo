@@ -16,8 +16,8 @@ PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
 """
 DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.
 
-This constant is to ensure the correct behaviour of the show and display methods are called based on the platform 
-where the code is running from. 
+This constant is to ensure the correct behaviour of the show and display methods are called based on the platform
+where the code is running from.
 """
 
 
@@ -102,7 +102,7 @@ def calculate_time_horizon(
     warnings.simplefilter("always", ResampleWarning)
     warnings.warn(
         f"""
-            Resample Metrics Warning: 
+            Resample Metrics Warning:
                 Earliest Timestamp: {min_ts}
                 Latest Timestamp: {max_ts}
                 No. of Unique Partitions: {normalized_time_df.count()}
@@ -144,12 +144,13 @@ ENV_BOOLEAN = __is_capable_of_html_rendering()
 
 if (
     (PLATFORM == "DATABRICKS")
-    and (type(get_ipython()) != type(None))
-    and ("display" in get_ipython().user_ns.keys())
+    and not isinstance(get_ipython(), None)
+    and "display" in get_ipython().user_ns.keys()
 ):
     method = get_ipython().user_ns["display"]
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
+
     def display_improvised(obj):
         if type(obj).__name__ == "TSDF":
             method(obj.df)
