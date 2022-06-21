@@ -1,9 +1,6 @@
 import unittest
 
 import pyspark.sql.functions as F
-from pyspark.sql.types import *
-
-from tempo.tsdf import TSDF
 
 from tests.base import SparkTest
 
@@ -181,10 +178,8 @@ class ResampleTest(SparkTest):
 
         # construct dataframes
         tsdf_input = self.get_data_as_tsdf('input')
-        dfExpected = self.get_data_as_sdf('expected')
         expected_30s_df = self.get_data_as_sdf('expected30m')
         barsExpected = self.get_data_as_sdf('expectedbars')
-
 
         resample_30m = tsdf_input.resample(
             freq="5 minutes", func="mean", fill=True
