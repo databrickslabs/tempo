@@ -20,7 +20,7 @@ class InterpolationUnitTest(SparkTest):
         """Test fill parameter is valid."""
 
         # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf('input_data')
+        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
         try:
@@ -43,7 +43,7 @@ class InterpolationUnitTest(SparkTest):
         """Test target columns exist in schema, and are of the right type (numeric)."""
 
         # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf('input_data')
+        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
         try:
@@ -66,7 +66,7 @@ class InterpolationUnitTest(SparkTest):
         """Test partition columns exist in schema."""
 
         # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf('input_data')
+        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
         try:
@@ -89,7 +89,7 @@ class InterpolationUnitTest(SparkTest):
         """Test time series column exist in schema."""
 
         # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf('input_data')
+        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
         try:
@@ -117,8 +117,8 @@ class InterpolationUnitTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -143,8 +143,8 @@ class InterpolationUnitTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -170,8 +170,8 @@ class InterpolationUnitTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -197,8 +197,8 @@ class InterpolationUnitTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -224,8 +224,8 @@ class InterpolationUnitTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -244,13 +244,13 @@ class InterpolationUnitTest(SparkTest):
     def test_different_freq_abbreviations(self):
         """Test abbreviated frequency values
 
-            e.g. sec and seconds will both work.
+        e.g. sec and seconds will both work.
 
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -276,8 +276,8 @@ class InterpolationUnitTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
 
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
@@ -302,8 +302,8 @@ class InterpolationIntegrationTest(SparkTest):
         """
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # interpolate
         actual_df: DataFrame = simple_input_tsdf.interpolate(
@@ -317,7 +317,7 @@ class InterpolationIntegrationTest(SparkTest):
         """Verify that by specifying optional paramters it will change the result of the interpolation based on those modified params."""
 
         # Modify input DataFrame using different ts_col
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
         expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         input_tsdf = TSDF(
@@ -342,7 +342,7 @@ class InterpolationIntegrationTest(SparkTest):
         """Verify that resulting TSDF class has the correct values for ts_col and partition_col based on the interpolation."""
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
 
         actual_tsdf: TSDF = simple_input_tsdf.interpolate(
             ts_col="event_ts",
@@ -361,8 +361,8 @@ class InterpolationIntegrationTest(SparkTest):
         """Verify interpolation can be chained with resample within the TSDF class"""
 
         # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected')
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         actual_df: DataFrame = (
             simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
@@ -376,11 +376,11 @@ class InterpolationIntegrationTest(SparkTest):
 
     def test_defaults_with_resampled_df(self):
         """Verify interpolation can be chained with resample within the TSDF class"""
-        #self.buildTestingDataFrame()
+        # self.buildTestingDataFrame()
 
         # load test data
-        simple_input_tsdf = self.get_data_as_tsdf('simple_input_data')
-        expected_df: DataFrame = self.get_data_as_sdf('expected', convert_ts_col=True)
+        simple_input_tsdf = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected", convert_ts_col=True)
 
         actual_df: DataFrame = (
             simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
@@ -391,6 +391,6 @@ class InterpolationIntegrationTest(SparkTest):
         assert_df_equality(expected_df, actual_df, ignore_nullable=True)
 
 
-## MAIN
+# MAIN
 if __name__ == "__main__":
     unittest.main()

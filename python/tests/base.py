@@ -8,10 +8,11 @@ import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from tempo.tsdf import TSDF
 
+
 class SparkTest(unittest.TestCase):
-    ##
-    ## Fixtures
-    ##
+    #
+    # Fixtures
+    #
 
     # Spark Session object
     spark = None
@@ -20,14 +21,25 @@ class SparkTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
-        cls.spark = (SparkSession.builder.appName("myapp")
-                      .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
-                      .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-                      .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-                      .config("spark.driver.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-                      .config("spark.executor.extraJavaOptions", "-Dio.netty.tryReflectionSetAccessible=true")
-                      .master("local")
-                      .getOrCreate())
+        cls.spark = (
+            SparkSession.builder.appName("myapp")
+            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            .config(
+                "spark.sql.catalog.spark_catalog",
+                "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+            )
+            .config(
+                "spark.driver.extraJavaOptions",
+                "-Dio.netty.tryReflectionSetAccessible=true",
+            )
+            .config(
+                "spark.executor.extraJavaOptions",
+                "-Dio.netty.tryReflectionSetAccessible=true",
+            )
+            .master("local")
+            .getOrCreate()
+        )
         cls.spark.conf.set("spark.sql.shuffle.partitions", 1)
         cls.spark.sparkContext.setLogLevel("ERROR")
         # filter out ResourceWarning messages
@@ -42,26 +54,28 @@ class SparkTest(unittest.TestCase):
         self.test_data = self.__loadTestData(self.id())
 
     def tearDown(self) -> None:
-        del(self.test_data)
+        del self.test_data
 
-    ##
-    ## Utility Functions
-    ##
+    #
+    # Utility Functions
+    #
 
     def get_data_as_sdf(self, name: str, convert_ts_col=True):
         td = self.test_data[name]
         ts_cols = []
-        if convert_ts_col and td.get('ts_col',None):
-            ts_cols = [td['ts_col']]
-        return self.buildTestDF(td['schema'], td['data'], ts_cols)
+        if convert_ts_col and td.get("ts_col", None):
+            ts_cols = [td["ts_col"]]
+        return self.buildTestDF(td["schema"], td["data"], ts_cols)
 
-    def get_data_as_tsdf(self, name:str, convert_ts_col=True):
-        df = self.get_data_as_sdf(name,convert_ts_col)
+    def get_data_as_tsdf(self, name: str, convert_ts_col=True):
+        df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
-        tsdf = TSDF(df,
-                    ts_col = td['ts_col'],
-                    partition_cols= td.get('partition_cols',None),
-                    sequence_col= td.get('sequence_col',None))
+        tsdf = TSDF(
+            df,
+            ts_col=td["ts_col"],
+            partition_cols=td.get("partition_cols", None),
+            sequence_col=td.get("sequence_col", None),
+        )
         return tsdf
 
     TEST_DATA_FOLDER = "unit_test_data"
@@ -71,13 +85,15 @@ class SparkTest(unittest.TestCase):
         cwd = os.path.basename(os.getcwd())
 
         # build path based on what folder we're in
-        dir_path = './'
-        if cwd == 'tempo':
-            dir_path = './python/tests'
-        elif cwd == 'python':
-            dir_path = './tests'
-        elif cwd != 'tests':
-            raise RuntimeError(f"Cannot locate test data file {test_file_name}, running from dir {os.getcwd()}")
+        dir_path = "./"
+        if cwd == "tempo":
+            dir_path = "./python/tests"
+        elif cwd == "python":
+            dir_path = "./tests"
+        elif cwd != "tests":
+            raise RuntimeError(
+                f"Cannot locate test data file {test_file_name}, running from dir {os.getcwd()}"
+            )
 
         # return appropriate path
         return f"{dir_path}/{self.TEST_DATA_FOLDER}/{test_file_name}.json"
@@ -89,7 +105,7 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        file_name,class_name,func_name = test_case_path.split(".")
+        file_name, class_name, func_name = test_case_path.split(".")
 
         # find our test data file
         test_data_file = self.__getTestDataFilePath(file_name)
@@ -98,19 +114,20 @@ class SparkTest(unittest.TestCase):
             return {}
 
         # proces the data file
-        with open(test_data_file,'r') as f:
+        with open(test_data_file, "r") as f:
             data_metadata_from_json = jsonref.load(f)
             # warn if data not present
             if class_name not in data_metadata_from_json:
                 warnings.warn(f"Could not load test data for {file_name}.{class_name}")
                 return {}
             if func_name not in data_metadata_from_json[class_name]:
-                warnings.warn(f"Could not load test data for {file_name}.{class_name}.{func_name}")
+                warnings.warn(
+                    f"Could not load test data for {file_name}.{class_name}.{func_name}"
+                )
                 return {}
             return data_metadata_from_json[class_name][func_name]
 
-
-    def buildTestDF(self, schema, data, ts_cols=[]):
+    def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
         """
         Constructs a Spark Dataframe from the given components
         :param schema: the schema to use for the Dataframe
@@ -121,19 +138,22 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        #check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
+        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
         for tsc in ts_cols:
             ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
             ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
             decimal_pattern = "[.]\d+"
             if re.match(ts_pattern, str(ts_value)) is not None:
-                if re.search(decimal_pattern, ts_value) is None or len(re.search(decimal_pattern, ts_value)[0]) <= 4:
+                if (
+                    re.search(decimal_pattern, ts_value) is None
+                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
+                ):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
-    ##
-    ## DataFrame Assert Functions
-    ##
+    #
+    # DataFrame Assert Functions
+    #
 
     def assertFieldsEqual(self, fieldA, fieldB):
         """
