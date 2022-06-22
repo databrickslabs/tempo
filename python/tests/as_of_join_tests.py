@@ -1,10 +1,5 @@
 import unittest
 
-from pyspark.sql.types import *
-
-from tempo.tsdf import TSDF
-
-from chispa.dataframe_comparer import assert_df_equality
 from tests.base import SparkTest
 
 

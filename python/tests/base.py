@@ -40,7 +40,7 @@ class SparkTest(unittest.TestCase):
             .master("local")
             .getOrCreate()
         )
-        cls.spark.conf.set("spark.sql.shuffle.partitions", 1)
+        cls.spark.conf.set("spark.sql.shuffle.partitions", "1")
         cls.spark.sparkContext.setLogLevel("ERROR")
         # filter out ResourceWarning messages
         warnings.filterwarnings("ignore", category=ResourceWarning)
