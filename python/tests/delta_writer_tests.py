@@ -1,9 +1,5 @@
-import unittest
 import logging
-
-from pyspark.sql.types import *
-
-from tempo.tsdf import TSDF
+import unittest
 
 from tests.base import SparkTest
 
@@ -13,7 +9,7 @@ class DeltaWriteTest(SparkTest):
         """Test table write to delta format"""
 
         # load test data
-        tsdf_init = self.get_data_as_tsdf('init')
+        tsdf_init = self.get_data_as_tsdf("init")
 
         # test write to delta
         tsdf_init.write(self.spark, "my_table")

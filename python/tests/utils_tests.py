@@ -18,7 +18,7 @@ class UtilsTest(SparkTest):
         """Test calculate time horizon warning and number of expected output rows"""
 
         # fetch test data
-        simple_input_tsdf = self.get_data_as_tsdf('simple_input')
+        simple_input_tsdf = self.get_data_as_tsdf("simple_input")
 
         with warnings.catch_warnings(record=True) as w:
             calculate_time_horizon(

@@ -10,7 +10,7 @@ class BasicTests(SparkTest):
         """AS-OF Join with out a time-partition test"""
 
         # Construct dataframes
-        tsdf_init = self.get_data_as_tsdf('init')
+        tsdf_init = self.get_data_as_tsdf("init")
 
         # generate description dataframe
         res = tsdf_init.describe()
@@ -43,8 +43,8 @@ class FourierTransformTest(SparkTest):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf('init')
-        dfExpected = self.get_data_as_sdf('expected')
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
@@ -58,8 +58,8 @@ class RangeStatsTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf('init')
-        dfExpected = self.get_data_as_sdf('expected')
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
 
         # convert to TSDF
 
@@ -99,8 +99,8 @@ class RangeStatsTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf('init')
-        dfExpected = self.get_data_as_sdf('expected')
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
 
         # using lookback of 20 minutes
         featured_df = tsdf_init.withGroupedStats(freq="1 min").df
@@ -138,10 +138,10 @@ class ResampleTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_input = self.get_data_as_tsdf('input')
-        dfExpected = self.get_data_as_sdf('expected')
-        expected_30s_df = self.get_data_as_sdf('expected30m')
-        barsExpected = self.get_data_as_sdf('expectedbars')
+        tsdf_input = self.get_data_as_tsdf("input")
+        dfExpected = self.get_data_as_sdf("expected")
+        expected_30s_df = self.get_data_as_sdf("expected30m")
+        barsExpected = self.get_data_as_sdf("expectedbars")
 
         # 1 minute aggregation
         featured_df = tsdf_input.resample(freq="min", func="floor", prefix="floor").df
@@ -150,7 +150,9 @@ class ResampleTest(SparkTest):
             "trade_pr", F.round(F.col("trade_pr"), 2)
         )
 
-        bars = tsdf_input.calc_bars(freq="min", metricCols=["trade_pr", "trade_pr_2"]).df
+        bars = tsdf_input.calc_bars(
+            freq="min", metricCols=["trade_pr", "trade_pr_2"]
+        ).df
 
         # should be equal to the expected dataframe
         self.assertDataFramesEqual(featured_df, dfExpected)
@@ -163,8 +165,8 @@ class ResampleTest(SparkTest):
         """Test of resampling for millisecond windows"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf('init')
-        dfExpected = self.get_data_as_sdf('expectedms')
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expectedms")
 
         # 30 minute aggregation
         resample_ms = tsdf_init.resample(freq="ms", func="mean").df.withColumn(
@@ -177,15 +179,17 @@ class ResampleTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_input = self.get_data_as_tsdf('input')
-        expected_30s_df = self.get_data_as_sdf('expected30m')
-        barsExpected = self.get_data_as_sdf('expectedbars')
+        tsdf_input = self.get_data_as_tsdf("input")
+        expected_30s_df = self.get_data_as_sdf("expected30m")
+        barsExpected = self.get_data_as_sdf("expectedbars")
 
         resample_30m = tsdf_input.resample(
             freq="5 minutes", func="mean", fill=True
         ).df.withColumn("trade_pr", F.round(F.col("trade_pr"), 2))
 
-        bars = tsdf_input.calc_bars(freq="min", metricCols=["trade_pr", "trade_pr_2"]).df
+        bars = tsdf_input.calc_bars(
+            freq="min", metricCols=["trade_pr", "trade_pr_2"]
+        ).df
 
         upsampled = resample_30m.filter(
             F.col("event_ts").isin(

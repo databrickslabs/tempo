@@ -63,10 +63,9 @@ class SparkTest(unittest.TestCase):
     def get_data_as_sdf(self, name: str, convert_ts_col=True):
         td = self.test_data[name]
         ts_cols = []
-        if convert_ts_col and \
-            (td.get("ts_col", None) or td.get("other_ts_cols", [])):
+        if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
             ts_cols = [td["ts_col"]]
-            ts_cols.extend(td.get("other_ts_cols",[]))
+            ts_cols.extend(td.get("other_ts_cols", []))
         return self.buildTestDF(td["schema"], td["data"], ts_cols)
 
     def get_data_as_tsdf(self, name: str, convert_ts_col=True):
