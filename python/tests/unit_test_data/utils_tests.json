@@ -1,8 +1,10 @@
 {
   "UtilsTest": {
-    "buildTestingDataFrame": {
-      "simple_data": {
+    "test_calculate_time_horizon": {
+      "simple_input": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
         "data": [
           ["A", "A-1", "2020-01-01 00:00:10", 0.0, null],
           ["A", "A-1", "2020-01-01 00:01:10", 2.0, 2.0],

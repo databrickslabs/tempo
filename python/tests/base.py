@@ -1,7 +1,8 @@
 import re
+import os
 import unittest
 import warnings
-import json
+import jsonref
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
@@ -39,7 +40,7 @@ class SparkTest(unittest.TestCase):
             .master("local")
             .getOrCreate()
         )
-        cls.spark.conf.set("spark.sql.shuffle.partitions", 1)
+        cls.spark.conf.set("spark.sql.shuffle.partitions", "1")
         cls.spark.sparkContext.setLogLevel("ERROR")
         # filter out ResourceWarning messages
         warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -50,7 +51,7 @@ class SparkTest(unittest.TestCase):
         cls.spark.stop()
 
     def setUp(self) -> None:
-        self.test_data = self.loadTestData(self.id())
+        self.test_data = self.__loadTestData(self.id())
 
     def tearDown(self) -> None:
         del self.test_data
@@ -59,25 +60,46 @@ class SparkTest(unittest.TestCase):
     # Utility Functions
     #
 
-    def get_data_as_sdf(self, name: str):
-        schema = self.test_data[name]["schema"]
-        data = self.test_data[name]["data"]
-        ts_cols = self.test_data[name].get("ts_cols", None)
-        return self.buildTestDF(schema, data, ts_cols)
+    def get_data_as_sdf(self, name: str, convert_ts_col=True):
+        td = self.test_data[name]
+        ts_cols = []
+        if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
+            ts_cols = [td["ts_col"]]
+            ts_cols.extend(td.get("other_ts_cols", []))
+        return self.buildTestDF(td["schema"], td["data"], ts_cols)
 
-    def get_data_as_tsdf(self, name: str):
-        df = self.get_data_as_sdf(name)
+    def get_data_as_tsdf(self, name: str, convert_ts_col=True):
+        df = self.get_data_as_sdf(name, convert_ts_col)
+        td = self.test_data[name]
         tsdf = TSDF(
             df,
-            ts_col=self.test_data[name]["ts_col"],
-            partition_cols=self.test_data[name]["partition_cols"],
-            sequence_col=self.test_data[name]["sequence_col"],
+            ts_col=td["ts_col"],
+            partition_cols=td.get("partition_cols", None),
+            sequence_col=td.get("sequence_col", None),
         )
         return tsdf
 
     TEST_DATA_FOLDER = "unit_test_data"
 
-    def loadTestData(self, test_case_path: str) -> dict:
+    def __getTestDataFilePath(self, test_file_name: str) -> str:
+        # what folder are we running from?
+        cwd = os.path.basename(os.getcwd())
+
+        # build path based on what folder we're in
+        dir_path = "./"
+        if cwd == "tempo":
+            dir_path = "./python/tests"
+        elif cwd == "python":
+            dir_path = "./tests"
+        elif cwd != "tests":
+            raise RuntimeError(
+                f"Cannot locate test data file {test_file_name}, running from dir {os.getcwd()}"
+            )
+
+        # return appropriate path
+        return f"{dir_path}/{self.TEST_DATA_FOLDER}/{test_file_name}.json"
+
+    def __loadTestData(self, test_case_path: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
         format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs)
@@ -85,9 +107,25 @@ class SparkTest(unittest.TestCase):
         :type test_case_path: str
         """
         file_name, class_name, func_name = test_case_path.split(".")
-        test_data_file = f"{self.TEST_DATA_FOLDER}/{file_name}.json"
-        with open(test_data_file) as f:
-            data_metadata_from_json = json.load(f)
+
+        # find our test data file
+        test_data_file = self.__getTestDataFilePath(file_name)
+        if not os.path.isfile(test_data_file):
+            warnings.warn(f"Could not load test data file {test_data_file}")
+            return {}
+
+        # proces the data file
+        with open(test_data_file, "r") as f:
+            data_metadata_from_json = jsonref.load(f)
+            # warn if data not present
+            if class_name not in data_metadata_from_json:
+                warnings.warn(f"Could not load test data for {file_name}.{class_name}")
+                return {}
+            if func_name not in data_metadata_from_json[class_name]:
+                warnings.warn(
+                    f"Could not load test data for {file_name}.{class_name}.{func_name}"
+                )
+                return {}
             return data_metadata_from_json[class_name][func_name]
 
     def buildTestDF(self, schema, data, ts_cols=["event_ts"]):

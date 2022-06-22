@@ -1,8 +1,10 @@
 {
   "BasicTests": {
     "test_describe": {
-      "left": {
+      "init": {
         "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -25,79 +27,15 @@
             362.1
           ]
         ]
-      },
-      "right": {
-        "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:01",
-            345.11,
-            351.12
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:05",
-            348.10,
-            353.13
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:01",
-            358.93,
-            365.12
-          ],
-          [
-            "S1",
-            "2020-09-01 00:15:01",
-            359.21,
-            365.31
-          ]
-        ]
-      },
-      "expected": {
-        "schema": "symbol string, left_event_ts string, left_trade_pr string, right_event_ts string, right_bid_pr float, right_ask_pr float",
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            "2020-08-01 00:00:01",
-            345.11,
-            351.12
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32,
-            "2020-08-01 00:01:05",
-            348.10,
-            353.13
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            "2020-09-01 00:02:01",
-            358.93,
-            365.12
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1,
-            "2020-09-01 00:15:01",
-            359.21,
-            365.31
-          ]
-        ]
       }
     }
   },
   "FourierTransformTest": {
     "test_fourier_transform": {
-      "data": {
+      "init": {
         "schema": "group string, time long, val double",
+        "ts_col": "time",
+        "partition_cols": ["group"],
         "data": [
           [
             "Emissions",
@@ -143,6 +81,8 @@
       },
       "expected": {
         "schema": "group string, time long, val double, freq double, ft_real double, ft_imag double",
+        "ts_col": "time",
+        "partition_cols": ["group"],
         "data": [
           [
             "Emissions",
@@ -214,8 +154,10 @@
   },
   "RangeStatsTest": {
     "test_range_stats": {
-      "data": {
+      "init": {
         "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -237,15 +179,12 @@
             "2020-09-01 00:19:12",
             362.1
           ]
-        ],
-        "partition_cols": [
-          "symbol"
-        ],
-        "ts_col": "event_ts",
-        "sequence_col": null
+        ]
       },
       "expected": {
         "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -295,8 +234,10 @@
       }
     },
     "test_group_stats": {
-      "data": {
+      "init": {
         "schema": "symbol string, event_ts string, trade_pr float, index integer",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -326,6 +267,8 @@
       },
       "expected": {
         "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -365,8 +308,10 @@
   },
   "ResampleTest": {
     "test_resample": {
-      "input_data": {
+      "input": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -421,6 +366,8 @@
       },
       "expected": {
         "schema": "symbol string, event_ts string, floor_trade_pr float, floor_date string, floor_trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -454,6 +401,8 @@
       },
       "expected30m": {
         "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -480,6 +429,8 @@
       },
       "expectedbars": {
         "schema": "symbol string, event_ts string, close_trade_pr float, close_trade_pr_2 float, high_trade_pr float, high_trade_pr_2 float, low_trade_pr float, low_trade_pr_2 float, open_trade_pr float, open_trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -533,8 +484,10 @@
       }
     },
     "test_resample_millis": {
-      "data": {
+      "init": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -560,7 +513,9 @@
         ]
       },
       "expectedms": {
-        "schema": "symbol string, event_ts string, date string, trade_pr double, trade_pr_2 double",
+        "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -580,8 +535,10 @@
       }
     },
     "test_upsample": {
-      "input_data": {
+      "input": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -636,6 +593,8 @@
       },
       "expected": {
         "schema": "symbol string, event_ts string, floor_trade_pr float, floor_date string, floor_trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -669,6 +628,8 @@
       },
       "expected30m": {
         "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",
@@ -702,6 +663,8 @@
       },
       "expectedbars": {
         "schema": "symbol string, event_ts string, close_trade_pr float, close_trade_pr_2 float, high_trade_pr float, high_trade_pr_2 float, low_trade_pr float, low_trade_pr_2 float, open_trade_pr float, open_trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": ["symbol"],
         "data": [
           [
             "S1",

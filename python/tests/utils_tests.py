@@ -1,26 +1,10 @@
-from pyspark.sql.types import *
-from tests.tsdf_tests import SparkTest
-from tempo.utils import calculate_time_horizon
-from chispa.dataframe_comparer import *
-from tempo.tsdf import TSDF
-from tempo.utils import *
 import unittest
+
+from tempo.utils import *
+from tests.tsdf_tests import SparkTest
 
 
 class UtilsTest(SparkTest):
-    def buildTestingDataFrame(self):
-
-        # construct dataframes
-        self.simple_input_df = self.get_data_as_sdf("simple_data")
-
-        self.simple_input_tsdf = TSDF(
-            self.simple_input_df,
-            partition_cols=["partition_a", "partition_b"],
-            ts_col="event_ts",
-        )
-
-
-class UtilsTest(UtilsTest):
     def test_display(self):
         """Test of the display utility"""
         if IS_DATABRICKS:
@@ -32,11 +16,14 @@ class UtilsTest(UtilsTest):
 
     def test_calculate_time_horizon(self):
         """Test calculate time horizon warning and number of expected output rows"""
-        self.buildTestingDataFrame()
+
+        # fetch test data
+        simple_input_tsdf = self.get_data_as_tsdf("simple_input")
+
         with warnings.catch_warnings(record=True) as w:
             calculate_time_horizon(
-                self.simple_input_tsdf.df,
-                self.simple_input_tsdf.ts_col,
+                simple_input_tsdf.df,
+                simple_input_tsdf.ts_col,
                 "30 seconds",
                 ["partition_a", "partition_b"],
             )
