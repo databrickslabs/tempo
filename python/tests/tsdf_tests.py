@@ -698,87 +698,171 @@ class ConstantMetricRanges(SparkTest):
 
         expected_data_eq_state_def = [
             [
-                "v1", "foo", "bar", "metric_1", 4.1,
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"}
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                4.1,
                 {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 5.0,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                5.0,
                 {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 10.7,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                10.7,
                 {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 42.3,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                42.3,
                 {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 61.5,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                61.5,
                 {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 28.9,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                28.9,
                 {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 0.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                0.1,
                 {"start": "2020-09-01 00:19:12", "end": None},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                4.1,
                 {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 5.0,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                5.0,
                 {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 10.7,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                10.7,
                 {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 42.3,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                42.3,
                 {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 61.5,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                61.5,
                 {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 28.9,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                28.9,
                 {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 0.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                0.1,
+                {"start": "2020-09-01 00:19:12", "end": None},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                4.1,
+                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                5.0,
+                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                10.7,
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                42.3,
+                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                61.5,
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                28.9,
+                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                0.1,
                 {"start": "2020-09-01 00:19:12", "end": None},
             ],
         ]
@@ -787,22 +871,20 @@ class ConstantMetricRanges(SparkTest):
         input_df = self.buildTestDF(self.schema, self.data)
 
         expected_df_eq_state_def = (
-            self
-            .buildTestDF(self.expected_schema, expected_data_eq_state_def)
+            self.buildTestDF(self.expected_schema, expected_data_eq_state_def)
             # StringType not converting to TimeStamp type inside of struct so forcing
             .withColumn(
                 "event_ts",
                 F.struct(
                     F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end")
-                )
+                    F.to_timestamp("event_ts.end").alias("end"),
+                ),
             )
         )
 
         # convert to TSDF
         tsdf = TSDF(
-            input_df,
-            partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
         )
 
         # call constantMetricRanges method
@@ -817,39 +899,75 @@ class ConstantMetricRanges(SparkTest):
 
         expected_data_gt_state_def = [
             [
-                "v1", "foo", "bar", "metric_1", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                4.1,
                 {"start": "2020-08-01 00:00:10", "end": "2020-09-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_1", 28.9,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                28.9,
                 {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_1", 0.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                0.1,
                 {"start": "2020-09-01 00:19:12", "end": None},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                4.1,
                 {"start": "2020-08-01 00:00:10", "end": "2020-09-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 28.9,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                28.9,
                 {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 0.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                0.1,
                 {"start": "2020-09-01 00:19:12", "end": None},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                4.1,
                 {"start": "2020-08-01 00:00:10", "end": "2020-09-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 28.9,
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                28.9,
                 {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 0.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                0.1,
                 {"start": "2020-09-01 00:19:12", "end": None},
             ],
         ]
@@ -858,22 +976,20 @@ class ConstantMetricRanges(SparkTest):
         input_df = self.buildTestDF(self.schema, self.data)
 
         expected_df_gt_state_def = (
-            self
-            .buildTestDF(self.expected_schema, expected_data_gt_state_def)
+            self.buildTestDF(self.expected_schema, expected_data_gt_state_def)
             # StringType not converting to TimeStamp type inside of struct so forcing
             .withColumn(
                 "event_ts",
                 F.struct(
                     F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end")
-                )
+                    F.to_timestamp("event_ts.end").alias("end"),
+                ),
             )
         )
 
         # convert to TSDF
         tsdf = TSDF(
-            input_df,
-            partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
         )
 
         # call constantMetricRanges method
@@ -896,91 +1012,179 @@ class ConstantMetricRanges(SparkTest):
 
         expected_data_lt_state_def = [
             [
-                "v1", "foo", "bar", "metric_1", 4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"}
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"}
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_1", 0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                4.1,
                 {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
             ],
             [
-                "v1", "foo", "bar", "metric_2", 5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1", "foo", "bar", "metric_2", 0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1", "foo", "bar", "metric_3", 4.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                4.1,
                 {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 5.0,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                5.0,
                 {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 10.7,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                10.7,
                 {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 42.3,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                42.3,
                 {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 61.5,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                61.5,
                 {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 28.9,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                28.9,
                 {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
             ],
             [
-                "v1", "foo", "bar", "metric_3", 0.1,
+                "v1",
+                "foo",
+                "bar",
+                "metric_1",
+                0.1,
+                {"start": "2020-09-01 00:19:12", "end": None},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                4.1,
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                5.0,
+                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                10.7,
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                42.3,
+                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                61.5,
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                28.9,
+                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_2",
+                0.1,
+                {"start": "2020-09-01 00:19:12", "end": None},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                4.1,
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                5.0,
+                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                10.7,
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                42.3,
+                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                61.5,
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                28.9,
+                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+            ],
+            [
+                "v1",
+                "foo",
+                "bar",
+                "metric_3",
+                0.1,
                 {"start": "2020-09-01 00:19:12", "end": None},
             ],
         ]
@@ -989,22 +1193,20 @@ class ConstantMetricRanges(SparkTest):
         input_df = self.buildTestDF(self.schema, self.data)
 
         expected_df_lt_state_def = (
-            self
-            .buildTestDF(self.expected_schema, expected_data_lt_state_def)
+            self.buildTestDF(self.expected_schema, expected_data_lt_state_def)
             # StringType not converting to TimeStamp type inside of struct so forcing
             .withColumn(
                 "event_ts",
                 F.struct(
                     F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end")
-                )
+                    F.to_timestamp("event_ts.end").alias("end"),
+                ),
             )
         )
 
         # convert to TSDF
         tsdf = TSDF(
-            input_df,
-            partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
         )
 
         # call constantMetricRanges method

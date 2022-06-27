@@ -56,29 +56,53 @@ from tempo import *
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
 
-trade_schema = StructType([
-    StructField("symbol", StringType()),
-    StructField("event_ts", TimestampType()),
-    StructField("trade_dt", StringType()),
-    StructField("trade_pr", DoubleType()),
-    StructField("trade_qt", IntegerType()),
-    StructField("date", TimestampType())
-])
+trade_schema = StructType(
+    [
+        StructField("symbol", StringType()),
+        StructField("event_ts", TimestampType()),
+        StructField("trade_dt", StringType()),
+        StructField("trade_pr", DoubleType()),
+        StructField("trade_qt", IntegerType()),
+        StructField("date", TimestampType()),
+    ]
+)
 
-quote_schema = StructType([
-    StructField("symbol", StringType()),
-    StructField("event_ts", TimestampType()),
-    StructField("trade_dt", StringType()),
-    StructField("bid_pr", DoubleType()),
-    StructField("ask_pr", DoubleType()),
-    StructField("date", TimestampType())
-])
+quote_schema = StructType(
+    [
+        StructField("symbol", StringType()),
+        StructField("event_ts", TimestampType()),
+        StructField("trade_dt", StringType()),
+        StructField("bid_pr", DoubleType()),
+        StructField("ask_pr", DoubleType()),
+        StructField("date", TimestampType()),
+    ]
+)
 
-spark.read.format("csv").schema(trade_schema).option("header", "true").option("delimiter", ",").load("/tmp/finserv/ASOF_Trades.csv").withColumn("trade_qt", lit(100)).withColumn("date", col("event_ts").cast("date")).write.mode('overwrite').option("overwriteSchema", "true").saveAsTable('tempo.trades')
+spark.read.format("csv").schema(trade_schema).option("header", "true").option(
+    "delimiter", ","
+).load("/tmp/finserv/ASOF_Trades.csv").withColumn("trade_qt", lit(100)).withColumn(
+    "date", col("event_ts").cast("date")
+).write.mode(
+    "overwrite"
+).option(
+    "overwriteSchema", "true"
+).saveAsTable(
+    "tempo.trades"
+)
 
 trades_df = spark.table("tempo.trades")
 
-spark.read.format("csv").schema(quote_schema).option("header", "true").option("delimiter", ",").load("/tmp/finserv/ASOF_Quotes.csv").withColumn("date", col("event_ts").cast("date")).write.mode('overwrite').option("overwriteSchema", "true").saveAsTable('tempo.quotes')
+spark.read.format("csv").schema(quote_schema).option("header", "true").option(
+    "delimiter", ","
+).load("/tmp/finserv/ASOF_Quotes.csv").withColumn(
+    "date", col("event_ts").cast("date")
+).write.mode(
+    "overwrite"
+).option(
+    "overwriteSchema", "true"
+).saveAsTable(
+    "tempo.quotes"
+)
 
 quotes_df = spark.table("tempo.quotes")
 
@@ -92,8 +116,8 @@ quotes_df = spark.table("tempo.quotes")
 # DBTITLE 1,Define TSDF Time Series Data Structure
 from tempo import *
 
-trades_tsdf = TSDF(trades_df, partition_cols = ['date', 'symbol'], ts_col = 'event_ts')
-quotes_tsdf = TSDF(quotes_df, partition_cols = ['date', 'symbol'], ts_col = 'event_ts')
+trades_tsdf = TSDF(trades_df, partition_cols=["date", "symbol"], ts_col="event_ts")
+quotes_tsdf = TSDF(quotes_df, partition_cols=["date", "symbol"], ts_col="event_ts")
 
 # COMMAND ----------
 
@@ -105,20 +129,30 @@ display(trades_tsdf.df)
 # DBTITLE 1,Resample TSDF for Visualization Purposes
 from pyspark.sql.functions import *
 
-portfolio = ['NVIDIA', 'ROKU', 'MU', 'AAPL', 'AMZN', 'FB', 'MSFT', 'INTL']
+portfolio = ["NVIDIA", "ROKU", "MU", "AAPL", "AMZN", "FB", "MSFT", "INTL"]
 
-resampled_sdf = trades_tsdf.resample(freq='min', func='floor')
-resampled_pdf = resampled_sdf.df.filter(col('event_ts').cast("date") == "2017-08-31").filter(col("symbol").isNotNull()).filter(col("symbol").isin(portfolio)).toPandas()
+resampled_sdf = trades_tsdf.resample(freq="min", func="floor")
+resampled_pdf = (
+    resampled_sdf.df.filter(col("event_ts").cast("date") == "2017-08-31")
+    .filter(col("symbol").isNotNull())
+    .filter(col("symbol").isin(portfolio))
+    .toPandas()
+)
 
 import plotly.graph_objs as go
 import plotly.express as px
 import pandas as pd
 
 # Plotly figure 1
-fig = px.line(resampled_pdf, x='event_ts', y='trade_pr',
-              color="symbol",
-              line_group="symbol", hover_name = "symbol")
-fig.update_layout(title='Daily Trade Information' , showlegend=False)
+fig = px.line(
+    resampled_pdf,
+    x="event_ts",
+    y="trade_pr",
+    color="symbol",
+    line_group="symbol",
+    hover_name="symbol",
+)
+fig.update_layout(title="Daily Trade Information", showlegend=False)
 
 fig.show()
 
@@ -127,16 +161,23 @@ fig.show()
 # DBTITLE 1,AS OF Joins - Get Latest Quote Information As Of Time of Trades
 joined_df = trades_tsdf.asofJoin(quotes_tsdf, right_prefix="quote_asof").df
 
-display(joined_df.filter(col("symbol") == 'AMH').filter(col("quote_asof_event_ts").isNotNull()))
+display(
+    joined_df.filter(col("symbol") == "AMH").filter(
+        col("quote_asof_event_ts").isNotNull()
+    )
+)
 
 # COMMAND ----------
 
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("py4j").setLevel(logging.WARNING)
 logging.getLogger("tempo").setLevel(logging.WARNING)
 
-joined_df = trades_tsdf.asofJoin(quotes_tsdf, tsPartitionVal=30,right_prefix="quote_asof").df
+joined_df = trades_tsdf.asofJoin(
+    quotes_tsdf, tsPartitionVal=30, right_prefix="quote_asof"
+).df
 display(joined_df)
 
 # COMMAND ----------
@@ -158,19 +199,31 @@ trades_tsdf.write(spark, "tempo.silver_delta_trades")
 
 # DBTITLE 1,Simple Moving Average with Tempo
 moving_avg = trades_tsdf.withRangeStats("trade_pr", rangeBackWindowSecs=600).df
-output = moving_avg.select('symbol', 'event_ts', 'trade_pr', 'mean_trade_pr', 'stddev_trade_pr', 'sum_trade_pr', 'min_trade_pr')
+output = moving_avg.select(
+    "symbol",
+    "event_ts",
+    "trade_pr",
+    "mean_trade_pr",
+    "stddev_trade_pr",
+    "sum_trade_pr",
+    "min_trade_pr",
+)
 
-display(output.filter(col("symbol") == 'AMD'))
+display(output.filter(col("symbol") == "AMD"))
 
 # COMMAND ----------
 
 # DBTITLE 1,Exponential Moving Average with Tempo
-ema_trades = trades_tsdf.EMA("trade_pr", window = 50).df
-display(ema_trades.filter(col("symbol") == 'AMD'))
+ema_trades = trades_tsdf.EMA("trade_pr", window=50).df
+display(ema_trades.filter(col("symbol") == "AMD"))
 
 # COMMAND ----------
 
-display(moving_avg.withColumn("low", col("min_trade_pr")).withColumn("high", col("max_trade_pr")))
+display(
+    moving_avg.withColumn("low", col("min_trade_pr")).withColumn(
+        "high", col("max_trade_pr")
+    )
+)
 
 # COMMAND ----------
 
@@ -178,23 +231,27 @@ display(moving_avg.withColumn("low", col("min_trade_pr")).withColumn("high", col
 from tempo import *
 from pyspark.sql.functions import *
 
-minute_bars = TSDF(spark.table("time_test"), partition_cols=['ticker'], ts_col="ts").calc_bars(freq = '1 minute', func= 'ceil')
+minute_bars = TSDF(
+    spark.table("time_test"), partition_cols=["ticker"], ts_col="ts"
+).calc_bars(freq="1 minute", func="ceil")
 
 display(minute_bars)
 
 # COMMAND ----------
 
 # DBTITLE 1,Save tables for Use in Databricks SQL
-minute_bars.df.write.mode('overwrite').option("mergeSchema", "true").saveAsTable("tempo.gold_bars_minute")
+minute_bars.df.write.mode("overwrite").option("mergeSchema", "true").saveAsTable(
+    "tempo.gold_bars_minute"
+)
 
 # COMMAND ----------
 
-moving_avg.write.mode('overwrite').option("mergeSchema", "true").saveAsTable('tempo.gold_sma_10min')
+moving_avg.write.mode("overwrite").option("mergeSchema", "true").saveAsTable(
+    "tempo.gold_sma_10min"
+)
 
 # COMMAND ----------
 
 display(minute_bars.df)
 
 # COMMAND ----------
-
-

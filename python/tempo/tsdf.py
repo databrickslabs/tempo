@@ -1163,8 +1163,8 @@ class TSDF:
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
 
     def __stackMetricColumns(
-            self,
-            *metricCols: Collection[str],
+        self,
+        *metricCols: Collection[str],
     ) -> TSDF:
 
         data = self.df.select(self.ts_col, *self.partitionCols, *metricCols)
@@ -1181,18 +1181,18 @@ class TSDF:
         return TSDF(
             result,
             self.ts_col,
-            self.partitionCols+["metric"],
+            self.partitionCols + ["metric"],
         )
 
     def constantMetricRanges(
-            self,
-            *metricCols: Collection[str],
-            value_column: str = "value",
-            state_definition: str = "=",
-            default_end_ts: str = None
+        self,
+        *metricCols: Collection[str],
+        value_column: str = "value",
+        state_definition: str = "=",
+        end_ts_value: str = None,
     ) -> TSDF:
 
-        state_operator_lookup = {
+        comparison_operator_lookup = {
             "<": operator.lt,
             "<=": operator.le,
             "=": operator.eq,
@@ -1205,62 +1205,47 @@ class TSDF:
         stacked_tsdf = self.__stackMetricColumns(*metricCols)
         data = stacked_tsdf.df
 
-        w = self.__baseWindow()
+        w = stacked_tsdf.__baseWindow()
 
         if state_definition == "=":
 
-            data = (
-                data
-                .groupBy(
-                    *stacked_tsdf.partitionCols, value_column
-                ).agg(
-                    f.min(self.ts_col).alias(self.ts_col)
-                )
+            data = data.groupBy(*stacked_tsdf.partitionCols, value_column).agg(
+                f.min(self.ts_col).alias(self.ts_col)
             )
-            data.show()
 
         else:
 
             data = (
-                data.withColumn(
+                data.withColumn("previous_value", f.lag(value_column, offset=1).over(w))
+                .withColumn("next_value", f.lead(value_column, offset=1).over(w))
+                .withColumn(
                     "constant_state",
-                    state_operator_lookup[state_definition](
-                        f.lag(
-                            value_column, offset=1, default=True
-                        ).over(w),
-                        value_column,
-                    ),
-                )
-                .filter(f.col("constant_state"))
-                .drop("constant_state")
-                .groupBy(*stacked_tsdf.partitionCols)
-                .agg(
-                    f.expr(
-                        f"""
-                        min_by(
-                            struct({value_column}, {self.ts_col}),
-                            {self.ts_col}
-                        ) AS temp_struct
-                        """
+                    (
+                        comparison_operator_lookup[state_definition](
+                            f.col("next_value"), f.col("value")
+                        )
                     )
+                    | (f.col("next_value").isNull()),
                 )
-                .select(
-                    *self.partitionCols,
-                    f"temp_struct.{value_column}",
-                    f"temp_struct.{self.ts_col}",
-                )
+                # .groupBy(*stacked_tsdf.partitionCols, "constant_state")
+                # .agg(
+                #     f.expr("min_by(struct(value, event_ts), event_ts)"),
+                #     f.expr("max_by(struct(value, event_ts), event_ts)"),
+                #     f.first("event_ts"),
+                #     f.last("event_ts"),
+                # )
             )
+        print("comparsion logic & show & tell")
+        data.show(1000, truncate=False)
 
-        result = (
-            data.withColumn(
-                self.ts_col,
-                f.struct(
-                    f.col(self.ts_col).alias("start"),
-                    f.lead(
-                        self.ts_col, offset=1, default=default_end_ts
-                    ).over(w).alias("end")
-                )
-            )
+        result = data.withColumn(
+            self.ts_col,
+            f.struct(
+                f.col(self.ts_col).alias("start"),
+                f.lead(self.ts_col, offset=1, default=end_ts_value)
+                .over(w)
+                .alias("end"),
+            ),
         )
 
         return TSDF(
