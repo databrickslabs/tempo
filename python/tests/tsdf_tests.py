@@ -648,6 +648,162 @@ class ResampleTest(SparkTest):
         # test bars summary
         self.assertDataFramesEqual(bars, barsExpected)
 
+    def test_constantMetricRanges(self):
+        """Test of range stats for 20 minute rolling window"""
+        schema = StructType(
+            [
+                StructField("event_ts", StringType()),
+                StructField("identifier_1", StringType()),
+                StructField("identifier_2", StringType()),
+                StructField("identifier_3", StringType()),
+                StructField("metric_1", FloatType()),
+                StructField("metric_2", FloatType()),
+                StructField("metric_3", FloatType()),
+            ]
+        )
+
+        expected_schema = StructType(
+            [
+                StructField("identifier_1", StringType()),
+                StructField("identifier_2", StringType()),
+                StructField("identifier_3", StringType()),
+                StructField("metric", StringType()),
+                StructField("value", FloatType()),
+                StructField(
+                    "event_ts",
+                    StructType(
+                        [
+                            StructField("start", StringType()),
+                            StructField("end", StringType()),
+                        ]
+                    ),
+                ),
+            ]
+        )
+
+        data = [
+            ["2020-08-01 00:00:10", "v1", "foo", "bar", 4.1, 4.1, 4.1],
+            ["2020-08-01 00:00:11", "v1", "foo", "bar", 5.0, 5.0, 5.0],
+            ["2020-08-01 00:01:12", "v1", "foo", "bar", 10.7, 10.7, 10.7],
+            ["2020-08-01 00:01:13", "v1", "foo", "bar", 42.3, 42.3, 42.3],
+            ["2020-08-01 00:01:14", "v1", "foo", "bar", 61.5, 61.5, 61.5],
+            ["2020-09-01 00:01:12", "v1", "foo", "bar", 28.9, 28.9, 28.9],
+            ["2020-09-01 00:19:12", "v1", "foo", "bar", 0.1, 0.1, 0.1],
+        ]
+
+        expected_data = [
+            [
+                "v1", "foo", "bar", "metric_1", 4.1,
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"}
+            ],
+            [
+                "v1", "foo", "bar", "metric_1", 5.0,
+                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_1", 10.7,
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_1", 42.3,
+                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_1", 61.5,
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_1", 28.9,
+                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_1", 0.1,
+                {"start": "2020-09-01 00:19:12", "end": None},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 4.1,
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 5.0,
+                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 10.7,
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 42.3,
+                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 61.5,
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 28.9,
+                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_2", 0.1,
+                {"start": "2020-09-01 00:19:12", "end": None},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 4.1,
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 5.0,
+                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 10.7,
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 42.3,
+                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 61.5,
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 28.9,
+                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+            ],
+            [
+                "v1", "foo", "bar", "metric_3", 0.1,
+                {"start": "2020-09-01 00:19:12", "end": None},
+            ],
+        ]
+
+        # construct dataframes
+        df = self.buildTestDF(schema, data)
+        expected_df = (
+            self
+            .buildTestDF(expected_schema, expected_data)
+            # StringType not converting to TimeStamp type inside of struct so forcing
+            .withColumn(
+                "event_ts",
+                F.struct(
+                    F.to_timestamp("event_ts.start").alias("start"),
+                    F.to_timestamp("event_ts.end").alias("end")
+                )
+            )
+        )
+
+        # convert to TSDF
+        tsdf = TSDF(df, partition_cols=["identifier_1", "identifier_2", "identifier_3"])
+
+        # call constantMetricRanges method
+        constantMetricRanges_df = tsdf.constantMetricRanges(
+            "metric_1", "metric_2", "metric_3"
+        ).df
+
+        # test constantMetricRanges_tsdf summary
+        self.assertDataFramesEqual(constantMetricRanges_df, expected_df)
+
 
 # MAIN
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
+import operator
 from functools import reduce
-from typing import List
+from typing import List, Collection
 
 import numpy as np
 import pyspark.sql.functions as f
@@ -1158,6 +1161,113 @@ class TSDF:
                 result = result.drop("tdval", "tpoints")
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+
+    def __stackMetricColumns(
+            self,
+            *metricCols: Collection[str],
+    ) -> TSDF:
+
+        data = self.df.select(self.ts_col, *self.partitionCols, *metricCols)
+
+        stack_n: int = len(metricCols)
+        stack_expression = ", ".join([f"'{x}', {x}" for x in metricCols])
+
+        result = data.select(
+            self.ts_col,
+            *self.partitionCols,
+            f.expr(f"stack({stack_n}, {stack_expression}) AS (metric, value)"),
+        )
+
+        return TSDF(
+            result,
+            self.ts_col,
+            self.partitionCols+["metric"],
+        )
+
+    def constantMetricRanges(
+            self,
+            *metricCols: Collection[str],
+            value_column: str = "value",
+            state_definition: str = "=",
+            default_end_ts: str = None
+    ) -> TSDF:
+
+        state_operator_lookup = {
+            "<": operator.lt,
+            "<=": operator.le,
+            "=": operator.eq,
+            "!=": operator.ne,
+            "<>": operator.ne,
+            ">=": operator.ge,
+            ">": operator.gt,
+        }
+
+        stacked_tsdf = self.__stackMetricColumns(*metricCols)
+        data = stacked_tsdf.df
+
+        w = self.__baseWindow()
+
+        if state_definition == "=":
+
+            data = (
+                data
+                .groupBy(
+                    *stacked_tsdf.partitionCols, value_column
+                ).agg(
+                    f.min(self.ts_col).alias(self.ts_col)
+                )
+            )
+            data.show()
+
+        else:
+
+            data = (
+                data.withColumn(
+                    "constant_state",
+                    state_operator_lookup[state_definition](
+                        f.lag(
+                            value_column, offset=1, default=True
+                        ).over(w),
+                        value_column,
+                    ),
+                )
+                .filter(f.col("constant_state"))
+                .drop("constant_state")
+                .groupBy(*stacked_tsdf.partitionCols)
+                .agg(
+                    f.expr(
+                        f"""
+                        min_by(
+                            struct({value_column}, {self.ts_col}),
+                            {self.ts_col}
+                        ) AS temp_struct
+                        """
+                    )
+                )
+                .select(
+                    *self.partitionCols,
+                    f"temp_struct.{value_column}",
+                    f"temp_struct.{self.ts_col}",
+                )
+            )
+
+        result = (
+            data.withColumn(
+                self.ts_col,
+                f.struct(
+                    f.col(self.ts_col).alias("start"),
+                    f.lead(
+                        self.ts_col, offset=1, default=default_end_ts
+                    ).over(w).alias("end")
+                )
+            )
+        )
+
+        return TSDF(
+            result,
+            self.ts_col,
+            stacked_tsdf.partitionCols,
+        )
 
 
 class _ResampledTSDF(TSDF):
