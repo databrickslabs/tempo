@@ -1216,7 +1216,8 @@ class TSDF:
         else:
 
             data = (
-                data.withColumn("previous_value", f.lag(value_column, offset=1).over(w))
+                data
+                .withColumn("previous_value", f.lag(value_column, offset=1).over(w))
                 .withColumn("next_value", f.lead(value_column, offset=1).over(w))
                 .withColumn(
                     "constant_state",
@@ -1227,6 +1228,18 @@ class TSDF:
                     )
                     | (f.col("next_value").isNull()),
                 )
+                # another window function checking lead("contstant_state", 1)
+                # if it is False then define UUID for current state session
+                # (ie where "constant_state" is True or for a single row where
+                # "constant_state" is False). Use this state_group UUID
+                # for max_by and min_by operations
+
+                # should we smash all state records by including each value in
+                # an array or grabbing min/max?
+
+                # should each record be outputted (ie not grouped) with min/max
+                # timestamp for each state added?
+
                 # .groupBy(*stacked_tsdf.partitionCols, "constant_state")
                 # .agg(
                 #     f.expr("min_by(struct(value, event_ts), event_ts)"),
