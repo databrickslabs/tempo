@@ -421,10 +421,11 @@ class TSDF:
         :param n: the number of rows to return
         :return: a TSDF object containing just the top n rows in each series
         """
+        row_num_col = "__row_num"
         prev_records_df = (
-            self.df.withColumn("rows", f.row_number().over(win))
-            .where(f"rows <= {n}")
-            .drop("rows")
+            self.df.withColumn(row_num_col, f.row_number().over(win))
+            .where(f.col(row_num_col) <= f.lit(n))
+            .drop(row_num_col)
         )
         return TSDF(
             prev_records_df,
@@ -439,7 +440,7 @@ class TSDF:
         :param n: number of records to select (default is 1)
         :return: a :class:`~tsdf.TSDF` object containing the earliest n records for each series
         """
-        prev_window = self.__baseWindow(reverse=True)
+        prev_window = self.__baseWindow(reverse=False)
         return self.__top_rows_per_series(prev_window, n)
 
     def latest(self, n: int = 1):
@@ -448,7 +449,7 @@ class TSDF:
         :param n: number of records to select (default is 1)
         :return: a :class:`~tsdf.TSDF` object containing the latest n records for each series
         """
-        next_window = self.__baseWindow(reverse=False)
+        next_window = self.__baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
     def priorTo(self, ts, n: int = 1):
