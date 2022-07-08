@@ -1169,6 +1169,7 @@ class TSDF:
         end_ts_value: str = None,
     ) -> TSDF:
 
+        # TODO : Remove before PR
         # First pass
         # Indicate if the row is same state
         # Filter down to when it changes state
@@ -1221,18 +1222,12 @@ class TSDF:
                 ],
             )
         )
-        print("comparsion logic & show & tell")
+
+        ## TODO : remove before PR
+        print("comparison logic & show & tell")
         data.show(1000, truncate=False)
 
-        result = data.withColumn(
-            self.ts_col,
-            f.struct(
-                f.col(self.ts_col).alias("start"),
-                f.lead(self.ts_col, offset=1, default=end_ts_value)
-                .over(w)
-                .alias("end"),
-            ),
-        )
+        result = data
 
         return TSDF(
             result,
