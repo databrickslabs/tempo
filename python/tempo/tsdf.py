@@ -1162,92 +1162,65 @@ class TSDF:
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
 
-    def __stackMetricColumns(
-        self,
-        *metricCols: Collection[str],
-    ) -> TSDF:
-
-        data = self.df.select(self.ts_col, *self.partitionCols, *metricCols)
-
-        stack_n: int = len(metricCols)
-        stack_expression = ", ".join([f"'{x}', {x}" for x in metricCols])
-
-        result = data.select(
-            self.ts_col,
-            *self.partitionCols,
-            f.expr(f"stack({stack_n}, {stack_expression}) AS (metric, value)"),
-        )
-
-        return TSDF(
-            result,
-            self.ts_col,
-            self.partitionCols + ["metric"],
-        )
-
     def constantMetricRanges(
         self,
         *metricCols: Collection[str],
-        value_column: str = "value",
         state_definition: str = "=",
         end_ts_value: str = None,
     ) -> TSDF:
 
-        comparison_operator_lookup = {
-            "<": operator.lt,
-            "<=": operator.le,
-            "=": operator.eq,
-            "!=": operator.ne,
-            "<>": operator.ne,
-            ">=": operator.ge,
-            ">": operator.gt,
-        }
+        # First pass
+        # Indicate if the row is same state
+        # Filter down to when it changes state
+        # If multiple metrics are passed, then state is identified by the tuple of the metrics
+        # Evaluate each metric to it’s previous value
+        # And them all together
+        # Return interval where state is constant
+        # Start value and end value
+        # Start timestamp and end timestamp
 
-        stacked_tsdf = self.__stackMetricColumns(*metricCols)
-        data = stacked_tsdf.df
+        data = self.df
 
-        w = stacked_tsdf.__baseWindow()
+        w = self.__baseWindow()
 
-        if state_definition == "=":
-
-            data = data.groupBy(*stacked_tsdf.partitionCols, value_column).agg(
-                f.min(self.ts_col).alias(self.ts_col)
+        data = (
+            data.withColumn(
+                "previous_attributes",
+                f.lag(
+                    f.struct(
+                        f.col(self.ts_col).alias("ts"),
+                        *[f.col(f"{m}").alias(f"{m}") for m in metricCols],
+                        f.array(*metricCols).alias("state"),
+                    ),
+                    offset=1,
+                ).over(w),
             )
-
-        else:
-
-            data = (
-                data
-                .withColumn("previous_value", f.lag(value_column, offset=1).over(w))
-                .withColumn("next_value", f.lead(value_column, offset=1).over(w))
-                .withColumn(
-                    "constant_state",
-                    (
-                        comparison_operator_lookup[state_definition](
-                            f.col("next_value"), f.col("value")
-                        )
-                    )
-                    | (f.col("next_value").isNull()),
-                )
-                # another window function checking lead("contstant_state", 1)
-                # if it is False then define UUID for current state session
-                # (ie where "constant_state" is True or for a single row where
-                # "constant_state" is False). Use this state_group UUID
-                # for max_by and min_by operations
-
-                # should we smash all state records by including each value in
-                # an array or grabbing min/max?
-
-                # should each record be outputted (ie not grouped) with min/max
-                # timestamp for each state added?
-
-                # .groupBy(*stacked_tsdf.partitionCols, "constant_state")
-                # .agg(
-                #     f.expr("min_by(struct(value, event_ts), event_ts)"),
-                #     f.expr("max_by(struct(value, event_ts), event_ts)"),
-                #     f.first("event_ts"),
-                #     f.last("event_ts"),
-                # )
+            .withColumn(f"current_state", f.array(*metricCols))
+            .withColumn(
+                "changing_state",
+                f.expr(
+                    f"""
+                    !(previous_attributes.state {state_definition} current_state
+                    OR previous_attributes IS NULL)
+                    """
+                ),
             )
+            .filter("changing_state")
+            .select(
+                f.struct(
+                    f.col("previous_attributes.ts").alias("start"),
+                    f.col(self.ts_col).alias("end"),
+                ).alias(self.ts_col),
+                *self.partitionCols,
+                *[
+                    f.struct(
+                        f.col(f"previous_attributes.{m}").alias("start"),
+                        f.col(f"{m}").alias("end"),
+                    ).alias(f"{m}")
+                    for m in metricCols
+                ],
+            )
+        )
         print("comparsion logic & show & tell")
         data.show(1000, truncate=False)
 
@@ -1264,7 +1237,7 @@ class TSDF:
         return TSDF(
             result,
             self.ts_col,
-            stacked_tsdf.partitionCols,
+            self.partitionCols,
         )
 
 
