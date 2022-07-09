@@ -2,6 +2,7 @@ import unittest
 
 import pyspark.sql.functions as F
 from pyspark.sql.types import *
+from pyspark.sql.dataframe import DataFrame
 
 from tempo.tsdf import TSDF
 
@@ -649,36 +650,65 @@ class ResampleTest(SparkTest):
         self.assertDataFramesEqual(bars, barsExpected)
 
 
-class ConstantMetricRanges(SparkTest):
+class constantMetricState(SparkTest):
     """Test of finding time ranges for metrics with constant state."""
 
     schema = StructType(
         [
-            StructField("event_ts", StringType()),
-            StructField("identifier_1", StringType()),
-            StructField("identifier_2", StringType()),
-            StructField("identifier_3", StringType()),
-            StructField("metric_1", FloatType()),
-            StructField("metric_2", FloatType()),
-            StructField("metric_3", FloatType()),
+            StructField("event_ts", StringType(), False),
+            StructField("identifier_1", StringType(), False),
+            StructField("identifier_2", StringType(), False),
+            StructField("identifier_3", StringType(), False),
+            StructField("metric_1", FloatType(), False),
+            StructField("metric_2", FloatType(), False),
+            StructField("metric_3", FloatType(), False),
         ]
     )
 
     expected_schema = StructType(
         [
-            StructField("identifier_1", StringType()),
-            StructField("identifier_2", StringType()),
-            StructField("identifier_3", StringType()),
-            StructField("metric", StringType()),
-            StructField("value", FloatType()),
             StructField(
                 "event_ts",
                 StructType(
                     [
-                        StructField("start", StringType()),
-                        StructField("end", StringType()),
+                        StructField("start", StringType(), True),
+                        StructField("end", StringType(), True),
                     ]
                 ),
+                False,
+            ),
+            StructField("identifier_1", StringType(), False),
+            StructField("identifier_2", StringType(), False),
+            StructField("identifier_3", StringType(), False),
+            StructField(
+                "metric_1",
+                StructType(
+                    [
+                        StructField("start", FloatType(), True),
+                        StructField("end", FloatType(), True),
+                    ]
+                ),
+                False,
+            ),
+            StructField(
+                "metric_2",
+                StructType(
+                    [
+                        StructField("start", FloatType(), True),
+                        StructField("end", FloatType(), True),
+                    ]
+                ),
+                False,
+            ),
+            StructField(
+                "metric_3",
+                StructType(
+                    [
+                        StructField("start", FloatType(), True),
+                        StructField("end", FloatType(), True),
+                    ]
+                ),
+                False,
             ),
         ]
     )
@@ -688,198 +718,59 @@ class ConstantMetricRanges(SparkTest):
         ["2020-08-01 00:00:10", "v1", "foo", "bar", 4.1, 4.1, 4.1],
         ["2020-08-01 00:00:11", "v1", "foo", "bar", 5.0, 5.0, 5.0],
         ["2020-08-01 00:01:12", "v1", "foo", "bar", 10.7, 10.7, 10.7],
-        ["2020-08-01 00:01:13", "v1", "foo", "bar", 42.3, 42.3, 42.3],
-        ["2020-08-01 00:01:14", "v1", "foo", "bar", 61.5, 61.5, 61.5],
+        ["2020-08-01 00:01:13", "v1", "foo", "bar", 10.7, 10.7, 10.7],
+        ["2020-08-01 00:01:14", "v1", "foo", "bar", 10.7, 10.7, 10.7],
+        ["2020-08-01 00:01:15", "v1", "foo", "bar", 42.3, 42.3, 42.3],
+        ["2020-08-01 00:01:16", "v1", "foo", "bar", 37.6, 37.6, 37.6],
+        ["2020-08-01 00:01:17", "v1", "foo", "bar", 61.5, 61.5, 61.5],
         ["2020-09-01 00:01:12", "v1", "foo", "bar", 28.9, 28.9, 28.9],
         ["2020-09-01 00:19:12", "v1", "foo", "bar", 0.1, 0.1, 0.1],
     ]
 
-    def test_eq_constantMetricRanges(self):
+    def create_expected_test_df(
+        self,
+        expected_data,
+    ) -> DataFrame:
+        return (
+            self.buildTestDF(self.expected_schema, expected_data)
+            # StringType not converting to TimeStamp type inside of struct so forcing
+            .withColumn(
+                "event_ts",
+                F.struct(
+                    F.to_timestamp("event_ts.start").alias("start"),
+                    F.to_timestamp("event_ts.end").alias("end"),
+                ),
+            )
+        )
+
+    def test_eq_constantMetricState(self):
 
         expected_data_eq_state_def = [
             [
+                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:10"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                4.1,
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
+                {"start": 4.1, "end": 4.1},
+                {"start": 4.1, "end": 4.1},
+                {"start": 4.1, "end": 4.1},
             ],
             [
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:14"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                4.1,
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                4.1,
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
+                {"start": 10.7, "end": 10.7},
+                {"start": 10.7, "end": 10.7},
+                {"start": 10.7, "end": 10.7},
             ],
         ]
 
         # construct dataframes
         input_df = self.buildTestDF(self.schema, self.data)
 
-        expected_df_eq_state_def = (
-            self.buildTestDF(self.expected_schema, expected_data_eq_state_def)
-            # StringType not converting to TimeStamp type inside of struct so forcing
-            .withColumn(
-                "event_ts",
-                F.struct(
-                    F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end"),
-                ),
-            )
+        expected_df_eq_state_def = self.create_expected_test_df(
+            expected_data_eq_state_def
         )
 
         # convert to TSDF
@@ -887,104 +778,111 @@ class ConstantMetricRanges(SparkTest):
             input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
         )
 
-        # call constantMetricRanges method
-        constantMetricRanges_eq_df = tsdf.constantMetricRanges(
+        # call constantMetricState method
+        constantMetricState_eq_df_1 = tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3"
         ).df
+        constantMetricState_eq_df_2 = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3", state_definition="<=>"
+        ).df
 
-        # test constantMetricRanges_tsdf summary
-        self.assertDataFramesEqual(constantMetricRanges_eq_df, expected_df_eq_state_def)
+        # test constantMetricState_tsdf summary
+        self.assertDataFramesEqual(
+            constantMetricState_eq_df_1, expected_df_eq_state_def
+        )
+        self.assertDataFramesEqual(
+            constantMetricState_eq_df_2, expected_df_eq_state_def
+        )
 
-    def test_gt_constantMetricRanges(self):
+    def test_ne_constantMetricState(self):
+
+        expected_data_ne_state_def = [
+            [
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:01:12"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 4.1, "end": 10.7},
+                {"start": 4.1, "end": 10.7},
+                {"start": 4.1, "end": 10.7},
+            ],
+            [
+                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:19:12"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 10.7, "end": 0.1},
+                {"start": 10.7, "end": 0.1},
+                {"start": 10.7, "end": 0.1},
+            ],
+        ]
+
+        # construct dataframes
+        input_df = self.buildTestDF(self.schema, self.data)
+
+        expected_df_ne_state_def = self.create_expected_test_df(
+            expected_data_ne_state_def
+        )
+        expected_df_ne_state_def.show(1000, truncate=False)
+
+        # convert to TSDF
+        tsdf = TSDF(
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+        )
+
+        # call constantMetricState method
+        constantMetricState_ne_df_1 = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3", state_definition="!="
+        ).df
+        constantMetricState_ne_df_2 = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3", state_definition="<>"
+        ).df
+
+        # test constantMetricState_tsdf summary
+        self.assertDataFramesEqual(
+            constantMetricState_ne_df_1, expected_df_ne_state_def
+        )
+        self.assertDataFramesEqual(
+            constantMetricState_ne_df_2, expected_df_ne_state_def
+        )
+
+    def test_gt_constantMetricState(self):
 
         expected_data_gt_state_def = [
             [
+                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:01:12"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-09-01 00:01:12"},
+                {"start": 4.1, "end": 10.7},
+                {"start": 4.1, "end": 10.7},
+                {"start": 4.1, "end": 10.7},
             ],
             [
+                {"start": "2020-08-01 00:01:14", "end": "2020-08-01 00:01:15"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
+                {"start": 10.7, "end": 42.3},
+                {"start": 10.7, "end": 42.3},
+                {"start": 10.7, "end": 42.3},
             ],
             [
+                {"start": "2020-08-01 00:01:16", "end": "2020-08-01 00:01:17"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
+                {"start": 37.6, "end": 61.5},
+                {"start": 37.6, "end": 61.5},
+                {"start": 37.6, "end": 61.5},
             ],
         ]
 
         # construct dataframes
         input_df = self.buildTestDF(self.schema, self.data)
 
-        expected_df_gt_state_def = (
-            self.buildTestDF(self.expected_schema, expected_data_gt_state_def)
-            # StringType not converting to TimeStamp type inside of struct so forcing
-            .withColumn(
-                "event_ts",
-                F.struct(
-                    F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end"),
-                ),
-            )
+        expected_df_gt_state_def = self.create_expected_test_df(
+            expected_data_gt_state_def
         )
 
         # convert to TSDF
@@ -992,216 +890,41 @@ class ConstantMetricRanges(SparkTest):
             input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
         )
 
-        # call constantMetricRanges method
-        constantMetricRanges_gt_df = tsdf.constantMetricRanges(
+        # call constantMetricState method
+        constantMetricState_gt_df = tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition=">"
         ).df
 
-        # print("constantMetricRanges_df")
-        # print("hhhhhhhhh")
-        # constantMetricRanges_gt_df.show(1000, truncate=False)
-        #
-        # print("expected_df")
-        # print("ssssssssss")
-        # expected_df_gt_state_def.show(1000, truncate=False)
+        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df_gt_state_def)
 
-        # test constantMetricRanges_tsdf summary
-        self.assertDataFramesEqual(constantMetricRanges_gt_df, expected_df_gt_state_def)
-
-    def test_lt_constantMetricRanges(self):
+    def test_lt_constantMetricState(self):
 
         expected_data_lt_state_def = [
             [
+                {"start": "2020-08-01 00:01:15", "end": "2020-08-01 00:01:16"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
+                {"start": 42.3, "end": 37.6},
+                {"start": 42.3, "end": 37.6},
+                {"start": 42.3, "end": 37.6},
             ],
             [
+                {"start": "2020-08-01 00:01:17", "end": "2020-09-01 00:19:12"},
                 "v1",
                 "foo",
                 "bar",
-                "metric_1",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_1",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_2",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                4.1,
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:00:11"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                5.0,
-                {"start": "2020-08-01 00:00:11", "end": "2020-08-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                10.7,
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:13"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                42.3,
-                {"start": "2020-08-01 00:01:13", "end": "2020-08-01 00:01:14"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                61.5,
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:01:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                28.9,
-                {"start": "2020-09-01 00:01:12", "end": "2020-09-01 00:19:12"},
-            ],
-            [
-                "v1",
-                "foo",
-                "bar",
-                "metric_3",
-                0.1,
-                {"start": "2020-09-01 00:19:12", "end": None},
+                {"start": 61.5, "end": 0.1},
+                {"start": 61.5, "end": 0.1},
+                {"start": 61.5, "end": 0.1},
             ],
         ]
 
         # construct dataframes
         input_df = self.buildTestDF(self.schema, self.data)
 
-        expected_df_lt_state_def = (
-            self.buildTestDF(self.expected_schema, expected_data_lt_state_def)
-            # StringType not converting to TimeStamp type inside of struct so forcing
-            .withColumn(
-                "event_ts",
-                F.struct(
-                    F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end"),
-                ),
-            )
+        expected_df_lt_state_def = self.create_expected_test_df(
+            expected_data_lt_state_def
         )
 
         # convert to TSDF
@@ -1209,21 +932,181 @@ class ConstantMetricRanges(SparkTest):
             input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
         )
 
-        # call constantMetricRanges method
-        constantMetricRanges_lt_df = tsdf.constantMetricRanges(
+        # call constantMetricState method
+        constantMetricState_lt_df = tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition="<"
         ).df
 
-        # print("constantMetricRanges_df")
-        # print("hhhhhhhhh")
-        # constantMetricRanges_gt_df.show(1000, truncate=False)
-        #
-        # print("expected_df")
-        # print("ssssssssss")
-        # expected_df_gt_state_def.show(1000, truncate=False)
+        # test constantMetricState_tsdf summary
+        self.assertDataFramesEqual(constantMetricState_lt_df, expected_df_lt_state_def)
 
-        # test constantMetricRanges_tsdf summary
-        self.assertDataFramesEqual(constantMetricRanges_lt_df, expected_df_lt_state_def)
+    def test_gte_constantMetricState(self):
+
+        expected_data_gte_state_def = [
+            [
+                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:01:15"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 4.1, "end": 42.3},
+                {"start": 4.1, "end": 42.3},
+                {"start": 4.1, "end": 42.3},
+            ],
+            [
+                {"start": "2020-08-01 00:01:16", "end": "2020-08-01 00:01:17"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 37.6, "end": 61.5},
+                {"start": 37.6, "end": 61.5},
+                {"start": 37.6, "end": 61.5},
+            ],
+        ]
+
+        # construct dataframes
+        input_df = self.buildTestDF(self.schema, self.data)
+
+        expected_df_gte_state_def = self.create_expected_test_df(
+            expected_data_gte_state_def
+        )
+
+        # convert to TSDF
+        tsdf = TSDF(
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+        )
+
+        # call constantMetricState method
+        constantMetricState_gt_df = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3", state_definition=">="
+        ).df
+
+        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df_gte_state_def)
+
+    def test_lte_constantMetricState(self):
+
+        expected_data_lte_state_def = [
+            [
+                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:10"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 4.1, "end": 4.1},
+                {"start": 4.1, "end": 4.1},
+                {"start": 4.1, "end": 4.1},
+            ],
+            [
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:14"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 10.7, "end": 10.7},
+                {"start": 10.7, "end": 10.7},
+                {"start": 10.7, "end": 10.7},
+            ],
+            [
+                {"start": "2020-08-01 00:01:15", "end": "2020-08-01 00:01:16"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 42.3, "end": 37.6},
+                {"start": 42.3, "end": 37.6},
+                {"start": 42.3, "end": 37.6},
+            ],
+            [
+                {"start": "2020-08-01 00:01:17", "end": "2020-09-01 00:19:12"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 61.5, "end": 0.1},
+                {"start": 61.5, "end": 0.1},
+                {"start": 61.5, "end": 0.1},
+            ],
+        ]
+
+        # construct dataframes
+        input_df = self.buildTestDF(self.schema, self.data)
+
+        expected_df_lte_state_def = self.create_expected_test_df(
+            expected_data_lte_state_def
+        )
+
+        # convert to TSDF
+        tsdf = TSDF(
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+        )
+
+        # call constantMetricState method
+        constantMetricState_lte_df = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3", state_definition="<="
+        ).df
+
+        # test constantMetricState_tsdf summary
+        self.assertDataFramesEqual(
+            constantMetricState_lte_df, expected_df_lte_state_def
+        )
+
+    def test_lambda_constantMetricState(self):
+
+        expected_data_lambda_state_def = [
+            [
+                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:10"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 4.1, "end": 4.1},
+                {"start": 4.1, "end": 4.1},
+                {"start": 4.1, "end": 4.1},
+            ],
+            [
+                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:14"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 10.7, "end": 10.7},
+                {"start": 10.7, "end": 10.7},
+                {"start": 10.7, "end": 10.7},
+            ],
+            [
+                {"start": "2020-08-01 00:01:15", "end": "2020-08-01 00:01:16"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 42.3, "end": 37.6},
+                {"start": 42.3, "end": 37.6},
+                {"start": 42.3, "end": 37.6},
+            ],
+            [
+                {"start": "2020-08-01 00:01:17", "end": "2020-09-01 00:19:12"},
+                "v1",
+                "foo",
+                "bar",
+                {"start": 61.5, "end": 0.1},
+                {"start": 61.5, "end": 0.1},
+                {"start": 61.5, "end": 0.1},
+            ],
+        ]
+
+        # construct dataframes
+        input_df = self.buildTestDF(self.schema, self.data)
+
+        expected_df_lambda_state_def = self.create_expected_test_df(
+            expected_data_lambda_state_def
+        )
+
+        # convert to TSDF
+        tsdf = TSDF(
+            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
+        )
+
+        # call constantMetricState method
+        constantMetricState_lambda_df = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3", state_definition="<="
+        ).df
+
+        # test constantMetricState_tsdf summary
+        self.assertDataFramesEqual(
+            constantMetricState_lambda_df, expected_df_lambda_state_def
+        )
 
 
 # MAIN

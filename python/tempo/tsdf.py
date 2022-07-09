@@ -1162,7 +1162,7 @@ class TSDF:
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
 
-    def constantMetricRanges(
+    def constantMetricState(
         self,
         *metricCols: Collection[str],
         state_definition: str = "=",
@@ -1196,17 +1196,33 @@ class TSDF:
                     offset=1,
                 ).over(w),
             )
+            .filter(f.col("previous_attributes").isNotNull())
             .withColumn(f"current_state", f.array(*metricCols))
             .withColumn(
-                "changing_state",
+                "state_change",
                 f.expr(
                     f"""
-                    !(previous_attributes.state {state_definition} current_state
-                    OR previous_attributes IS NULL)
+                    !(current_state {state_definition} previous_attributes.state)
                     """
                 ),
             )
-            .filter("changing_state")
+            .drop("current_state")
+            .withColumn(
+                "state_incrementer", f.sum(f.col("state_change").cast("int")).over(w)
+            )
+            .filter(~f.col("state_change"))
+            .groupBy(*self.partitionCols, "state_incrementer")
+            .agg(
+                f.max(f"{self.ts_col}").alias(self.ts_col),
+                *[
+                    f.expr(f"max_by({m}, {self.ts_col})").alias(f"{m}")
+                    for m in metricCols
+                ],
+                f.expr(f"min_by(previous_attributes, {self.ts_col})").alias(
+                    "previous_attributes"
+                ),
+            )
+            .drop("state_incrementer")
             .select(
                 f.struct(
                     f.col("previous_attributes.ts").alias("start"),
