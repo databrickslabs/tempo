@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import logging
-import operator
 from functools import reduce
-from typing import List, Collection
+from typing import List, Collection, Union
 
 import numpy as np
 import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
+from pyspark.sql import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
 from scipy.fft import fft, fftfreq
@@ -1165,49 +1165,57 @@ class TSDF:
     def constantMetricState(
         self,
         *metricCols: Collection[str],
-        state_definition: str = "=",
-        end_ts_value: str = None,
+        state_definition: Union[str, Column[bool]] = "=",
     ) -> TSDF:
 
-        # TODO : Remove before PR
-        # First pass
-        # Indicate if the row is same state
-        # Filter down to when it changes state
-        # If multiple metrics are passed, then state is identified by the tuple of the metrics
-        # Evaluate each metric to it’s previous value
-        # And them all together
-        # Return interval where state is constant
-        # Start value and end value
-        # Start timestamp and end timestamp
+        # argument validations before any computations start
 
         data = self.df
 
         w = self.__baseWindow()
 
+        if type(state_definition) is str:
+            current_state = f.array(*metricCols)
+        else:
+            current_state = state_definition
+
         data = (
-            data.withColumn(
+            data.withColumn("current_state", current_state)
+            .withColumn(
                 "previous_attributes",
                 f.lag(
                     f.struct(
                         f.col(self.ts_col).alias("ts"),
                         *[f.col(f"{m}").alias(f"{m}") for m in metricCols],
-                        f.array(*metricCols).alias("state"),
+                        f.col("current_state").alias("state"),
                     ),
                     offset=1,
                 ).over(w),
             )
             .filter(f.col("previous_attributes").isNotNull())
-            .withColumn(f"current_state", f.array(*metricCols))
-            .withColumn(
-                "state_change",
-                f.expr(
-                    f"""
+        )
+
+        if type(state_definition) is str:
+            state_change_exp = f"""
                     !(current_state {state_definition} previous_attributes.state)
                     """
+        else:
+            state_change_exp = f"""
+            !(current_state AND previous_attributes.state)
+            """
+
+        data = (
+            data.withColumn(
+                "state_change",
+                f.expr(
+                    state_change_exp
                 ),
             )
             .drop("current_state")
-            .withColumn(
+        )
+
+        data = (
+            data.withColumn(
                 "state_incrementer", f.sum(f.col("state_change").cast("int")).over(w)
             )
             .filter(~f.col("state_change"))
@@ -1222,8 +1230,11 @@ class TSDF:
                     "previous_attributes"
                 ),
             )
-            .drop("state_incrementer")
-            .select(
+            .drop("state_change", "state_incrementer")
+        )
+
+        data = (
+            data.select(
                 f.struct(
                     f.col("previous_attributes.ts").alias("start"),
                     f.col(self.ts_col).alias("end"),

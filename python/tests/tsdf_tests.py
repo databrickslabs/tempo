@@ -1045,52 +1045,25 @@ class constantMetricState(SparkTest):
             constantMetricState_lte_df, expected_df_lte_state_def
         )
 
-    def test_lambda_constantMetricState(self):
+    def test_bool_col_constantMetricState(self):
 
-        expected_data_lambda_state_def = [
+        expected_data_bool_col_state_def = [
             [
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:10"},
+                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
                 "v1",
                 "foo",
                 "bar",
-                {"start": 4.1, "end": 4.1},
-                {"start": 4.1, "end": 4.1},
-                {"start": 4.1, "end": 4.1},
-            ],
-            [
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:14"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 10.7, "end": 10.7},
-                {"start": 10.7, "end": 10.7},
-                {"start": 10.7, "end": 10.7},
-            ],
-            [
-                {"start": "2020-08-01 00:01:15", "end": "2020-08-01 00:01:16"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 42.3, "end": 37.6},
-                {"start": 42.3, "end": 37.6},
-                {"start": 42.3, "end": 37.6},
-            ],
-            [
-                {"start": "2020-08-01 00:01:17", "end": "2020-09-01 00:19:12"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 61.5, "end": 0.1},
-                {"start": 61.5, "end": 0.1},
-                {"start": 61.5, "end": 0.1},
+                {"start": 4.1, "end": 5.0},
+                {"start": 4.1, "end": 5.0},
+                {"start": 4.1, "end": 5.0},
             ],
         ]
 
         # construct dataframes
         input_df = self.buildTestDF(self.schema, self.data)
 
-        expected_df_lambda_state_def = self.create_expected_test_df(
-            expected_data_lambda_state_def
+        expected_df_bool_col_state_def = self.create_expected_test_df(
+            expected_data_bool_col_state_def
         )
 
         # convert to TSDF
@@ -1099,13 +1072,14 @@ class constantMetricState(SparkTest):
         )
 
         # call constantMetricState method
-        constantMetricState_lambda_df = tsdf.constantMetricState(
-            "metric_1", "metric_2", "metric_3", state_definition="<="
+        constantMetricState_bool_col_df = tsdf.constantMetricState(
+            "metric_1", "metric_2", "metric_3",
+            state_definition=F.abs(F.col("metric_1") - F.col("metric_2") - F.col("metric_3")) < F.lit(10)
         ).df
 
         # test constantMetricState_tsdf summary
         self.assertDataFramesEqual(
-            constantMetricState_lambda_df, expected_df_lambda_state_def
+            constantMetricState_bool_col_df, expected_df_bool_col_state_def
         )
 
 
