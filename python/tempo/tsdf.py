@@ -1204,15 +1204,10 @@ class TSDF:
             !(current_state AND previous_attributes.state)
             """
 
-        data = (
-            data.withColumn(
-                "state_change",
-                f.expr(
-                    state_change_exp
-                ),
-            )
-            .drop("current_state")
-        )
+        data = data.withColumn(
+            "state_change",
+            f.expr(state_change_exp),
+        ).drop("current_state")
 
         data = (
             data.withColumn(
@@ -1233,21 +1228,19 @@ class TSDF:
             .drop("state_change", "state_incrementer")
         )
 
-        data = (
-            data.select(
+        data = data.select(
+            f.struct(
+                f.col("previous_attributes.ts").alias("start"),
+                f.col(self.ts_col).alias("end"),
+            ).alias(self.ts_col),
+            *self.partitionCols,
+            *[
                 f.struct(
-                    f.col("previous_attributes.ts").alias("start"),
-                    f.col(self.ts_col).alias("end"),
-                ).alias(self.ts_col),
-                *self.partitionCols,
-                *[
-                    f.struct(
-                        f.col(f"previous_attributes.{m}").alias("start"),
-                        f.col(f"{m}").alias("end"),
-                    ).alias(f"{m}")
-                    for m in metricCols
-                ],
-            )
+                    f.col(f"previous_attributes.{m}").alias("start"),
+                    f.col(f"{m}").alias("end"),
+                ).alias(f"{m}")
+                for m in metricCols
+            ],
         )
 
         ## TODO : remove before PR

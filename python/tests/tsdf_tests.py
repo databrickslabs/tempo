@@ -1073,8 +1073,13 @@ class constantMetricState(SparkTest):
 
         # call constantMetricState method
         constantMetricState_bool_col_df = tsdf.constantMetricState(
-            "metric_1", "metric_2", "metric_3",
-            state_definition=F.abs(F.col("metric_1") - F.col("metric_2") - F.col("metric_3")) < F.lit(10)
+            "metric_1",
+            "metric_2",
+            "metric_3",
+            state_definition=F.abs(
+                F.col("metric_1") - F.col("metric_2") - F.col("metric_3")
+            )
+            < F.lit(10),
         ).df
 
         # test constantMetricState_tsdf summary
