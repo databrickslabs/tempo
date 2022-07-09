@@ -9,7 +9,7 @@ import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
-from pyspark.sql import Column
+from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
 from scipy.fft import fft, fftfreq
