@@ -59,7 +59,50 @@ time column and the optional partition column specification.
      phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
      display(phone_accel_tsdf)
 
+Slice by Time
+~~~~~~~~~~~~~~~~~~~~~~
 
+You can slice across all timeseries in a TSDF in various ways. This allows you to select or filter by timestamp across
+all the series.
+
+You can select all observations at a specific point in time:
+
+.. code-block:: python
+
+    target_time = '2015-02-23T13:03:53.919+0000'
+    at_target_tsdf = phone_accel_tsdf.at(target_time)
+    display(at_target_tsdf)
+
+You can slice data before or after a particular point in time (either inclusive or exclusive of the target time):
+
+.. code-block:: python
+
+    before_tsdf = phone_accel_tsdf.before(target_time)
+    at_or_after_tsdf = phone_accel_tsdf.atOrAfter(target_time)
+
+Or in an interval between two timestamps:
+
+.. code-block:: python
+
+    start_ts = '2015-02-23T13:03:53.909+0000'
+    end_ts = target_time
+    interval_inclusive = phone_accel_tsdf.between(start_ts, end_ts)
+    interval_exclusive = phone_accel_tsdf.between(start_ts, end_ts, inclusive=False)
+
+You can take a look at the earliest (oldest) or latest (most recent) records across all series:
+
+.. code-block:: python
+
+    n = 5
+    oldest_five_tsdf = phone_accel_tsdf.earliest(n)
+    latest_five_tsdf = phone_accel_tsdf.latest(n)
+
+Or the records immediately before (or after) a particular point in time. This can be thought of like an "as-of" select.
+
+.. code-block:: python
+
+    as_of_tsdf = phone_accel_tsdf.priorTo(target_time)
+    next_five_tsdf = phone_accel_tsdf.subsequentTo(target_time, n=5)
 
 Resample and Visualize
 ~~~~~~~~~~~~~~~~~~~~~~
