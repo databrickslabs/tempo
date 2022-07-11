@@ -41,8 +41,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing at(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:10"
         at_tsdf = init_tsdf.at(target_ts)
@@ -53,8 +53,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing before(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:10"
         before_tsdf = init_tsdf.before(target_ts)
@@ -65,8 +65,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing atOrBefore(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:10"
         before_tsdf = init_tsdf.atOrBefore(target_ts)
@@ -77,8 +77,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing after(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:10"
         after_tsdf = init_tsdf.after(target_ts)
@@ -89,8 +89,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing atOrAfter(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:10"
         after_tsdf = init_tsdf.atOrAfter(target_ts)
@@ -101,8 +101,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing between(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         ts1 = "2020-08-01 00:01:10"
         ts2 = "2020-09-01 00:18:00"
@@ -114,8 +114,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing between(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         ts1 = "2020-08-01 00:01:10"
         ts2 = "2020-09-01 00:18:00"
@@ -127,8 +127,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing earliest(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         earliest_tsdf = init_tsdf.earliest(n=3)
 
@@ -138,8 +138,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing latest(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         latest_tsdf = init_tsdf.latest(n=3)
 
@@ -149,8 +149,8 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing priorTo(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:00"
         prior_tsdf = init_tsdf.priorTo(target_ts)
@@ -161,13 +161,14 @@ class BasicTests(SparkTest):
         """
         Test of time-slicing subsequentTo(..) function
         """
-        init_tsdf = self.get_data_as_tsdf('init')
-        expected_tsdf = self.get_data_as_tsdf('expected')
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         target_ts = "2020-09-01 00:02:00"
         subsequent_tsdf = init_tsdf.subsequentTo(target_ts)
 
         self.assertTSDFsEqual(subsequent_tsdf, expected_tsdf)
+
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):

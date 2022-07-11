@@ -14,7 +14,12 @@ from scipy.fft import fft, fftfreq
 import tempo.io as tio
 import tempo.resample as rs
 from tempo.interpol import Interpolation
-from tempo.utils import ENV_CAN_RENDER_HTML, IS_DATABRICKS, calculate_time_horizon, get_display_df
+from tempo.utils import (
+    ENV_CAN_RENDER_HTML,
+    IS_DATABRICKS,
+    calculate_time_horizon,
+    get_display_df,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -538,7 +543,7 @@ class TSDF:
         if not (IS_DATABRICKS) and ENV_CAN_RENDER_HTML:
             # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
             ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
-        get_display_df(self,k).show(n, truncate, vertical)
+        get_display_df(self, k).show(n, truncate, vertical)
 
     def describe(self):
         """

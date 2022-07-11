@@ -163,7 +163,7 @@ if (
 
     def display_improvised(obj):
         if type(obj).__name__ == "TSDF":
-            method(get_display_df(obj,k=5))
+            method(get_display_df(obj, k=5))
         else:
             method(obj)
 
@@ -173,7 +173,7 @@ elif ENV_CAN_RENDER_HTML:
 
     def display_html_improvised(obj):
         if type(obj).__name__ == "TSDF":
-            display_html(get_display_df(obj,k=5))
+            display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
 
