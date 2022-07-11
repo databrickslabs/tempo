@@ -8,13 +8,13 @@ from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.window import Window
+from pyspark.sql.window import Window, WindowSpec
 from scipy.fft import fft, fftfreq
 
 import tempo.io as tio
 import tempo.resample as rs
 from tempo.interpol import Interpolation
-from tempo.utils import ENV_CAN_RENDER_HTML, IS_DATABRICKS, calculate_time_horizon
+from tempo.utils import ENV_CAN_RENDER_HTML, IS_DATABRICKS, calculate_time_horizon, get_display_df
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class TSDF:
         self.partitionCols = (
             []
             if partition_cols is None
-            else self.__validated_columns(df, partition_cols)
+            else self.__validated_columns(df, partition_cols.copy())
         )
 
         self.df = df
@@ -349,8 +349,11 @@ class TSDF:
     def __slice(self, op: str, target_ts):
         """
         Private method to slice TSDF by time
-        :param target_ts: timestamp on which to filter
+
         :param op: string symbol of the operation to perform
+        :type op: str
+        :param target_ts: timestamp on which to filter
+
         :return: a TSDF object containing only those records within the time slice specified
         """
         slice_expr = f.expr(f"{self.ts_col} {op} '{target_ts}'")
@@ -365,7 +368,9 @@ class TSDF:
     def at(self, ts):
         """
         Select only records at a given time
+
         :param ts: timestamp of the records to select
+
         :return: a :class:`~tsdf.TSDF` object containing just the records at the given time
         """
         return self.__slice("==", ts)
@@ -373,7 +378,9 @@ class TSDF:
     def before(self, ts):
         """
         Select only records before a given time
+
         :param ts: timestamp on which to filter records
+
         :return: a :class:`~tsdf.TSDF` object containing just the records before the given time
         """
         return self.__slice("<", ts)
@@ -381,7 +388,9 @@ class TSDF:
     def atOrBefore(self, ts):
         """
         Select only records at or before a given time
+
         :param ts: timestamp on which to filter records
+
         :return: a :class:`~tsdf.TSDF` object containing just the records at or before the given time
         """
         return self.__slice("<=", ts)
@@ -389,7 +398,9 @@ class TSDF:
     def after(self, ts):
         """
         Select only records after a given time
+
         :param ts: timestamp on which to filter records
+
         :return: a :class:`~tsdf.TSDF` object containing just the records after the given time
         """
         return self.__slice(">", ts)
@@ -397,7 +408,9 @@ class TSDF:
     def atOrAfter(self, ts):
         """
         Select only records at or after a given time
+
         :param ts: timestamp on which to filter records
+
         :return: a :class:`~tsdf.TSDF` object containing just the records at or after the given time
         """
         return self.__slice(">=", ts)
@@ -405,21 +418,26 @@ class TSDF:
     def between(self, start_ts, end_ts, inclusive=True):
         """
         Select only records in a given range
+
         :param start_ts: starting time of the range to select
         :param end_ts: ending time of the range to select
-        :param inclusive: whether the range is inclusive of the endpoints or not (defaults to True)
+        :param inclusive: whether the range is inclusive of the endpoints or not, defaults to True
+        :type inclusive: bool
+
         :return: a :class:`~tsdf.TSDF` object containing just the records within the range specified
         """
         if inclusive:
             return self.atOrAfter(start_ts).atOrBefore(end_ts)
         return self.after(start_ts).before(end_ts)
 
-    def __top_rows_per_series(self, win: Window, n: int):
+    def __top_rows_per_series(self, win: WindowSpec, n: int):
         """
         Private method to select just the top n rows per series (as defined by a window ordering)
+
         :param win: the window on which we order the rows in each series
         :param n: the number of rows to return
-        :return: a TSDF object containing just the top n rows in each series
+
+        :return: a :class:`~tsdf.TSDF` object containing just the top n rows in each series
         """
         row_num_col = "__row_num"
         prev_records_df = (
@@ -437,7 +455,9 @@ class TSDF:
     def earliest(self, n: int = 1):
         """
         Select the earliest n records for each series
+
         :param n: number of records to select (default is 1)
+
         :return: a :class:`~tsdf.TSDF` object containing the earliest n records for each series
         """
         prev_window = self.__baseWindow(reverse=False)
@@ -446,7 +466,9 @@ class TSDF:
     def latest(self, n: int = 1):
         """
         Select the latest n records for each series
+
         :param n: number of records to select (default is 1)
+
         :return: a :class:`~tsdf.TSDF` object containing the latest n records for each series
         """
         next_window = self.__baseWindow(reverse=True)
@@ -456,8 +478,10 @@ class TSDF:
         """
         Select the n most recent records prior to a given time
         You can think of this like an 'asOf' select - it selects the records as of a particular time
+
         :param ts: timestamp on which to filter records
         :param n: number of records to select (default is 1)
+
         :return: a :class:`~tsdf.TSDF` object containing the n records prior to the given time
         """
         return self.atOrBefore(ts).latest(n)
@@ -465,8 +489,10 @@ class TSDF:
     def subsequentTo(self, ts, n: int = 1):
         """
         Select the n records subsequent to a give time
+
         :param ts: timestamp on which to filter records
         :param n: number of records to select (default is 1)
+
         :return: a :class:`~tsdf.TSDF` object containing the n records subsequent to the given time
         """
         return self.atOrAfter(ts).earliest(n)
@@ -509,17 +535,10 @@ class TSDF:
         if k > n:
             raise ValueError(f"Parameter k {k} cannot be greater than parameter n {n}")
 
-        # let's show the n most recent records per series, in order:
-        orderCols = self.partitionCols
-        orderCols.append(self.ts_col)
-        if self.sequence_col:
-            orderCols.append(self.sequence_col)
-        display_df = self.latest(k).df.orderBy(orderCols)
-
         if not (IS_DATABRICKS) and ENV_CAN_RENDER_HTML:
             # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
             ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
-        display_df.show(n, truncate, vertical)
+        get_display_df(self,k).show(n, truncate, vertical)
 
     def describe(self):
         """

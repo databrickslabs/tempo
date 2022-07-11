@@ -8,6 +8,7 @@ from IPython.display import display as ipydisplay
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
+
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
@@ -139,12 +140,21 @@ def display_unavailable(df):
     )
 
 
+def get_display_df(tsdf, k):
+    # let's show the n most recent records per series, in order:
+    orderCols = tsdf.partitionCols.copy()
+    orderCols.append(tsdf.ts_col)
+    if tsdf.sequence_col:
+        orderCols.append(tsdf.sequence_col)
+    return tsdf.latest(k).df.orderBy(orderCols)
+
+
 ENV_CAN_RENDER_HTML = __is_capable_of_html_rendering()
 
 
 if (
     IS_DATABRICKS
-    and not isinstance(get_ipython(), None)
+    and not (get_ipython() is None)
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
@@ -153,7 +163,7 @@ if (
 
     def display_improvised(obj):
         if type(obj).__name__ == "TSDF":
-            method(obj.df)
+            method(get_display_df(obj,k=5))
         else:
             method(obj)
 
@@ -163,7 +173,7 @@ elif ENV_CAN_RENDER_HTML:
 
     def display_html_improvised(obj):
         if type(obj).__name__ == "TSDF":
-            display_html(obj.df)
+            display_html(get_display_df(obj,k=5))
         else:
             display_html(obj)
 
