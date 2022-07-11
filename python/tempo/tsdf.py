@@ -1168,8 +1168,6 @@ class TSDF:
         state_definition: Union[str, Column[bool]] = "=",
     ) -> TSDF:
 
-        # argument validations before any computations start
-
         data = self.df
 
         w = self.__baseWindow()
@@ -1196,9 +1194,16 @@ class TSDF:
         )
 
         if type(state_definition) is str:
+            if state_definition not in (
+                    "=", "!=", "<>", ">", "<", ">=", "<=",
+            ):
+                logger.warning(
+                    "A `state_definition` which has not been tested was",
+                    "provided to the `constantMetricState` function."
+                )
             state_change_exp = f"""
-                    !(current_state {state_definition} previous_attributes.state)
-                    """
+            !(current_state {state_definition} previous_attributes.state)
+            """
         else:
             state_change_exp = f"""
             !(current_state AND previous_attributes.state)
@@ -1214,7 +1219,10 @@ class TSDF:
                 "state_incrementer", f.sum(f.col("state_change").cast("int")).over(w)
             )
             .filter(~f.col("state_change"))
-            .groupBy(*self.partitionCols, "state_incrementer")
+        )
+
+        data = (
+            data.groupBy(*self.partitionCols, "state_incrementer")
             .agg(
                 f.max(f"{self.ts_col}").alias(self.ts_col),
                 *[
@@ -1228,7 +1236,7 @@ class TSDF:
             .drop("state_change", "state_incrementer")
         )
 
-        data = data.select(
+        result = data.select(
             f.struct(
                 f.col("previous_attributes.ts").alias("start"),
                 f.col(self.ts_col).alias("end"),
@@ -1242,12 +1250,6 @@ class TSDF:
                 for m in metricCols
             ],
         )
-
-        ## TODO : remove before PR
-        print("comparison logic & show & tell")
-        data.show(1000, truncate=False)
-
-        result = data
 
         return TSDF(
             result,
