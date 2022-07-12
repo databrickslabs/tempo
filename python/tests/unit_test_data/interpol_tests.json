@@ -1,0 +1,1304 @@
+{
+  "__SharedData": {
+    "input_data": {
+      "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
+      "ts_col": "event_ts",
+      "partition_cols": ["partition_a", "partition_b"],
+      "data": [
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:01:10",
+          349.21,
+          null
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:02:03",
+          null,
+          4.0
+        ],
+        [
+          "A",
+          "A-2",
+          "2020-01-01 00:01:15",
+          340.21,
+          9.0
+        ],
+        [
+          "B",
+          "B-1",
+          "2020-01-01 00:01:15",
+          362.1,
+          4.0
+        ],
+        [
+          "A",
+          "A-2",
+          "2020-01-01 00:01:17",
+          353.32,
+          8.0
+        ],
+        [
+          "B",
+          "B-2",
+          "2020-01-01 00:02:14",
+          null,
+          6.0
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:03:02",
+          351.32,
+          7.0
+        ],
+        [
+          "B",
+          "B-2",
+          "2020-01-01 00:01:12",
+          361.1,
+          5.0
+        ]
+      ]
+    },
+    "simple_input_data": {
+      "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
+      "ts_col": "event_ts",
+      "partition_cols": ["partition_a", "partition_b"],
+      "data": [
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:00:10",
+          0.0,
+          null
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:01:10",
+          2.0,
+          2.0
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:01:32",
+          null,
+          null
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:02:03",
+          null,
+          null
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:03:32",
+          null,
+          7.0
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:04:12",
+          8.0,
+          8.0
+        ],
+        [
+          "A",
+          "A-1",
+          "2020-01-01 00:05:31",
+          11.0,
+          null
+        ]
+      ]
+    }
+  },
+  "InterpolationUnitTest": {
+    "test_fill_validation": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_target_column_validation": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_partition_column_validation": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_ts_column_validation": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_zero_fill_interpolation": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            0.0,
+            false,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            0.0,
+            0.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            0.0,
+            0.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            0.0,
+            0.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            0.0,
+            0.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            0.0,
+            0.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            0.0,
+            7.0,
+            false,
+            true,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            0.0,
+            0.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            0.0,
+            0.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            0.0,
+            false,
+            false,
+            true
+          ]
+        ]
+      }
+    },
+    "test_null_fill_interpolation": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null,
+            false,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            null,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            null,
+            null,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            null,
+            null,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            null,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            null,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            null,
+            7.0,
+            false,
+            true,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            null,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            null,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            null,
+            false,
+            false,
+            true
+          ]
+        ]
+      }
+    },
+    "test_back_fill_interpolation": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            2.0,
+            false,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            2.0,
+            2.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            8.0,
+            7.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            8.0,
+            7.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            8.0,
+            7.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            8.0,
+            7.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            8.0,
+            7.0,
+            false,
+            true,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            11.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            11.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            null,
+            false,
+            false,
+            true
+          ]
+        ]
+      }
+    },
+    "test_forward_fill_interpolation": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null,
+            false,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            0.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            2.0,
+            2.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            2.0,
+            2.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            2.0,
+            2.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            2.0,
+            2.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            2.0,
+            7.0,
+            false,
+            true,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            8.0,
+            8.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            8.0,
+            8.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            8.0,
+            false,
+            false,
+            true
+          ]
+        ]
+      }
+    },
+    "test_linear_fill_interpolation": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null,
+            false,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            1.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            3.0,
+            3.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            4.0,
+            4.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            5.0,
+            5.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            6.0,
+            6.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            7.0,
+            7.0,
+            false,
+            true,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            9.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            10.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            null,
+            false,
+            false,
+            true
+          ]
+        ]
+      }
+    },
+    "test_different_freq_abbreviations": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null,
+            false,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            1.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            3.0,
+            3.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            4.0,
+            4.0,
+            false,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            5.0,
+            5.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            6.0,
+            6.0,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            7.0,
+            7.0,
+            false,
+            true,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0,
+            false,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            9.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            10.0,
+            null,
+            true,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            null,
+            false,
+            false,
+            true
+          ]
+        ]
+      }
+    },
+    "test_show_interpolated": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            1.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            3.0,
+            3.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            4.0,
+            4.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            5.0,
+            5.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            6.0,
+            6.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            7.0,
+            7.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            9.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            10.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            null
+          ]
+        ]
+      }
+    }
+  },
+  "InterpolationIntegrationTest": {
+    "test_interpolation_using_default_tsdf_params": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            1.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            3.0,
+            3.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            4.0,
+            4.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            5.0,
+            5.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            6.0,
+            6.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            7.0,
+            7.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            9.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            10.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            null
+          ]
+        ]
+      }
+    },
+    "test_interpolation_using_custom_params": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected": {
+        "schema": "partition_a string, partition_b string, other_ts_col string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
+        "ts_col": "other_ts_col",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            1.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            3.0,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            4.0,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            5.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            6.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            7.0,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            9.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            10.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            false,
+            false
+          ]
+        ]
+      }
+    },
+    "test_interpolation_on_sampled_data": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          ["A", "A-1", "2020-01-01 00:00:00", 0.0, false, false],
+          ["A", "A-1", "2020-01-01 00:00:30", 1.0, true, true],
+          ["A", "A-1", "2020-01-01 00:01:00", 2.0, false, false],
+          ["A", "A-1", "2020-01-01 00:01:30", 3.0, false, true],
+          ["A", "A-1", "2020-01-01 00:02:00", 4.0, false, true],
+          ["A", "A-1", "2020-01-01 00:02:30", 5.0, true, true],
+          ["A", "A-1", "2020-01-01 00:03:00", 6.0, true, true],
+          ["A", "A-1", "2020-01-01 00:03:30", 7.0, false, true],
+          ["A", "A-1", "2020-01-01 00:04:00", 8.0, false, false],
+          ["A", "A-1", "2020-01-01 00:04:30", 9.0, true, true],
+          ["A", "A-1", "2020-01-01 00:05:00", 10.0, true, true],
+          ["A", "A-1", "2020-01-01 00:05:30", 11.0, false, false]
+        ]
+      }
+    },
+    "test_defaults_with_resampled_df": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected": {
+        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
+        "ts_col": "event_ts",
+        "partition_cols": ["partition_a", "partition_b"],
+        "data": [
+          ["A", "A-1", "2020-01-01 00:00:00", 0.0, null],
+          ["A", "A-1", "2020-01-01 00:00:30", 0.0, null],
+          ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0],
+          ["A", "A-1", "2020-01-01 00:01:30", 2.0, 2.0],
+          ["A", "A-1", "2020-01-01 00:02:00", 2.0, 2.0],
+          ["A", "A-1", "2020-01-01 00:02:30", 2.0, 2.0],
+          ["A", "A-1", "2020-01-01 00:03:00", 2.0, 2.0],
+          ["A", "A-1", "2020-01-01 00:03:30", 2.0, 7.0],
+          ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0],
+          ["A", "A-1", "2020-01-01 00:04:30", 8.0, 8.0],
+          ["A", "A-1", "2020-01-01 00:05:00", 8.0, 8.0],
+          ["A", "A-1", "2020-01-01 00:05:30", 11.0, 8.0]
+        ]
+      }
+    },
+    "test_tsdf_constructor_params_are_updated": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      }
+    }
+  }
+}
