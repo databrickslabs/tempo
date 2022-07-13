@@ -865,7 +865,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -880,19 +880,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 4.1,
-              "end": 4.1
-            },
-            {
-              "start": 4.1,
-              "end": 4.1
-            },
-            {
-              "start": 4.1,
-              "end": 4.1
-            }
+            "bar"
           ],
           [
             {
@@ -901,19 +889,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 10.7,
-              "end": 10.7
-            },
-            {
-              "start": 10.7,
-              "end": 10.7
-            },
-            {
-              "start": 10.7,
-              "end": 10.7
-            }
+            "bar"
           ]
         ]
       }
@@ -1030,7 +1006,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1045,19 +1021,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 4.1,
-              "end": 10.7
-            },
-            {
-              "start": 4.1,
-              "end": 10.7
-            },
-            {
-              "start": 4.1,
-              "end": 10.7
-            }
+            "bar"
           ],
           [
             {
@@ -1066,19 +1030,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 10.7,
-              "end": 0.1
-            },
-            {
-              "start": 10.7,
-              "end": 0.1
-            },
-            {
-              "start": 10.7,
-              "end": 0.1
-            }
+            "bar"
           ]
         ]
       }
@@ -1195,7 +1147,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1210,19 +1162,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 4.1,
-              "end": 10.7
-            },
-            {
-              "start": 4.1,
-              "end": 10.7
-            },
-            {
-              "start": 4.1,
-              "end": 10.7
-            }
+            "bar"
           ],
           [
             {
@@ -1231,19 +1171,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 10.7,
-              "end": 42.3
-            },
-            {
-              "start": 10.7,
-              "end": 42.3
-            },
-            {
-              "start": 10.7,
-              "end": 42.3
-            }
+            "bar"
           ],
           [
             {
@@ -1252,19 +1180,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 37.6,
-              "end": 61.5
-            },
-            {
-              "start": 37.6,
-              "end": 61.5
-            },
-            {
-              "start": 37.6,
-              "end": 61.5
-            }
+            "bar"
           ]
         ]
       }
@@ -1381,7 +1297,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1396,19 +1312,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 42.3,
-              "end": 37.6
-            },
-            {
-              "start": 42.3,
-              "end": 37.6
-            },
-            {
-              "start": 42.3,
-              "end": 37.6
-            }
+            "bar"
           ],
           [
             {
@@ -1417,19 +1321,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 61.5,
-              "end": 0.1
-            },
-            {
-              "start": 61.5,
-              "end": 0.1
-            },
-            {
-              "start": 61.5,
-              "end": 0.1
-            }
+            "bar"
           ]
         ]
       }
@@ -1546,7 +1438,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1561,19 +1453,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 4.1,
-              "end": 42.3
-            },
-            {
-              "start": 4.1,
-              "end": 42.3
-            },
-            {
-              "start": 4.1,
-              "end": 42.3
-            }
+            "bar"
           ],
           [
             {
@@ -1582,19 +1462,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 37.6,
-              "end": 61.5
-            },
-            {
-              "start": 37.6,
-              "end": 61.5
-            },
-            {
-              "start": 37.6,
-              "end": 61.5
-            }
+            "bar"
           ]
         ]
       }
@@ -1711,7 +1579,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1726,19 +1594,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 4.1,
-              "end": 4.1
-            },
-            {
-              "start": 4.1,
-              "end": 4.1
-            },
-            {
-              "start": 4.1,
-              "end": 4.1
-            }
+            "bar"
           ],
           [
             {
@@ -1747,19 +1603,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 10.7,
-              "end": 10.7
-            },
-            {
-              "start": 10.7,
-              "end": 10.7
-            },
-            {
-              "start": 10.7,
-              "end": 10.7
-            }
+            "bar"
           ],
           [
             {
@@ -1768,19 +1612,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 42.3,
-              "end": 37.6
-            },
-            {
-              "start": 42.3,
-              "end": 37.6
-            },
-            {
-              "start": 42.3,
-              "end": 37.6
-            }
+            "bar"
           ],
           [
             {
@@ -1789,19 +1621,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 61.5,
-              "end": 0.1
-            },
-            {
-              "start": 61.5,
-              "end": 0.1
-            },
-            {
-              "start": 61.5,
-              "end": 0.1
-            }
+            "bar"
           ]
         ]
       }
@@ -1918,7 +1738,7 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL,metric_1 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_2 STRUCT<start: FLOAT, end: FLOAT> NOT NULL,metric_3 STRUCT<start: FLOAT, end: FLOAT> NOT NULL",
+        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1933,19 +1753,7 @@
             },
             "v1",
             "foo",
-            "bar",
-            {
-              "start": 4.1,
-              "end": 5.0
-            },
-            {
-              "start": 4.1,
-              "end": 5.0
-            },
-            {
-              "start": 4.1,
-              "end": 5.0
-            }
+            "bar"
           ]
         ]
       }

@@ -1173,86 +1173,64 @@ class TSDF:
         w = self.__baseWindow()
 
         if type(state_definition) is str:
-            if state_definition not in (
-                "=",
-                "<=>",
-                "!=",
-                "<>",
-                ">",
-                "<",
-                ">=",
-                "<=",
-            ):
+            if state_definition not in ("=", "<=>", "!=", "<>", ">", "<", ">=", "<="):
                 logger.warning(
                     "A `state_definition` which has not been tested was"
-                    "provided to the `constantMetricState` function."
+                    "provided to the `constantMetricState` method."
                 )
             current_state = f.array(*metricCols)
         else:
             current_state = state_definition
 
+        data = data.withColumn("current_state", current_state).drop(*metricCols)
+
         data = (
-            data.withColumn("current_state", current_state)
-            .withColumn(
-                "previous_attributes",
-                f.lag(
-                    f.struct(
-                        f.col(self.ts_col).alias("ts"),
-                        *[f.col(f"{m}").alias(f"{m}") for m in metricCols],
-                        f.col("current_state").alias("state"),
-                    ),
-                    offset=1,
-                ).over(w),
+            data.withColumn(
+                "previous_state",
+                f.lag(f.col("current_state"), offset=1).over(w),
             )
-            .filter(f.col("previous_attributes").isNotNull())
+            .withColumn(
+                "previous_ts",
+                f.lag(f.col(self.ts_col), offset=1).over(w),
+            )
+            .filter(f.col("previous_state").isNotNull())
         )
 
         if type(state_definition) is str:
             state_change_exp = f"""
-            !(current_state {state_definition} previous_attributes.state)
+            !(current_state {state_definition} previous_state)
             """
         else:
-            state_change_exp = """
-            !(current_state AND previous_attributes.state)
-            """
+            state_change_exp = "!(current_state AND previous_state)"
 
         data = data.withColumn(
             "state_change",
             f.expr(state_change_exp),
-        ).drop("current_state")
+        ).drop("current_state", "previous_state")
 
-        data = data.withColumn(
-            "state_incrementer", f.sum(f.col("state_change").cast("int")).over(w)
-        ).filter(~f.col("state_change"))
+        data = (
+            data.withColumn(
+                "state_incrementer",
+                f.sum(f.col("state_change").cast("int")).over(w),
+            )
+            .filter(~f.col("state_change"))
+            .drop("state_change")
+        )
 
         data = (
             data.groupBy(*self.partitionCols, "state_incrementer")
             .agg(
-                f.max(f"{self.ts_col}").alias(self.ts_col),
-                *[
-                    f.expr(f"max_by({m}, {self.ts_col})").alias(f"{m}")
-                    for m in metricCols
-                ],
-                f.expr(f"min_by(previous_attributes, {self.ts_col})").alias(
-                    "previous_attributes"
-                ),
+                f.struct(
+                    f.min("previous_ts").alias("start"),
+                    f.max(f"{self.ts_col}").alias("end"),
+                ).alias(self.ts_col),
             )
-            .drop("state_change", "state_incrementer")
+            .drop("state_incrementer")
         )
 
         result = data.select(
-            f.struct(
-                f.col("previous_attributes.ts").alias("start"),
-                f.col(self.ts_col).alias("end"),
-            ).alias(self.ts_col),
+            self.ts_col,
             *self.partitionCols,
-            *[
-                f.struct(
-                    f.col(f"previous_attributes.{m}").alias("start"),
-                    f.col(f"{m}").alias("end"),
-                ).alias(f"{m}")
-                for m in metricCols
-            ],
         )
 
         return TSDF(
