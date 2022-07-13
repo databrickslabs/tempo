@@ -1174,7 +1174,14 @@ class TSDF:
 
         if type(state_definition) is str:
             if state_definition not in (
-                    "=", "<=>", "!=", "<>", ">", "<", ">=", "<=",
+                "=",
+                "<=>",
+                "!=",
+                "<>",
+                ">",
+                "<",
+                ">=",
+                "<=",
             ):
                 logger.warning(
                     "A `state_definition` which has not been tested was"
@@ -1214,12 +1221,9 @@ class TSDF:
             f.expr(state_change_exp),
         ).drop("current_state")
 
-        data = (
-            data.withColumn(
-                "state_incrementer", f.sum(f.col("state_change").cast("int")).over(w)
-            )
-            .filter(~f.col("state_change"))
-        )
+        data = data.withColumn(
+            "state_incrementer", f.sum(f.col("state_change").cast("int")).over(w)
+        ).filter(~f.col("state_change"))
 
         data = (
             data.groupBy(*self.partitionCols, "state_incrementer")
