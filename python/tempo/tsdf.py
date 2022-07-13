@@ -1212,7 +1212,7 @@ class TSDF:
             !(current_state {state_definition} previous_attributes.state)
             """
         else:
-            state_change_exp = f"""
+            state_change_exp = """
             !(current_state AND previous_attributes.state)
             """
 
