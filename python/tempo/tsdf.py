@@ -1162,7 +1162,7 @@ class TSDF:
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
 
-    def constantMetricState(
+    def extractStateIntervals(
         self,
         *metricCols: Collection[str],
         state_definition: Union[str, Column[bool]] = "=",

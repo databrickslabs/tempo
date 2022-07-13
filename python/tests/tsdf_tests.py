@@ -208,7 +208,7 @@ class ResampleTest(SparkTest):
         self.assertDataFramesEqual(bars, barsExpected)
 
 
-class ConstantMetricStateTest(SparkTest):
+class extractStateIntervalsTest(SparkTest):
     """Test of finding time ranges for metrics with constant state."""
 
     def create_expected_test_df(
@@ -226,109 +226,109 @@ class ConstantMetricStateTest(SparkTest):
             )
         )
 
-    def test_eq_constantMetricState(self):
+    def test_eq_extractStateIntervals(self):
 
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call ConstantMetricState method
-        constantMetricState_eq_1_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_eq_1_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3"
         ).df
-        constantMetricState_eq_2_df = input_tsdf.constantMetricState(
+        extractStateIntervals_eq_2_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<=>"
         ).df
 
-        # test ConstantMetricState_tsdf summary
-        self.assertDataFramesEqual(constantMetricState_eq_1_df, expected_df)
-        self.assertDataFramesEqual(constantMetricState_eq_2_df, expected_df)
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(extractStateIntervals_eq_1_df, expected_df)
+        self.assertDataFramesEqual(extractStateIntervals_eq_2_df, expected_df)
 
-    def test_ne_constantMetricState(self):
+    def test_ne_extractStateIntervals(self):
 
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call constantMetricState method
-        constantMetricState_ne_1_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_ne_1_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="!="
         ).df
-        constantMetricState_ne_2_df = input_tsdf.constantMetricState(
+        extractStateIntervals_ne_2_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<>"
         ).df
 
-        # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(constantMetricState_ne_1_df, expected_df)
-        self.assertDataFramesEqual(constantMetricState_ne_2_df, expected_df)
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(extractStateIntervals_ne_1_df, expected_df)
+        self.assertDataFramesEqual(extractStateIntervals_ne_2_df, expected_df)
 
-    def test_gt_constantMetricState(self):
+    def test_gt_extractStateIntervals(self):
 
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call constantMetricState method
-        constantMetricState_gt_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_gt_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition=">"
         ).df
 
-        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df)
+        self.assertDataFramesEqual(extractStateIntervals_gt_df, expected_df)
 
-    def test_lt_constantMetricState(self):
+    def test_lt_extractStateIntervals(self):
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call constantMetricState method
-        constantMetricState_lt_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_lt_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<"
         ).df
 
-        # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(constantMetricState_lt_df, expected_df)
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(extractStateIntervals_lt_df, expected_df)
 
-    def test_gte_constantMetricState(self):
+    def test_gte_extractStateIntervals(self):
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call constantMetricState method
-        constantMetricState_gt_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_gt_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition=">="
         ).df
 
-        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df)
+        self.assertDataFramesEqual(extractStateIntervals_gt_df, expected_df)
 
-    def test_lte_constantMetricState(self):
+    def test_lte_extractStateIntervals(self):
 
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call constantMetricState method
-        constantMetricState_lte_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_lte_df = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<="
         ).df
 
-        # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(constantMetricState_lte_df, expected_df)
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(extractStateIntervals_lte_df, expected_df)
 
-    def test_bool_col_constantMetricState(self):
+    def test_bool_col_extractStateIntervals(self):
 
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
         expected_df = self.create_expected_test_df(expected_df)
 
-        # call constantMetricState method
-        constantMetricState_bool_col_df = input_tsdf.constantMetricState(
+        # call extractStateIntervals method
+        extractStateIntervals_bool_col_df = input_tsdf.extractStateIntervals(
             "metric_1",
             "metric_2",
             "metric_3",
@@ -338,8 +338,8 @@ class ConstantMetricStateTest(SparkTest):
             < F.lit(10),
         ).df
 
-        # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(constantMetricState_bool_col_df, expected_df)
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(extractStateIntervals_bool_col_df, expected_df)
 
 
 # MAIN
