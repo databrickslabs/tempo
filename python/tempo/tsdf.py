@@ -1174,10 +1174,10 @@ class TSDF:
 
         if type(state_definition) is str:
             if state_definition not in (
-                    "=", "!=", "<>", ">", "<", ">=", "<=",
+                    "=", "<=>", "!=", "<>", ">", "<", ">=", "<=",
             ):
                 logger.warning(
-                    "A `state_definition` which has not been tested was",
+                    "A `state_definition` which has not been tested was"
                     "provided to the `constantMetricState` function."
                 )
             current_state = f.array(*metricCols)
