@@ -1,6 +1,7 @@
 import unittest
 
 import pyspark.sql.functions as F
+from pyspark.sql.dataframe import DataFrame
 
 from tests.base import SparkTest
 
@@ -207,91 +208,16 @@ class ResampleTest(SparkTest):
         self.assertDataFramesEqual(bars, barsExpected)
 
 
-class constantMetricState(SparkTest):
+class ConstantMetricStateTest(SparkTest):
     """Test of finding time ranges for metrics with constant state."""
-
-    schema = StructType(
-        [
-            StructField("event_ts", StringType(), False),
-            StructField("identifier_1", StringType(), False),
-            StructField("identifier_2", StringType(), False),
-            StructField("identifier_3", StringType(), False),
-            StructField("metric_1", FloatType(), False),
-            StructField("metric_2", FloatType(), False),
-            StructField("metric_3", FloatType(), False),
-        ]
-    )
-
-    expected_schema = StructType(
-        [
-            StructField(
-                "event_ts",
-                StructType(
-                    [
-                        StructField("start", StringType(), True),
-                        StructField("end", StringType(), True),
-                    ]
-                ),
-                False,
-            ),
-            StructField("identifier_1", StringType(), False),
-            StructField("identifier_2", StringType(), False),
-            StructField("identifier_3", StringType(), False),
-            StructField(
-                "metric_1",
-                StructType(
-                    [
-                        StructField("start", FloatType(), True),
-                        StructField("end", FloatType(), True),
-                    ]
-                ),
-                False,
-            ),
-            StructField(
-                "metric_2",
-                StructType(
-                    [
-                        StructField("start", FloatType(), True),
-                        StructField("end", FloatType(), True),
-                    ]
-                ),
-                False,
-            ),
-            StructField(
-                "metric_3",
-                StructType(
-                    [
-                        StructField("start", FloatType(), True),
-                        StructField("end", FloatType(), True),
-                    ]
-                ),
-                False,
-            ),
-        ]
-    )
-
-    data = [
-        ["2020-08-01 00:00:09", "v1", "foo", "bar", 4.1, 4.1, 4.1],
-        ["2020-08-01 00:00:10", "v1", "foo", "bar", 4.1, 4.1, 4.1],
-        ["2020-08-01 00:00:11", "v1", "foo", "bar", 5.0, 5.0, 5.0],
-        ["2020-08-01 00:01:12", "v1", "foo", "bar", 10.7, 10.7, 10.7],
-        ["2020-08-01 00:01:13", "v1", "foo", "bar", 10.7, 10.7, 10.7],
-        ["2020-08-01 00:01:14", "v1", "foo", "bar", 10.7, 10.7, 10.7],
-        ["2020-08-01 00:01:15", "v1", "foo", "bar", 42.3, 42.3, 42.3],
-        ["2020-08-01 00:01:16", "v1", "foo", "bar", 37.6, 37.6, 37.6],
-        ["2020-08-01 00:01:17", "v1", "foo", "bar", 61.5, 61.5, 61.5],
-        ["2020-09-01 00:01:12", "v1", "foo", "bar", 28.9, 28.9, 28.9],
-        ["2020-09-01 00:19:12", "v1", "foo", "bar", 0.1, 0.1, 0.1],
-    ]
 
     def create_expected_test_df(
         self,
-        expected_data,
+        df,
     ) -> DataFrame:
         return (
-            self.buildTestDF(self.expected_schema, expected_data)
             # StringType not converting to TimeStamp type inside of struct so forcing
-            .withColumn(
+            df.withColumn(
                 "event_ts",
                 F.struct(
                     F.to_timestamp("event_ts.start").alias("start"),
@@ -302,334 +228,107 @@ class constantMetricState(SparkTest):
 
     def test_eq_constantMetricState(self):
 
-        expected_data_eq_state_def = [
-            [
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:10"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 4.1, "end": 4.1},
-                {"start": 4.1, "end": 4.1},
-                {"start": 4.1, "end": 4.1},
-            ],
-            [
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:14"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 10.7, "end": 10.7},
-                {"start": 10.7, "end": 10.7},
-                {"start": 10.7, "end": 10.7},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
-        expected_df_eq_state_def = self.create_expected_test_df(
-            expected_data_eq_state_def
-        )
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
-
-        # call constantMetricState method
-        constantMetricState_eq_df_1 = tsdf.constantMetricState(
+        # call ConstantMetricState method
+        constantMetricState_eq_1_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3"
         ).df
-        constantMetricState_eq_df_2 = tsdf.constantMetricState(
+        constantMetricState_eq_2_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition="<=>"
         ).df
 
-        # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(
-            constantMetricState_eq_df_1, expected_df_eq_state_def
-        )
-        self.assertDataFramesEqual(
-            constantMetricState_eq_df_2, expected_df_eq_state_def
-        )
+        # test ConstantMetricState_tsdf summary
+        self.assertDataFramesEqual(constantMetricState_eq_1_df, expected_df)
+        self.assertDataFramesEqual(constantMetricState_eq_2_df, expected_df)
 
     def test_ne_constantMetricState(self):
 
-        expected_data_ne_state_def = [
-            [
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:01:12"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 4.1, "end": 10.7},
-                {"start": 4.1, "end": 10.7},
-                {"start": 4.1, "end": 10.7},
-            ],
-            [
-                {"start": "2020-08-01 00:01:14", "end": "2020-09-01 00:19:12"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 10.7, "end": 0.1},
-                {"start": 10.7, "end": 0.1},
-                {"start": 10.7, "end": 0.1},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
-
-        expected_df_ne_state_def = self.create_expected_test_df(
-            expected_data_ne_state_def
-        )
-        expected_df_ne_state_def.show(1000, truncate=False)
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
         # call constantMetricState method
-        constantMetricState_ne_df_1 = tsdf.constantMetricState(
+        constantMetricState_ne_1_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition="!="
         ).df
-        constantMetricState_ne_df_2 = tsdf.constantMetricState(
+        constantMetricState_ne_2_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition="<>"
         ).df
 
         # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(
-            constantMetricState_ne_df_1, expected_df_ne_state_def
-        )
-        self.assertDataFramesEqual(
-            constantMetricState_ne_df_2, expected_df_ne_state_def
-        )
+        self.assertDataFramesEqual(constantMetricState_ne_1_df, expected_df)
+        self.assertDataFramesEqual(constantMetricState_ne_2_df, expected_df)
 
     def test_gt_constantMetricState(self):
 
-        expected_data_gt_state_def = [
-            [
-                {"start": "2020-08-01 00:00:10", "end": "2020-08-01 00:01:12"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 4.1, "end": 10.7},
-                {"start": 4.1, "end": 10.7},
-                {"start": 4.1, "end": 10.7},
-            ],
-            [
-                {"start": "2020-08-01 00:01:14", "end": "2020-08-01 00:01:15"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 10.7, "end": 42.3},
-                {"start": 10.7, "end": 42.3},
-                {"start": 10.7, "end": 42.3},
-            ],
-            [
-                {"start": "2020-08-01 00:01:16", "end": "2020-08-01 00:01:17"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 37.6, "end": 61.5},
-                {"start": 37.6, "end": 61.5},
-                {"start": 37.6, "end": 61.5},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
-
-        expected_df_gt_state_def = self.create_expected_test_df(
-            expected_data_gt_state_def
-        )
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
         # call constantMetricState method
-        constantMetricState_gt_df = tsdf.constantMetricState(
+        constantMetricState_gt_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition=">"
         ).df
 
-        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df_gt_state_def)
+        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df)
 
     def test_lt_constantMetricState(self):
-
-        expected_data_lt_state_def = [
-            [
-                {"start": "2020-08-01 00:01:15", "end": "2020-08-01 00:01:16"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 42.3, "end": 37.6},
-                {"start": 42.3, "end": 37.6},
-                {"start": 42.3, "end": 37.6},
-            ],
-            [
-                {"start": "2020-08-01 00:01:17", "end": "2020-09-01 00:19:12"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 61.5, "end": 0.1},
-                {"start": 61.5, "end": 0.1},
-                {"start": 61.5, "end": 0.1},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
-
-        expected_df_lt_state_def = self.create_expected_test_df(
-            expected_data_lt_state_def
-        )
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
         # call constantMetricState method
-        constantMetricState_lt_df = tsdf.constantMetricState(
+        constantMetricState_lt_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition="<"
         ).df
 
         # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(constantMetricState_lt_df, expected_df_lt_state_def)
+        self.assertDataFramesEqual(constantMetricState_lt_df, expected_df)
 
     def test_gte_constantMetricState(self):
-
-        expected_data_gte_state_def = [
-            [
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:01:15"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 4.1, "end": 42.3},
-                {"start": 4.1, "end": 42.3},
-                {"start": 4.1, "end": 42.3},
-            ],
-            [
-                {"start": "2020-08-01 00:01:16", "end": "2020-08-01 00:01:17"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 37.6, "end": 61.5},
-                {"start": 37.6, "end": 61.5},
-                {"start": 37.6, "end": 61.5},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
-
-        expected_df_gte_state_def = self.create_expected_test_df(
-            expected_data_gte_state_def
-        )
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
         # call constantMetricState method
-        constantMetricState_gt_df = tsdf.constantMetricState(
+        constantMetricState_gt_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition=">="
         ).df
 
-        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df_gte_state_def)
+        self.assertDataFramesEqual(constantMetricState_gt_df, expected_df)
 
     def test_lte_constantMetricState(self):
 
-        expected_data_lte_state_def = [
-            [
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:10"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 4.1, "end": 4.1},
-                {"start": 4.1, "end": 4.1},
-                {"start": 4.1, "end": 4.1},
-            ],
-            [
-                {"start": "2020-08-01 00:01:12", "end": "2020-08-01 00:01:14"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 10.7, "end": 10.7},
-                {"start": 10.7, "end": 10.7},
-                {"start": 10.7, "end": 10.7},
-            ],
-            [
-                {"start": "2020-08-01 00:01:15", "end": "2020-08-01 00:01:16"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 42.3, "end": 37.6},
-                {"start": 42.3, "end": 37.6},
-                {"start": 42.3, "end": 37.6},
-            ],
-            [
-                {"start": "2020-08-01 00:01:17", "end": "2020-09-01 00:19:12"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 61.5, "end": 0.1},
-                {"start": 61.5, "end": 0.1},
-                {"start": 61.5, "end": 0.1},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
-
-        expected_df_lte_state_def = self.create_expected_test_df(
-            expected_data_lte_state_def
-        )
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
         # call constantMetricState method
-        constantMetricState_lte_df = tsdf.constantMetricState(
+        constantMetricState_lte_df = input_tsdf.constantMetricState(
             "metric_1", "metric_2", "metric_3", state_definition="<="
         ).df
 
         # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(
-            constantMetricState_lte_df, expected_df_lte_state_def
-        )
+        self.assertDataFramesEqual(constantMetricState_lte_df, expected_df)
 
     def test_bool_col_constantMetricState(self):
 
-        expected_data_bool_col_state_def = [
-            [
-                {"start": "2020-08-01 00:00:09", "end": "2020-08-01 00:00:11"},
-                "v1",
-                "foo",
-                "bar",
-                {"start": 4.1, "end": 5.0},
-                {"start": 4.1, "end": 5.0},
-                {"start": 4.1, "end": 5.0},
-            ],
-        ]
-
         # construct dataframes
-        input_df = self.buildTestDF(self.schema, self.data)
-
-        expected_df_bool_col_state_def = self.create_expected_test_df(
-            expected_data_bool_col_state_def
-        )
-
-        # convert to TSDF
-        tsdf = TSDF(
-            input_df, partition_cols=["identifier_1", "identifier_2", "identifier_3"]
-        )
+        input_tsdf = self.get_data_as_tsdf("input")
+        expected_df = self.get_data_as_sdf("expected")
+        expected_df = self.create_expected_test_df(expected_df)
 
         # call constantMetricState method
-        constantMetricState_bool_col_df = tsdf.constantMetricState(
+        constantMetricState_bool_col_df = input_tsdf.constantMetricState(
             "metric_1",
             "metric_2",
             "metric_3",
@@ -640,9 +339,7 @@ class constantMetricState(SparkTest):
         ).df
 
         # test constantMetricState_tsdf summary
-        self.assertDataFramesEqual(
-            constantMetricState_bool_col_df, expected_df_bool_col_state_def
-        )
+        self.assertDataFramesEqual(constantMetricState_bool_col_df, expected_df)
 
 
 # MAIN
