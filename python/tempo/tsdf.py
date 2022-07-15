@@ -361,7 +361,9 @@ class TSDF:
 
         :return: a TSDF object containing only those records within the time slice specified
         """
-        slice_expr = f.expr(f"{self.ts_col} {op} '{target_ts}'")
+        # quote our timestamp if its a string
+        target_expr = f"'{target_ts}'" if isinstance(target_ts,str) else target_ts
+        slice_expr = f.expr(f"{self.ts_col} {op} {target_expr}")
         sliced_df = self.df.where(slice_expr)
         return TSDF(
             sliced_df,

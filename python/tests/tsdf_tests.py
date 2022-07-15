@@ -1,7 +1,10 @@
 import unittest
 
+from dateutil import parser as dt_parser
+
 import pyspark.sql.functions as F
 
+from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
 
@@ -37,6 +40,13 @@ class BasicTests(SparkTest):
             == "2020-09-01 00:19:12"
         )
 
+    def __timestamp_to_double(self, ts: str) -> float:
+        return dt_parser.isoparse(ts).timestamp()
+
+    def __tsdf_with_double_tscol(self, tsdf: TSDF) -> TSDF:
+        with_double_tscol_df = tsdf.df.withColumn(tsdf.ts_col, F.col(tsdf.ts_col).cast("double"))
+        return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
+
     def test_at(self):
         """
         Test of time-slicing at(..) function
@@ -48,6 +58,15 @@ class BasicTests(SparkTest):
         at_tsdf = init_tsdf.at(target_ts)
 
         self.assertTSDFsEqual(at_tsdf, expected_tsdf)
+
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        at_dbl_tsdf = init_dbl_tsdf.at(target_dbl)
+
+        self.assertTSDFsEqual(at_dbl_tsdf, expected_dbl_tsdf)
 
     def test_before(self):
         """
@@ -61,6 +80,15 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(before_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        before_dbl_tsdf = init_dbl_tsdf.before(target_dbl)
+
+        self.assertTSDFsEqual(before_dbl_tsdf, expected_dbl_tsdf)
+
     def test_atOrBefore(self):
         """
         Test of time-slicing atOrBefore(..) function
@@ -72,6 +100,15 @@ class BasicTests(SparkTest):
         before_tsdf = init_tsdf.atOrBefore(target_ts)
 
         self.assertTSDFsEqual(before_tsdf, expected_tsdf)
+
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        before_dbl_tsdf = init_dbl_tsdf.atOrBefore(target_dbl)
+
+        self.assertTSDFsEqual(before_dbl_tsdf, expected_dbl_tsdf)
 
     def test_after(self):
         """
@@ -85,6 +122,15 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(after_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        after_dbl_tsdf = init_dbl_tsdf.after(target_dbl)
+
+        self.assertTSDFsEqual(after_dbl_tsdf, expected_dbl_tsdf)
+
     def test_atOrAfter(self):
         """
         Test of time-slicing atOrAfter(..) function
@@ -96,6 +142,16 @@ class BasicTests(SparkTest):
         after_tsdf = init_tsdf.atOrAfter(target_ts)
 
         self.assertTSDFsEqual(after_tsdf, expected_tsdf)
+
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        after_dbl_tsdf = init_dbl_tsdf.atOrAfter(target_dbl)
+
+        self.assertTSDFsEqual(after_dbl_tsdf, expected_dbl_tsdf)
+
 
     def test_between(self):
         """
@@ -110,6 +166,16 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(between_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        ts1_dbl = self.__timestamp_to_double(ts1)
+        ts2_dbl = self.__timestamp_to_double(ts2)
+        between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl)
+
+        self.assertTSDFsEqual(between_dbl_tsdf, expected_dbl_tsdf)
+
     def test_between_exclusive(self):
         """
         Test of time-slicing between(..) function
@@ -123,6 +189,16 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(between_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        ts1_dbl = self.__timestamp_to_double(ts1)
+        ts2_dbl = self.__timestamp_to_double(ts2)
+        between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl, inclusive=False)
+
+        self.assertTSDFsEqual(between_dbl_tsdf, expected_dbl_tsdf)
+
     def test_earliest(self):
         """
         Test of time-slicing earliest(..) function
@@ -134,6 +210,15 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(earliest_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        earliest_dbl_tsdf = init_dbl_tsdf.earliest(n=3)
+
+        self.assertTSDFsEqual(earliest_dbl_tsdf, expected_dbl_tsdf)
+
+
     def test_latest(self):
         """
         Test of time-slicing latest(..) function
@@ -144,6 +229,14 @@ class BasicTests(SparkTest):
         latest_tsdf = init_tsdf.latest(n=3)
 
         self.assertTSDFsEqual(latest_tsdf, expected_tsdf)
+
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        latest_dbl_tsdf = init_dbl_tsdf.latest(n=3)
+
+        self.assertTSDFsEqual(latest_dbl_tsdf, expected_dbl_tsdf)
 
     def test_priorTo(self):
         """
@@ -157,6 +250,15 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(prior_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        prior_dbl_tsdf = init_dbl_tsdf.priorTo(target_dbl)
+
+        self.assertTSDFsEqual(prior_dbl_tsdf, expected_dbl_tsdf)
+
     def test_subsequentTo(self):
         """
         Test of time-slicing subsequentTo(..) function
@@ -169,6 +271,14 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(subsequent_tsdf, expected_tsdf)
 
+        # test with numeric ts_col
+        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
+        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
+
+        target_dbl = self.__timestamp_to_double(target_ts)
+        subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
+
+        self.assertTSDFsEqual(subsequent_dbl_tsdf, expected_dbl_tsdf)
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):
