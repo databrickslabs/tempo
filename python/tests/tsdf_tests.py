@@ -44,7 +44,9 @@ class BasicTests(SparkTest):
         return dt_parser.isoparse(ts).timestamp()
 
     def __tsdf_with_double_tscol(self, tsdf: TSDF) -> TSDF:
-        with_double_tscol_df = tsdf.df.withColumn(tsdf.ts_col, F.col(tsdf.ts_col).cast("double"))
+        with_double_tscol_df = tsdf.df.withColumn(
+            tsdf.ts_col, F.col(tsdf.ts_col).cast("double")
+        )
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
     def test_at(self):
@@ -152,7 +154,6 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(after_dbl_tsdf, expected_dbl_tsdf)
 
-
     def test_between(self):
         """
         Test of time-slicing between(..) function
@@ -218,7 +219,6 @@ class BasicTests(SparkTest):
 
         self.assertTSDFsEqual(earliest_dbl_tsdf, expected_dbl_tsdf)
 
-
     def test_latest(self):
         """
         Test of time-slicing latest(..) function
@@ -279,6 +279,7 @@ class BasicTests(SparkTest):
         subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
 
         self.assertTSDFsEqual(subsequent_dbl_tsdf, expected_dbl_tsdf)
+
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):
