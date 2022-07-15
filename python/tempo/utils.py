@@ -8,10 +8,11 @@ from IPython.display import display as ipydisplay
 from pandas import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
+
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
-PLATFORM = "DATABRICKS" if "DB_HOME" in os.environ.keys() else "NON_DATABRICKS"
+IS_DATABRICKS = "DB_HOME" in os.environ.keys()
 
 """
 DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.
@@ -139,13 +140,22 @@ def display_unavailable(df):
     )
 
 
-ENV_BOOLEAN = __is_capable_of_html_rendering()
+def get_display_df(tsdf, k):
+    # let's show the n most recent records per series, in order:
+    orderCols = tsdf.partitionCols.copy()
+    orderCols.append(tsdf.ts_col)
+    if tsdf.sequence_col:
+        orderCols.append(tsdf.sequence_col)
+    return tsdf.latest(k).df.orderBy(orderCols)
+
+
+ENV_CAN_RENDER_HTML = __is_capable_of_html_rendering()
 
 
 if (
-    (PLATFORM == "DATABRICKS")
-    and not isinstance(get_ipython(), None)
-    and "display" in get_ipython().user_ns.keys()
+    IS_DATABRICKS
+    and not (get_ipython() is None)
+    and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
     # Under 'display' key in user_ns the original databricks display method is present
@@ -153,17 +163,17 @@ if (
 
     def display_improvised(obj):
         if type(obj).__name__ == "TSDF":
-            method(obj.df)
+            method(get_display_df(obj, k=5))
         else:
             method(obj)
 
     display = display_improvised
 
-elif ENV_BOOLEAN:
+elif ENV_CAN_RENDER_HTML:
 
     def display_html_improvised(obj):
         if type(obj).__name__ == "TSDF":
-            display_html(obj.df)
+            display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
 
