@@ -206,3 +206,10 @@ class SparkTest(unittest.TestCase):
 
         self.assertEqual(sortedA.subtract(sortedB).count(), 0)
         self.assertEqual(sortedB.subtract(sortedA).count(), 0)
+
+    def assertTSDFsEqual(self, tsdfA, tsdfB):
+        """
+        Test that two given TSDFs are equivalent.
+        That is, their underlying Dataframes are equivalent.
+        """
+        self.assertDataFramesEqual(tsdfA.df, tsdfB.df)

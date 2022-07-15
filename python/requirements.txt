@@ -19,3 +19,4 @@ Sphinx==4.5.0
 sphinx-design==0.2.0
 sphinx-panels==0.6.0
 jsonref==0.2
+python-dateutil==2.8.2
