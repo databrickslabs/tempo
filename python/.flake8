@@ -9,4 +9,10 @@ extend-ignore =
     # Invalid escape sequence 'x' (W605)
     W605,
     # 'from module import *' used; unable to detect undefined names (F403)
-    F403 
+    F403
+exclude =
+    __pycache__
+    env
+    .env
+    venv
+    .venv

@@ -203,7 +203,6 @@ class SparkTest(unittest.TestCase):
         sortedB = dfB.select(colOrder)
         # must have identical data
         # that is all rows in A must be in B, and vice-versa
-
         self.assertEqual(sortedA.subtract(sortedB).count(), 0)
         self.assertEqual(sortedB.subtract(sortedA).count(), 0)
 

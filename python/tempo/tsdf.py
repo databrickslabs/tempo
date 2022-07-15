@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import logging
 from functools import reduce
-from typing import List
+from typing import List, Collection, Union
 
 import numpy as np
 import pyspark.sql.functions as f
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
+from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window, WindowSpec
 from scipy.fft import fft, fftfreq
@@ -1333,6 +1336,83 @@ class TSDF:
                 result = result.drop("tdval", "tpoints")
 
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+
+    def extractStateIntervals(
+        self,
+        *metricCols: Collection[str],
+        state_definition: Union[str, Column[bool]] = "=",
+    ) -> TSDF:
+
+        data = self.df
+
+        w = self.__baseWindow()
+
+        if type(state_definition) is str:
+            if state_definition not in ("=", "<=>", "!=", "<>", ">", "<", ">=", "<="):
+                logger.warning(
+                    "A `state_definition` which has not been tested was"
+                    "provided to the `extractStateIntervals` method."
+                )
+            current_state = f.array(*metricCols)
+        else:
+            current_state = state_definition
+
+        data = data.withColumn("current_state", current_state).drop(*metricCols)
+
+        data = (
+            data.withColumn(
+                "previous_state",
+                f.lag(f.col("current_state"), offset=1).over(w),
+            )
+            .withColumn(
+                "previous_ts",
+                f.lag(f.col(self.ts_col), offset=1).over(w),
+            )
+            .filter(f.col("previous_state").isNotNull())
+        )
+
+        if type(state_definition) is str:
+            state_change_exp = f"""
+            !(current_state {state_definition} previous_state)
+            """
+        else:
+            state_change_exp = "!(current_state AND previous_state)"
+
+        data = data.withColumn(
+            "state_change",
+            f.expr(state_change_exp),
+        ).drop("current_state", "previous_state")
+
+        data = (
+            data.withColumn(
+                "state_incrementer",
+                f.sum(f.col("state_change").cast("int")).over(w),
+            )
+            .filter(~f.col("state_change"))
+            .drop("state_change")
+        )
+
+        data = (
+            data.groupBy(*self.partitionCols, "state_incrementer")
+            .agg(
+                f.struct(
+                    f.min("previous_ts").alias("start"),
+                    f.max(f"{self.ts_col}").alias("end"),
+                ).alias(self.ts_col),
+            )
+            .drop("state_incrementer")
+        )
+
+        result = data.select(
+            self.ts_col,
+            *self.partitionCols,
+        )
+
+        return TSDF(
+            result,
+            self.ts_col,
+            self.partitionCols,
+        )
 
 
 class _ResampledTSDF(TSDF):
