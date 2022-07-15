@@ -5,13 +5,13 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="API Reference" href="reference/index.html" /><link rel="prev" title="tempo - Time Series Utilities for Data Teams Using Databricks" href="index.html" />
 
-    <link rel="shortcut icon" href="_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
-        <title>User Guide - Tempo 0.1.18 documentation</title>
+    <link rel="shortcut icon" href="_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.06.21"/>
+        <title>User Guide - Tempo 0.1.19 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
+    <link rel="stylesheet" type="text/css" href="_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -133,7 +133,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">Tempo 0.1.18 documentation</div></a>
+      <a href="index.html"><div class="brand">Tempo 0.1.19 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -160,7 +160,7 @@
     <img class="sidebar-logo only-dark" src="_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.18 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.19 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -173,10 +173,6 @@
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">User Guide</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="reference/index.html">API Reference</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="reference/tempo.tsdf.html">tempo.tsdf</a></li>
-<li class="toctree-l2"><a class="reference internal" href="reference/tempo.resample.html">tempo.resample</a></li>
-<li class="toctree-l2"><a class="reference internal" href="reference/tempo.io.html">tempo.io</a></li>
-<li class="toctree-l2"><a class="reference internal" href="reference/tempo.utils.html">tempo.utils</a></li>
-<li class="toctree-l2"><a class="reference internal" href="reference/tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
@@ -200,7 +196,8 @@
           </svg>
           <span>Back to top</span>
         </a>
-        <div class="content-icon-container"><div class="theme-toggle-container theme-toggle-content">
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -239,22 +236,56 @@ public methods.</p>
 to create new features from. Below are the public methods available for TSDF transformation and enrichment.</p>
 <section id="sample-reference-architecture-for-capital-markets">
 <h3>Sample Reference Architecture for Capital Markets<a class="headerlink" href="#sample-reference-architecture-for-capital-markets" title="Permalink to this headline">#</a></h3>
-<img alt="Architecture diagram" src="_images/ts_in_fs.png"/>
+<img alt="Architecture diagram" src="_images/ts_in_fs.png" />
 </section>
 </section>
 <section id="quickstart-python">
 <h2>Quickstart - Python<a class="headerlink" href="#quickstart-python" title="Permalink to this headline">#</a></h2>
 <p>Data source is UCI public accelerometer data available at this <a class="reference external" href="https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition">URL</a></p>
-<img alt="Data Info" src="_images/Phone_Accelerometer.png"/>
+<img alt="Data Info" src="_images/Phone_Accelerometer.png" />
 <section id="read-in-data">
 <h3>Read in Data<a class="headerlink" href="#read-in-data" title="Permalink to this headline">#</a></h3>
 <p>Reading data into a tempo <code class="docutils literal notranslate"><span class="pre">tsdf</span></code> is very easy. It provides a simple api to wrap a normal <code class="docutils literal notranslate"><span class="pre">Spark</span></code> dataframe with the
 time column and the optional partition column specification.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="n">phone_accel_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">"csv"</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">"header"</span><span class="p">,</span> <span class="s2">"true"</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"dbfs:/home/tempo/Phones_accelerometer"</span><span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"event_ts"</span><span class="p">,</span> <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"Arrival_Time"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"timestamp"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"z"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"event_ts_dbl"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"event_ts"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span>
+<span class="n">phone_accel_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;csv&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;header&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;dbfs:/home/tempo/Phones_accelerometer&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;event_ts&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Arrival_Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;event_ts_dbl&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;event_ts&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span>
 <span class="kn">from</span> <span class="nn">tempo</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="n">phone_accel_tsdf</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">phone_accel_df</span><span class="p">,</span> <span class="n">ts_col</span><span class="o">=</span><span class="s2">"event_ts"</span><span class="p">,</span> <span class="n">partition_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"User"</span><span class="p">])</span>
+<span class="n">phone_accel_tsdf</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">phone_accel_df</span><span class="p">,</span> <span class="n">ts_col</span><span class="o">=</span><span class="s2">&quot;event_ts&quot;</span><span class="p">,</span> <span class="n">partition_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;User&quot;</span><span class="p">])</span>
 <span class="n">display</span><span class="p">(</span><span class="n">phone_accel_tsdf</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="slice-by-time">
+<h3>Slice by Time<a class="headerlink" href="#slice-by-time" title="Permalink to this headline">#</a></h3>
+<p>You can slice across all timeseries in a TSDF in various ways. This allows you to select or filter by timestamp across
+all the series.</p>
+<p>You can select all observations at a specific point in time:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">target_time</span> <span class="o">=</span> <span class="s1">&#39;2015-02-23T13:03:53.919+0000&#39;</span>
+<span class="n">at_target_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">target_time</span><span class="p">)</span>
+<span class="n">display</span><span class="p">(</span><span class="n">at_target_tsdf</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can slice data before or after a particular point in time (either inclusive or exclusive of the target time):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">before_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">before</span><span class="p">(</span><span class="n">target_time</span><span class="p">)</span>
+<span class="n">at_or_after_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">atOrAfter</span><span class="p">(</span><span class="n">target_time</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Or in an interval between two timestamps:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">start_ts</span> <span class="o">=</span> <span class="s1">&#39;2015-02-23T13:03:53.909+0000&#39;</span>
+<span class="n">end_ts</span> <span class="o">=</span> <span class="n">target_time</span>
+<span class="n">interval_inclusive</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="n">start_ts</span><span class="p">,</span> <span class="n">end_ts</span><span class="p">)</span>
+<span class="n">interval_exclusive</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="n">start_ts</span><span class="p">,</span> <span class="n">end_ts</span><span class="p">,</span> <span class="n">inclusive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can take a look at the earliest (oldest) or latest (most recent) records across all series:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">n</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">oldest_five_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">earliest</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+<span class="n">latest_five_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">latest</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Or the records immediately before (or after) a particular point in time. This can be thought of like an “as-of” select.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">as_of_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">priorTo</span><span class="p">(</span><span class="n">target_time</span><span class="p">)</span>
+<span class="n">next_five_tsdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">subsequentTo</span><span class="p">(</span><span class="n">target_time</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -275,38 +306,38 @@ For the accepted functions to aggregate data, options are ‘floor’, ‘ceil�
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># ts_col = timestamp column on which to sort fact and source table</span>
 <span class="c1"># partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting</span>
 
-<span class="n">resampled_sdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s1">'min'</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="s1">'floor'</span><span class="p">)</span>
-<span class="n">resampled_pdf</span> <span class="o">=</span> <span class="n">resampled_sdf</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">'event_ts'</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"date"</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"2015-02-23"</span><span class="p">)</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
+<span class="n">resampled_sdf</span> <span class="o">=</span> <span class="n">phone_accel_tsdf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="s1">&#39;floor&#39;</span><span class="p">)</span>
+<span class="n">resampled_pdf</span> <span class="o">=</span> <span class="n">resampled_sdf</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s1">&#39;event_ts&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;date&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;2015-02-23&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
 
 <span class="kn">import</span> <span class="nn">plotly.graph_objs</span> <span class="k">as</span> <span class="nn">go</span>
 <span class="kn">import</span> <span class="nn">plotly.express</span> <span class="k">as</span> <span class="nn">px</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
 <span class="c1"># Plotly figure 1</span>
-<span class="n">fig</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">resampled_pdf</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">'event_ts'</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">'z'</span><span class="p">,</span>
-<span class="n">color</span><span class="o">=</span><span class="s2">"User"</span><span class="p">,</span>
-<span class="n">line_group</span><span class="o">=</span><span class="s2">"User"</span><span class="p">,</span> <span class="n">hover_name</span><span class="o">=</span><span class="s2">"User"</span><span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">'Phone Accelerometer Usage'</span> <span class="p">,</span> <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">resampled_pdf</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;event_ts&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;z&#39;</span><span class="p">,</span>
+<span class="n">color</span><span class="o">=</span><span class="s2">&quot;User&quot;</span><span class="p">,</span>
+<span class="n">line_group</span><span class="o">=</span><span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">hover_name</span><span class="o">=</span><span class="s2">&quot;User&quot;</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;Phone Accelerometer Usage&#39;</span> <span class="p">,</span> <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
 <span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
-<img alt="Raw time series" src="_images/resample.png"/>
+<img alt="Raw time series" src="_images/resample.png" />
 </section>
 </section>
 <section id="as-of-join">
 <h3>AS OF Join<a class="headerlink" href="#as-of-join" title="Permalink to this headline">#</a></h3>
 <p>This join uses windowing in order to select the latest record from a source table and merges this onto the base fact
 table.</p>
-<img alt="As of join" src="_static/AS_OF_JOIN.png"/>
+<img alt="As of join" src="_static/AS_OF_JOIN.png" />
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="o">*</span>
 
-<span class="n">watch_accel_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">"csv"</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">"header"</span><span class="p">,</span> <span class="s2">"true"</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"dbfs:/home/tempo/Watch_accelerometer"</span><span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"event_ts"</span><span class="p">,</span> <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">"Arrival_Time"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"timestamp"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"x"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"y"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"z"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"z"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">"event_ts_dbl"</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">"event_ts"</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">"double"</span><span class="p">))</span>
+<span class="n">watch_accel_df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;csv&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;header&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;dbfs:/home/tempo/Watch_accelerometer&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;event_ts&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Arrival_Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;event_ts_dbl&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">(</span><span class="s2">&quot;event_ts&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">))</span>
 
-<span class="n">watch_accel_tsdf</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">watch_accel_df</span><span class="p">,</span> <span class="n">ts_col</span><span class="o">=</span><span class="s2">"event_ts"</span><span class="p">,</span> <span class="n">partition_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"User"</span><span class="p">])</span>
+<span class="n">watch_accel_tsdf</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">watch_accel_df</span><span class="p">,</span> <span class="n">ts_col</span><span class="o">=</span><span class="s2">&quot;event_ts&quot;</span><span class="p">,</span> <span class="n">partition_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;User&quot;</span><span class="p">])</span>
 
 <span class="c1"># Applying AS OF join to TSDF datasets</span>
-<span class="n">joined_df</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">asofJoin</span><span class="p">(</span><span class="n">phone_accel_tsdf</span><span class="p">,</span> <span class="n">right_prefix</span><span class="o">=</span><span class="s2">"phone_accel"</span><span class="p">)</span>
+<span class="n">joined_df</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">asofJoin</span><span class="p">(</span><span class="n">phone_accel_tsdf</span><span class="p">,</span> <span class="n">right_prefix</span><span class="o">=</span><span class="s2">&quot;phone_accel&quot;</span><span class="p">)</span>
 
 <span class="n">display</span><span class="p">(</span><span class="n">joined_df</span><span class="p">)</span>
 <span class="c1"># We can use show() also</span>
@@ -326,7 +357,7 @@ table.</p>
 <li><p>fraction = overlap fraction</p></li>
 <li><p>right_prefix = prefix used for source columns when merged into fact table</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">joined_df</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">asofJoin</span><span class="p">(</span><span class="n">phone_accel_tsdf</span><span class="p">,</span> <span class="n">right_prefix</span><span class="o">=</span><span class="s2">"watch_accel"</span><span class="p">,</span> <span class="n">tsPartitionVal</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">fraction</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">joined_df</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">asofJoin</span><span class="p">(</span><span class="n">phone_accel_tsdf</span><span class="p">,</span> <span class="n">right_prefix</span><span class="o">=</span><span class="s2">&quot;watch_accel&quot;</span><span class="p">,</span> <span class="n">tsPartitionVal</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">fraction</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span>
 <span class="n">display</span><span class="p">(</span><span class="n">joined_df</span><span class="p">)</span>
 <span class="c1"># We can use show() also</span>
 <span class="c1"># joined_df.show(10, False)</span>
@@ -344,7 +375,7 @@ to define a rolling moving average based on exponential decay.</p>
 <ul class="simple">
 <li><p>window = number of lagged values to compute for moving average</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ema_trades</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">EMA</span><span class="p">(</span><span class="s2">"x"</span><span class="p">,</span> <span class="n">window</span> <span class="o">=</span> <span class="mi">50</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ema_trades</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">EMA</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">window</span> <span class="o">=</span> <span class="mi">50</span><span class="p">)</span>
 <span class="n">display</span><span class="p">(</span><span class="n">ema_trades</span><span class="p">)</span>
 <span class="c1"># We can use show() also</span>
 <span class="c1"># ema_trades.show(10, False)</span>
@@ -360,8 +391,8 @@ to define a rolling moving average based on exponential decay.</p>
 <ul class="simple">
 <li><p>rangeBackWindowSecs = number of seconds to look back</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">moving_avg</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">withRangeStats</span><span class="p">(</span><span class="s2">"y"</span><span class="p">,</span> <span class="n">rangeBackWindowSecs</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
-<span class="n">moving_avg</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s1">'event_ts'</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">,</span> <span class="s1">'z'</span><span class="p">,</span> <span class="s1">'mean_y'</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">moving_avg</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">withRangeStats</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">rangeBackWindowSecs</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+<span class="n">moving_avg</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s1">&#39;event_ts&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;mean_y&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -375,7 +406,7 @@ to define a rolling moving average based on exponential decay.</p>
 <li><p>timestep = timestep value to be used for getting the frequency scale</p></li>
 <li><p>valueCol = name of the time domain data column which will be transformed</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ft_df</span> <span class="o">=</span> <span class="n">tsdf</span><span class="o">.</span><span class="n">fourier_transform</span><span class="p">(</span><span class="n">timestep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">valueCol</span><span class="o">=</span><span class="s2">"data_col"</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ft_df</span> <span class="o">=</span> <span class="n">tsdf</span><span class="o">.</span><span class="n">fourier_transform</span><span class="p">(</span><span class="n">timestep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">valueCol</span><span class="o">=</span><span class="s2">&quot;data_col&quot;</span><span class="p">)</span>
 <span class="n">display</span><span class="p">(</span><span class="n">ft_df</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -413,8 +444,8 @@ currently not supported.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create instance of the TSDF class</span>
 <span class="n">input_tsdf</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span>
             <span class="n">input_df</span><span class="p">,</span>
-            <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">"partition_a"</span><span class="p">,</span> <span class="s2">"partition_b"</span><span class="p">],</span>
-            <span class="n">ts_col</span><span class="o">=</span><span class="s2">"event_ts"</span><span class="p">,</span>
+            <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;partition_a&quot;</span><span class="p">,</span> <span class="s2">&quot;partition_b&quot;</span><span class="p">],</span>
+            <span class="n">ts_col</span><span class="o">=</span><span class="s2">&quot;event_ts&quot;</span><span class="p">,</span>
         <span class="p">)</span>
 
 
@@ -422,41 +453,41 @@ currently not supported.</p>
 <span class="c1"># 1. Aggregate all valid numeric columns using mean into 30 second intervals</span>
 <span class="c1"># 2. Interpolate any missing intervals or null values using linear fill</span>
 <span class="c1"># Note: When chaining interpolate after a resample, there is no need to provide a freq or func parameter. Only method is required.</span>
-<span class="n">interpolated_tsdf</span> <span class="o">=</span> <span class="n">input_tsdf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">"30 seconds"</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">)</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
-    <span class="n">method</span><span class="o">=</span><span class="s2">"linear"</span>
+<span class="n">interpolated_tsdf</span> <span class="o">=</span> <span class="n">input_tsdf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;30 seconds&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span>
 <span class="p">)</span>
 
 <span class="c1"># What the following interpolation method does is:</span>
 <span class="c1"># 1. Aggregate columnA and columnBN  using mean into 30 second intervals</span>
 <span class="c1"># 2. Interpolate any missing intervals or null values using linear fill</span>
 <span class="n">interpolated_tsdf</span> <span class="o">=</span> <span class="n">input_tsdf</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
-    <span class="n">freq</span><span class="o">=</span><span class="s2">"30 seconds"</span><span class="p">,</span>
-    <span class="n">func</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">,</span>
-    <span class="n">target_cols</span><span class="o">=</span> <span class="p">[</span><span class="s2">"columnA"</span><span class="p">,</span><span class="s2">"columnB"</span><span class="p">],</span>
-    <span class="n">method</span><span class="o">=</span><span class="s2">"linear"</span>
+    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;30 seconds&quot;</span><span class="p">,</span>
+    <span class="n">func</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+    <span class="n">target_cols</span><span class="o">=</span> <span class="p">[</span><span class="s2">&quot;columnA&quot;</span><span class="p">,</span><span class="s2">&quot;columnB&quot;</span><span class="p">],</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span>
 
 <span class="p">)</span>
 
-<span class="c1"># Alternatively it's also possible to override default TSDF parameters.</span>
+<span class="c1"># Alternatively it&#39;s also possible to override default TSDF parameters.</span>
 <span class="c1"># e.g. partition_cols, ts_col a</span>
 <span class="n">interpolated_tsdf</span> <span class="o">=</span> <span class="n">input_tsdf</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
-    <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">"partition_c"</span><span class="p">],</span>
-    <span class="n">ts_col</span><span class="o">=</span><span class="s2">"other_event_ts"</span>
-    <span class="n">freq</span><span class="o">=</span><span class="s2">"30 seconds"</span><span class="p">,</span>
-    <span class="n">func</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">,</span>
-    <span class="n">target_cols</span><span class="o">=</span> <span class="p">[</span><span class="s2">"columnA"</span><span class="p">,</span><span class="s2">"columnB"</span><span class="p">],</span>
-    <span class="n">method</span><span class="o">=</span><span class="s2">"linear"</span>
+    <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;partition_c&quot;</span><span class="p">],</span>
+    <span class="n">ts_col</span><span class="o">=</span><span class="s2">&quot;other_event_ts&quot;</span>
+    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;30 seconds&quot;</span><span class="p">,</span>
+    <span class="n">func</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+    <span class="n">target_cols</span><span class="o">=</span> <span class="p">[</span><span class="s2">&quot;columnA&quot;</span><span class="p">,</span><span class="s2">&quot;columnB&quot;</span><span class="p">],</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span>
 <span class="p">)</span>
 
 <span class="c1"># The show_interpolated flag can be set to `True` to show additional boolean columns</span>
 <span class="c1"># for a given row that shows if a column has been interpolated.</span>
 <span class="n">interpolated_tsdf</span> <span class="o">=</span> <span class="n">input_tsdf</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
-    <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">"partition_c"</span><span class="p">],</span>
-    <span class="n">ts_col</span><span class="o">=</span><span class="s2">"other_event_ts"</span>
-    <span class="n">freq</span><span class="o">=</span><span class="s2">"30 seconds"</span><span class="p">,</span>
-    <span class="n">func</span><span class="o">=</span><span class="s2">"mean"</span><span class="p">,</span>
-    <span class="n">method</span><span class="o">=</span><span class="s2">"linear"</span><span class="p">,</span>
-    <span class="n">target_cols</span><span class="o">=</span> <span class="p">[</span><span class="s2">"columnA"</span><span class="p">,</span><span class="s2">"columnB"</span><span class="p">],</span>
+    <span class="n">partition_cols</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;partition_c&quot;</span><span class="p">],</span>
+    <span class="n">ts_col</span><span class="o">=</span><span class="s2">&quot;other_event_ts&quot;</span>
+    <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;30 seconds&quot;</span><span class="p">,</span>
+    <span class="n">func</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+    <span class="n">target_cols</span><span class="o">=</span> <span class="p">[</span><span class="s2">&quot;columnA&quot;</span><span class="p">,</span><span class="s2">&quot;columnB&quot;</span><span class="p">],</span>
     <span class="n">show_interpolated</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
@@ -472,7 +503,7 @@ sum for all or some subset of numeric columns.</p>
 <li><p>freq = (required) Frequency at which the grouping should take place - acceptable parameters are strings of the form “1 minute”, “40 seconds”, etc.</p></li>
 <li><p>metricCols = (optional) List of columns to compute metrics for. These should be numeric columns. If this is not supplied, this method will compute stats on all numeric columns in the TSDF.</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">grouped_stats</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">withGroupedStats</span><span class="p">(</span><span class="n">metricCols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"y"</span><span class="p">],</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"1 minute"</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">grouped_stats</span> <span class="o">=</span> <span class="n">watch_accel_tsdf</span><span class="o">.</span><span class="n">withGroupedStats</span><span class="p">(</span><span class="n">metricCols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;1 minute&quot;</span><span class="p">)</span>
 <span class="n">display</span><span class="p">(</span><span class="n">grouped_stats</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -580,6 +611,7 @@ in <a class="reference external" href="https://pypi.org/project/dbl-tempo/">PyPI
 </li>
 <li><a class="reference internal" href="#quickstart-python">Quickstart - Python</a><ul>
 <li><a class="reference internal" href="#read-in-data">Read in Data</a></li>
+<li><a class="reference internal" href="#slice-by-time">Slice by Time</a></li>
 <li><a class="reference internal" href="#resample-and-visualize">Resample and Visualize</a><ul>
 <li><a class="reference internal" href="#sample-usage">Sample usage</a></li>
 </ul>

@@ -3,15 +3,15 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="tempo.resample" href="tempo.resample.html" /><link rel="prev" title="API Reference" href="index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing.html" /><link rel="prev" title="API Reference" href="index.html" />
 
-    <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
-        <title>tempo.tsdf - Tempo 0.1.18 documentation</title>
+    <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.06.21"/>
+        <title>tempo.tsdf - Tempo 0.1.19 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -133,7 +133,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Tempo 0.1.18 documentation</div></a>
+      <a href="../index.html"><div class="brand">Tempo 0.1.19 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -160,7 +160,7 @@
     <img class="sidebar-logo only-dark" src="../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.18 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.19 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -173,10 +173,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../user-guide.html">User Guide</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">API Reference</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">tempo.tsdf</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tempo.resample.html">tempo.resample</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tempo.io.html">tempo.io</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tempo.utils.html">tempo.utils</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tempo.interpol.html">tempo.interpol</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
@@ -200,7 +196,8 @@
           </svg>
           <span>Back to top</span>
         </a>
-        <div class="content-icon-container"><div class="theme-toggle-container theme-toggle-content">
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -233,6 +230,21 @@ EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) e
 TODO: replace case when statement with coalesce
 TODO: add in time partitions functionality (what is the overlap fraction?)</p>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.after">
+<span class="sig-name descname"><span class="pre">after</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.after"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.after" title="Permalink to this definition">#</a></dt>
+<dd><p>Select only records after a given time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ts</strong> – timestamp on which to filter records</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing just the records after the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.asofJoin">
 <span class="sig-name descname"><span class="pre">asofJoin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">right_tsdf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">left_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">right_prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'right'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tsPartitionVal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fraction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skipNulls</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sql_join_opt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suppress_null_warning</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.asofJoin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.asofJoin" title="Permalink to this definition">#</a></dt>
@@ -250,6 +262,81 @@ enabled also.</p>
 :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
 :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid</p>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.at">
+<span class="sig-name descname"><span class="pre">at</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.at"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.at" title="Permalink to this definition">#</a></dt>
+<dd><p>Select only records at a given time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ts</strong> – timestamp of the records to select</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing just the records at the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.atOrAfter">
+<span class="sig-name descname"><span class="pre">atOrAfter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.atOrAfter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.atOrAfter" title="Permalink to this definition">#</a></dt>
+<dd><p>Select only records at or after a given time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ts</strong> – timestamp on which to filter records</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing just the records at or after the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.atOrBefore">
+<span class="sig-name descname"><span class="pre">atOrBefore</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.atOrBefore"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.atOrBefore" title="Permalink to this definition">#</a></dt>
+<dd><p>Select only records at or before a given time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ts</strong> – timestamp on which to filter records</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing just the records at or before the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.before">
+<span class="sig-name descname"><span class="pre">before</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.before"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.before" title="Permalink to this definition">#</a></dt>
+<dd><p>Select only records before a given time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ts</strong> – timestamp on which to filter records</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing just the records before the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.between">
+<span class="sig-name descname"><span class="pre">between</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_ts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_ts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inclusive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.between"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.between" title="Permalink to this definition">#</a></dt>
+<dd><p>Select only records in a given range</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_ts</strong> – starting time of the range to select</p></li>
+<li><p><strong>end_ts</strong> – ending time of the range to select</p></li>
+<li><p><strong>inclusive</strong> (<em>bool</em>) – whether the range is inclusive of the endpoints or not, defaults to True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing just the records within the range specified</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.describe">
 <span class="sig-name descname"><span class="pre">describe</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.describe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.describe" title="Permalink to this definition">#</a></dt>
@@ -259,6 +346,21 @@ global - unique time series based on partition columns, min/max times, granulari
 count / mean / stddev / min / max - standard Spark data frame describe() output
 missing_vals_pct - percentage (from 0 to 100) of missing values.</p>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.earliest">
+<span class="sig-name descname"><span class="pre">earliest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.earliest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.earliest" title="Permalink to this definition">#</a></dt>
+<dd><p>Select the earliest n records for each series</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>n</strong> – number of records to select (default is 1)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing the earliest n records for each series</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.fourier_transform">
 <span class="sig-name descname"><span class="pre">fourier_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valueCol</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.fourier_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.fourier_transform" title="Permalink to this definition">#</a></dt>
@@ -266,9 +368,10 @@ missing_vals_pct - percentage (from 0 to 100) of missing values.</p>
 :param timestep: timestep value to be used for getting the frequency scale
 :param valueCol: name of the time domain data column which will be transformed</p>
 </dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.interpolate">
-<span class="sig-name descname"><span class="pre">interpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ts_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_interpolated</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.interpolate" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">interpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ts_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_interpolated</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perform_checks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.interpolate" title="Permalink to this definition">#</a></dt>
 <dd><p>Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
 will be filled based on the fill calculation.</p>
 <dl class="field-list simple">
@@ -281,6 +384,7 @@ will be filled based on the fill calculation.</p>
 <li><p><strong>[</strong><strong>optional</strong><strong>]</strong> – specify other ts_col, by default this uses the ts_col within the TSDF object</p></li>
 <li><p><strong>[</strong><strong>optional</strong><strong>]</strong> – specify other partition_cols, by default this uses the partition_cols within the TSDF object</p></li>
 <li><p><strong>[</strong><strong>optional</strong><strong>]</strong> – if true will include an additional column to show which rows have been fully interpolated.</p></li>
+<li><p><strong>perform_checks</strong> – calculate time horizon and warnings if True (default is True)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -288,17 +392,52 @@ will be filled based on the fill calculation.</p>
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.latest">
+<span class="sig-name descname"><span class="pre">latest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.latest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.latest" title="Permalink to this definition">#</a></dt>
+<dd><p>Select the latest n records for each series</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>n</strong> – number of records to select (default is 1)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing the latest n records for each series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.priorTo">
+<span class="sig-name descname"><span class="pre">priorTo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.priorTo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.priorTo" title="Permalink to this definition">#</a></dt>
+<dd><p>Select the n most recent records prior to a given time
+You can think of this like an ‘asOf’ select - it selects the records as of a particular time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ts</strong> – timestamp on which to filter records</p></li>
+<li><p><strong>n</strong> – number of records to select (default is 1)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing the n records prior to the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.resample">
-<span class="sig-name descname"><span class="pre">resample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metricCols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fill</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.resample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.resample" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">resample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metricCols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fill</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perform_checks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.resample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.resample" title="Permalink to this definition">#</a></dt>
 <dd><p>function to upsample based on frequency and aggregate function similar to pandas
 :param freq: frequency for upsample - valid inputs are “hr”, “min”, “sec” corresponding to hour, minute, or second
 :param func: function used to aggregate input
 :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
 :param prefix - supply a prefix for the newly sampled columns
 :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
+:param perform_checks: calculate time horizon and warnings if True (default is True)
 :return: TSDF object with sample data using aggregate function</p>
 </dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.select">
 <span class="sig-name descname"><span class="pre">select</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">cols</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.select"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.select" title="Permalink to this definition">#</a></dt>
@@ -314,9 +453,10 @@ in the current <a class="reference internal" href="#tempo.tsdf.TSDF" title="temp
 tsdf.select(‘name’, ‘age’).collect()
 [Row(name=’Alice’, age=2), Row(name=’Bob’, age=5)]</p>
 </dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.show">
-<span class="sig-name descname"><span class="pre">show</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">truncate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertical</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.show"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.show" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">show</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">truncate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertical</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.show"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.show" title="Permalink to this definition">#</a></dt>
 <dd><p>pyspark.sql.DataFrame.show() method’s equivalent for TSDF objects</p>
 <p>n : int, optional
 Number of rows to show.
@@ -334,6 +474,24 @@ per column value).</p>
 <p># Call show method here
 phone_accel_tsdf.show()</p>
 </dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.subsequentTo">
+<span class="sig-name descname"><span class="pre">subsequentTo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.subsequentTo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.subsequentTo" title="Permalink to this definition">#</a></dt>
+<dd><p>Select the n records subsequent to a give time</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ts</strong> – timestamp on which to filter records</p></li>
+<li><p><strong>n</strong> – number of records to select (default is 1)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing the n records subsequent to the given time</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.withGroupedStats">
 <span class="sig-name descname"><span class="pre">withGroupedStats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metricCols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.withGroupedStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.withGroupedStats" title="Permalink to this definition">#</a></dt>
@@ -343,6 +501,7 @@ mean/count/min/max/sum/std deviation
 :param metricCols - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
 :param freq - frequency (provide a string of the form ‘1 min’, ‘30 seconds’ and we interpret the window to use to aggregate</p>
 </dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.withLookbackFeatures">
 <span class="sig-name descname"><span class="pre">withLookbackFeatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">featureCols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lookbackWindowSize</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exactSize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">featureColName</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'features'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.withLookbackFeatures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.withLookbackFeatures" title="Permalink to this definition">#</a></dt>
@@ -367,6 +526,7 @@ occurs, and the column may contain arrays less than lookbackWindowSize in length
 </dd>
 </dl>
 </dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.withPartitionCols">
 <span class="sig-name descname"><span class="pre">withPartitionCols</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">partitionCols</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.withPartitionCols"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.withPartitionCols" title="Permalink to this definition">#</a></dt>
@@ -375,6 +535,7 @@ from each other.
 :param partitionCols: a list of columns used to partition distinct timeseries
 :return: a TSDF object with the given partition columns</p>
 </dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="tempo.tsdf.TSDF.withRangeStats">
 <span class="sig-name descname"><span class="pre">withRangeStats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'range'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colsToSummarize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rangeBackWindowSecs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.withRangeStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.withRangeStats" title="Permalink to this definition">#</a></dt>
@@ -392,28 +553,9 @@ Assumptions:</p>
 <li><p>There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a ‘rows preceding’ window, this wouldn’t be a problem</p></li>
 </ol>
 </dd></dl>
+
 </dd></dl>
-<dl class="py class">
-<dt class="sig sig-object py" id="tempo.tsdf._ResampledTSDF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tempo.tsdf.</span></span><span class="sig-name descname"><span class="pre">_ResampledTSDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ts_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'event_ts'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partition_cols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sequence_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#_ResampledTSDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf._ResampledTSDF" title="Permalink to this definition">#</a></dt>
-<dd><dl class="py method">
-<dt class="sig sig-object py" id="tempo.tsdf._ResampledTSDF.interpolate">
-<span class="sig-name descname"><span class="pre">interpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_interpolated</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/tsdf.html#_ResampledTSDF.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf._ResampledTSDF.interpolate" title="Permalink to this definition">#</a></dt>
-<dd><p>Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>method</strong> – function used to fill missing values e.g. linear, null, zero, bfill, ffill</p></li>
-<li><p><strong>[</strong><strong>optional</strong><strong>]</strong> (<em>show_interpolated</em>) – columns that should be interpolated, by default interpolates all numeric columns</p></li>
-<li><p><strong>[</strong><strong>optional</strong><strong>]</strong> – if true will include an additional column to show which rows have been fully interpolated.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>new TSDF object containing interpolated data</p>
-</dd>
-</dl>
-</dd></dl>
-</dd></dl>
+
 </section>
 
         </article>
@@ -421,12 +563,12 @@ Assumptions:</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="tempo.resample.html">
+          <a class="next-page" href="../contributing.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">tempo.resample</div>
+                <div class="title">Contributing</div>
               </div>
               <svg><use href="#svg-arrow-right"></use></svg>
             </a>
