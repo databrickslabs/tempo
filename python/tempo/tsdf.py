@@ -1351,7 +1351,7 @@ class TSDF:
             if state_definition not in ("=", "<=>", "!=", "<>", ">", "<", ">=", "<="):
                 logger.warning(
                     "A `state_definition` which has not been tested was"
-                    "provided to the `constantMetricState` method."
+                    "provided to the `extractStateIntervals` method."
                 )
             current_state = f.array(*metricCols)
         else:
