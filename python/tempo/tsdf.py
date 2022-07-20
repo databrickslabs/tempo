@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import reduce
-from typing import List, Collection, Union
+from typing import List, Collection, Union, Callable
 
 import numpy as np
 import pyspark.sql.functions as f
@@ -1340,25 +1340,46 @@ class TSDF:
     def extractStateIntervals(
         self,
         *metricCols: Collection[str],
-        state_definition: Union[str, Column[bool]] = "=",
+        state_definition: Union[str, Callable[[Column, Column], Column]] = "=",
     ) -> TSDF:
+        """
+        Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of "state", as defined by the :param state_defintion: parameter.
+        The state defition consists of a comparison operation between the current and previous values of a metric. If the comparison operation
+        evaluates to true across all metric columns, then we consider both points to be in the same "state". Changes of state occur when the
+        comparison operator returns false for any given metric column. So, the default state definition ('=') entails that intervals of time wherein
+        the metrics all remained constant. A state definition of '>=' would extract intervals wherein the metrics were all monotonically increasning.
 
-        data = self.df
+        :param metricCols: the set of metric columns to evaluate for state changes
+        :param state_definition: the comparison function used to evaluate individual metrics for state changes.
+        Either a string, giving a standard PySpark column comparison operation, or a binary function with the
+        signature: `(x1: Column, x2: Column) -> Column` where the returned column expression evaluates to a
+        :class:`~pyspark.sql.types.BooleanType`
 
-        w = self.__baseWindow()
+        :return: a :class:`~pyspark.sql.DataFrame` object containing the resulting intervals
+        """
 
+        # validate state definition and construct state comparison function
         if type(state_definition) is str:
             if state_definition not in ("=", "<=>", "!=", "<>", ">", "<", ">=", "<="):
                 logger.warning(
-                    "A `state_definition` which has not been tested was"
-                    "provided to the `extractStateIntervals` method."
+                    f"An unrecognized `state_definition` operator ({state_definition})"
+                    "was provided to the `extractStateIntervals` method."
                 )
-            current_state = f.array(*metricCols)
+            state_comp_fn = lambda a, b: f.expr(f"{a} {state_definition} {b}")
+        elif callable(state_definition):
+            state_comp_fn = state_definition
         else:
-            current_state = state_definition
+            raise ValueError(f"The `state_definition` argument can be of type `str` or `callable`, "
+                             f"but received value of type {type(state_definition)}")
 
-        data = data.withColumn("current_state", current_state).drop(*metricCols)
+        # assemble current state array
+        current_state = f.array(*metricCols)
+        data = self.df.withColumn("current_state", current_state)
 
+        # our window
+        w = self.__baseWindow()
+
+        # get previous state & timestamp
         data = (
             data.withColumn(
                 "previous_state",
@@ -1371,48 +1392,37 @@ class TSDF:
             .filter(f.col("previous_state").isNotNull())
         )
 
-        if type(state_definition) is str:
-            state_change_exp = f"""
-            !(current_state {state_definition} previous_state)
-            """
-        else:
-            state_change_exp = "!(current_state AND previous_state)"
+        # validate & apply state comparison function
+        data = data.withColumn(
+            "state_compare",
+            f.zip_with(f.col("current_state"), f.col("previous_state"), state_comp_fn)
+        )
 
+        # see if state has changed
         data = data.withColumn(
             "state_change",
-            f.expr(state_change_exp),
-        ).drop("current_state", "previous_state")
+            ~f.forall(f.col("state_compare"),lambda x: x),
+        )
 
+        # count the distinct state changes to get our intervals
         data = (
             data.withColumn(
                 "state_incrementer",
                 f.sum(f.col("state_change").cast("int")).over(w),
             )
             .filter(~f.col("state_change"))
-            .drop("state_change")
         )
 
-        data = (
+        # aggregate by intervals
+        result = (
             data.groupBy(*self.partitionCols, "state_incrementer")
             .agg(
-                f.struct(
-                    f.min("previous_ts").alias("start"),
-                    f.max(f"{self.ts_col}").alias("end"),
-                ).alias(self.ts_col),
-            )
-            .drop("state_incrementer")
+                f.min("previous_ts").alias("start_ts"),
+                f.max(self.ts_col).alias("end_ts")
+            ).drop("state_incrementer")
         )
 
-        result = data.select(
-            self.ts_col,
-            *self.partitionCols,
-        )
-
-        return TSDF(
-            result,
-            self.ts_col,
-            self.partitionCols,
-        )
+        return result
 
 
 class _ResampledTSDF(TSDF):
