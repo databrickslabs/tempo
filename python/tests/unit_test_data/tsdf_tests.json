@@ -2108,7 +2108,7 @@
         ]
       }
     },
-    "test_bool_col_extractStateIntervals": {
+    "test_threshold_fn_extractStateIntervals": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2118,125 +2118,25 @@
           "identifier_3"
         ],
         "data": [
-          [
-            "2020-08-01 00:00:09",
-            "v1",
-            "foo",
-            "bar",
-            4.1,
-            4.1,
-            4.1
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "v1",
-            "foo",
-            "bar",
-            4.1,
-            4.1,
-            4.1
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "v1",
-            "foo",
-            "bar",
-            5.0,
-            5.0,
-            5.0
-          ],
-          [
-            "2020-08-01 00:01:12",
-            "v1",
-            "foo",
-            "bar",
-            10.7,
-            10.7,
-            10.7
-          ],
-          [
-            "2020-08-01 00:01:13",
-            "v1",
-            "foo",
-            "bar",
-            10.7,
-            10.7,
-            10.7
-          ],
-          [
-            "2020-08-01 00:01:14",
-            "v1",
-            "foo",
-            "bar",
-            10.7,
-            10.7,
-            10.7
-          ],
-          [
-            "2020-08-01 00:01:15",
-            "v1",
-            "foo",
-            "bar",
-            42.3,
-            42.3,
-            42.3
-          ],
-          [
-            "2020-08-01 00:01:16",
-            "v1",
-            "foo",
-            "bar",
-            37.6,
-            37.6,
-            37.6
-          ],
-          [
-            "2020-08-01 00:01:17",
-            "v1",
-            "foo",
-            "bar",
-            61.5,
-            61.5,
-            61.5
-          ],
-          [
-            "2020-09-01 00:01:12",
-            "v1",
-            "foo",
-            "bar",
-            28.9,
-            28.9,
-            28.9
-          ],
-          [
-            "2020-09-01 00:19:12",
-            "v1",
-            "foo",
-            "bar",
-            0.1,
-            0.1,
-            0.1
-          ]
+          [ "2020-08-01 00:00:09", "v1", "foo", "bar", 4.1, 4.1, 4.1 ],
+          [ "2020-08-01 00:00:10", "v1", "foo", "bar", 4.1, 4.1, 4.1 ],
+          [ "2020-08-01 00:00:11", "v1", "foo", "bar", 5.0, 5.0, 5.0 ],
+          [ "2020-08-01 00:01:12", "v1", "foo", "bar", 10.7, 10.7, 10.7 ],
+          [ "2020-08-01 00:01:13", "v1", "foo", "bar", 10.7, 10.7, 10.7 ],
+          [ "2020-08-01 00:01:14", "v1", "foo", "bar", 10.7, 10.7, 10.7 ],
+          [ "2020-08-01 00:01:15", "v1", "foo", "bar", 42.3, 42.3, 42.3 ],
+          [ "2020-08-01 00:01:16", "v1", "foo", "bar", 37.6, 37.6, 37.6 ],
+          [ "2020-08-01 00:01:17", "v1", "foo", "bar", 61.5, 61.5, 61.5 ],
+          [ "2020-09-01 00:01:12", "v1", "foo", "bar", 28.9, 28.9, 28.9 ],
+          [ "2020-09-01 00:19:12", "v1", "foo", "bar", 0.1, 0.1, 0.1 ]
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
-        ],
+        "schema": "start_ts: STRING, end_ts: STRING, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL ,identifier_3 STRING NOT NULL",
+        "other_ts_cols": ["start_ts", "end_ts"],
         "data": [
-          [
-            {
-              "start": "2020-08-01 00:00:09",
-              "end": "2020-08-01 00:00:11"
-            },
-            "v1",
-            "foo",
-            "bar"
-          ]
+          [ "2020-08-01 00:00:09", "2020-08-01 00:00:10", "v1", "foo", "bar" ],
+          [ "2020-08-01 00:01:12", "2020-08-01 00:01:14", "v1", "foo", "bar" ]
         ]
       }
     }

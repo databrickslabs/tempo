@@ -2,8 +2,9 @@ import unittest
 
 from dateutil import parser as dt_parser
 
+from pyspark.sql import DataFrame
+from pyspark.sql import Column
 import pyspark.sql.functions as F
-from pyspark.sql.dataframe import DataFrame
 
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
@@ -473,7 +474,7 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        #expected_df = self.create_expected_test_df(expected_df)
 
         # call extractStateIntervals method
         extractStateIntervals_eq_1_df = input_tsdf.extractStateIntervals(
@@ -598,24 +599,29 @@ class ExtractStateIntervalsTest(SparkTest):
         self.assertDataFramesEqual(extractStateIntervals_lte_1_1_df, expected_1_df)
         self.assertDataFramesEqual(extractStateIntervals_lte_2_1_df, expected_1_df)
 
-    def test_bool_col_extractStateIntervals(self):
+    def test_threshold_fn_extractStateIntervals(self):
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        #expected_df = self.create_expected_test_df(expected_df)
+
+        # threshold state function
+        def threshold_fn( a: Column, b: Column ) -> Column:
+            return F.abs(a - b) < F.lit(0.5)
 
         # call extractStateIntervals method
-        extractStateIntervals_bool_col_df = input_tsdf.extractStateIntervals(
+        extracted_intervals_df = input_tsdf.extractStateIntervals(
             "metric_1",
             "metric_2",
             "metric_3",
-            state_definition=F.abs(
-                F.col("metric_1") - F.col("metric_2") - F.col("metric_3")
-            ) < F.lit(10),
-        ).df
+            state_definition=threshold_fn
+        )
+
+        #print(f"extracted state intervals has schema: {extracted_intervals_df.schema}")
+        #print(f"expected state intervals has schema: {expected_df.schema}")
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extractStateIntervals_bool_col_df, expected_df)
+        self.assertDataFramesEqual(extracted_intervals_df, expected_df)
 
 
 # MAIN
