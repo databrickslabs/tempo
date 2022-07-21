@@ -1415,16 +1415,24 @@ class TSDF:
 
         # get previous state & timestamp
         data = (
+            # data.withColumn(
+            #     "previous_state",
+            #     f.lag(f.col("current_state"), offset=1).over(w),
+            # )
             data.withColumn(
-                "previous_state",
-                f.lag(f.col("current_state"), offset=1).over(w),
-            )
-            .withColumn(
                 "previous_ts",
                 f.lag(f.col(self.ts_col), offset=1).over(w),
             )
-            .filter(f.col("previous_state").isNotNull())
+            # .filter(f.col("previous_state").isNotNull())
         )
+
+        for mc in metricCols:
+            temp_metric_compare_col = f"__{mc}_compare"
+            data = data.withColumn(
+                temp_metric_compare_col,
+                state_comp_fn(f.col(mc), f.lag(f.col(mc),1).over(w))
+            )
+
 
         # validate & apply state comparison function
         data = data.withColumn(
