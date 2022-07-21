@@ -2,7 +2,6 @@ import unittest
 
 from dateutil import parser as dt_parser
 
-from pyspark.sql import DataFrame
 from pyspark.sql import Column
 import pyspark.sql.functions as F
 
@@ -455,26 +454,10 @@ class ResampleTest(SparkTest):
 class ExtractStateIntervalsTest(SparkTest):
     """Test of finding time ranges for metrics with constant state."""
 
-    def create_expected_test_df(
-            self,
-            df,
-    ) -> DataFrame:
-        return (
-            # StringType not converting to TimeStamp type inside of struct so forcing
-            df.withColumn(
-                "event_ts",
-                F.struct(
-                    F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end"),
-                ),
-            )
-        )
-
     def test_eq_extractStateIntervals(self):
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
-        #expected_df = self.create_expected_test_df(expected_df)
 
         # call extractStateIntervals method
         extractStateIntervals_eq_1_df = input_tsdf.extractStateIntervals(
@@ -492,10 +475,8 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_1_tsdf = self.get_data_as_tsdf("input_1")
         expected_1_df = self.get_data_as_sdf("expected_1")
-        expected_1_df = self.create_expected_test_df(expected_1_df)
         input_2_tsdf = self.get_data_as_tsdf("input_2")
         expected_2_df = self.get_data_as_sdf("expected_2")
-        expected_2_df = self.create_expected_test_df(expected_2_df)
 
         # call extractStateIntervals method
         ExtractStateIntervals_ne_1_1_df = input_1_tsdf.extractStateIntervals(
@@ -521,10 +502,8 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_1_tsdf = self.get_data_as_tsdf("input_1")
         expected_1_df = self.get_data_as_sdf("expected_1")
-        expected_1_df = self.create_expected_test_df(expected_1_df)
         input_2_tsdf = self.get_data_as_tsdf("input_2")
         expected_2_df = self.get_data_as_sdf("expected_2")
-        expected_2_df = self.create_expected_test_df(expected_2_df)
 
         # call extractStateIntervals method
         extractStateIntervals_gt_1_1_df = input_1_tsdf.extractStateIntervals(
@@ -541,10 +520,8 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_1_tsdf = self.get_data_as_tsdf("input_1")
         expected_1_df = self.get_data_as_sdf("expected_1")
-        expected_1_df = self.create_expected_test_df(expected_1_df)
         input_2_tsdf = self.get_data_as_tsdf("input_2")
         expected_2_df = self.get_data_as_sdf("expected_2")
-        expected_2_df = self.create_expected_test_df(expected_2_df)
 
         # call extractStateIntervals method
         extractStateIntervals_lt_1_1_df = input_1_tsdf.extractStateIntervals(
@@ -562,10 +539,8 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_1_tsdf = self.get_data_as_tsdf("input_1")
         expected_1_df = self.get_data_as_sdf("expected_1")
-        expected_1_df = self.create_expected_test_df(expected_1_df)
         input_2_tsdf = self.get_data_as_tsdf("input_2")
         expected_2_df = self.get_data_as_sdf("expected_2")
-        expected_2_df = self.create_expected_test_df(expected_2_df)
 
         # call extractStateIntervals method
         extractStateIntervals_gt_1_1_df = input_1_tsdf.extractStateIntervals(
@@ -582,10 +557,8 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_1_tsdf = self.get_data_as_tsdf("input_1")
         expected_1_df = self.get_data_as_sdf("expected_1")
-        expected_1_df = self.create_expected_test_df(expected_1_df)
         input_2_tsdf = self.get_data_as_tsdf("input_2")
         expected_2_df = self.get_data_as_sdf("expected_2")
-        expected_2_df = self.create_expected_test_df(expected_2_df)
 
         # call extractStateIntervals method
         extractStateIntervals_lte_1_1_df = input_1_tsdf.extractStateIntervals(
@@ -603,7 +576,6 @@ class ExtractStateIntervalsTest(SparkTest):
         # construct dataframes
         input_tsdf = self.get_data_as_tsdf("input")
         expected_df = self.get_data_as_sdf("expected")
-        #expected_df = self.create_expected_test_df(expected_df)
 
         # threshold state function
         def threshold_fn( a: Column, b: Column ) -> Column:
