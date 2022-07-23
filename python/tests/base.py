@@ -160,8 +160,16 @@ class SparkTest(unittest.TestCase):
         """
         Test that two fields are equivalent
         """
-        self.assertEqual(fieldA.name.lower(), fieldB.name.lower(), msg=f"Field {fieldA} has different name from {fieldB}")
-        self.assertEqual(fieldA.dataType, fieldB.dataType, msg=f"Field {fieldA} has different type from {fieldB}")
+        self.assertEqual(
+            fieldA.name.lower(),
+            fieldB.name.lower(),
+            msg=f"Field {fieldA} has different name from {fieldB}",
+        )
+        self.assertEqual(
+            fieldA.dataType,
+            fieldB.dataType,
+            msg=f"Field {fieldA} has different type from {fieldB}",
+        )
         # self.assertEqual(fieldA.nullable, fieldB.nullable)
 
     def assertSchemaContainsField(self, schema, field):
@@ -203,8 +211,16 @@ class SparkTest(unittest.TestCase):
         sortedB = dfB.select(colOrder)
         # must have identical data
         # that is all rows in A must be in B, and vice-versa
-        self.assertEqual(sortedA.subtract(sortedB).count(), 0, msg=f"There are rows in DataFrame A that are not in DataFrame B")
-        self.assertEqual(sortedB.subtract(sortedA).count(), 0, msg=f"There are rows in DataFrame B that are not in DataFrame A")
+        self.assertEqual(
+            sortedA.subtract(sortedB).count(),
+            0,
+            msg="There are rows in DataFrame A that are not in DataFrame B",
+        )
+        self.assertEqual(
+            sortedB.subtract(sortedA).count(),
+            0,
+            msg="There are rows in DataFrame B that are not in DataFrame A",
+        )
 
     def assertTSDFsEqual(self, tsdfA, tsdfB):
         """
