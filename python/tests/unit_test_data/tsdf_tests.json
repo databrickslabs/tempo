@@ -1173,7 +1173,7 @@
     }
   },
   "ExtractStateIntervalsTest": {
-    "test_eq_0_extractStateIntervals": {
+    "test_eq_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1308,7 +1308,7 @@
         ]
       }
     },
-    "test_eq_1_extractStateIntervals": {
+    "test_eq_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
@@ -1436,7 +1436,7 @@
         ]
       }
     },
-    "test_ne_0_extractStateIntervals": {
+    "test_ne_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1571,7 +1571,7 @@
         ]
       }
     },
-    "test_ne_1_extractStateIntervals": {
+    "test_ne_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1627,7 +1627,7 @@
         ]
       }
     },
-    "test_gt_0_extractStateIntervals": {
+    "test_gt_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1769,7 +1769,7 @@
         ]
       }
     },
-    "test_gt_1_extractStateIntervals": {
+    "test_gt_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1825,7 +1825,7 @@
         ]
       }
     },
-    "test_lt_0_extractStateIntervals": {
+    "test_lt_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1960,7 +1960,7 @@
         ]
       }
     },
-    "test_lt_1_extractStateIntervals": {
+    "test_lt_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2016,7 +2016,7 @@
         ]
       }
     },
-    "test_gte_0_extractStateIntervals": {
+    "test_gte_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2151,7 +2151,7 @@
         ]
       }
     },
-    "test_gte_1_extractStateIntervals": {
+    "test_gte_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2207,7 +2207,7 @@
         ]
       }
     },
-    "test_lte_0_extractStateIntervals": {
+    "test_lte_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2319,7 +2319,7 @@
         ]
       },
       "expected": {
-                "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "other_ts_cols": [
           "start_ts",
           "end_ts"
@@ -2356,7 +2356,7 @@
         ]
       }
     },
-    "test_lte_1_extractStateIntervals": {
+    "test_lte_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2396,7 +2396,7 @@
         ]
       },
       "expected": {
-                "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
         "other_ts_cols": [
           "start_ts",
           "end_ts"
@@ -2412,7 +2412,7 @@
         ]
       }
     },
-    "test_threshold_fn_extractStateIntervals": {
+    "test_threshold_fn": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -2547,7 +2547,7 @@
         ]
       }
     },
-    "test_null_safe_eq_0_extractStateIntervals": {
+    "test_null_safe_eq_0": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
@@ -2682,7 +2682,7 @@
         ]
       }
     },
-    "test_null_safe_eq_1_extractStateIntervals": {
+    "test_null_safe_eq_1": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
@@ -2809,6 +2809,157 @@
           ]
         ]
       }
+    },
+    "test_adjacent_intervals": {
+      "input": {
+        "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "identifier_1",
+          "identifier_2",
+          "identifier_3"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "v1",
+            "foo",
+            "bar",
+            5.0,
+            5.0,
+            5.0
+          ],
+          [
+            "2020-08-01 00:00:12",
+            "v1",
+            "foo",
+            "bar",
+            5.0,
+            5.0,
+            5.0
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:13",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar"
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "2020-08-01 00:00:12",
+            "v1",
+            "foo",
+            "bar"
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar"
+          ]
+        ]
+      }
+    },
+    "test_invalid_state_definition_str": {
+      "input": {
+        "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "identifier_1",
+          "identifier_2",
+          "identifier_3"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            4.1
+          ]
+        ]
+      }
+    },
+    "test_invalid_state_definition_type": {
+      "input": {
+        "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "identifier_1",
+          "identifier_2",
+          "identifier_3"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            4.1
+          ]
+        ]
+      }
     }
+
   }
 }
