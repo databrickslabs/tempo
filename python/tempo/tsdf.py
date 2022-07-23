@@ -1342,7 +1342,7 @@ class TSDF:
             self,
             *metric_cols: str,
             state_definition: Union[str, Callable[[Column, Column], Column]] = "=",
-    ) -> TSDF:
+    ) -> DataFrame:
         """
         Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of "state", as defined by the :param
         state_definition: parameter. The state definition consists of a comparison operation between the current and
@@ -1462,8 +1462,6 @@ class TSDF:
             .drop("state_incrementer")
         )
 
-        print("result")
-        result.show(truncate=False)
         return result
 
 
