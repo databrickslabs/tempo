@@ -3,16 +3,50 @@
     "temp_slice_init_data": {
       "schema": "symbol string, event_ts string, trade_pr float",
       "ts_col": "event_ts",
-      "partition_cols": ["symbol"],
+      "partition_cols": [
+        "symbol"
+      ],
       "data": [
-        ["S1", "2020-08-01 00:00:10", 349.21],
-        ["S1", "2020-08-01 00:01:12", 351.32],
-        ["S1", "2020-09-01 00:02:10", 361.1],
-        ["S1", "2020-09-01 00:19:12", 362.1],
-        ["S2", "2020-08-01 00:01:10", 743.01],
-        ["S2", "2020-08-01 00:01:24", 751.92],
-        ["S2", "2020-09-01 00:02:10", 761.10],
-        ["S2", "2020-09-01 00:20:42", 762.33]
+        [
+          "S1",
+          "2020-08-01 00:00:10",
+          349.21
+        ],
+        [
+          "S1",
+          "2020-08-01 00:01:12",
+          351.32
+        ],
+        [
+          "S1",
+          "2020-09-01 00:02:10",
+          361.1
+        ],
+        [
+          "S1",
+          "2020-09-01 00:19:12",
+          362.1
+        ],
+        [
+          "S2",
+          "2020-08-01 00:01:10",
+          743.01
+        ],
+        [
+          "S2",
+          "2020-08-01 00:01:24",
+          751.92
+        ],
+        [
+          "S2",
+          "2020-09-01 00:02:10",
+          761.10
+        ],
+        [
+          "S2",
+          "2020-09-01 00:20:42",
+          762.33
+        ]
       ]
     }
   },
@@ -55,10 +89,20 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S2", "2020-09-01 00:02:10", 761.10]
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
         ]
       }
     },
@@ -69,12 +113,30 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21],
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S2", "2020-08-01 00:01:10", 743.01],
-          ["S2", "2020-08-01 00:01:24", 751.92]
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ]
         ]
       }
     },
@@ -85,14 +147,40 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21],
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S2", "2020-08-01 00:01:10", 743.01],
-          ["S2", "2020-08-01 00:01:24", 751.92],
-          ["S2", "2020-09-01 00:02:10", 761.10]
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
         ]
       }
     },
@@ -103,10 +191,20 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-09-01 00:19:12", 362.1],
-          ["S2", "2020-09-01 00:20:42", 762.33]
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
         ]
       }
     },
@@ -117,12 +215,30 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S1", "2020-09-01 00:19:12", 362.1],
-          ["S2", "2020-09-01 00:02:10", 761.10],
-          ["S2", "2020-09-01 00:20:42", 762.33]
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
         ]
       }
     },
@@ -133,13 +249,35 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S2", "2020-08-01 00:01:10", 743.01],
-          ["S2", "2020-08-01 00:01:24", 751.92],
-          ["S2", "2020-09-01 00:02:10", 761.10]
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
         ]
       }
     },
@@ -150,12 +288,30 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S2", "2020-08-01 00:01:24", 751.92],
-          ["S2", "2020-09-01 00:02:10", 761.10]
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
         ]
       }
     },
@@ -166,14 +322,40 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21],
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S2", "2020-08-01 00:01:10", 743.01],
-          ["S2", "2020-08-01 00:01:24", 751.92],
-          ["S2", "2020-09-01 00:02:10", 761.10]
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
         ]
       }
     },
@@ -184,14 +366,40 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S1", "2020-09-01 00:19:12", 362.1],
-          ["S2", "2020-08-01 00:01:24", 751.92],
-          ["S2", "2020-09-01 00:02:10", 761.10],
-          ["S2", "2020-09-01 00:20:42", 762.33]
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
         ]
       }
     },
@@ -202,10 +410,20 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-08-01 00:01:12", 351.32],
-          ["S2", "2020-08-01 00:01:24", 751.92]
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ]
         ]
       }
     },
@@ -216,10 +434,20 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "partition_cols": [
+          "symbol"
+        ],
         "data": [
-          ["S1", "2020-09-01 00:02:10", 361.1],
-          ["S2", "2020-09-01 00:02:10", 761.10]
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
         ]
       }
     }
@@ -945,7 +1173,7 @@
     }
   },
   "ExtractStateIntervalsTest": {
-    "test_eq_extractStateIntervals": {
+    "test_eq_0_extractStateIntervals": {
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
@@ -1057,7 +1285,32 @@
         ]
       },
       "expected": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar"
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar"
+          ]
+        ]
+      }
+    },
+    "test_eq_1_extractStateIntervals": {
+      "input": {
+        "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
         "partition_cols": [
           "identifier_1",
@@ -1066,19 +1319,116 @@
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:09",
-              "end": "2020-08-01 00:00:10"
-            },
+            "2020-08-01 00:00:09",
             "v1",
             "foo",
-            "bar"
+            "bar",
+            4.1,
+            null,
+            4.1
           ],
           [
-            {
-              "start": "2020-08-01 00:01:12",
-              "end": "2020-08-01 00:01:14"
-            },
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            null,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "v1",
+            "foo",
+            "bar",
+            5.0,
+            5.0,
+            5.0
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:13",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            null
+          ],
+          [
+            "2020-08-01 00:01:15",
+            "v1",
+            "foo",
+            "bar",
+            42.3,
+            42.3,
+            42.3
+          ],
+          [
+            "2020-08-01 00:01:16",
+            "v1",
+            "foo",
+            "bar",
+            37.6,
+            37.6,
+            37.6
+          ],
+          [
+            "2020-08-01 00:01:17",
+            "v1",
+            "foo",
+            "bar",
+            61.5,
+            61.5,
+            61.5
+          ],
+          [
+            "2020-09-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            28.9,
+            28.9,
+            28.9
+          ],
+          [
+            "2020-09-01 00:19:12",
+            "v1",
+            "foo",
+            "bar",
+            0.1,
+            0.1,
+            0.1
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:13",
             "v1",
             "foo",
             "bar"
@@ -1086,8 +1436,8 @@
         ]
       }
     },
-    "test_ne_extractStateIntervals": {
-      "input_1": {
+    "test_ne_0_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1197,36 +1547,32 @@
           ]
         ]
       },
-      "expected_1": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:01:12"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:01:12",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:14",
-              "end": "2020-09-01 00:19:12"
-            },
+            "2020-08-01 00:01:14",
+            "2020-09-01 00:19:12",
             "v1",
             "foo",
             "bar"
           ]
         ]
-      },
-      "input_2": {
+      }
+    },
+    "test_ne_1_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1264,20 +1610,16 @@
           ]
         ]
       },
-      "expected_2": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:00:11"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:11",
             "v1",
             "foo",
             "bar"
@@ -1285,8 +1627,8 @@
         ]
       }
     },
-    "test_gt_extractStateIntervals": {
-      "input_1": {
+    "test_gt_0_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1396,45 +1738,39 @@
           ]
         ]
       },
-      "expected_1": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:01:12"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:01:12",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:14",
-              "end": "2020-08-01 00:01:15"
-            },
+            "2020-08-01 00:01:14",
+            "2020-08-01 00:01:15",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:16",
-              "end": "2020-08-01 00:01:17"
-            },
+            "2020-08-01 00:01:16",
+            "2020-08-01 00:01:17",
             "v1",
             "foo",
             "bar"
           ]
         ]
-      },
-      "input_2": {
+      }
+    },
+    "test_gt_1_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1472,20 +1808,16 @@
           ]
         ]
       },
-      "expected_2": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:00:11"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:11",
             "v1",
             "foo",
             "bar"
@@ -1493,8 +1825,8 @@
         ]
       }
     },
-    "test_lt_extractStateIntervals": {
-      "input_1": {
+    "test_lt_0_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1604,36 +1936,32 @@
           ]
         ]
       },
-      "expected_1": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:01:15",
-              "end": "2020-08-01 00:01:16"
-            },
+            "2020-08-01 00:01:15",
+            "2020-08-01 00:01:16",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:17",
-              "end": "2020-09-01 00:19:12"
-            },
+            "2020-08-01 00:01:17",
+            "2020-09-01 00:19:12",
             "v1",
             "foo",
             "bar"
           ]
         ]
-      },
-      "input_2": {
+      }
+    },
+    "test_lt_1_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1671,20 +1999,16 @@
           ]
         ]
       },
-      "expected_2": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:00:11"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:11",
             "v1",
             "foo",
             "bar"
@@ -1692,8 +2016,8 @@
         ]
       }
     },
-    "test_gte_extractStateIntervals": {
-      "input_1": {
+    "test_gte_0_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1803,36 +2127,32 @@
           ]
         ]
       },
-      "expected_1": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:09",
-              "end": "2020-08-01 00:01:15"
-            },
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:01:15",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:16",
-              "end": "2020-08-01 00:01:17"
-            },
+            "2020-08-01 00:01:16",
+            "2020-08-01 00:01:17",
             "v1",
             "foo",
             "bar"
           ]
         ]
-      },
-      "input_2": {
+      }
+    },
+    "test_gte_1_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -1870,20 +2190,16 @@
           ]
         ]
       },
-      "expected_2": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:00:11"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:11",
             "v1",
             "foo",
             "bar"
@@ -1891,8 +2207,8 @@
         ]
       }
     },
-    "test_lte_extractStateIntervals": {
-      "input_1": {
+    "test_lte_0_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -2002,54 +2318,46 @@
           ]
         ]
       },
-      "expected_1": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+                "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:09",
-              "end": "2020-08-01 00:00:10"
-            },
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:12",
-              "end": "2020-08-01 00:01:14"
-            },
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:14",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:15",
-              "end": "2020-08-01 00:01:16"
-            },
+            "2020-08-01 00:01:15",
+            "2020-08-01 00:01:16",
             "v1",
             "foo",
             "bar"
           ],
           [
-            {
-              "start": "2020-08-01 00:01:17",
-              "end": "2020-09-01 00:19:12"
-            },
+            "2020-08-01 00:01:17",
+            "2020-09-01 00:19:12",
             "v1",
             "foo",
             "bar"
           ]
         ]
-      },
-      "input_2": {
+      }
+    },
+    "test_lte_1_extractStateIntervals": {
+      "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
         "partition_cols": [
@@ -2087,20 +2395,16 @@
           ]
         ]
       },
-      "expected_2": {
-        "schema": "event_ts STRUCT<start: STRING, end: STRING> NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "identifier_1",
-          "identifier_2",
-          "identifier_3"
+      "expected": {
+                "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
         ],
         "data": [
           [
-            {
-              "start": "2020-08-01 00:00:10",
-              "end": "2020-08-01 00:00:11"
-            },
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:11",
             "v1",
             "foo",
             "bar"
@@ -2118,25 +2422,391 @@
           "identifier_3"
         ],
         "data": [
-          [ "2020-08-01 00:00:09", "v1", "foo", "bar", 4.1, 4.1, 4.1 ],
-          [ "2020-08-01 00:00:10", "v1", "foo", "bar", 4.1, 4.1, 4.1 ],
-          [ "2020-08-01 00:00:11", "v1", "foo", "bar", 5.0, 5.0, 5.0 ],
-          [ "2020-08-01 00:01:12", "v1", "foo", "bar", 10.7, 10.7, 10.7 ],
-          [ "2020-08-01 00:01:13", "v1", "foo", "bar", 10.7, 10.7, 10.7 ],
-          [ "2020-08-01 00:01:14", "v1", "foo", "bar", 10.7, 10.7, 10.7 ],
-          [ "2020-08-01 00:01:15", "v1", "foo", "bar", 42.3, 42.3, 42.3 ],
-          [ "2020-08-01 00:01:16", "v1", "foo", "bar", 37.6, 37.6, 37.6 ],
-          [ "2020-08-01 00:01:17", "v1", "foo", "bar", 61.5, 61.5, 61.5 ],
-          [ "2020-09-01 00:01:12", "v1", "foo", "bar", 28.9, 28.9, 28.9 ],
-          [ "2020-09-01 00:19:12", "v1", "foo", "bar", 0.1, 0.1, 0.1 ]
+          [
+            "2020-08-01 00:00:09",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "v1",
+            "foo",
+            "bar",
+            5.0,
+            5.0,
+            5.0
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:13",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:15",
+            "v1",
+            "foo",
+            "bar",
+            42.3,
+            42.3,
+            42.3
+          ],
+          [
+            "2020-08-01 00:01:16",
+            "v1",
+            "foo",
+            "bar",
+            37.6,
+            37.6,
+            37.6
+          ],
+          [
+            "2020-08-01 00:01:17",
+            "v1",
+            "foo",
+            "bar",
+            61.5,
+            61.5,
+            61.5
+          ],
+          [
+            "2020-09-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            28.9,
+            28.9,
+            28.9
+          ],
+          [
+            "2020-09-01 00:19:12",
+            "v1",
+            "foo",
+            "bar",
+            0.1,
+            0.1,
+            0.1
+          ]
         ]
       },
       "expected": {
         "schema": "start_ts: STRING, end_ts: STRING, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL ,identifier_3 STRING NOT NULL",
-        "other_ts_cols": ["start_ts", "end_ts"],
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
         "data": [
-          [ "2020-08-01 00:00:09", "2020-08-01 00:00:10", "v1", "foo", "bar" ],
-          [ "2020-08-01 00:01:12", "2020-08-01 00:01:14", "v1", "foo", "bar" ]
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar"
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar"
+          ]
+        ]
+      }
+    },
+    "test_null_safe_eq_0_extractStateIntervals": {
+      "input": {
+        "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "identifier_1",
+          "identifier_2",
+          "identifier_3"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            null,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            null,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "v1",
+            "foo",
+            "bar",
+            5.0,
+            5.0,
+            5.0
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            null,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:13",
+            "v1",
+            "foo",
+            "bar",
+            null,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar",
+            null,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:15",
+            "v1",
+            "foo",
+            "bar",
+            42.3,
+            42.3,
+            42.3
+          ],
+          [
+            "2020-08-01 00:01:16",
+            "v1",
+            "foo",
+            "bar",
+            37.6,
+            37.6,
+            37.6
+          ],
+          [
+            "2020-08-01 00:01:17",
+            "v1",
+            "foo",
+            "bar",
+            61.5,
+            61.5,
+            61.5
+          ],
+          [
+            "2020-09-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            28.9,
+            28.9,
+            28.9
+          ],
+          [
+            "2020-09-01 00:19:12",
+            "v1",
+            "foo",
+            "bar",
+            0.1,
+            0.1,
+            0.1
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar"
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar"
+          ]
+        ]
+      }
+    },
+    "test_null_safe_eq_1_extractStateIntervals": {
+      "input": {
+        "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "identifier_1",
+          "identifier_2",
+          "identifier_3"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            null,
+            4.1
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "v1",
+            "foo",
+            "bar",
+            4.1,
+            4.1,
+            null
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "v1",
+            "foo",
+            "bar",
+            5.0,
+            5.0,
+            5.0
+          ],
+          [
+            "2020-08-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            null,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:13",
+            "v1",
+            "foo",
+            "bar",
+            null,
+            10.7,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:14",
+            "v1",
+            "foo",
+            "bar",
+            10.7,
+            null,
+            10.7
+          ],
+          [
+            "2020-08-01 00:01:15",
+            "v1",
+            "foo",
+            "bar",
+            42.3,
+            42.3,
+            42.3
+          ],
+          [
+            "2020-08-01 00:01:16",
+            "v1",
+            "foo",
+            "bar",
+            37.6,
+            37.6,
+            37.6
+          ],
+          [
+            "2020-08-01 00:01:17",
+            "v1",
+            "foo",
+            "bar",
+            61.5,
+            61.5,
+            61.5
+          ],
+          [
+            "2020-09-01 00:01:12",
+            "v1",
+            "foo",
+            "bar",
+            28.9,
+            28.9,
+            28.9
+          ],
+          [
+            "2020-09-01 00:19:12",
+            "v1",
+            "foo",
+            "bar",
+            0.1,
+            0.1,
+            0.1
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL,identifier_1 STRING NOT NULL,identifier_2 STRING NOT NULL,identifier_3 STRING NOT NULL",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:01:12",
+            "2020-08-01 00:01:13",
+            "v1",
+            "foo",
+            "bar"
+          ]
         ]
       }
     }
