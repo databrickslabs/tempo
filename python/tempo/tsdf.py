@@ -1341,7 +1341,7 @@ class TSDF:
     def extractStateIntervals(
             self,
             *metric_cols: str,
-            state_definition: Union[str, Callable[[Column, Column], Column]] = "=",
+            state_definition: Union[str, Callable[[Column, Column], Column[bool]]] = "=",
     ) -> DataFrame:
         """
         Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of "state", as defined by the :param
