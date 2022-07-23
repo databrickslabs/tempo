@@ -1443,7 +1443,7 @@ class TSDF:
         # check if state changed
         data = data.withColumn(
             "state_change",
-            ~f.array_contains(f.array(*temp_metric_compare_cols), False)
+            f.array_contains(f.array(*temp_metric_compare_cols), False)
         )
 
         # count the distinct state changes to get our intervals
@@ -1461,6 +1461,7 @@ class TSDF:
             )
             .drop("state_incrementer")
         )
+
         print("result")
         result.show(truncate=False)
         return result
