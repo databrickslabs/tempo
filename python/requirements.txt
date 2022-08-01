@@ -8,7 +8,7 @@ pyarrow==8.0.0
 pyspark==3.2.1
 python-dateutil==2.8.2
 pytz==2022.1
-scipy==1.8.1
+scipy==1.9.0
 six==1.16.0
 wheel==0.37.1
 semver==2.13.0
