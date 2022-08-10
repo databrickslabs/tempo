@@ -7,6 +7,8 @@ import jsonref
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from tempo.tsdf import TSDF
+from chispa import assert_df_equality
+from pyspark.sql.dataframe import DataFrame
 
 
 class SparkTest(unittest.TestCase):
@@ -153,7 +155,7 @@ class SparkTest(unittest.TestCase):
         return df
 
     #
-    # DataFrame Assert Functions
+    # Assertion Functions
     #
 
     def assertFieldsEqual(self, fieldA, fieldB):
@@ -182,49 +184,42 @@ class SparkTest(unittest.TestCase):
         # the attributes of the fields must be equal
         self.assertFieldsEqual(field, schema[field.name])
 
-    def assertSchemasEqual(self, schemaA, schemaB):
-        """
-        Test that the two given schemas are equivalent (column ordering ignored)
-        """
-        # both schemas must have the same length
-        self.assertEqual(len(schemaA.fields), len(schemaB.fields))
-        # schemaA must contain every field in schemaB
-        for field in schemaB.fields:
-            self.assertSchemaContainsField(schemaA, field)
-
-    def assertHasSchema(self, df, expectedSchema):
-        """
-        Test that the given Dataframe conforms to the expected schema
-        """
-        self.assertSchemasEqual(df.schema, expectedSchema)
-
-    def assertDataFramesEqual(self, dfA, dfB):
+    def assertDataFramesEqual(
+            self,
+            dfA: DataFrame,
+            dfB: DataFrame,
+            ignore_row_order: bool = False,
+            ignore_column_order: bool = True,
+            ignore_nullable: bool = True,
+    ):
         """
         Test that the two given Dataframes are equivalent.
         That is, they have equivalent schemas, and both contain the same values
         """
-        # must have the same schemas
-        self.assertSchemasEqual(dfA.schema, dfB.schema)
-        # enforce a common column ordering
-        colOrder = sorted(dfA.columns)
-        sortedA = dfA.select(colOrder)
-        sortedB = dfB.select(colOrder)
-        # must have identical data
-        # that is all rows in A must be in B, and vice-versa
-        self.assertEqual(
-            sortedA.subtract(sortedB).count(),
-            0,
-            msg="There are rows in DataFrame A that are not in DataFrame B",
-        )
-        self.assertEqual(
-            sortedB.subtract(sortedA).count(),
-            0,
-            msg="There are rows in DataFrame B that are not in DataFrame A",
+        assert_df_equality(
+            dfA,
+            dfB,
+            ignore_row_order=ignore_row_order,
+            ignore_column_order=ignore_column_order,
+            ignore_nullable=ignore_nullable,
         )
 
-    def assertTSDFsEqual(self, tsdfA, tsdfB):
+    def assertTSDFsEqual(
+            self,
+            tsdfA: TSDF,
+            tsdfB: TSDF,
+            ignore_row_order: bool = False,
+            ignore_column_order: bool = True,
+            ignore_nullable: bool = True,
+    ) -> None:
         """
         Test that two given TSDFs are equivalent.
         That is, their underlying Dataframes are equivalent.
         """
-        self.assertDataFramesEqual(tsdfA.df, tsdfB.df)
+        assert_df_equality(
+            tsdfA.df,
+            tsdfB.df,
+            ignore_row_order=ignore_row_order,
+            ignore_column_order=ignore_column_order,
+            ignore_nullable=ignore_nullable,
+        )

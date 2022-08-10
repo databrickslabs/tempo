@@ -230,7 +230,7 @@ class BasicTests(SparkTest):
 
         latest_tsdf = init_tsdf.latest(n=3)
 
-        self.assertTSDFsEqual(latest_tsdf, expected_tsdf)
+        self.assertTSDFsEqual(latest_tsdf, expected_tsdf, ignore_row_order=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -238,7 +238,7 @@ class BasicTests(SparkTest):
 
         latest_dbl_tsdf = init_dbl_tsdf.latest(n=3)
 
-        self.assertTSDFsEqual(latest_dbl_tsdf, expected_dbl_tsdf)
+        self.assertTSDFsEqual(latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True)
 
     def test_priorTo(self):
         """
@@ -650,7 +650,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_df, expected_df)
+        self.assertDataFramesEqual(intervals_eq_df, expected_df, ignore_nullable=False)
 
     def test_null_safe_eq_1(self):
         # construct dataframes
@@ -662,7 +662,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_df, expected_df)
+        self.assertDataFramesEqual(intervals_eq_df, expected_df, ignore_nullable=False)
 
     def test_adjacent_intervals(self):
         # construct dataframes
