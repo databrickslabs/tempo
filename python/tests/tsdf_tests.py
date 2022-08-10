@@ -2,8 +2,9 @@ import unittest
 
 from dateutil import parser as dt_parser
 
-import pyspark.sql.functions as F
+from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
+import pyspark.sql.functions as F
 
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
@@ -451,138 +452,251 @@ class ResampleTest(SparkTest):
         self.assertDataFramesEqual(bars, barsExpected)
 
 
-class extractStateIntervalsTest(SparkTest):
+class ExtractStateIntervalsTest(SparkTest):
     """Test of finding time ranges for metrics with constant state."""
 
-    def create_expected_test_df(
-        self,
-        df,
-    ) -> DataFrame:
-        return (
-            # StringType not converting to TimeStamp type inside of struct so forcing
-            df.withColumn(
-                "event_ts",
-                F.struct(
-                    F.to_timestamp("event_ts.start").alias("start"),
-                    F.to_timestamp("event_ts.end").alias("end"),
-                ),
-            )
+    def test_eq_0(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        # call extractStateIntervals method
+        intervals_eq_1_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3"
+        )
+        intervals_eq_2_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="=="
         )
 
-    def test_eq_extractStateIntervals(self):
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(intervals_eq_1_df, expected_df)
+        self.assertDataFramesEqual(intervals_eq_2_df, expected_df)
 
+    def test_eq_1(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_eq_1_df = input_tsdf.extractStateIntervals(
+        intervals_eq_1_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3"
-        ).df
-        extractStateIntervals_eq_2_df = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<=>"
-        ).df
+        )
+        intervals_eq_2_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="=="
+        )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extractStateIntervals_eq_1_df, expected_df)
-        self.assertDataFramesEqual(extractStateIntervals_eq_2_df, expected_df)
+        self.assertDataFramesEqual(intervals_eq_1_df, expected_df)
+        self.assertDataFramesEqual(intervals_eq_2_df, expected_df)
 
-    def test_ne_extractStateIntervals(self):
-
+    def test_ne_0(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_ne_1_df = input_tsdf.extractStateIntervals(
+        intervals_ne_0_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="!="
-        ).df
-        extractStateIntervals_ne_2_df = input_tsdf.extractStateIntervals(
+        )
+        intervals_ne_1_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<>"
-        ).df
+        )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extractStateIntervals_ne_1_df, expected_df)
-        self.assertDataFramesEqual(extractStateIntervals_ne_2_df, expected_df)
+        self.assertDataFramesEqual(intervals_ne_0_df, expected_df)
+        self.assertDataFramesEqual(intervals_ne_1_df, expected_df)
 
-    def test_gt_extractStateIntervals(self):
-
+    def test_ne_1(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_gt_df = input_tsdf.extractStateIntervals(
+        intervals_ne_0_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="!="
+        )
+        intervals_ne_1_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="<>"
+        )
+
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(intervals_ne_0_df, expected_df)
+        self.assertDataFramesEqual(intervals_ne_1_df, expected_df)
+
+    def test_gt_0(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        # call extractStateIntervals method
+        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition=">"
-        ).df
+        )
 
-        self.assertDataFramesEqual(extractStateIntervals_gt_df, expected_df)
+        self.assertDataFramesEqual(intervals_gt_df, expected_df)
 
-    def test_lt_extractStateIntervals(self):
+    def test_gt_1(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_lt_df = input_tsdf.extractStateIntervals(
+        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition=">"
+        )
+
+        self.assertDataFramesEqual(intervals_gt_df, expected_df)
+
+    def test_lt_0(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        # call extractStateIntervals method
+        intervals_lt_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<"
-        ).df
+        )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extractStateIntervals_lt_df, expected_df)
+        self.assertDataFramesEqual(intervals_lt_df, expected_df)
 
-    def test_gte_extractStateIntervals(self):
+    def test_lt_1(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_gt_df = input_tsdf.extractStateIntervals(
+        intervals_lt_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="<"
+        )
+
+        # test intervals_tsdf summary
+        self.assertDataFramesEqual(intervals_lt_df, expected_df)
+
+    def test_gte_0(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        # call extractStateIntervals method
+        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition=">="
-        ).df
+        )
 
-        self.assertDataFramesEqual(extractStateIntervals_gt_df, expected_df)
+        self.assertDataFramesEqual(intervals_gt_df, expected_df)
 
-    def test_lte_extractStateIntervals(self):
-
+    def test_gte_1(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_lte_df = input_tsdf.extractStateIntervals(
+        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition=">="
+        )
+
+        self.assertDataFramesEqual(intervals_gt_df, expected_df)
+
+    def test_lte_0(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        # call extractStateIntervals method
+        intervals_lte_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<="
-        ).df
+        )
 
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extractStateIntervals_lte_df, expected_df)
+        # test intervals_tsdf summary
+        self.assertDataFramesEqual(intervals_lte_df, expected_df)
 
-    def test_bool_col_extractStateIntervals(self):
-
+    def test_lte_1(self):
         # construct dataframes
-        input_tsdf = self.get_data_as_tsdf("input")
-        expected_df = self.get_data_as_sdf("expected")
-        expected_df = self.create_expected_test_df(expected_df)
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
 
         # call extractStateIntervals method
-        extractStateIntervals_bool_col_df = input_tsdf.extractStateIntervals(
-            "metric_1",
-            "metric_2",
-            "metric_3",
-            state_definition=F.abs(
-                F.col("metric_1") - F.col("metric_2") - F.col("metric_3")
-            )
-            < F.lit(10),
-        ).df
+        intervals_lte_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="<="
+        )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extractStateIntervals_bool_col_df, expected_df)
+        self.assertDataFramesEqual(intervals_lte_df, expected_df)
+
+    def test_threshold_fn(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        # threshold state function
+        def threshold_fn(a: Column, b: Column) -> Column:
+            return F.abs(a - b) < F.lit(0.5)
+
+        # call extractStateIntervals method
+        extracted_intervals_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition=threshold_fn
+        )
+
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(extracted_intervals_df, expected_df)
+
+    def test_null_safe_eq_0(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="<=>"
+        )
+
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(intervals_eq_df, expected_df)
+
+    def test_null_safe_eq_1(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3", state_definition="<=>"
+        )
+
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(intervals_eq_df, expected_df)
+
+    def test_adjacent_intervals(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        expected_df: DataFrame = self.get_data_as_sdf("expected")
+
+        intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
+            "metric_1", "metric_2", "metric_3"
+        )
+
+        # test extractStateIntervals_tsdf summary
+        self.assertDataFramesEqual(intervals_eq_df, expected_df)
+
+    def test_invalid_state_definition_str(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+
+        try:
+            input_tsdf.extractStateIntervals(
+                "metric_1", "metric_2", "metric_3", state_definition="N/A"
+            )
+        except ValueError as e:
+            self.assertEqual(type(e), ValueError)
+
+    def test_invalid_state_definition_type(self):
+        # construct dataframes
+        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+
+        try:
+            input_tsdf.extractStateIntervals(
+                "metric_1", "metric_2", "metric_3", state_definition=0
+            )
+        except TypeError as e:
+            self.assertEqual(type(e), TypeError)
 
 
 # MAIN

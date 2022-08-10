@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+import operator
 from functools import reduce
-from typing import List, Collection, Union
+from typing import List, Union, Callable
 
 import numpy as np
 import pyspark.sql.functions as f
@@ -1339,80 +1340,122 @@ class TSDF:
 
     def extractStateIntervals(
         self,
-        *metricCols: Collection[str],
-        state_definition: Union[str, Column[bool]] = "=",
-    ) -> TSDF:
+        *metric_cols: str,
+        state_definition: Union[str, Callable[[Column, Column], Column]] = "=",
+    ) -> DataFrame:
+        """
+        Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of "state", as defined by the :param
+        state_definition: parameter. The state definition consists of a comparison operation between the current and
+        previous values of a metric. If the comparison operation evaluates to true across all metric columns,
+        then we consider both points to be in the same "state". Changes of state occur when the comparison operator
+        returns false for any given metric column. So, the default state definition ('=') entails that intervals of
+        time wherein the metrics all remained constant. A state definition of '>=' would extract intervals wherein
+        the metrics were all monotonically increasing.
 
-        data = self.df
+        :param: metric_cols: the set of metric columns to evaluate for state changes
+        :param: state_definition: the comparison function used to evaluate individual metrics for state changes.
+        Either a string, giving a standard PySpark column comparison operation, or a binary function with the
+        signature: `(x1: Column, x2: Column) -> Column` where the returned column expression evaluates to a
+        :class:`~pyspark.sql.types.BooleanType`
+
+        :return: a :class:`~pyspark.sql.DataFrame` object containing the resulting intervals
+        """
+
+        # https://spark.apache.org/docs/latest/sql-ref-null-semantics.html#comparison-operators-
+        def null_safe_equals(col1: Column, col2: Column) -> Column:
+            return (
+                f.when(col1.isNull() & col2.isNull(), True)
+                .when(col1.isNull() | col2.isNull(), False)
+                .otherwise(operator.eq(col1, col2))
+            )
+
+        operator_dict = {
+            # https://spark.apache.org/docs/latest/api/sql/#_2
+            "!=": operator.ne,
+            # https://spark.apache.org/docs/latest/api/sql/#_11
+            "<>": operator.ne,
+            # https://spark.apache.org/docs/latest/api/sql/#_8
+            "<": operator.lt,
+            # https://spark.apache.org/docs/latest/api/sql/#_9
+            "<=": operator.le,
+            # https://spark.apache.org/docs/latest/api/sql/#_10
+            "<=>": null_safe_equals,
+            # https://spark.apache.org/docs/latest/api/sql/#_12
+            "=": operator.eq,
+            # https://spark.apache.org/docs/latest/api/sql/#_13
+            "==": operator.eq,
+            # https://spark.apache.org/docs/latest/api/sql/#_14
+            ">": operator.gt,
+            # https://spark.apache.org/docs/latest/api/sql/#_15
+            ">=": operator.ge,
+        }
+
+        # Validate state definition and construct state comparison function
+        if type(state_definition) is str:
+            if state_definition not in operator_dict.keys():
+                raise ValueError(
+                    f"Invalid comparison operator for `state_definition` argument: {state_definition}."
+                )
+
+            def state_comparison_fn(a, b):
+                return operator_dict[state_definition](a, b)
+
+        elif callable(state_definition):
+            state_comparison_fn = state_definition
+
+        else:
+            raise TypeError(
+                f"The `state_definition` argument can be of type `str` or `callable`, "
+                f"but received value of type {type(state_definition)}"
+            )
 
         w = self.__baseWindow()
 
-        if type(state_definition) is str:
-            if state_definition not in ("=", "<=>", "!=", "<>", ">", "<", ">=", "<="):
-                logger.warning(
-                    "A `state_definition` which has not been tested was"
-                    "provided to the `extractStateIntervals` method."
-                )
-            current_state = f.array(*metricCols)
-        else:
-            current_state = state_definition
+        data = self.df
 
-        data = data.withColumn("current_state", current_state).drop(*metricCols)
-
-        data = (
-            data.withColumn(
-                "previous_state",
-                f.lag(f.col("current_state"), offset=1).over(w),
-            )
-            .withColumn(
-                "previous_ts",
-                f.lag(f.col(self.ts_col), offset=1).over(w),
-            )
-            .filter(f.col("previous_state").isNotNull())
-        )
-
-        if type(state_definition) is str:
-            state_change_exp = f"""
-            !(current_state {state_definition} previous_state)
-            """
-        else:
-            state_change_exp = "!(current_state AND previous_state)"
-
+        # Get previous timestamp to identify start time of the interval
         data = data.withColumn(
-            "state_change",
-            f.expr(state_change_exp),
-        ).drop("current_state", "previous_state")
-
-        data = (
-            data.withColumn(
-                "state_incrementer",
-                f.sum(f.col("state_change").cast("int")).over(w),
-            )
-            .filter(~f.col("state_change"))
-            .drop("state_change")
+            "previous_ts",
+            f.lag(f.col(self.ts_col), offset=1).over(w),
         )
 
-        data = (
+        # Determine state intervals using user-provided the state comparison function
+        # The comparison occurs on the current and previous record per metric column
+        temp_metric_compare_cols = []
+        for mc in metric_cols:
+            temp_metric_compare_col = f"__{mc}_compare"
+            data = data.withColumn(
+                temp_metric_compare_col,
+                state_comparison_fn(f.col(mc), f.lag(f.col(mc), 1).over(w)),
+            )
+            temp_metric_compare_cols.append(temp_metric_compare_col)
+
+        # Remove first record which will have no state change
+        # and produces `null` for all state comparisons
+        data = data.filter(f.col("previous_ts").isNotNull())
+
+        # Each state comparison should return True if state remained constant
+        data = data.withColumn(
+            "state_change", f.array_contains(f.array(*temp_metric_compare_cols), False)
+        )
+
+        # Count the distinct state changes to get the unique intervals
+        data = data.withColumn(
+            "state_incrementer",
+            f.sum(f.col("state_change").cast("int")).over(w),
+        ).filter(~f.col("state_change"))
+
+        # Find the start and end timestamp of the interval
+        result = (
             data.groupBy(*self.partitionCols, "state_incrementer")
             .agg(
-                f.struct(
-                    f.min("previous_ts").alias("start"),
-                    f.max(f"{self.ts_col}").alias("end"),
-                ).alias(self.ts_col),
+                f.min("previous_ts").alias("start_ts"),
+                f.max(self.ts_col).alias("end_ts"),
             )
             .drop("state_incrementer")
         )
 
-        result = data.select(
-            self.ts_col,
-            *self.partitionCols,
-        )
-
-        return TSDF(
-            result,
-            self.ts_col,
-            self.partitionCols,
-        )
+        return result
 
 
 class _ResampledTSDF(TSDF):
