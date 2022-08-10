@@ -230,7 +230,9 @@ class BasicTests(SparkTest):
 
         latest_tsdf = init_tsdf.latest(n=3)
 
-        self.assertDataFrameEquality(latest_tsdf, expected_tsdf, ignore_row_order=True, as_tsdf=True)
+        self.assertDataFrameEquality(
+            latest_tsdf, expected_tsdf, ignore_row_order=True, as_tsdf=True
+        )
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -238,7 +240,9 @@ class BasicTests(SparkTest):
 
         latest_dbl_tsdf = init_dbl_tsdf.latest(n=3)
 
-        self.assertDataFrameEquality(latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True, as_tsdf=True)
+        self.assertDataFrameEquality(
+            latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True, as_tsdf=True
+        )
 
     def test_priorTo(self):
         """
@@ -280,7 +284,9 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
 
-        self.assertDataFrameEquality(subsequent_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
+        self.assertDataFrameEquality(
+            subsequent_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True
+        )
 
 
 class FourierTransformTest(SparkTest):
@@ -650,7 +656,9 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_eq_df, expected_df, ignore_nullable=False)
+        self.assertDataFrameEquality(
+            intervals_eq_df, expected_df, ignore_nullable=False
+        )
 
     def test_null_safe_eq_1(self):
         # construct dataframes
@@ -662,7 +670,9 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_eq_df, expected_df, ignore_nullable=False)
+        self.assertDataFrameEquality(
+            intervals_eq_df, expected_df, ignore_nullable=False
+        )
 
     def test_adjacent_intervals(self):
         # construct dataframes

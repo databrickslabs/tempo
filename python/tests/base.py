@@ -150,8 +150,8 @@ class SparkTest(unittest.TestCase):
             decimal_pattern = r"[.]\d+"
             if re.match(ts_pattern, str(ts_value)) is not None:
                 if (
-                        re.search(decimal_pattern, ts_value) is None
-                        or len(re.search(decimal_pattern, ts_value)[0]) <= 4
+                    re.search(decimal_pattern, ts_value) is None
+                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
                 ):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
@@ -188,12 +188,12 @@ class SparkTest(unittest.TestCase):
 
     @staticmethod
     def assertDataFrameEquality(
-            df1: Union[TSDF, DataFrame],
-            df2: Union[TSDF, DataFrame],
-            as_tsdf: bool = False,
-            ignore_row_order: bool = False,
-            ignore_column_order: bool = True,
-            ignore_nullable: bool = True,
+        df1: Union[TSDF, DataFrame],
+        df2: Union[TSDF, DataFrame],
+        as_tsdf: bool = False,
+        ignore_row_order: bool = False,
+        ignore_column_order: bool = True,
+        ignore_nullable: bool = True,
     ):
         """
         Test that the two given Dataframes are equivalent.
