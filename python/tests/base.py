@@ -22,7 +22,7 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
         cls.spark = (
-            SparkSession.builder.appName("myapp")
+            SparkSession.builder.appName("unit-tests")
             .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             .config(
