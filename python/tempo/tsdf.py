@@ -1362,7 +1362,7 @@ class TSDF:
         """
 
         # https://spark.apache.org/docs/latest/sql-ref-null-semantics.html#comparison-operators-
-        def null_safe_equals(col1: Column, col2: Column) -> Column[bool]:
+        def null_safe_equals(col1: Column, col2: Column) -> Column:
             return (
                 f.when(col1.isNull() & col2.isNull(), True)
                 .when(col1.isNull() | col2.isNull(), False)
