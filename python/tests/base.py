@@ -142,12 +142,12 @@ class SparkTest(unittest.TestCase):
         # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
         for tsc in ts_cols:
             ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
-            ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
-            decimal_pattern = "[.]\d+"
+            ts_pattern = r"^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
+            decimal_pattern = r"[.]\d+"
             if re.match(ts_pattern, str(ts_value)) is not None:
                 if (
-                    re.search(decimal_pattern, ts_value) is None
-                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
+                        re.search(decimal_pattern, ts_value) is None
+                        or len(re.search(decimal_pattern, ts_value)[0]) <= 4
                 ):
                     df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
