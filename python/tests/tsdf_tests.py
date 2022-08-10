@@ -21,7 +21,7 @@ class BasicTests(SparkTest):
         res = tsdf_init.describe()
 
         # joined dataframe should equal the expected dataframe
-        # self.assertDataFramesEqual(res, dfExpected)
+        # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
             res.filter(F.col("unique_time_series_count") != " ")
@@ -61,7 +61,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:10"
         at_tsdf = init_tsdf.at(target_ts)
 
-        self.assertTSDFsEqual(at_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(at_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -70,7 +70,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         at_dbl_tsdf = init_dbl_tsdf.at(target_dbl)
 
-        self.assertTSDFsEqual(at_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(at_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_before(self):
         """
@@ -82,7 +82,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:10"
         before_tsdf = init_tsdf.before(target_ts)
 
-        self.assertTSDFsEqual(before_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(before_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -91,7 +91,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         before_dbl_tsdf = init_dbl_tsdf.before(target_dbl)
 
-        self.assertTSDFsEqual(before_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_atOrBefore(self):
         """
@@ -103,7 +103,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:10"
         before_tsdf = init_tsdf.atOrBefore(target_ts)
 
-        self.assertTSDFsEqual(before_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(before_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -112,7 +112,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         before_dbl_tsdf = init_dbl_tsdf.atOrBefore(target_dbl)
 
-        self.assertTSDFsEqual(before_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_after(self):
         """
@@ -124,7 +124,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:10"
         after_tsdf = init_tsdf.after(target_ts)
 
-        self.assertTSDFsEqual(after_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(after_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -133,7 +133,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         after_dbl_tsdf = init_dbl_tsdf.after(target_dbl)
 
-        self.assertTSDFsEqual(after_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_atOrAfter(self):
         """
@@ -145,7 +145,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:10"
         after_tsdf = init_tsdf.atOrAfter(target_ts)
 
-        self.assertTSDFsEqual(after_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(after_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -154,7 +154,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         after_dbl_tsdf = init_dbl_tsdf.atOrAfter(target_dbl)
 
-        self.assertTSDFsEqual(after_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_between(self):
         """
@@ -167,7 +167,7 @@ class BasicTests(SparkTest):
         ts2 = "2020-09-01 00:18:00"
         between_tsdf = init_tsdf.between(ts1, ts2)
 
-        self.assertTSDFsEqual(between_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -177,7 +177,7 @@ class BasicTests(SparkTest):
         ts2_dbl = self.__timestamp_to_double(ts2)
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl)
 
-        self.assertTSDFsEqual(between_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(between_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_between_exclusive(self):
         """
@@ -190,7 +190,7 @@ class BasicTests(SparkTest):
         ts2 = "2020-09-01 00:18:00"
         between_tsdf = init_tsdf.between(ts1, ts2, inclusive=False)
 
-        self.assertTSDFsEqual(between_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -200,7 +200,7 @@ class BasicTests(SparkTest):
         ts2_dbl = self.__timestamp_to_double(ts2)
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl, inclusive=False)
 
-        self.assertTSDFsEqual(between_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(between_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_earliest(self):
         """
@@ -211,7 +211,7 @@ class BasicTests(SparkTest):
 
         earliest_tsdf = init_tsdf.earliest(n=3)
 
-        self.assertTSDFsEqual(earliest_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(earliest_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -219,7 +219,7 @@ class BasicTests(SparkTest):
 
         earliest_dbl_tsdf = init_dbl_tsdf.earliest(n=3)
 
-        self.assertTSDFsEqual(earliest_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(earliest_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_latest(self):
         """
@@ -230,7 +230,7 @@ class BasicTests(SparkTest):
 
         latest_tsdf = init_tsdf.latest(n=3)
 
-        self.assertTSDFsEqual(latest_tsdf, expected_tsdf, ignore_row_order=True)
+        self.assertDataFrameEquality(latest_tsdf, expected_tsdf, ignore_row_order=True, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -238,7 +238,7 @@ class BasicTests(SparkTest):
 
         latest_dbl_tsdf = init_dbl_tsdf.latest(n=3)
 
-        self.assertTSDFsEqual(latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True)
+        self.assertDataFrameEquality(latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True, as_tsdf=True)
 
     def test_priorTo(self):
         """
@@ -250,7 +250,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:00"
         prior_tsdf = init_tsdf.priorTo(target_ts)
 
-        self.assertTSDFsEqual(prior_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(prior_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -259,7 +259,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         prior_dbl_tsdf = init_dbl_tsdf.priorTo(target_dbl)
 
-        self.assertTSDFsEqual(prior_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(prior_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
     def test_subsequentTo(self):
         """
@@ -271,7 +271,7 @@ class BasicTests(SparkTest):
         target_ts = "2020-09-01 00:02:00"
         subsequent_tsdf = init_tsdf.subsequentTo(target_ts)
 
-        self.assertTSDFsEqual(subsequent_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(subsequent_tsdf, expected_tsdf, as_tsdf=True)
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -280,7 +280,7 @@ class BasicTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
 
-        self.assertTSDFsEqual(subsequent_dbl_tsdf, expected_dbl_tsdf)
+        self.assertDataFrameEquality(subsequent_dbl_tsdf, expected_dbl_tsdf, as_tsdf=True)
 
 
 class FourierTransformTest(SparkTest):
@@ -295,7 +295,7 @@ class FourierTransformTest(SparkTest):
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFramesEqual(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
 
 
 class RangeStatsTest(SparkTest):
@@ -338,7 +338,7 @@ class RangeStatsTest(SparkTest):
         )
 
         # should be equal to the expected dataframe
-        self.assertDataFramesEqual(featured_df, dfExpected)
+        self.assertDataFrameEquality(featured_df, dfExpected)
 
     def test_group_stats(self):
         """Test of range stats for 20 minute rolling window"""
@@ -375,7 +375,7 @@ class RangeStatsTest(SparkTest):
         )
 
         # should be equal to the expected dataframe
-        self.assertDataFramesEqual(featured_df, dfExpected)
+        self.assertDataFrameEquality(featured_df, dfExpected)
 
 
 class ResampleTest(SparkTest):
@@ -400,11 +400,11 @@ class ResampleTest(SparkTest):
         ).df
 
         # should be equal to the expected dataframe
-        self.assertDataFramesEqual(featured_df, dfExpected)
-        self.assertDataFramesEqual(resample_30m, expected_30s_df)
+        self.assertDataFrameEquality(featured_df, dfExpected)
+        self.assertDataFrameEquality(resample_30m, expected_30s_df)
 
         # test bars summary
-        self.assertDataFramesEqual(bars, barsExpected)
+        self.assertDataFrameEquality(bars, barsExpected)
 
     def test_resample_millis(self):
         """Test of resampling for millisecond windows"""
@@ -418,7 +418,7 @@ class ResampleTest(SparkTest):
             "trade_pr", F.round(F.col("trade_pr"), 2)
         )
 
-        self.assertDataFramesEqual(resample_ms, dfExpected)
+        self.assertDataFrameEquality(resample_ms, dfExpected)
 
     def test_upsample(self):
         """Test of range stats for 20 minute rolling window"""
@@ -446,10 +446,10 @@ class ResampleTest(SparkTest):
         )
 
         # test upsample summary
-        self.assertDataFramesEqual(upsampled, expected_30s_df)
+        self.assertDataFrameEquality(upsampled, expected_30s_df)
 
         # test bars summary
-        self.assertDataFramesEqual(bars, barsExpected)
+        self.assertDataFrameEquality(bars, barsExpected)
 
 
 class ExtractStateIntervalsTest(SparkTest):
@@ -469,8 +469,8 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_1_df, expected_df)
-        self.assertDataFramesEqual(intervals_eq_2_df, expected_df)
+        self.assertDataFrameEquality(intervals_eq_1_df, expected_df)
+        self.assertDataFrameEquality(intervals_eq_2_df, expected_df)
 
     def test_eq_1(self):
         # construct dataframes
@@ -486,8 +486,8 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_1_df, expected_df)
-        self.assertDataFramesEqual(intervals_eq_2_df, expected_df)
+        self.assertDataFrameEquality(intervals_eq_1_df, expected_df)
+        self.assertDataFrameEquality(intervals_eq_2_df, expected_df)
 
     def test_ne_0(self):
         # construct dataframes
@@ -503,8 +503,8 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_ne_0_df, expected_df)
-        self.assertDataFramesEqual(intervals_ne_1_df, expected_df)
+        self.assertDataFrameEquality(intervals_ne_0_df, expected_df)
+        self.assertDataFrameEquality(intervals_ne_1_df, expected_df)
 
     def test_ne_1(self):
         # construct dataframes
@@ -520,8 +520,8 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_ne_0_df, expected_df)
-        self.assertDataFramesEqual(intervals_ne_1_df, expected_df)
+        self.assertDataFrameEquality(intervals_ne_0_df, expected_df)
+        self.assertDataFrameEquality(intervals_ne_1_df, expected_df)
 
     def test_gt_0(self):
         # construct dataframes
@@ -533,7 +533,7 @@ class ExtractStateIntervalsTest(SparkTest):
             "metric_1", "metric_2", "metric_3", state_definition=">"
         )
 
-        self.assertDataFramesEqual(intervals_gt_df, expected_df)
+        self.assertDataFrameEquality(intervals_gt_df, expected_df)
 
     def test_gt_1(self):
         # construct dataframes
@@ -545,7 +545,7 @@ class ExtractStateIntervalsTest(SparkTest):
             "metric_1", "metric_2", "metric_3", state_definition=">"
         )
 
-        self.assertDataFramesEqual(intervals_gt_df, expected_df)
+        self.assertDataFrameEquality(intervals_gt_df, expected_df)
 
     def test_lt_0(self):
         # construct dataframes
@@ -558,7 +558,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_lt_df, expected_df)
+        self.assertDataFrameEquality(intervals_lt_df, expected_df)
 
     def test_lt_1(self):
         # construct dataframes
@@ -571,7 +571,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test intervals_tsdf summary
-        self.assertDataFramesEqual(intervals_lt_df, expected_df)
+        self.assertDataFrameEquality(intervals_lt_df, expected_df)
 
     def test_gte_0(self):
         # construct dataframes
@@ -583,7 +583,7 @@ class ExtractStateIntervalsTest(SparkTest):
             "metric_1", "metric_2", "metric_3", state_definition=">="
         )
 
-        self.assertDataFramesEqual(intervals_gt_df, expected_df)
+        self.assertDataFrameEquality(intervals_gt_df, expected_df)
 
     def test_gte_1(self):
         # construct dataframes
@@ -595,7 +595,7 @@ class ExtractStateIntervalsTest(SparkTest):
             "metric_1", "metric_2", "metric_3", state_definition=">="
         )
 
-        self.assertDataFramesEqual(intervals_gt_df, expected_df)
+        self.assertDataFrameEquality(intervals_gt_df, expected_df)
 
     def test_lte_0(self):
         # construct dataframes
@@ -608,7 +608,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test intervals_tsdf summary
-        self.assertDataFramesEqual(intervals_lte_df, expected_df)
+        self.assertDataFrameEquality(intervals_lte_df, expected_df)
 
     def test_lte_1(self):
         # construct dataframes
@@ -621,7 +621,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_lte_df, expected_df)
+        self.assertDataFrameEquality(intervals_lte_df, expected_df)
 
     def test_threshold_fn(self):
         # construct dataframes
@@ -638,7 +638,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(extracted_intervals_df, expected_df)
+        self.assertDataFrameEquality(extracted_intervals_df, expected_df)
 
     def test_null_safe_eq_0(self):
         # construct dataframes
@@ -650,7 +650,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_df, expected_df, ignore_nullable=False)
+        self.assertDataFrameEquality(intervals_eq_df, expected_df, ignore_nullable=False)
 
     def test_null_safe_eq_1(self):
         # construct dataframes
@@ -662,7 +662,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_df, expected_df, ignore_nullable=False)
+        self.assertDataFrameEquality(intervals_eq_df, expected_df, ignore_nullable=False)
 
     def test_adjacent_intervals(self):
         # construct dataframes
@@ -674,7 +674,7 @@ class ExtractStateIntervalsTest(SparkTest):
         )
 
         # test extractStateIntervals_tsdf summary
-        self.assertDataFramesEqual(intervals_eq_df, expected_df)
+        self.assertDataFrameEquality(intervals_eq_df, expected_df)
 
     def test_invalid_state_definition_str(self):
         # construct dataframes

@@ -1,6 +1,5 @@
 import unittest
 
-from chispa.dataframe_comparer import *
 from pyspark.sql.types import *
 
 from tempo.interpol import Interpolation
@@ -132,7 +131,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_null_fill_interpolation(self):
         """Test null fill interpolation.
@@ -158,7 +157,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_back_fill_interpolation(self):
         """Test back fill interpolation.
@@ -185,7 +184,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_forward_fill_interpolation(self):
         """Test forward fill interpolation.
@@ -212,7 +211,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_linear_fill_interpolation(self):
         """Test linear fill interpolation.
@@ -239,7 +238,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_different_freq_abbreviations(self):
         """Test abbreviated frequency values
@@ -264,7 +263,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_show_interpolated(self):
         """Test linear `show_interpolated` flag
@@ -291,7 +290,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=False,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
 
 class InterpolationIntegrationTest(SparkTest):
@@ -311,7 +310,7 @@ class InterpolationIntegrationTest(SparkTest):
         ).df
 
         # compare with expected
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_interpolation_using_custom_params(self):
         """Verify that by specifying optional paramters it will change the result of the interpolation based on those modified params."""
@@ -336,7 +335,7 @@ class InterpolationIntegrationTest(SparkTest):
             method="linear",
         ).df
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_tsdf_constructor_params_are_updated(self):
         """Verify that resulting TSDF class has the correct values for ts_col and partition_col based on the interpolation."""
@@ -372,7 +371,7 @@ class InterpolationIntegrationTest(SparkTest):
             .df
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_defaults_with_resampled_df(self):
         """Verify interpolation can be chained with resample within the TSDF class"""
@@ -388,7 +387,7 @@ class InterpolationIntegrationTest(SparkTest):
             .df
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
 
 # MAIN

@@ -2,6 +2,8 @@ import re
 import os
 import unittest
 import warnings
+from typing import Union
+
 import jsonref
 
 import pyspark.sql.functions as F
@@ -184,10 +186,11 @@ class SparkTest(unittest.TestCase):
         # the attributes of the fields must be equal
         self.assertFieldsEqual(field, schema[field.name])
 
-    def assertDataFramesEqual(
-            self,
-            dfA: DataFrame,
-            dfB: DataFrame,
+    @staticmethod
+    def assertDataFrameEquality(
+            df1: Union[TSDF, DataFrame],
+            df2: Union[TSDF, DataFrame],
+            as_tsdf: bool = False,
             ignore_row_order: bool = False,
             ignore_column_order: bool = True,
             ignore_nullable: bool = True,
@@ -196,29 +199,14 @@ class SparkTest(unittest.TestCase):
         Test that the two given Dataframes are equivalent.
         That is, they have equivalent schemas, and both contain the same values
         """
-        assert_df_equality(
-            dfA,
-            dfB,
-            ignore_row_order=ignore_row_order,
-            ignore_column_order=ignore_column_order,
-            ignore_nullable=ignore_nullable,
-        )
 
-    def assertTSDFsEqual(
-            self,
-            tsdfA: TSDF,
-            tsdfB: TSDF,
-            ignore_row_order: bool = False,
-            ignore_column_order: bool = True,
-            ignore_nullable: bool = True,
-    ) -> None:
-        """
-        Test that two given TSDFs are equivalent.
-        That is, their underlying Dataframes are equivalent.
-        """
+        if as_tsdf:
+            df1 = df1.df
+            df2 = df2.df
+
         assert_df_equality(
-            tsdfA.df,
-            tsdfB.df,
+            df1,
+            df2,
             ignore_row_order=ignore_row_order,
             ignore_column_order=ignore_column_order,
             ignore_nullable=ignore_nullable,
