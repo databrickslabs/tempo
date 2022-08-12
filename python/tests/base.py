@@ -190,7 +190,7 @@ class SparkTest(unittest.TestCase):
     def assertDataFrameEquality(
         df1: Union[TSDF, DataFrame],
         df2: Union[TSDF, DataFrame],
-        as_tsdf: bool = False,
+        from_tsdf: bool = False,
         ignore_row_order: bool = False,
         ignore_column_order: bool = True,
         ignore_nullable: bool = True,
@@ -200,7 +200,7 @@ class SparkTest(unittest.TestCase):
         That is, they have equivalent schemas, and both contain the same values
         """
 
-        if as_tsdf:
+        if from_tsdf:
             df1 = df1.df
             df2 = df2.df
 
