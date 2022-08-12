@@ -177,7 +177,9 @@ class BasicTests(SparkTest):
         ts2_dbl = self.__timestamp_to_double(ts2)
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl)
 
-        self.assertDataFrameEquality(between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(
+            between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+        )
 
     def test_between_exclusive(self):
         """
@@ -200,7 +202,9 @@ class BasicTests(SparkTest):
         ts2_dbl = self.__timestamp_to_double(ts2)
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl, inclusive=False)
 
-        self.assertDataFrameEquality(between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(
+            between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+        )
 
     def test_earliest(self):
         """
@@ -219,7 +223,9 @@ class BasicTests(SparkTest):
 
         earliest_dbl_tsdf = init_dbl_tsdf.earliest(n=3)
 
-        self.assertDataFrameEquality(earliest_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(
+            earliest_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+        )
 
     def test_latest(self):
         """
