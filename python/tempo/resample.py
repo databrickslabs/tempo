@@ -160,7 +160,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res.select(
             *tsdf.partitionCols,
             f.min(tsdf.ts_col).over(fillW).alias("from"),
-            f.max(tsdf.ts_col).over(fillW).alias("until")
+            f.max(tsdf.ts_col).over(fillW).alias("until"),
         )
         .distinct()
         .withColumn(
@@ -192,9 +192,7 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
     :return: list of parsed frequency value and time suffix
     """
     if not isinstance(freq, str):
-        raise TypeError(
-            f"Invalid type for `freq` argument: {freq}."
-        )
+        raise TypeError(f"Invalid type for `freq` argument: {freq}.")
     elif freq in allowableFreqs:
         return 1, freq
     elif freq not in allowableFreqs:
@@ -218,9 +216,8 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
         elif units.startswith(DAY):
             return periods, DAY
     else:
-        raise ValueError(
-            f"Invalid value for `freq` argument: {freq}."
-        )
+        raise ValueError(f"Invalid value for `freq` argument: {freq}.")
+
 
 def validateFuncExists(func):
     if func is None:
