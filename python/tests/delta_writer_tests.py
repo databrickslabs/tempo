@@ -5,7 +5,6 @@ from tests.base import SparkTest
 
 
 class DeltaWriteTest(SparkTest):
-
     def test_write_to_delta_without_optimization_cols(self):
         """Test table write to delta format"""
 
