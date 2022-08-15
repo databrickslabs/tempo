@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Union, Optional
+
 import tempo
 
 import pyspark.sql.functions as f
@@ -45,6 +49,7 @@ def __appendAggKey(tsdf, freq=None):
     )
 
     df = df.withColumn("agg_key", agg_window)
+
     return (
         tempo.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
         parsed_freq[0],
@@ -66,8 +71,10 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     df = tsdf.df
 
     groupingCols = tsdf.partitionCols + ["agg_key"]
+
     if metricCols is None:
         metricCols = list(set(df.columns).difference(set(groupingCols + [tsdf.ts_col])))
+
     if prefix is None:
         prefix = ""
     else:
@@ -178,13 +185,19 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     return res
 
 
-def checkAllowableFreq(freq):
+def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[str]]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
     :return: list of parsed frequency value and time suffix
     """
-    if freq not in allowableFreqs:
+    if not isinstance(freq, str):
+        raise TypeError(
+            f"Invalid type for `freq` argument: {freq}."
+        )
+    elif freq in allowableFreqs:
+        return 1, freq
+    elif freq not in allowableFreqs:
         try:
             periods = freq.lower().split(" ")[0].strip()
             units = freq.lower().split(" ")[1].strip()
@@ -193,20 +206,21 @@ def checkAllowableFreq(freq):
                 "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
             )
         if units.startswith(MUSEC):
-            return (periods, MUSEC)
+            return periods, MUSEC
         elif units.startswith(MS) | units.startswith("millis"):
-            return (periods, MS)
+            return periods, MS
         elif units.startswith(SEC):
-            return (periods, SEC)
+            return periods, SEC
         elif units.startswith(MIN):
-            return (periods, MIN)
+            return periods, MIN
         elif units.startswith("hour") | units.startswith(HR):
-            return (periods, "hour")
+            return periods, "hour"
         elif units.startswith(DAY):
-            return (periods, DAY)
-    elif freq in allowableFreqs:
-        return (1, freq)
-
+            return periods, DAY
+    else:
+        raise ValueError(
+            f"Invalid value for `freq` argument: {freq}."
+        )
 
 def validateFuncExists(func):
     if func is None:
