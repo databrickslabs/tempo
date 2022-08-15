@@ -36,7 +36,7 @@ allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def __appendAggKey(tsdf, freq=None):
+def _appendAggKey(tsdf, freq=None):
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -67,7 +67,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     :param fill: upsample based on the time increment for 0s in numeric columns
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
-    tsdf, period, unit = __appendAggKey(tsdf, freq)
+    tsdf, period, unit = _appendAggKey(tsdf, freq)
     df = tsdf.df
 
     groupingCols = tsdf.partitionCols + ["agg_key"]
