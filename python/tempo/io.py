@@ -1,13 +1,24 @@
+from __future__ import annotations
+
 import os
 import logging
 from collections import deque
-
+from typing import TYPE_CHECKING
 import pyspark.sql.functions as f
+from pyspark.sql import SparkSession
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from tempo.tsdf import TSDF
 
-def write(tsdf, spark, tabName, optimizationCols=None):
+
+def write(
+    tsdf: TSDF,
+    spark: SparkSession,
+    tabName: str,
+    optimizationCols: list[str] = None,
+):
     """
     param: tsdf: input TSDF object to write
     param: tabName Delta output table name

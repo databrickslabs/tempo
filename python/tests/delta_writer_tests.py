@@ -5,18 +5,36 @@ from tests.base import SparkTest
 
 
 class DeltaWriteTest(SparkTest):
-    def test_write_to_delta(self):
+
+    def test_write_to_delta_without_optimization_cols(self):
         """Test table write to delta format"""
 
+        table_name = "my_table_no_optimization_col"
+
         # load test data
-        tsdf_init = self.get_data_as_tsdf("init")
+        input_tsdf = self.get_data_as_tsdf("input_data")
 
         # test write to delta
-        tsdf_init.write(self.spark, "my_table")
-        logging.info("delta table count " + str(self.spark.table("my_table").count()))
+        input_tsdf.write(self.spark, table_name)
+        logging.info("delta table count ", str(self.spark.table(table_name).count()))
 
         # should be equal to the expected dataframe
-        assert self.spark.table("my_table").count() == 7
+        assert self.spark.table(table_name).count() == 7
+
+    def test_write_to_delta_with_optimization_cols(self):
+        """Test table write to delta format"""
+
+        table_name = "my_table_optimization_col"
+
+        # load test data
+        input_tsdf = self.get_data_as_tsdf("input_data")
+
+        # test write to delta
+        input_tsdf.write(self.spark, table_name, ["date"])
+        logging.info("delta table count ", str(self.spark.table(table_name).count()))
+
+        # should be equal to the expected dataframe
+        self.assertEqual(self.spark.table(table_name).count(), 7)
 
 
 # MAIN
