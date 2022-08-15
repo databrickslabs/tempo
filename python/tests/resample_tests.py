@@ -1,5 +1,5 @@
 from tempo import TSDF
-from tempo.resample import checkAllowableFreq, _appendAggKey
+from tempo.resample import checkAllowableFreq, _appendAggKey, aggregate
 from tests.base import SparkTest
 
 
@@ -18,8 +18,30 @@ class ResampleUnitTests(SparkTest):
         self.assertEqual(appendAggKey_tsdf[1], "1")
         self.assertEqual(appendAggKey_tsdf[2], "microseconds")
 
-    def test_aggregate(self):
+    def test_aggregate_floor(self):
+        input_tsdf = self.get_data_as_tsdf("input_data")
+        expected_data = self.get_data_as_sdf("expected_data")
+
+        aggregate_df = aggregate(input_tsdf, "1 DAY", "floor")
+
+        self.assertDataFrameEquality(
+            aggregate_df,
+            expected_data,
+        )
+
+    # TODO
+    def test_aggregate_average(self):
         pass
+        # input_tsdf = self.get_data_as_tsdf("input_data")
+        # expected_data = self.get_data_as_sdf("expected_data")
+        #
+        # aggregate_df = aggregate(input_tsdf, "1 DAY", "average")
+        # aggregate_df.show(truncate=False)
+        #
+        # self.assertDataFrameEquality(
+        #     aggregate_df,
+        #     expected_data,
+        # )
 
     def test_check_allowable_freq_none(self):
         self.assertRaises(TypeError, checkAllowableFreq, None)

@@ -69,6 +69,34 @@
       "input_data": {
         "$ref": "#/__SharedData/input_data"
       }
+    },
+    "test_aggregate": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "expected_data": {
+        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-07-31 20:00:00",
+            "SAME_DT",
+            349.21,
+            10.0
+          ],
+          [
+            "S1",
+            "2020-08-31 20:00:00",
+            "SAME_DT",
+            361.1,
+            5.0
+          ]
+        ]
+      }
     }
   }
 }

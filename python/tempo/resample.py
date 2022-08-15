@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 
 import tempo
 
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
+from pyspark.sql import DataFrame
+
+if TYPE_CHECKING:
+    from tempo import TSDF
 
 # define global frequency options
 MUSEC = "microsec"
@@ -57,7 +61,7 @@ def _appendAggKey(tsdf, freq=None):
     )
 
 
-def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
+def aggregate(tsdf: TSDF, freq: str, func: str, metricCols: list[str] = None, prefix: str = None, fill: str = None) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
