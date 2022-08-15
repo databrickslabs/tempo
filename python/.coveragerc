@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = tempo/python
+source = tempo
 omit = ./venv/*, ./.venv/*
 
 [report]
