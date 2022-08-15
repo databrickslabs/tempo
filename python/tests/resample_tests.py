@@ -21,7 +21,6 @@ class ResampleUnitTests(SparkTest):
     def test_aggregate(self):
         pass
 
-
     def test_check_allowable_freq_none(self):
         self.assertRaises(TypeError, checkAllowableFreq, None)
 
