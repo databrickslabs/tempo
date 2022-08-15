@@ -21,7 +21,8 @@ class InterpolationUnitTest(SparkTest):
     def test_validate_fill_method(self):
         self.assertRaises(
             ValueError,
-            self.interpolate_helper._Interpolation__validate_fill, "abcd",
+            self.interpolate_helper._Interpolation__validate_fill,
+            "abcd",
         )
 
     def test_validate_col_exist_in_df(self):
