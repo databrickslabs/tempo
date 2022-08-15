@@ -15,6 +15,57 @@ class InterpolationUnitTest(SparkTest):
         # register interpolation helper
         self.interpolate_helper = Interpolation(is_resampled=False)
 
+    def test_is_resampled_type(self):
+        self.assertIsInstance(self.interpolate_helper.is_resampled, bool)
+
+    def test_validate_fill_method(self):
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_fill, "abcd",
+        )
+
+    def test_validate_col_exist_in_df(self):
+        input_df: DataFrame = self.get_data_as_sdf("input_data")
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "does_not_exist"],
+            ["value_a", "value_b"],
+            "event_ts",
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "partition_b"],
+            ["does_not_exist", "value_b"],
+            "event_ts",
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "partition_b"],
+            ["value_a", "value_b"],
+            "wrongly_named",
+        )
+
+    def test_validate_col_target_cols_data_type(self):
+        input_df: DataFrame = self.get_data_as_sdf("input_data")
+
+        self.assertRaises(
+            TypeError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "partition_b"],
+            ["string_target", "float_target"],
+            "event_ts",
+        )
+
     def test_fill_validation(self):
         """Test fill parameter is valid."""
 
@@ -56,8 +107,8 @@ class InterpolationUnitTest(SparkTest):
                 method="zero",
                 show_interpolated=True,
             )
-        except ValueError as e:
-            self.assertEqual(type(e), ValueError)
+        except TypeError as e:
+            self.assertEqual(type(e), TypeError)
         else:
             self.fail("ValueError not raised")
 
