@@ -1,3 +1,5 @@
+import unittest
+
 from tempo import TSDF
 from tempo.resample import (
     checkAllowableFreq,
@@ -158,3 +160,8 @@ class ResampleUnitTests(SparkTest):
 
     def test_validate_func_exists_value_error(self):
         self.assertRaises(ValueError, validateFuncExists, "non-existant")
+
+
+# MAIN
+if __name__ == "__main__":
+    unittest.main()
