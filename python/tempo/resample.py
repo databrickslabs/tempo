@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Union, Optional
 
 import tempo
 
