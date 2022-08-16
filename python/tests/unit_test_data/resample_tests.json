@@ -70,7 +70,7 @@
         "$ref": "#/__SharedData/input_data"
       }
     },
-    "test_aggregate": {
+    "test_aggregate_floor": {
       "input_data": {
         "$ref": "#/__SharedData/input_data"
       },
@@ -97,6 +97,147 @@
           ]
         ]
       }
+    },
+    "test_aggregate_average": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "expected_data": {
+        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-07-31 20:00:00",
+            "SAME_DT",
+            349.21,
+            10.0
+          ],
+          [
+            "S1",
+            "2020-08-31 20:00:00",
+            "SAME_DT",
+            361.1,
+            5.0
+          ]
+        ]
+      }
+    },
+    "test_aggregate_min": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "expected_data": {
+        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-07-31 20:00:00",
+            "SAME_DT",
+            340.21,
+            6.0
+          ],
+          [
+            "S1",
+            "2020-08-31 20:00:00",
+            "SAME_DT",
+            361.1,
+            4.0
+          ]
+        ]
+      }
+    },
+    "test_aggregate_max": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "expected_data": {
+        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-07-31 20:00:00",
+            "SAME_DT",
+            353.32,
+            10.0
+          ],
+          [
+            "S1",
+            "2020-08-31 20:00:00",
+            "SAME_DT",
+            362.1,
+            5.0
+          ]
+        ]
+      }
+},
+    "test_aggregate_ceiling": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "expected_data": {
+        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-07-31 20:00:00",
+            "SAME_DT",
+            350.32,
+            6.0
+          ],
+          [
+            "S1",
+            "2020-08-31 20:00:00",
+            "SAME_DT",
+            362.1,
+            4.0
+          ]
+        ]
+      }
+},
+    "test_aggregate_invalid_func_arg": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      },
+      "expected_data": {
+        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-07-31 20:00:00",
+            "SAME_DT",
+            348.88,
+            8.0
+          ],
+          [
+            "S1",
+            "2020-08-31 20:00:00",
+            "SAME_DT",
+            361.60,
+            4.5
+          ]
+        ]
+      }
+
     }
   }
 }

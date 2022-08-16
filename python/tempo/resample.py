@@ -210,7 +210,7 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
         try:
             periods = freq.lower().split(" ")[0].strip()
             units = freq.lower().split(" ")[1].strip()
-        except Exception:
+        except IndexError:
             raise ValueError(
                 "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
             )
@@ -226,13 +226,13 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
             return periods, "hour"
         elif units.startswith(DAY):
             return periods, DAY
-    else:
-        raise ValueError(f"Invalid value for `freq` argument: {freq}.")
+        else:
+            raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
 
 def validateFuncExists(func):
     if func is None:
-        raise ValueError(
+        raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "
             + ", ".join(allowableFuncs)
         )
