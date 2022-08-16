@@ -116,8 +116,6 @@ def aggregate(
     elif func == min:
         exprs = {x: "min" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
-        print("inside min, res_1")
-        res.show(truncate=False)
         agg_metric_cls = list(
             set(res.columns).difference(
                 set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
@@ -128,8 +126,6 @@ def aggregate(
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
-        print("inside min, res_2")
-        res.show(truncate=False)
     elif func == max:
         exprs = {x: "max" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
@@ -160,15 +156,11 @@ def aggregate(
         .withColumnRenamed("agg_key", tsdf.ts_col)
         .withColumn(tsdf.ts_col, f.col(tsdf.ts_col).start)
     )
-    print("always executes, res_1")
-    res.show(truncate=False)
 
     # sort columns so they are consistent
     non_part_cols = set(set(res.columns) - set(tsdf.partitionCols)) - set([tsdf.ts_col])
     sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
-    print("always executes, res_2")
-    res.show(truncate=False)
 
     fillW = Window.partitionBy(tsdf.partitionCols)
 
@@ -187,8 +179,6 @@ def aggregate(
         )
         .drop("from", "until")
     )
-    print("always executes, imputes")
-    imputes.show(truncate=False)
 
     metrics = []
     for col in res.dtypes:
@@ -199,8 +189,6 @@ def aggregate(
         res = imputes.join(
             res, tsdf.partitionCols + [tsdf.ts_col], "leftouter"
         ).na.fill(0, metrics)
-        print("always executes, res_3")
-        res.show(truncate=False)
 
     return res
 
