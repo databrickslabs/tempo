@@ -14,7 +14,7 @@ class ResampleUnitTests(SparkTest):
 
         self.assertRaises(TypeError, _appendAggKey, input_tsdf)
 
-    def test_appendAggKey_freq(self):
+    def test_appendAggKey_freq_microsecond(self):
         input_tsdf = self.get_data_as_tsdf("input_data")
 
         appendAggKey_tuple = _appendAggKey(input_tsdf, "1 MICROSECOND")
@@ -24,6 +24,18 @@ class ResampleUnitTests(SparkTest):
         self.assertIn("agg_key", appendAggKey_tsdf.df.columns)
         self.assertEqual(appendAggKey_tuple[1], "1")
         self.assertEqual(appendAggKey_tuple[2], "microseconds")
+
+    def test_appendAggKey_freq_day(self):
+        input_tsdf = self.get_data_as_tsdf("input_data")
+
+        appendAggKey_tuple = _appendAggKey(input_tsdf, "1 DAY")
+        appendAggKey_tsdf = appendAggKey_tuple[0]
+        appendAggKey_tsdf.df.show(truncate=False)
+
+        # self.assertIsInstance(appendAggKey_tsdf, TSDF)
+        # self.assertIn("agg_key", appendAggKey_tsdf.df.columns)
+        # self.assertEqual(appendAggKey_tuple[1], "1")
+        # self.assertEqual(appendAggKey_tuple[2], "microseconds")
 
     def test_aggregate_floor(self):
         input_tsdf = self.get_data_as_tsdf("input_data")

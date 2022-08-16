@@ -65,7 +65,12 @@
         "$ref": "#/__SharedData/input_data"
       }
     },
-    "test_appendAggKey_freq": {
+    "test_appendAggKey_freq_microsecond": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_appendAggKey_freq_day": {
       "input_data": {
         "$ref": "#/__SharedData/input_data"
       }
