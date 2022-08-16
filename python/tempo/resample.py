@@ -8,9 +8,6 @@ import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 from pyspark.sql import DataFrame
 
-if TYPE_CHECKING:
-    from tempo import TSDF
-
 # define global frequency options
 MUSEC = "microsec"
 MS = "ms"
@@ -40,7 +37,7 @@ allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def _appendAggKey(tsdf, freq=None):
+def _appendAggKey(tsdf: tempo.TSDF, freq: str = None):
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -62,7 +59,7 @@ def _appendAggKey(tsdf, freq=None):
 
 
 def aggregate(
-    tsdf: TSDF,
+    tsdf: tempo.TSDF,
     freq: str,
     func: str,
     metricCols: list[str] = None,
@@ -230,7 +227,7 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
             raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
 
-def validateFuncExists(func):
+def validateFuncExists(func: str):
     if func is None:
         raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "
