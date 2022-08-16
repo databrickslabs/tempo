@@ -61,6 +61,7 @@ class ResampleUnitTests(SparkTest):
 
     #     # TODO: DATE returns `null`
     #     # DATE is being included in metricCols when metricCols is None
+    #       # is this intentional?
     #     # resample.py -> lines 86 to 87
     #     # occurring in all `func` arguments but causing null values for "mean"
     #     input_tsdf = self.get_data_as_tsdf("input_data")
@@ -114,16 +115,9 @@ class ResampleUnitTests(SparkTest):
 
     def test_aggregate_invalid_func_arg(self):
         # TODO : we should not be hitting an UnboundLocalError
-        # res should be defined in all cases
-        # need better handling for `func` argument
         input_tsdf = self.get_data_as_tsdf("input_data")
 
         self.assertRaises(UnboundLocalError, aggregate, input_tsdf, "1 DAY", "average")
-
-        # self.assertDataFrameEquality(
-        #     aggregate_df,
-        #     expected_data,
-        # )
 
     def test_check_allowable_freq_none(self):
         self.assertRaises(TypeError, checkAllowableFreq, None)
@@ -159,7 +153,7 @@ class ResampleUnitTests(SparkTest):
         self.assertRaises(TypeError, validateFuncExists, None)
 
     def test_validate_func_exists_value_error(self):
-        self.assertRaises(ValueError, validateFuncExists, "non-existant")
+        self.assertRaises(ValueError, validateFuncExists, "non-existent")
 
 
 # MAIN
