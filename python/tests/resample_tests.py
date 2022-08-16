@@ -27,9 +27,15 @@ class ResampleUnitTests(SparkTest):
 
     def test_aggregate_floor(self):
         input_tsdf = self.get_data_as_tsdf("input_data")
+        print("input_df")
+        input_tsdf.show(truncate=False)
         expected_data = self.get_data_as_sdf("expected_data")
+        print("expected_df")
+        expected_data.show(truncate=False)
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "floor")
+        print("aggregate_df")
+        aggregate_df.show(truncate=False)
 
         self.assertDataFrameEquality(
             aggregate_df,
@@ -55,9 +61,15 @@ class ResampleUnitTests(SparkTest):
 
     def test_aggregate_min(self):
         input_tsdf = self.get_data_as_tsdf("input_data")
+        print("input_df")
+        input_tsdf.show(truncate=False)
         expected_data = self.get_data_as_sdf("expected_data")
+        print("expected_df")
+        expected_data.show(truncate=False)
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "min")
+        print("aggregate_df")
+        aggregate_df.show(truncate=False)
 
         self.assertDataFrameEquality(
             aggregate_df,
