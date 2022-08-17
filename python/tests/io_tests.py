@@ -38,7 +38,7 @@ class DeltaWriteTest(SparkTest):
         # should be equal to the expected dataframe
         self.assertEqual(self.spark.table(table_name).count(), 7)
 
-    def test_write_to_delta_logging(self):
+    def test_write_to_delta_non_dbr_environment_logging(self):
         """Test logging when writing"""
 
         table_name = "my_table_optimization_col"
@@ -61,7 +61,7 @@ class DeltaWriteTest(SparkTest):
         )
 
     @mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "10.4"})
-    def test_write_to_delta_non_dbr_environment_logging(self):
+    def test_write_to_delta_bad_dbr_environment_logging(self):
         """Test useDeltaOpt Exception"""
 
         table_name = "my_table_optimization_col_fails"
