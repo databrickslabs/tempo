@@ -28,70 +28,66 @@ class ResampleUnitTests(SparkTest):
         self.assertEqual(appendAggKey_tuple[2], "microseconds")
 
     def test_aggregate_floor(self):
-        pass
-        # input_tsdf = self.get_data_as_tsdf("input_data")
-        # print("input_df")
-        # input_tsdf.show(truncate=False)
-        # expected_data = self.get_data_as_sdf("expected_data")
-        # print("expected_df")
-        # expected_data.show(truncate=False)
-        #
-        # aggregate_df = aggregate(input_tsdf, "1 DAY", "floor")
-        # print("aggregate_df")
-        # aggregate_df.show(truncate=False)
-        #
-        # self.assertDataFrameEquality(
-        #     aggregate_df,
-        #     expected_data,
-        # )
+        input_tsdf = self.get_data_as_tsdf("input_data")
+        print("input_df")
+        input_tsdf.show(truncate=False)
+        expected_data = self.get_data_as_sdf("expected_data")
+        print("expected_df")
+        expected_data.show(truncate=False)
+
+        aggregate_df = aggregate(input_tsdf, "1 DAY", "floor")
+        print("aggregate_df")
+        aggregate_df.show(truncate=False)
+
+        self.assertDataFrameEquality(
+            aggregate_df,
+            expected_data,
+        )
 
     def test_aggregate_average(self):
         pass
-
-    #     # TODO: DATE returns `null`
-    #     # DATE is being included in metricCols when metricCols is None
-    #       # is this intentional?
-    #     # resample.py -> lines 86 to 87
-    #     # occurring in all `func` arguments but causing null values for "mean"
-    #     input_tsdf = self.get_data_as_tsdf("input_data")
-    #     expected_data = self.get_data_as_sdf("expected_data")
-    #
-    #     aggregate_df = aggregate(input_tsdf, "1 DAY", "mean")
-    #
-    #     self.assertDataFrameEquality(
-    #         aggregate_df,
-    #         expected_data,
-    #     )
+        # # TODO: DATE returns `null`
+        # # DATE is being included in metricCols when metricCols is None
+        #   # is this intentional?
+        # # resample.py -> lines 86 to 87
+        # # occurring in all `func` arguments but causing null values for "mean"
+        # input_tsdf = self.get_data_as_tsdf("input_data")
+        # expected_data = self.get_data_as_sdf("expected_data")
+        #
+        # aggregate_df = aggregate(input_tsdf, "1 DAY", "mean")
+        #
+        # self.assertDataFrameEquality(
+        #     aggregate_df,
+        #     expected_data,
+        # )
 
     def test_aggregate_min(self):
-        pass
-        # input_tsdf = self.get_data_as_tsdf("input_data")
-        # print("input_df")
-        # input_tsdf.show(truncate=False)
-        # expected_data = self.get_data_as_sdf("expected_data")
-        # print("expected_df")
-        # expected_data.show(truncate=False)
-        #
-        # aggregate_df = aggregate(input_tsdf, "1 DAY", "min")
-        # print("aggregate_df")
-        # aggregate_df.show(truncate=False)
-        #
-        # self.assertDataFrameEquality(
-        #     aggregate_df,
-        #     expected_data,
-        # )
+        input_tsdf = self.get_data_as_tsdf("input_data")
+        print("input_df")
+        input_tsdf.show(truncate=False)
+        expected_data = self.get_data_as_sdf("expected_data")
+        print("expected_df")
+        expected_data.show(truncate=False)
+
+        aggregate_df = aggregate(input_tsdf, "1 DAY", "min")
+        print("aggregate_df")
+        aggregate_df.show(truncate=False)
+
+        self.assertDataFrameEquality(
+            aggregate_df,
+            expected_data,
+        )
 
     def test_aggregate_max(self):
-        pass
-        # input_tsdf = self.get_data_as_tsdf("input_data")
-        # expected_data = self.get_data_as_sdf("expected_data")
-        #
-        # aggregate_df = aggregate(input_tsdf, "1 DAY", "max")
-        #
-        # self.assertDataFrameEquality(
-        #     aggregate_df,
-        #     expected_data,
-        # )
+        input_tsdf = self.get_data_as_tsdf("input_data")
+        expected_data = self.get_data_as_sdf("expected_data")
+
+        aggregate_df = aggregate(input_tsdf, "1 DAY", "max")
+
+        self.assertDataFrameEquality(
+            aggregate_df,
+            expected_data,
+        )
 
     def test_aggregate_ceiling(self):
         input_tsdf = self.get_data_as_tsdf("input_data")
