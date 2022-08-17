@@ -10,9 +10,9 @@ from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
 
-class BasicTests(SparkTest):
+class TSDFBaseTests(SparkTest):
     def test_describe(self):
-        """AS-OF Join with out a time-partition test"""
+        """AS-OF Join without a time-partition test"""
 
         # Construct dataframes
         tsdf_init = self.get_data_as_tsdf("init")
@@ -24,22 +24,22 @@ class BasicTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-            res.filter(F.col("unique_time_series_count") != " ")
-            .select(F.max(F.col("unique_time_series_count")))
-            .collect()[0][0]
-            == "1"
+                res.filter(F.col("unique_time_series_count") != " ")
+                .select(F.max(F.col("unique_time_series_count")))
+                .collect()[0][0]
+                == "1"
         )
         assert (
-            res.filter(F.col("min_ts") != " ")
-            .select(F.col("min_ts").cast("string"))
-            .collect()[0][0]
-            == "2020-08-01 00:00:10"
+                res.filter(F.col("min_ts") != " ")
+                .select(F.col("min_ts").cast("string"))
+                .collect()[0][0]
+                == "2020-08-01 00:00:10"
         )
         assert (
-            res.filter(F.col("max_ts") != " ")
-            .select(F.col("max_ts").cast("string"))
-            .collect()[0][0]
-            == "2020-09-01 00:19:12"
+                res.filter(F.col("max_ts") != " ")
+                .select(F.col("max_ts").cast("string"))
+                .collect()[0][0]
+                == "2020-09-01 00:19:12"
         )
 
     def __timestamp_to_double(self, ts: str) -> float:
@@ -51,9 +51,9 @@ class BasicTests(SparkTest):
         )
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
-    def test_at(self):
+    def test_at_string_timestamp(self):
         """
-        Test of time-slicing at(..) function
+        Test of time-slicing at(..) function using a string timestamp
         """
         init_tsdf = self.get_data_as_tsdf("init")
         expected_tsdf = self.get_data_as_tsdf("expected")
@@ -63,16 +63,24 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(at_tsdf, expected_tsdf, from_tsdf=True)
 
+    def test_at_numeric_timestamp(self):
+        """
+        Test of time-slicint at(..) function using a numeric timestamp
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
 
+        target_ts = "2020-09-01 00:02:10"
         target_dbl = self.__timestamp_to_double(target_ts)
         at_dbl_tsdf = init_dbl_tsdf.at(target_dbl)
 
         self.assertDataFrameEquality(at_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
 
-    def test_before(self):
+    def test_before_string_timestamp(self):
         """
         Test of time-slicing before(..) function
         """
@@ -84,16 +92,21 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(before_tsdf, expected_tsdf, from_tsdf=True)
 
+    def test_before_numeric_timestamp(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
 
+        target_ts = "2020-09-01 00:02:10"
         target_dbl = self.__timestamp_to_double(target_ts)
         before_dbl_tsdf = init_dbl_tsdf.before(target_dbl)
 
         self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
 
-    def test_atOrBefore(self):
+    def test_atOrBefore_string_timestamp(self):
         """
         Test of time-slicing atOrBefore(..) function
         """
@@ -105,6 +118,15 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(before_tsdf, expected_tsdf, from_tsdf=True)
 
+    def test_atOrBefore_numeric_timestamp(self):
+        """
+        Test of time-slicing atOrBefore(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        target_ts = "2020-09-01 00:02:10"
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
@@ -114,7 +136,7 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
 
-    def test_after(self):
+    def test_after_string_timestamp(self):
         """
         Test of time-slicing after(..) function
         """
@@ -126,6 +148,15 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(after_tsdf, expected_tsdf, from_tsdf=True)
 
+    def test_after_numeric_timestamp(self):
+        """
+        Test of time-slicing after(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        target_ts = "2020-09-01 00:02:10"
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
@@ -135,7 +166,7 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
 
-    def test_atOrAfter(self):
+    def test_atOrAfter_string_timestamp(self):
         """
         Test of time-slicing atOrAfter(..) function
         """
@@ -147,6 +178,15 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(after_tsdf, expected_tsdf, from_tsdf=True)
 
+    def test_atOrAfter_numeric_timestamp(self):
+        """
+        Test of time-slicing atOrAfter(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        target_ts = "2020-09-01 00:02:10"
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
@@ -156,7 +196,7 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
 
-    def test_between(self):
+    def test_between_string_timestamp(self):
         """
         Test of time-slicing between(..) function
         """
@@ -168,6 +208,16 @@ class BasicTests(SparkTest):
         between_tsdf = init_tsdf.between(ts1, ts2)
 
         self.assertDataFrameEquality(between_tsdf, expected_tsdf, from_tsdf=True)
+
+    def test_between_numeric_timestamp(self):
+        """
+        Test of time-slicing between(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        ts1 = "2020-08-01 00:01:10"
+        ts2 = "2020-09-01 00:18:00"
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -181,7 +231,7 @@ class BasicTests(SparkTest):
             between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
         )
 
-    def test_between_exclusive(self):
+    def test_between_exclusive_string_timestamp(self):
         """
         Test of time-slicing between(..) function
         """
@@ -193,6 +243,16 @@ class BasicTests(SparkTest):
         between_tsdf = init_tsdf.between(ts1, ts2, inclusive=False)
 
         self.assertDataFrameEquality(between_tsdf, expected_tsdf, from_tsdf=True)
+
+    def test_between_exclusive_numeric_timestamp(self):
+        """
+        Test of time-slicing between(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        ts1 = "2020-08-01 00:01:10"
+        ts2 = "2020-09-01 00:18:00"
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -206,7 +266,7 @@ class BasicTests(SparkTest):
             between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
         )
 
-    def test_earliest(self):
+    def test_earliest_string_timestamp(self):
         """
         Test of time-slicing earliest(..) function
         """
@@ -216,6 +276,13 @@ class BasicTests(SparkTest):
         earliest_tsdf = init_tsdf.earliest(n=3)
 
         self.assertDataFrameEquality(earliest_tsdf, expected_tsdf, from_tsdf=True)
+
+    def test_earliest_numeric_timestamp(self):
+        """
+        Test of time-slicing earliest(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -227,7 +294,7 @@ class BasicTests(SparkTest):
             earliest_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
         )
 
-    def test_latest(self):
+    def test_latest_string_timestamp(self):
         """
         Test of time-slicing latest(..) function
         """
@@ -240,6 +307,13 @@ class BasicTests(SparkTest):
             latest_tsdf, expected_tsdf, ignore_row_order=True, from_tsdf=True
         )
 
+    def test_latest_numeric_timestamp(self):
+        """
+        Test of time-slicing latest(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
@@ -250,7 +324,7 @@ class BasicTests(SparkTest):
             latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True, from_tsdf=True
         )
 
-    def test_priorTo(self):
+    def test_priorTo_string_timestamp(self):
         """
         Test of time-slicing priorTo(..) function
         """
@@ -262,6 +336,15 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(prior_tsdf, expected_tsdf, from_tsdf=True)
 
+    def test_priorTo_numeric_timestamp(self):
+        """
+        Test of time-slicing priorTo(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        target_ts = "2020-09-01 00:02:00"
+
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
         expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
@@ -271,7 +354,7 @@ class BasicTests(SparkTest):
 
         self.assertDataFrameEquality(prior_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
 
-    def test_subsequentTo(self):
+    def test_subsequentTo_string_timestamp(self):
         """
         Test of time-slicing subsequentTo(..) function
         """
@@ -282,6 +365,15 @@ class BasicTests(SparkTest):
         subsequent_tsdf = init_tsdf.subsequentTo(target_ts)
 
         self.assertDataFrameEquality(subsequent_tsdf, expected_tsdf, from_tsdf=True)
+
+    def test_subsequentTo_numeric_timestamp(self):
+        """
+        Test of time-slicing subsequentTo(..) function
+        """
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        target_ts = "2020-09-01 00:02:00"
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
