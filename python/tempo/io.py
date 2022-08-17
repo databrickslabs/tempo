@@ -6,6 +6,7 @@ from collections import deque
 import tempo
 import pyspark.sql.functions as f
 from pyspark.sql import SparkSession
+from pyspark.sql.utils import ParseException
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ def write(
                     tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
                 )
             )
-        except Exception as e:
+        except ParseException as e:
             logger.error(
                 "Delta optimizations attempted, but was not successful.\nError: {}".format(
                     e
@@ -63,5 +64,6 @@ def write(
             )
     else:
         logger.warning(
-            "Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages."
+            "Delta optimizations attempted on a non-Databricks platform. "
+            "Switch to use Databricks Runtime to get optimization advantages."
         )

@@ -69,6 +69,16 @@
       "input_data": {
         "$ref": "#/__SharedData/input_data"
       }
+    },
+    "test_write_to_delta_logging": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_write_to_delta_non_dbr_environment_logging": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
     }
   }
 }
