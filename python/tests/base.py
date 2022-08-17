@@ -41,6 +41,10 @@ class SparkTest(unittest.TestCase):
                 "spark.executor.extraJavaOptions",
                 "-Dio.netty.tryReflectionSetAccessible=true",
             )
+            .config(
+                "spark.sql.session.timeZone",
+                "UTC"
+            )
             .master("local")
             .getOrCreate()
         )

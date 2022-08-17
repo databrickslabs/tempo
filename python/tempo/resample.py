@@ -76,6 +76,9 @@ def aggregate(
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
     tsdf, period, unit = _appendAggKey(tsdf, freq)
+    print("with agg_key:")
+    tsdf.df.show(truncate=False)
+
     df = tsdf.df
 
     groupingCols = tsdf.partitionCols + ["agg_key"]

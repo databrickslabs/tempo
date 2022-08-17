@@ -106,6 +106,8 @@ class ResampleUnitTests(SparkTest):
         expected_data = self.get_data_as_sdf("expected_data")
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "ceil")
+        print("aggregated:")
+        aggregate_df.show(truncate=False)
 
         self.assertDataFrameEquality(
             aggregate_df,

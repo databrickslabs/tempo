@@ -7,55 +7,13 @@
         "symbol"
       ],
       "data": [
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:00:10",
-          349.21,
-          10.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:00:11",
-          340.21,
-          9.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:01:12",
-          353.32,
-          8.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:01:13",
-          351.32,
-          7.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:01:14",
-          350.32,
-          6.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-09-01 00:01:12",
-          361.1,
-          5.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-09-01 00:19:12",
-          362.1,
-          4.0
-        ]
+        ["S1", "SAME_DT", "2020-08-01 00:00:10", 349.21, 10.0],
+        ["S1", "SAME_DT", "2020-08-01 00:00:11", 340.21, 9.0],
+        ["S1", "SAME_DT", "2020-08-01 00:01:12", 353.32, 8.0],
+        ["S1", "SAME_DT", "2020-08-01 00:01:13", 351.32, 7.0],
+        ["S1", "SAME_DT", "2020-08-01 00:01:14", 350.32, 6.0],
+        ["S1", "SAME_DT", "2020-09-01 00:01:12", 361.1, 5.0],
+        ["S1", "SAME_DT", "2020-09-01 00:19:12", 362.1, 4.0]
       ]
     }
   },
@@ -82,24 +40,10 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "partition_cols": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-07-31 20:00:00",
-            "SAME_DT",
-            349.21,
-            10.0
-          ],
-          [
-            "S1",
-            "2020-08-31 20:00:00",
-            "SAME_DT",
-            361.1,
-            5.0
-          ]
+          ["S1", "2020-08-01 00:00:00", "SAME_DT", 349.21, 10.0],
+          ["S1", "2020-09-01 00:00:00", "SAME_DT", 361.1, 5.0]
         ]
       }
     },
@@ -138,24 +82,10 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "partition_cols": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-07-31 20:00:00",
-            "SAME_DT",
-            340.21,
-            6.0
-          ],
-          [
-            "S1",
-            "2020-08-31 20:00:00",
-            "SAME_DT",
-            361.1,
-            4.0
-          ]
+          ["S1", "2020-08-01 00:00:00", "SAME_DT", 340.21, 6.0],
+          ["S1", "2020-09-01 00:00:00", "SAME_DT", 361.1, 4.0]
         ]
       }
     },
@@ -166,24 +96,10 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "partition_cols": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-07-31 20:00:00",
-            "SAME_DT",
-            353.32,
-            10.0
-          ],
-          [
-            "S1",
-            "2020-08-31 20:00:00",
-            "SAME_DT",
-            362.1,
-            5.0
-          ]
+          ["S1", "2020-08-01 00:00:00", "SAME_DT", 353.32, 10.0],
+          ["S1", "2020-09-01 00:00:00", "SAME_DT", 362.1, 5.0]
         ]
       }
 },
@@ -194,24 +110,10 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "partition_cols": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-07-31 20:00:00",
-            "SAME_DT",
-            350.32,
-            6.0
-          ],
-          [
-            "S1",
-            "2020-08-31 20:00:00",
-            "SAME_DT",
-            362.1,
-            4.0
-          ]
+          ["S1", "2020-08-01 00:00:00", "SAME_DT", 350.32, 6.0],
+          ["S1", "2020-09-01 00:00:00", "SAME_DT", 362.1, 4.0]
         ]
       }
 },
