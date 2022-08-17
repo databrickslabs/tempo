@@ -6,12 +6,12 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing.html" /><link rel="prev" title="API Reference" href="index.html" />
 
     <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.06.21"/>
-        <title>tempo.tsdf - Tempo 0.1.19 documentation</title>
+        <title>tempo.tsdf - Tempo 0.1.20 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -133,7 +133,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Tempo 0.1.19 documentation</div></a>
+      <a href="../index.html"><div class="brand">Tempo 0.1.20 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -160,7 +160,7 @@
     <img class="sidebar-logo only-dark" src="../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.19 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.20 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -357,6 +357,34 @@ missing_vals_pct - percentage (from 0 to 100) of missing values.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> object containing the earliest n records for each series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tempo.tsdf.TSDF.extractStateIntervals">
+<span class="sig-name descname"><span class="pre">extractStateIntervals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">metric_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_definition</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">pyspark.sql.column.Column</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">pyspark.sql.column.Column</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">pyspark.sql.column.Column</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'='</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pyspark.sql.dataframe.DataFrame</span></span></span><a class="reference internal" href="../_modules/tempo/tsdf.html#TSDF.extractStateIntervals"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.tsdf.TSDF.extractStateIntervals" title="Permalink to this definition">#</a></dt>
+<dd><p>Extracts intervals from a <code class="xref py py-class docutils literal notranslate"><span class="pre">TSDF</span></code> based on some notion of “state”, as defined by the :param
+state_definition: parameter. The state definition consists of a comparison operation between the current and
+previous values of a metric. If the comparison operation evaluates to true across all metric columns,
+then we consider both points to be in the same “state”. Changes of state occur when the comparison operator
+returns false for any given metric column. So, the default state definition (‘=’) entails that intervals of
+time wherein the metrics all remained constant. A state definition of ‘&gt;=’ would extract intervals wherein
+the metrics were all monotonically increasing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Param</dt>
+<dd class="field-odd"><p>metric_cols: the set of metric columns to evaluate for state changes</p>
+</dd>
+<dt class="field-even">Param</dt>
+<dd class="field-even"><p>state_definition: the comparison function used to evaluate individual metrics for state changes.</p>
+</dd>
+</dl>
+<p>Either a string, giving a standard PySpark column comparison operation, or a binary function with the
+signature: <cite>(x1: Column, x2: Column) -&gt; Column</cite> where the returned column expression evaluates to a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BooleanType</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>a <code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code> object containing the resulting intervals</p>
 </dd>
 </dl>
 </dd></dl>

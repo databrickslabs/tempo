@@ -5,12 +5,12 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.06.21"/>
-        <title>tempo.tsdf - Tempo 0.1.19 documentation</title>
+        <title>tempo.tsdf - Tempo 0.1.20 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-main.c949a650a448cc0ae9fd3441c0e17fb0.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/panels-bootstrap.5fd3999ee7762ccc51105388f4a9d115.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/panels-variables.06eb56fa6e07937060861dad626602ad.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
@@ -132,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.19 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.20 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -159,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.19 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.20 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -214,8 +214,9 @@
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">operator</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Collection</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pyspark.sql.functions</span> <span class="k">as</span> <span class="nn">f</span>
@@ -1550,82 +1551,124 @@
 
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence_col</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">extractStateIntervals</span><span class="p">(</span>
+<div class="viewcode-block" id="TSDF.extractStateIntervals"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.extractStateIntervals">[docs]</a>    <span class="k">def</span> <span class="nf">extractStateIntervals</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="o">*</span><span class="n">metricCols</span><span class="p">:</span> <span class="n">Collection</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-        <span class="n">state_definition</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Column</span><span class="p">[</span><span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="s2">&quot;=&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TSDF</span><span class="p">:</span>
+        <span class="o">*</span><span class="n">metric_cols</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">state_definition</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Column</span><span class="p">,</span> <span class="n">Column</span><span class="p">],</span> <span class="n">Column</span><span class="p">]]</span> <span class="o">=</span> <span class="s2">&quot;=&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of &quot;state&quot;, as defined by the :param</span>
+<span class="sd">        state_definition: parameter. The state definition consists of a comparison operation between the current and</span>
+<span class="sd">        previous values of a metric. If the comparison operation evaluates to true across all metric columns,</span>
+<span class="sd">        then we consider both points to be in the same &quot;state&quot;. Changes of state occur when the comparison operator</span>
+<span class="sd">        returns false for any given metric column. So, the default state definition (&#39;=&#39;) entails that intervals of</span>
+<span class="sd">        time wherein the metrics all remained constant. A state definition of &#39;&gt;=&#39; would extract intervals wherein</span>
+<span class="sd">        the metrics were all monotonically increasing.</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span>
+<span class="sd">        :param: metric_cols: the set of metric columns to evaluate for state changes</span>
+<span class="sd">        :param: state_definition: the comparison function used to evaluate individual metrics for state changes.</span>
+<span class="sd">        Either a string, giving a standard PySpark column comparison operation, or a binary function with the</span>
+<span class="sd">        signature: `(x1: Column, x2: Column) -&gt; Column` where the returned column expression evaluates to a</span>
+<span class="sd">        :class:`~pyspark.sql.types.BooleanType`</span>
+
+<span class="sd">        :return: a :class:`~pyspark.sql.DataFrame` object containing the resulting intervals</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># https://spark.apache.org/docs/latest/sql-ref-null-semantics.html#comparison-operators-</span>
+        <span class="k">def</span> <span class="nf">null_safe_equals</span><span class="p">(</span><span class="n">col1</span><span class="p">:</span> <span class="n">Column</span><span class="p">,</span> <span class="n">col2</span><span class="p">:</span> <span class="n">Column</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Column</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">col1</span><span class="o">.</span><span class="n">isNull</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">col2</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">col1</span><span class="o">.</span><span class="n">isNull</span><span class="p">()</span> <span class="o">|</span> <span class="n">col2</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">operator</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="n">col1</span><span class="p">,</span> <span class="n">col2</span><span class="p">))</span>
+            <span class="p">)</span>
+
+        <span class="n">operator_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_2</span>
+            <span class="s2">&quot;!=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">ne</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_11</span>
+            <span class="s2">&quot;&lt;&gt;&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">ne</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_8</span>
+            <span class="s2">&quot;&lt;&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_9</span>
+            <span class="s2">&quot;&lt;=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">le</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_10</span>
+            <span class="s2">&quot;&lt;=&gt;&quot;</span><span class="p">:</span> <span class="n">null_safe_equals</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_12</span>
+            <span class="s2">&quot;=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_13</span>
+            <span class="s2">&quot;==&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_14</span>
+            <span class="s2">&quot;&gt;&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">gt</span><span class="p">,</span>
+            <span class="c1"># https://spark.apache.org/docs/latest/api/sql/#_15</span>
+            <span class="s2">&quot;&gt;=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">ge</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Validate state definition and construct state comparison function</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">state_definition</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">state_definition</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">operator_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Invalid comparison operator for `state_definition` argument: </span><span class="si">{</span><span class="n">state_definition</span><span class="si">}</span><span class="s2">.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">state_comparison_fn</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">operator_dict</span><span class="p">[</span><span class="n">state_definition</span><span class="p">](</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">state_definition</span><span class="p">):</span>
+            <span class="n">state_comparison_fn</span> <span class="o">=</span> <span class="n">state_definition</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The `state_definition` argument can be of type `str` or `callable`, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;but received value of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">state_definition</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
 
         <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__baseWindow</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">state_definition</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">state_definition</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;=&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;!=&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&gt;=&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;=&quot;</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                    <span class="s2">&quot;A `state_definition` which has not been tested was&quot;</span>
-                    <span class="s2">&quot;provided to the `extractStateIntervals` method.&quot;</span>
-                <span class="p">)</span>
-            <span class="n">current_state</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="o">*</span><span class="n">metricCols</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">current_state</span> <span class="o">=</span> <span class="n">state_definition</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="s2">&quot;current_state&quot;</span><span class="p">,</span> <span class="n">current_state</span><span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="o">*</span><span class="n">metricCols</span><span class="p">)</span>
-
-        <span class="n">data</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
-                <span class="s2">&quot;previous_state&quot;</span><span class="p">,</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">lag</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;current_state&quot;</span><span class="p">),</span> <span class="n">offset</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">w</span><span class="p">),</span>
-            <span class="p">)</span>
-            <span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
-                <span class="s2">&quot;previous_ts&quot;</span><span class="p">,</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">lag</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">),</span> <span class="n">offset</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">w</span><span class="p">),</span>
-            <span class="p">)</span>
-            <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;previous_state&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">())</span>
-        <span class="p">)</span>
-
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">state_definition</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
-            <span class="n">state_change_exp</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">            !(current_state </span><span class="si">{</span><span class="n">state_definition</span><span class="si">}</span><span class="s2"> previous_state)</span>
-<span class="s2">            &quot;&quot;&quot;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">state_change_exp</span> <span class="o">=</span> <span class="s2">&quot;!(current_state AND previous_state)&quot;</span>
-
+        <span class="c1"># Get previous timestamp to identify start time of the interval</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
-            <span class="s2">&quot;state_change&quot;</span><span class="p">,</span>
-            <span class="n">f</span><span class="o">.</span><span class="n">expr</span><span class="p">(</span><span class="n">state_change_exp</span><span class="p">),</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;current_state&quot;</span><span class="p">,</span> <span class="s2">&quot;previous_state&quot;</span><span class="p">)</span>
-
-        <span class="n">data</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
-                <span class="s2">&quot;state_incrementer&quot;</span><span class="p">,</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;state_change&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;int&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">w</span><span class="p">),</span>
-            <span class="p">)</span>
-            <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">~</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;state_change&quot;</span><span class="p">))</span>
-            <span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;state_change&quot;</span><span class="p">)</span>
+            <span class="s2">&quot;previous_ts&quot;</span><span class="p">,</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">lag</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">),</span> <span class="n">offset</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">w</span><span class="p">),</span>
         <span class="p">)</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="c1"># Determine state intervals using user-provided the state comparison function</span>
+        <span class="c1"># The comparison occurs on the current and previous record per metric column</span>
+        <span class="n">temp_metric_compare_cols</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">mc</span> <span class="ow">in</span> <span class="n">metric_cols</span><span class="p">:</span>
+            <span class="n">temp_metric_compare_col</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;__</span><span class="si">{</span><span class="n">mc</span><span class="si">}</span><span class="s2">_compare&quot;</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="n">temp_metric_compare_col</span><span class="p">,</span>
+                <span class="n">state_comparison_fn</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">mc</span><span class="p">),</span> <span class="n">f</span><span class="o">.</span><span class="n">lag</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">mc</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">w</span><span class="p">)),</span>
+            <span class="p">)</span>
+            <span class="n">temp_metric_compare_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">temp_metric_compare_col</span><span class="p">)</span>
+
+        <span class="c1"># Remove first record which will have no state change</span>
+        <span class="c1"># and produces `null` for all state comparisons</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;previous_ts&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">isNotNull</span><span class="p">())</span>
+
+        <span class="c1"># Each state comparison should return True if state remained constant</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">&quot;state_change&quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">array_contains</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="o">*</span><span class="n">temp_metric_compare_cols</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Count the distinct state changes to get the unique intervals</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="s2">&quot;state_incrementer&quot;</span><span class="p">,</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;state_change&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;int&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">w</span><span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">~</span><span class="n">f</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;state_change&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Find the start and end timestamp of the interval</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">data</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">,</span> <span class="s2">&quot;state_incrementer&quot;</span><span class="p">)</span>
             <span class="o">.</span><span class="n">agg</span><span class="p">(</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">struct</span><span class="p">(</span>
-                    <span class="n">f</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="s2">&quot;previous_ts&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;start&quot;</span><span class="p">),</span>
-                    <span class="n">f</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;end&quot;</span><span class="p">),</span>
-                <span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">),</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="s2">&quot;previous_ts&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;start_ts&quot;</span><span class="p">),</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;end_ts&quot;</span><span class="p">),</span>
             <span class="p">)</span>
             <span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;state_incrementer&quot;</span><span class="p">)</span>
         <span class="p">)</span>
 
-        <span class="n">result</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span>
-            <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span>
-            <span class="n">result</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">,</span>
-        <span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">result</span></div></div>
 
 
 <span class="k">class</span> <span class="nc">_ResampledTSDF</span><span class="p">(</span><span class="n">TSDF</span><span class="p">):</span>
