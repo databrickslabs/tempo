@@ -24,22 +24,22 @@ class TSDFBaseTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-                res.filter(F.col("unique_time_series_count") != " ")
-                .select(F.max(F.col("unique_time_series_count")))
-                .collect()[0][0]
-                == "1"
+            res.filter(F.col("unique_time_series_count") != " ")
+            .select(F.max(F.col("unique_time_series_count")))
+            .collect()[0][0]
+            == "1"
         )
         assert (
-                res.filter(F.col("min_ts") != " ")
-                .select(F.col("min_ts").cast("string"))
-                .collect()[0][0]
-                == "2020-08-01 00:00:10"
+            res.filter(F.col("min_ts") != " ")
+            .select(F.col("min_ts").cast("string"))
+            .collect()[0][0]
+            == "2020-08-01 00:00:10"
         )
         assert (
-                res.filter(F.col("max_ts") != " ")
-                .select(F.col("max_ts").cast("string"))
-                .collect()[0][0]
-                == "2020-09-01 00:19:12"
+            res.filter(F.col("max_ts") != " ")
+            .select(F.col("max_ts").cast("string"))
+            .collect()[0][0]
+            == "2020-09-01 00:19:12"
         )
 
     def __timestamp_to_double(self, ts: str) -> float:
