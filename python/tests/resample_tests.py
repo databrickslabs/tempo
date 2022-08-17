@@ -49,7 +49,9 @@ class ResampleUnitTests(SparkTest):
         expected_data = self.get_data_as_sdf("expected_data")
 
         # explicitly declaring metricCols to remove DATE so that test can pass for now
-        aggregate_df = aggregate(input_tsdf, "1 DAY", "mean", ["trade_pr", "trade_pr_2"])
+        aggregate_df = aggregate(
+            input_tsdf, "1 DAY", "mean", ["trade_pr", "trade_pr_2"]
+        )
 
         self.assertDataFrameEquality(
             aggregate_df,
