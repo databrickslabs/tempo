@@ -2,9 +2,7 @@ import logging
 import os
 import unittest
 from unittest import mock
-from pyspark.sql.utils import ParseException
 from tests.base import SparkTest
-from tempo.io import write
 
 
 class DeltaWriteTest(SparkTest):
