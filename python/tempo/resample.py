@@ -64,7 +64,7 @@ def aggregate(
     func: str,
     metricCols: list[str] = None,
     prefix: str = None,
-    fill: str = None,
+    fill: bool = None,
 ) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
@@ -76,8 +76,6 @@ def aggregate(
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
     tsdf, period, unit = _appendAggKey(tsdf, freq)
-    print("with agg_key:")
-    tsdf.df.show(truncate=False)
 
     df = tsdf.df
 
