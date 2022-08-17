@@ -3,18 +3,15 @@ from __future__ import annotations
 import os
 import logging
 from collections import deque
-from typing import TYPE_CHECKING
+import tempo
 import pyspark.sql.functions as f
 from pyspark.sql import SparkSession
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from tempo.tsdf import TSDF
-
 
 def write(
-    tsdf: TSDF,
+    tsdf: tempo.TSDF,
     spark: SparkSession,
     tabName: str,
     optimizationCols: list[str] = None,
