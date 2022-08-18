@@ -4,6 +4,7 @@ from tempo.utils import *
 from tests.tsdf_tests import SparkTest
 from unittest import mock
 
+
 class UtilsTest(SparkTest):
     def test_display(self):
         """Test of the display utility"""
