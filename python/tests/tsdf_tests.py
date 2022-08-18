@@ -54,6 +54,36 @@ class TSDFBaseTests(SparkTest):
         )
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
+    def test__validate_ts_string_valid(self):
+
+        valid_timestamp_string = "2020-09-01 00:02:10"
+
+        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+
+    def test__validate_ts_string_alt_format_valid(self):
+
+        valid_timestamp_string = "2020-09-01T00:02:10"
+
+        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+
+    def test__validate_ts_string_with_microseconds_valid(self):
+
+        valid_timestamp_string = "2020-09-01 00:02:10.00000000"
+
+        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+
+    def test__validate_ts_string_alt_format_with_microseconds_valid(self):
+        valid_timestamp_string = "2020-09-01T00:02:10.00000000"
+
+        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+
+    def test__validate_ts_string_invalid(self):
+        invalid_timestamp_string = "this will not work"
+
+        self.assertRaises(
+            ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
+        )
+
     def test_at_string_timestamp(self):
         """
         Test of time-slicing at(..) function using a string timestamp
