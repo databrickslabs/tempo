@@ -1,7 +1,7 @@
 import unittest
-
+import os
 from dateutil import parser as dt_parser
-
+from unittest import mock
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as F
@@ -42,10 +42,13 @@ class TSDFBaseTests(SparkTest):
             == "2020-09-01 00:19:12"
         )
 
-    def __timestamp_to_double(self, ts: str) -> float:
+    @staticmethod
+    @mock.patch.dict(os.environ, {"TZ": "UTC"})
+    def __timestamp_to_double(ts: str) -> float:
         return dt_parser.isoparse(ts).timestamp()
 
-    def __tsdf_with_double_tscol(self, tsdf: TSDF) -> TSDF:
+    @staticmethod
+    def __tsdf_with_double_tscol(tsdf: TSDF) -> TSDF:
         with_double_tscol_df = tsdf.df.withColumn(
             tsdf.ts_col, F.col(tsdf.ts_col).cast("double")
         )
