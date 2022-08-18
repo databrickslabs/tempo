@@ -355,6 +355,14 @@
         ]
       }
     },
+    "test_zero_fill_interpolation_no_perform_checks": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "$ref": "#/InterpolationUnitTest/test_zero_fill_interpolation/expected_data"
+      }
+    },
     "test_null_fill_interpolation": {
       "simple_input_data": {
         "$ref": "#/__SharedData/simple_input_data"

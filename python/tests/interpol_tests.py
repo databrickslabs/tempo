@@ -185,6 +185,33 @@ class InterpolationUnitTest(SparkTest):
 
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
+    def test_zero_fill_interpolation_no_perform_checks(self):
+        """Test zero fill interpolation.
+
+        For zero fill interpolation we expect any missing timeseries values to be generated and filled in with zeroes.
+        If after sampling there are null values in the target column these will also be filled with zeroes.
+
+        """
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+
+        # interpolate
+        actual_df: DataFrame = self.interpolate_helper.interpolate(
+            tsdf=simple_input_tsdf,
+            partition_cols=["partition_a", "partition_b"],
+            target_cols=["value_a", "value_b"],
+            freq="30 seconds",
+            ts_col="event_ts",
+            func="mean",
+            method="zero",
+            show_interpolated=True,
+            perform_checks=False,
+        )
+
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+
     def test_null_fill_interpolation(self):
         """Test null fill interpolation.
 
