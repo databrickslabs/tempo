@@ -7,7 +7,6 @@
 # coverage files
 .coverage
 coverage.xml
-.coveragerc
 
 # Scala related files
 scala/tempo/target
