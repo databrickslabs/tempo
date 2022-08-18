@@ -2,7 +2,7 @@ import unittest
 
 from tempo.utils import *
 from tests.tsdf_tests import SparkTest
-
+from unittest import mock
 
 class UtilsTest(SparkTest):
     def test_display(self):
@@ -14,6 +14,7 @@ class UtilsTest(SparkTest):
         else:
             self.assertEqual(id(display), id(display_unavailable))
 
+    @mock.patch.dict(os.environ, {"TZ": "UTC"})
     def test_calculate_time_horizon(self):
         """Test calculate time horizon warning and number of expected output rows"""
 
