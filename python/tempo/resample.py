@@ -204,7 +204,7 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
     elif freq in allowableFreqs:
         return 1, freq
-    elif freq not in allowableFreqs:
+    else:
         try:
             periods = freq.lower().split(" ")[0].strip()
             units = freq.lower().split(" ")[1].strip()
