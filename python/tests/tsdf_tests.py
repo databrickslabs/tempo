@@ -4,7 +4,7 @@ from dateutil import parser as dt_parser
 from unittest import mock
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
-import pyspark.sql.functions as F
+import pyspark.sql.functions as f
 
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
@@ -24,20 +24,20 @@ class TSDFBaseTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-            res.filter(F.col("unique_time_series_count") != " ")
-            .select(F.max(F.col("unique_time_series_count")))
+            res.filter(f.col("unique_time_series_count") != " ")
+            .select(f.max(f.col("unique_time_series_count")))
             .collect()[0][0]
             == "1"
         )
         assert (
-            res.filter(F.col("min_ts") != " ")
-            .select(F.col("min_ts").cast("string"))
+            res.filter(f.col("min_ts") != " ")
+            .select(f.col("min_ts").cast("string"))
             .collect()[0][0]
             == "2020-08-01 00:00:10"
         )
         assert (
-            res.filter(F.col("max_ts") != " ")
-            .select(F.col("max_ts").cast("string"))
+            res.filter(f.col("max_ts") != " ")
+            .select(f.col("max_ts").cast("string"))
             .collect()[0][0]
             == "2020-09-01 00:19:12"
         )
@@ -50,7 +50,7 @@ class TSDFBaseTests(SparkTest):
     @staticmethod
     def __tsdf_with_double_tscol(tsdf: TSDF) -> TSDF:
         with_double_tscol_df = tsdf.df.withColumn(
-            tsdf.ts_col, F.col(tsdf.ts_col).cast("double")
+            tsdf.ts_col, f.col(tsdf.ts_col).cast("double")
         )
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
@@ -420,28 +420,28 @@ class RangeStatsTest(SparkTest):
 
         # cast to decimal with precision in cents for simplicity
         featured_df = featured_df.select(
-            F.col("symbol"),
-            F.col("event_ts"),
-            F.col("mean_trade_pr").cast("decimal(5, 2)"),
-            F.col("count_trade_pr"),
-            F.col("min_trade_pr").cast("decimal(5,2)"),
-            F.col("max_trade_pr").cast("decimal(5,2)"),
-            F.col("sum_trade_pr").cast("decimal(5,2)"),
-            F.col("stddev_trade_pr").cast("decimal(5,2)"),
-            F.col("zscore_trade_pr").cast("decimal(5,2)"),
+            f.col("symbol"),
+            f.col("event_ts"),
+            f.col("mean_trade_pr").cast("decimal(5, 2)"),
+            f.col("count_trade_pr"),
+            f.col("min_trade_pr").cast("decimal(5,2)"),
+            f.col("max_trade_pr").cast("decimal(5,2)"),
+            f.col("sum_trade_pr").cast("decimal(5,2)"),
+            f.col("stddev_trade_pr").cast("decimal(5,2)"),
+            f.col("zscore_trade_pr").cast("decimal(5,2)"),
         )
 
         # cast to decimal with precision in cents for simplicity
         dfExpected = dfExpected.select(
-            F.col("symbol"),
-            F.col("event_ts"),
-            F.col("mean_trade_pr").cast("decimal(5, 2)"),
-            F.col("count_trade_pr"),
-            F.col("min_trade_pr").cast("decimal(5,2)"),
-            F.col("max_trade_pr").cast("decimal(5,2)"),
-            F.col("sum_trade_pr").cast("decimal(5,2)"),
-            F.col("stddev_trade_pr").cast("decimal(5,2)"),
-            F.col("zscore_trade_pr").cast("decimal(5,2)"),
+            f.col("symbol"),
+            f.col("event_ts"),
+            f.col("mean_trade_pr").cast("decimal(5, 2)"),
+            f.col("count_trade_pr"),
+            f.col("min_trade_pr").cast("decimal(5,2)"),
+            f.col("max_trade_pr").cast("decimal(5,2)"),
+            f.col("sum_trade_pr").cast("decimal(5,2)"),
+            f.col("stddev_trade_pr").cast("decimal(5,2)"),
+            f.col("zscore_trade_pr").cast("decimal(5,2)"),
         )
 
         # should be equal to the expected dataframe
@@ -459,26 +459,26 @@ class RangeStatsTest(SparkTest):
 
         # cast to decimal with precision in cents for simplicity
         featured_df = featured_df.select(
-            F.col("symbol"),
-            F.col("event_ts"),
-            F.col("mean_trade_pr").cast("decimal(5, 2)"),
-            F.col("count_trade_pr"),
-            F.col("min_trade_pr").cast("decimal(5,2)"),
-            F.col("max_trade_pr").cast("decimal(5,2)"),
-            F.col("sum_trade_pr").cast("decimal(5,2)"),
-            F.col("stddev_trade_pr").cast("decimal(5,2)"),
+            f.col("symbol"),
+            f.col("event_ts"),
+            f.col("mean_trade_pr").cast("decimal(5, 2)"),
+            f.col("count_trade_pr"),
+            f.col("min_trade_pr").cast("decimal(5,2)"),
+            f.col("max_trade_pr").cast("decimal(5,2)"),
+            f.col("sum_trade_pr").cast("decimal(5,2)"),
+            f.col("stddev_trade_pr").cast("decimal(5,2)"),
         )
 
         # cast to decimal with precision in cents for simplicity
         dfExpected = dfExpected.select(
-            F.col("symbol"),
-            F.col("event_ts"),
-            F.col("mean_trade_pr").cast("decimal(5, 2)"),
-            F.col("count_trade_pr"),
-            F.col("min_trade_pr").cast("decimal(5,2)"),
-            F.col("max_trade_pr").cast("decimal(5,2)"),
-            F.col("sum_trade_pr").cast("decimal(5,2)"),
-            F.col("stddev_trade_pr").cast("decimal(5,2)"),
+            f.col("symbol"),
+            f.col("event_ts"),
+            f.col("mean_trade_pr").cast("decimal(5, 2)"),
+            f.col("count_trade_pr"),
+            f.col("min_trade_pr").cast("decimal(5,2)"),
+            f.col("max_trade_pr").cast("decimal(5,2)"),
+            f.col("sum_trade_pr").cast("decimal(5,2)"),
+            f.col("stddev_trade_pr").cast("decimal(5,2)"),
         )
 
         # should be equal to the expected dataframe
@@ -499,7 +499,7 @@ class ResampleTest(SparkTest):
         featured_df = tsdf_input.resample(freq="min", func="floor", prefix="floor").df
         # 30 minute aggregation
         resample_30m = tsdf_input.resample(freq="5 minutes", func="mean").df.withColumn(
-            "trade_pr", F.round(F.col("trade_pr"), 2)
+            "trade_pr", f.round(f.col("trade_pr"), 2)
         )
 
         bars = tsdf_input.calc_bars(
@@ -522,7 +522,7 @@ class ResampleTest(SparkTest):
 
         # 30 minute aggregation
         resample_ms = tsdf_init.resample(freq="ms", func="mean").df.withColumn(
-            "trade_pr", F.round(F.col("trade_pr"), 2)
+            "trade_pr", f.round(f.col("trade_pr"), 2)
         )
 
         self.assertDataFrameEquality(resample_ms, dfExpected)
@@ -537,14 +537,14 @@ class ResampleTest(SparkTest):
 
         resample_30m = tsdf_input.resample(
             freq="5 minutes", func="mean", fill=True
-        ).df.withColumn("trade_pr", F.round(F.col("trade_pr"), 2))
+        ).df.withColumn("trade_pr", f.round(f.col("trade_pr"), 2))
 
         bars = tsdf_input.calc_bars(
             freq="min", metricCols=["trade_pr", "trade_pr_2"]
         ).df
 
         upsampled = resample_30m.filter(
-            F.col("event_ts").isin(
+            f.col("event_ts").isin(
                 "2020-08-01 00:00:00",
                 "2020-08-01 00:05:00",
                 "2020-09-01 00:00:00",
@@ -737,7 +737,7 @@ class ExtractStateIntervalsTest(SparkTest):
 
         # threshold state function
         def threshold_fn(a: Column, b: Column) -> Column:
-            return F.abs(a - b) < F.lit(0.5)
+            return f.abs(a - b) < f.lit(0.5)
 
         # call extractStateIntervals method
         extracted_intervals_df: DataFrame = input_tsdf.extractStateIntervals(

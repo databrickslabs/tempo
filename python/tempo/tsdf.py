@@ -51,7 +51,10 @@ class TSDF:
         self.df = df
         self.sequence_col = "" if sequence_col is None else sequence_col
 
-        # Add customized check for string type for the timestamp. If we see a string, we will proactively created a double version of the string timestamp for sorting purposes and rename to ts_col
+        # Add customized check for string type for the timestamp.
+        # If we see a string, we will proactively created a double
+        # version of the string timestamp for sorting purposes and
+        # rename to ts_col
         if df.schema[ts_col].dataType == "StringType":
             sample_ts = df.limit(1).collect()[0][0]
             self.__validate_ts_string(sample_ts)
@@ -83,11 +86,12 @@ class TSDF:
             .drop("long_ts")
         )
 
-    def __validate_ts_string(self, ts_text):
+    @staticmethod
+    def __validate_ts_string(ts_text):
         """Validate the format for the string using Regex matching for ts_string"""
         import re
 
-        ts_pattern = "^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
+        ts_pattern = r"^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
         if re.match(ts_pattern, ts_text) is None:
             raise ValueError(
                 "Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]"
@@ -632,7 +636,9 @@ class TSDF:
 
     def __getBytesFromPlan(self, df, spark):
         """
-        Internal helper function to obtain how many bytes in memory the Spark data frame is likely to take up. This is an upper bound and is obtained from the plan details in Spark
+        Internal helper function to obtain how many bytes in memory the Spark data
+        frame is likely to take up. This is an upper bound and is obtained from the
+        plan details in Spark
 
         Parameters
         :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
@@ -676,11 +682,11 @@ class TSDF:
         suppress_null_warning=False,
     ):
         """
-        Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
-        time brackets, which can help alleviate skew.
+        Performs an as-of join between two time-series. If a tsPartitionVal is
+        specified, it will do this partitioned by time brackets, which can help alleviate skew.
 
-        NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
-        enabled also.
+        NOTE: partition cols have to be the same for both Dataframes. We are
+        collecting stats when the WARNING level is enabled also.
 
         Parameters
         :param right_tsdf - right-hand data frame containing columns to merge in
