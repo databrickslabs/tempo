@@ -1,9 +1,12 @@
+from io import StringIO
+import sys
 import unittest
 import os
 from dateutil import parser as dt_parser
 from unittest import mock
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.window import WindowSpec
 import pyspark.sql.functions as f
 
 from tempo.tsdf import TSDF
@@ -11,6 +14,15 @@ from tests.base import SparkTest
 
 
 class TSDFBaseTests(SparkTest):
+
+    def test_TSDF_init(self):
+        tsdf_init = self.get_data_as_tsdf("init")
+
+        self.assertIsInstance(tsdf_init.df, DataFrame)
+        self.assertEqual(tsdf_init.ts_col, "event_ts")
+        self.assertEqual(tsdf_init.partitionCols, ["symbol"])
+        self.assertEqual(tsdf_init.sequence_col, "")
+
     def test_describe(self):
         """AS-OF Join without a time-partition test"""
 
@@ -24,23 +36,30 @@ class TSDFBaseTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-            res.filter(f.col("unique_time_series_count") != " ")
-            .select(f.max(f.col("unique_time_series_count")))
-            .collect()[0][0]
-            == "1"
+                res.filter(f.col("unique_time_series_count") != " ")
+                .select(f.max(f.col("unique_time_series_count")))
+                .collect()[0][0]
+                == "1"
         )
         assert (
-            res.filter(f.col("min_ts") != " ")
-            .select(f.col("min_ts").cast("string"))
-            .collect()[0][0]
-            == "2020-08-01 00:00:10"
+                res.filter(f.col("min_ts") != " ")
+                .select(f.col("min_ts").cast("string"))
+                .collect()[0][0]
+                == "2020-08-01 00:00:10"
         )
         assert (
-            res.filter(f.col("max_ts") != " ")
-            .select(f.col("max_ts").cast("string"))
-            .collect()[0][0]
-            == "2020-09-01 00:19:12"
+                res.filter(f.col("max_ts") != " ")
+                .select(f.col("max_ts").cast("string"))
+                .collect()[0][0]
+                == "2020-09-01 00:19:12"
         )
+
+    def test__getBytesFromPlan(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+
+        self.assertEqual(_bytes, 6.2)
 
     @staticmethod
     @mock.patch.dict(os.environ, {"TZ": "UTC"})
@@ -54,20 +73,25 @@ class TSDFBaseTests(SparkTest):
         )
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
-    def test__validate_ts_string_valid(self):
+    def test__add_double_ts(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+        df = init_tsdf._TSDF__add_double_ts()
 
+        schema_string = df.schema.simpleString()
+
+        self.assertIn("double_ts:double", schema_string)
+
+    def test__validate_ts_string_valid(self):
         valid_timestamp_string = "2020-09-01 00:02:10"
 
         self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
 
     def test__validate_ts_string_alt_format_valid(self):
-
         valid_timestamp_string = "2020-09-01T00:02:10"
 
         self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
 
     def test__validate_ts_string_with_microseconds_valid(self):
-
         valid_timestamp_string = "2020-09-01 00:02:10.00000000"
 
         self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
@@ -82,6 +106,381 @@ class TSDFBaseTests(SparkTest):
 
         self.assertRaises(
             ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
+        )
+
+    def test__validated_column_not_string(self):
+        init_df = self.get_data_as_tsdf("init").df
+
+        self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
+
+    def test__validated_column_not_found(self):
+        init_df = self.get_data_as_tsdf("init").df
+
+        self.assertRaises(
+            ValueError,
+            TSDF._TSDF__validated_column,
+            init_df,
+            "does not exist",
+        )
+
+    def test__validated_column(self):
+        init_df = self.get_data_as_tsdf("init").df
+
+        self.assertEqual(
+            TSDF._TSDF__validated_column(init_df, "symbol"),
+            "symbol",
+        )
+
+    def test__validated_columns_string(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertEqual(
+            init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
+            ["symbol"],
+        )
+
+    def test__validated_columns_none(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertEqual(
+            init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
+            [],
+        )
+
+    def test__validated_columns_tuple(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertRaises(
+            TypeError,
+            init_tsdf._TSDF__validated_columns,
+            init_tsdf.df,
+            ("symbol",),
+        )
+
+    def test__validated_columns_list_multiple_elems(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertEqual(
+            init_tsdf._TSDF__validated_columns(
+                init_tsdf.df,
+                ["symbol", "event_ts", "trade_pr"],
+            ),
+            ["symbol", "event_ts", "trade_pr"]
+        )
+
+    def test__checkPartitionCols(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+        right_tsdf = self.get_data_as_tsdf("right_tsdf")
+
+        self.assertRaises(
+            ValueError,
+            init_tsdf._TSDF__checkPartitionCols,
+            right_tsdf
+        )
+
+    def test__validateTsColMatch(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+        right_tsdf = self.get_data_as_tsdf("right_tsdf")
+
+        self.assertRaises(
+            ValueError,
+            init_tsdf._TSDF__validateTsColMatch,
+            right_tsdf
+        )
+
+    def test__addPrefixToColumns_non_empty_string(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "prefix").df
+
+        schema_string = df.schema.simpleString()
+
+        self.assertIn("prefix_event_ts", schema_string)
+
+    def test__addPrefixToColumns_empty_string(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "").df
+
+        schema_string = df.schema.simpleString()
+
+        # comma included (,event_ts) to ensure we don't match if there is a prefix added
+        self.assertIn(",event_ts", schema_string)
+
+    def test__addColumnsFromOtherDF(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        df = init_tsdf._TSDF__addColumnsFromOtherDF(["another_col"]).df
+
+        schema_string = df.schema.simpleString()
+
+        self.assertIn("another_col", schema_string)
+
+    def test__combineTSDF(self):
+        init1_tsdf = self.get_data_as_tsdf("init")
+        init2_tsdf = self.get_data_as_tsdf("init")
+
+        union_tsdf = init1_tsdf._TSDF__combineTSDF(init2_tsdf, "combined_ts_col")
+        df = union_tsdf.df
+
+        schema_string = df.schema.simpleString()
+
+        self.assertEqual(
+            init1_tsdf.df.count() + init2_tsdf.df.count(),
+            df.count()
+        )
+        self.assertIn("combined_ts_col", schema_string)
+
+    def test__getLastRightRow(self):
+        # TODO: several errors and hard-coded columns that throw AnalysisException
+        pass
+
+    def test__getTimePartitions(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        actual_tsdf = init_tsdf._TSDF__getTimePartitions(10)
+
+        self.assertDataFrameEquality(
+            actual_tsdf,
+            expected_tsdf,
+            from_tsdf=True,
+        )
+
+    def test__getTimePartitions_with_fraction(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+        expected_tsdf = self.get_data_as_tsdf("expected")
+
+        actual_tsdf = init_tsdf._TSDF__getTimePartitions(10, 0.25)
+
+        self.assertDataFrameEquality(
+            actual_tsdf,
+            expected_tsdf,
+            from_tsdf=True,
+        )
+
+    def test_select_empty(self):
+        # TODO: Can we narrow down to types of Exception?
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertRaises(Exception, init_tsdf.select)
+
+    def test_select_only_required_cols(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        tsdf = init_tsdf.select("event_ts", "symbol")
+
+        self.assertEqual(tsdf.df.columns, ["event_ts", "symbol"])
+
+    def test_select_all_cols(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        tsdf = init_tsdf.select("event_ts", "symbol", "trade_pr")
+
+        self.assertEqual(tsdf.df.columns, ["event_ts", "symbol", "trade_pr"])
+
+    def test_show(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show()
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "+------+-------------------+--------+\n"
+                "|symbol|           event_ts|trade_pr|\n"
+                "+------+-------------------+--------+\n"
+                "|    S1|2020-08-01 00:00:10|  349.21|\n"
+                "|    S1|2020-08-01 00:01:12|  351.32|\n"
+                "|    S1|2020-09-01 00:02:10|   361.1|\n"
+                "|    S1|2020-09-01 00:19:12|   362.1|\n"
+                "|    S2|2020-08-01 00:01:10|  743.01|\n"
+                "|    S2|2020-08-01 00:01:24|  751.92|\n"
+                "|    S2|2020-09-01 00:02:10|   761.1|\n"
+                "|    S2|2020-09-01 00:20:42|  762.33|\n"
+                "+------+-------------------+--------+\n"
+                "\n"
+            )
+        )
+
+    def test_show_n_5(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show(5)
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "+------+-------------------+--------+\n"
+                "|symbol|           event_ts|trade_pr|\n"
+                "+------+-------------------+--------+\n"
+                "|    S1|2020-08-01 00:00:10|  349.21|\n"
+                "|    S1|2020-08-01 00:01:12|  351.32|\n"
+                "|    S1|2020-09-01 00:02:10|   361.1|\n"
+                "|    S1|2020-09-01 00:19:12|   362.1|\n"
+                "|    S2|2020-08-01 00:01:10|  743.01|\n"
+                "+------+-------------------+--------+\n"
+                "only showing top 5 rows\n"
+                "\n"
+            )
+        )
+
+    def test_show_k_gt_n(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        self.assertRaises(ValueError, init_tsdf.show, 5, 10)
+
+    def test_show_truncate_false(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show(truncate=False)
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "+------+-------------------+--------+\n"
+                "|symbol|event_ts           |trade_pr|\n"
+                "+------+-------------------+--------+\n"
+                "|S1    |2020-08-01 00:00:10|349.21  |\n"
+                "|S1    |2020-08-01 00:01:12|351.32  |\n"
+                "|S1    |2020-09-01 00:02:10|361.1   |\n"
+                "|S1    |2020-09-01 00:19:12|362.1   |\n"
+                "|S2    |2020-08-01 00:01:10|743.01  |\n"
+                "|S2    |2020-08-01 00:01:24|751.92  |\n"
+                "|S2    |2020-09-01 00:02:10|761.1   |\n"
+                "|S2    |2020-09-01 00:20:42|762.33  |\n"
+                "+------+-------------------+--------+\n"
+                "\n"
+            )
+        )
+
+    def test_show_vertical_true(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show(vertical=True)
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "-RECORD 0-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-08-01 00:00:10 \n"
+                " trade_pr | 349.21              \n"
+                "-RECORD 1-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-08-01 00:01:12 \n"
+                " trade_pr | 351.32              \n"
+                "-RECORD 2-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-09-01 00:02:10 \n"
+                " trade_pr | 361.1               \n"
+                "-RECORD 3-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-09-01 00:19:12 \n"
+                " trade_pr | 362.1               \n"
+                "-RECORD 4-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-08-01 00:01:10 \n"
+                " trade_pr | 743.01              \n"
+                "-RECORD 5-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-08-01 00:01:24 \n"
+                " trade_pr | 751.92              \n"
+                "-RECORD 6-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-09-01 00:02:10 \n"
+                " trade_pr | 761.1               \n"
+                "-RECORD 7-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-09-01 00:20:42 \n"
+                " trade_pr | 762.33              \n"
+                "\n"
+            )
+        )
+
+    def test_show_vertical_true_n_5(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show(5, vertical=True)
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "-RECORD 0-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-08-01 00:00:10 \n"
+                " trade_pr | 349.21              \n"
+                "-RECORD 1-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-08-01 00:01:12 \n"
+                " trade_pr | 351.32              \n"
+                "-RECORD 2-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-09-01 00:02:10 \n"
+                " trade_pr | 361.1               \n"
+                "-RECORD 3-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-09-01 00:19:12 \n"
+                " trade_pr | 362.1               \n"
+                "-RECORD 4-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-08-01 00:01:10 \n"
+                " trade_pr | 743.01              \n"
+                "only showing top 5 rows\n"
+                "\n"
+            )
+        )
+
+    def test_show_truncate_false_vertical_true(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show(truncate=False, vertical=True)
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "-RECORD 0-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-08-01 00:00:10 \n"
+                " trade_pr | 349.21              \n"
+                "-RECORD 1-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-08-01 00:01:12 \n"
+                " trade_pr | 351.32              \n"
+                "-RECORD 2-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-09-01 00:02:10 \n"
+                " trade_pr | 361.1               \n"
+                "-RECORD 3-----------------------\n"
+                " symbol   | S1                  \n"
+                " event_ts | 2020-09-01 00:19:12 \n"
+                " trade_pr | 362.1               \n"
+                "-RECORD 4-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-08-01 00:01:10 \n"
+                " trade_pr | 743.01              \n"
+                "-RECORD 5-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-08-01 00:01:24 \n"
+                " trade_pr | 751.92              \n"
+                "-RECORD 6-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-09-01 00:02:10 \n"
+                " trade_pr | 761.1               \n"
+                "-RECORD 7-----------------------\n"
+                " symbol   | S2                  \n"
+                " event_ts | 2020-09-01 00:20:42 \n"
+                " trade_pr | 762.33              \n"
+                "\n"
+            )
         )
 
     def test_at_string_timestamp(self):
@@ -418,6 +817,20 @@ class TSDFBaseTests(SparkTest):
         self.assertDataFrameEquality(
             subsequent_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
         )
+
+    def test__rowsBetweenWindow(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertIsInstance(init_tsdf._TSDF__rowsBetweenWindow(1, 1), WindowSpec)
+
+    def test_withPartitionCols(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        actual_tsdf = init_tsdf.withPartitionCols(["symbol"])
+
+        self.assertEqual(init_tsdf.partitionCols, [])
+        self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
+
 
 
 class FourierTransformTest(SparkTest):
