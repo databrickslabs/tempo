@@ -14,7 +14,6 @@ from tests.base import SparkTest
 
 
 class TSDFBaseTests(SparkTest):
-
     def test_TSDF_init(self):
         tsdf_init = self.get_data_as_tsdf("init")
 
@@ -36,22 +35,22 @@ class TSDFBaseTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-                res.filter(f.col("unique_time_series_count") != " ")
-                .select(f.max(f.col("unique_time_series_count")))
-                .collect()[0][0]
-                == "1"
+            res.filter(f.col("unique_time_series_count") != " ")
+            .select(f.max(f.col("unique_time_series_count")))
+            .collect()[0][0]
+            == "1"
         )
         assert (
-                res.filter(f.col("min_ts") != " ")
-                .select(f.col("min_ts").cast("string"))
-                .collect()[0][0]
-                == "2020-08-01 00:00:10"
+            res.filter(f.col("min_ts") != " ")
+            .select(f.col("min_ts").cast("string"))
+            .collect()[0][0]
+            == "2020-08-01 00:00:10"
         )
         assert (
-                res.filter(f.col("max_ts") != " ")
-                .select(f.col("max_ts").cast("string"))
-                .collect()[0][0]
-                == "2020-09-01 00:19:12"
+            res.filter(f.col("max_ts") != " ")
+            .select(f.col("max_ts").cast("string"))
+            .collect()[0][0]
+            == "2020-09-01 00:19:12"
         )
 
     def test__getBytesFromPlan(self):
@@ -165,28 +164,20 @@ class TSDFBaseTests(SparkTest):
                 init_tsdf.df,
                 ["symbol", "event_ts", "trade_pr"],
             ),
-            ["symbol", "event_ts", "trade_pr"]
+            ["symbol", "event_ts", "trade_pr"],
         )
 
     def test__checkPartitionCols(self):
         init_tsdf = self.get_data_as_tsdf("init")
         right_tsdf = self.get_data_as_tsdf("right_tsdf")
 
-        self.assertRaises(
-            ValueError,
-            init_tsdf._TSDF__checkPartitionCols,
-            right_tsdf
-        )
+        self.assertRaises(ValueError, init_tsdf._TSDF__checkPartitionCols, right_tsdf)
 
     def test__validateTsColMatch(self):
         init_tsdf = self.get_data_as_tsdf("init")
         right_tsdf = self.get_data_as_tsdf("right_tsdf")
 
-        self.assertRaises(
-            ValueError,
-            init_tsdf._TSDF__validateTsColMatch,
-            right_tsdf
-        )
+        self.assertRaises(ValueError, init_tsdf._TSDF__validateTsColMatch, right_tsdf)
 
     def test__addPrefixToColumns_non_empty_string(self):
         init_tsdf = self.get_data_as_tsdf("init")
@@ -225,10 +216,7 @@ class TSDFBaseTests(SparkTest):
 
         schema_string = df.schema.simpleString()
 
-        self.assertEqual(
-            init1_tsdf.df.count() + init2_tsdf.df.count(),
-            df.count()
-        )
+        self.assertEqual(init1_tsdf.df.count() + init2_tsdf.df.count(), df.count())
         self.assertIn("combined_ts_col", schema_string)
 
     def test__getLastRightRow(self):
@@ -301,7 +289,7 @@ class TSDFBaseTests(SparkTest):
                 "|    S2|2020-09-01 00:20:42|  762.33|\n"
                 "+------+-------------------+--------+\n"
                 "\n"
-            )
+            ),
         )
 
     def test_show_n_5(self):
@@ -324,7 +312,7 @@ class TSDFBaseTests(SparkTest):
                 "+------+-------------------+--------+\n"
                 "only showing top 5 rows\n"
                 "\n"
-            )
+            ),
         )
 
     def test_show_k_gt_n(self):
@@ -356,7 +344,7 @@ class TSDFBaseTests(SparkTest):
                 "|S2    |2020-09-01 00:20:42|762.33  |\n"
                 "+------+-------------------+--------+\n"
                 "\n"
-            )
+            ),
         )
 
     def test_show_vertical_true(self):
@@ -401,7 +389,7 @@ class TSDFBaseTests(SparkTest):
                 " event_ts | 2020-09-01 00:20:42 \n"
                 " trade_pr | 762.33              \n"
                 "\n"
-            )
+            ),
         )
 
     def test_show_vertical_true_n_5(self):
@@ -435,7 +423,7 @@ class TSDFBaseTests(SparkTest):
                 " trade_pr | 743.01              \n"
                 "only showing top 5 rows\n"
                 "\n"
-            )
+            ),
         )
 
     def test_show_truncate_false_vertical_true(self):
@@ -480,7 +468,7 @@ class TSDFBaseTests(SparkTest):
                 " event_ts | 2020-09-01 00:20:42 \n"
                 " trade_pr | 762.33              \n"
                 "\n"
-            )
+            ),
         )
 
     def test_at_string_timestamp(self):
@@ -830,7 +818,6 @@ class TSDFBaseTests(SparkTest):
 
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
-
 
 
 class FourierTransformTest(SparkTest):

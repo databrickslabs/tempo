@@ -24,7 +24,6 @@ from tempo.utils import (
     calculate_time_horizon,
     get_display_df,
 )
-from pyspark.sql.utils import AnalysisException
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +34,11 @@ class TSDF:
     """
 
     def __init__(
-            self,
-            df: DataFrame,
-            ts_col: str = "event_ts",
-            partition_cols: Optional[list[str]] = None,
-            sequence_col: Optional[str] = None,
+        self,
+        df: DataFrame,
+        ts_col: str = "event_ts",
+        partition_cols: Optional[list[str]] = None,
+        sequence_col: Optional[str] = None,
     ):
         """
         Constructor
@@ -151,11 +150,7 @@ class TSDF:
                 "left and right dataframe timestamp index columns should have same type"
             )
 
-    def __addPrefixToColumns(
-            self,
-            col_list: list[str],
-            prefix: str
-    ):
+    def __addPrefixToColumns(self, col_list: list[str], prefix: str):
         """
         Add prefix to all specified columns.
         """
@@ -202,13 +197,13 @@ class TSDF:
         return TSDF(combined_df, combined_ts_col, self.partitionCols)
 
     def __getLastRightRow(
-            self,
-            left_ts_col,
-            right_cols,
-            sequence_col,
-            tsPartitionVal,
-            ignoreNulls,
-            suppress_null_warning,
+        self,
+        left_ts_col,
+        right_cols,
+        sequence_col,
+        tsPartitionVal,
+        ignoreNulls,
+        suppress_null_warning,
     ):
         """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
 
@@ -288,7 +283,7 @@ class TSDF:
                     # it would make sense to not log warning in this function while allowing other part of the code to continue to log warning.
                     # So it makes more sense for and than or on this line
                     if not suppress_null_warning and logger.isEnabledFor(
-                            logging.WARNING
+                        logging.WARNING
                     ):
                         any_blank_vals = df.agg({column: "min"}).collect()[0][0] == 0
                         newCol = column.replace("non_null_ct", "")
@@ -574,7 +569,9 @@ class TSDF:
         if not IS_DATABRICKS and ENV_CAN_RENDER_HTML:
             # In Jupyter notebooks, for wide dataframes the below line will enable
             # rendering the output in a scrollable format.
-            ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))  # pragma: no cover
+            ipydisplay(
+                HTML("<style>pre { white-space: pre !important; }</style>")
+            )  # pragma: no cover
         get_display_df(self, k).show(n, truncate, vertical)
 
     def describe(self):
@@ -594,9 +591,9 @@ class TSDF:
         missing_vals = this_df.select(
             [
                 (
-                        100
-                        * f.count(f.when(f.col(c[0]).isNull(), c[0]))
-                        / f.count(f.lit(1))
+                    100
+                    * f.count(f.when(f.col(c[0]).isNull(), c[0]))
+                    / f.count(f.lit(1))
                 ).alias(c[0])
                 for c in this_df.dtypes
                 if c[1] != "timestamp"
@@ -695,15 +692,15 @@ class TSDF:
         return bytes
 
     def asofJoin(
-            self,
-            right_tsdf,
-            left_prefix=None,
-            right_prefix="right",
-            tsPartitionVal=None,
-            fraction=0.5,
-            skipNulls=True,
-            sql_join_opt=False,
-            suppress_null_warning=False,
+        self,
+        right_tsdf,
+        left_prefix=None,
+        right_prefix="right",
+        tsPartitionVal=None,
+        fraction=0.5,
+        skipNulls=True,
+        sql_join_opt=False,
+        suppress_null_warning=False,
     ):
         """
         Performs an as-of join between two time-series. If a tsPartitionVal is
@@ -734,7 +731,7 @@ class TSDF:
         # choose 30MB as the cutoff for the broadcast
         bytes_threshold = 30 * 1024 * 1024
         if sql_join_opt & (
-                (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)
+            (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)
         ):
             spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
             partition_cols = right_tsdf.partitionCols
@@ -760,11 +757,11 @@ class TSDF:
 
             new_left_ts_col = left_prefix + self.ts_col
             new_left_cols = [
-                                f.col(c).alias(left_prefix + c) for c in left_cols
-                            ] + partition_cols
+                f.col(c).alias(left_prefix + c) for c in left_cols
+            ] + partition_cols
             new_right_cols = [
-                                 f.col(c).alias(right_prefix + c) for c in right_cols
-                             ] + partition_cols
+                f.col(c).alias(right_prefix + c) for c in right_cols
+            ] + partition_cols
             quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
                 "lead_" + right_tsdf.ts_col,
                 f.lead(right_prefix + right_tsdf.ts_col).over(w),
@@ -973,7 +970,7 @@ class TSDF:
         return TSDF(df, self.ts_col, self.partitionCols)
 
     def withLookbackFeatures(
-            self, featureCols, lookbackWindowSize, exactSize=True, featureColName="features"
+        self, featureCols, lookbackWindowSize, exactSize=True, featureColName="features"
     ):
         """
         Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
@@ -1007,7 +1004,7 @@ class TSDF:
         return TSDF(lookback_tsdf, self.ts_col, self.partitionCols)
 
     def withRangeStats(
-            self, type="range", colsToSummarize=[], rangeBackWindowSecs=1000
+        self, type="range", colsToSummarize=[], rangeBackWindowSecs=1000
     ):
         """
         Create a wider set of stats based on all numeric columns by default
@@ -1039,8 +1036,8 @@ class TSDF:
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                        (datatype[1] in summarizable_types)
-                        and (datatype[0].lower() not in prohibited_cols)
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
 
@@ -1066,8 +1063,8 @@ class TSDF:
             selectedCols.append(f.stddev(metric).over(w).alias("stddev_" + metric))
             derivedCols.append(
                 (
-                        (f.col(metric) - f.col("mean_" + metric))
-                        / f.col("stddev_" + metric)
+                    (f.col(metric) - f.col("mean_" + metric))
+                    / f.col("stddev_" + metric)
                 ).alias("zscore_" + metric)
             )
         selected_df = self.df.select(*selectedCols)
@@ -1101,8 +1098,8 @@ class TSDF:
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                        (datatype[1] in summarizable_types)
-                        and (datatype[0].lower() not in prohibited_cols)
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
 
@@ -1142,13 +1139,13 @@ class TSDF:
         tio.write(self, spark, tabName, optimizationCols)
 
     def resample(
-            self,
-            freq,
-            func=None,
-            metricCols=None,
-            prefix=None,
-            fill=None,
-            perform_checks=True,
+        self,
+        freq,
+        func=None,
+        metricCols=None,
+        prefix=None,
+        fill=None,
+        perform_checks=True,
     ):
         """
         function to upsample based on frequency and aggregate function similar to pandas
@@ -1178,15 +1175,15 @@ class TSDF:
         )
 
     def interpolate(
-            self,
-            freq: str,
-            func: str,
-            method: str,
-            target_cols: List[str] = None,
-            ts_col: str = None,
-            partition_cols: List[str] = None,
-            show_interpolated: bool = False,
-            perform_checks: bool = True,
+        self,
+        freq: str,
+        func: str,
+        method: str,
+        target_cols: List[str] = None,
+        ts_col: str = None,
+        partition_cols: List[str] = None,
+        show_interpolated: bool = False,
+        perform_checks: bool = True,
     ):
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
@@ -1217,8 +1214,8 @@ class TSDF:
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                        (datatype[1] in summarizable_types)
-                        and (datatype[0].lower() not in prohibited_cols)
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
 
@@ -1263,7 +1260,7 @@ class TSDF:
             [resample_open.ts_col]
         )
         sel_and_sort = (
-                resample_open.partitionCols + [resample_open.ts_col] + sorted(non_part_cols)
+            resample_open.partitionCols + [resample_open.ts_col] + sorted(non_part_cols)
         )
         bars = bars.select(sel_and_sort)
 
@@ -1369,9 +1366,9 @@ class TSDF:
         return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
 
     def extractStateIntervals(
-            self,
-            *metric_cols: str,
-            state_definition: Union[str, Callable[[Column, Column], Column]] = "=",
+        self,
+        *metric_cols: str,
+        state_definition: Union[str, Callable[[Column, Column], Column]] = "=",
     ) -> DataFrame:
         """
         Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of "state", as defined by the :param
@@ -1490,24 +1487,24 @@ class TSDF:
 
 class _ResampledTSDF(TSDF):
     def __init__(
-            self,
-            df,
-            ts_col="event_ts",
-            partition_cols=None,
-            sequence_col=None,
-            freq=None,
-            func=None,
+        self,
+        df,
+        ts_col="event_ts",
+        partition_cols=None,
+        sequence_col=None,
+        freq=None,
+        func=None,
     ):
         super(_ResampledTSDF, self).__init__(df, ts_col, partition_cols, sequence_col)
         self.__freq = freq
         self.__func = func
 
     def interpolate(
-            self,
-            method: str,
-            target_cols: List[str] = None,
-            show_interpolated: bool = False,
-            perform_checks: bool = True,
+        self,
+        method: str,
+        target_cols: List[str] = None,
+        show_interpolated: bool = False,
+        perform_checks: bool = True,
     ):
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
@@ -1529,8 +1526,8 @@ class _ResampledTSDF(TSDF):
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                        (datatype[1] in summarizable_types)
-                        and (datatype[0].lower() not in prohibited_cols)
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
 
