@@ -24,6 +24,10 @@ class TSIndex(ABC):
         DoubleType(),
     )
 
+    @classmethod
+    def isValidTSType(cls, dataType: DataType) -> bool:
+        return dataType in cls.__valid_ts_types
+
     def __init__(self, name: str, dataType: DataType) -> None:
         self.name = name
         self.dataType = dataType
@@ -45,7 +49,7 @@ class SimpleTSIndex(TSIndex):
     """
 
     def __init__(self, ts_col: StructField) -> None:
-        if ts_col.dataType not in self.__valid_ts_types:
+        if not self.isValidTSType(ts_col.dataType):
             raise TypeError(f"DataType {ts_col.dataType} of column {ts_col.name} is not valid for a timeseries Index")
         super().__init__(ts_col.name, ts_col.dataType)
 
@@ -126,10 +130,6 @@ class TSSchema:
         # construct a TSIndex for the given ts_col
         ts_idx = SimpleTSIndex(df_schema[ts_col])
         return cls(ts_idx, series_ids)
-
-    @property
-    def ts_index(self) -> str:
-        return self.ts_idx.name
 
     @property
     def structural_columns(self) -> set[str]:

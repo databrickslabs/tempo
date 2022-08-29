@@ -18,7 +18,7 @@ from scipy.fft import fft, fftfreq
 import tempo.io as tio
 import tempo.resample as rs
 from tempo.interpol import Interpolation
-from tempo.tsschema import TSSchema
+from tempo.tsschema import TSIndex, TSSchema
 from tempo.utils import (
     ENV_CAN_RENDER_HTML,
     IS_DATABRICKS,
@@ -68,8 +68,8 @@ class TSDF:
         pass
 
     @property
-    def ts_index(self) -> str:
-        return self.ts_schema.ts_index
+    def ts_index(self) -> "TSIndex":
+        return self.ts_schema.ts_idx
 
     @property
     def ts_col(self) -> str:
@@ -886,16 +886,9 @@ class TSDF:
         return asofDF
 
     def __baseWindow(self, sort_col=None, reverse=False):
-        # are we ordering forwards (default) or reveresed?
-        col_fn = f.col
-        if reverse:
-            col_fn = lambda colname: f.col(colname).desc()  # noqa E731
+        # The index will determine the appropriate sort order
+        w = Window().orderBy(self.ts_index.orderByExpr(reverse))
 
-        # our window will be sorted on our sort_cols in the appropriate direction
-        if reverse:
-            w = Window().orderBy(f.col(self.ts_index).desc())
-        else:
-            w = Window().orderBy(f.col(self.ts_index).asc())
         # and partitioned by any series IDs
         if self.series_ids:
             w = w.partitionBy([f.col(sid) for sid in self.series_ids])
