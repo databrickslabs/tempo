@@ -71,12 +71,7 @@ class SparkTest(unittest.TestCase):
     def get_data_as_tsdf(self, name: str, convert_ts_col=True):
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
-        tsdf = TSDF(
-            df,
-            ts_col=td["ts_col"],
-            partition_cols=td.get("partition_cols", None),
-            sequence_col=td.get("sequence_col", None),
-        )
+        tsdf = TSDF(df, ts_col=td["ts_col"], series_ids=td.get("series_ids", None))
         return tsdf
 
     TEST_DATA_FOLDER = "unit_test_data"

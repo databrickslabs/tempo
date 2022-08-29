@@ -3,50 +3,16 @@
     "temp_slice_init_data": {
       "schema": "symbol string, event_ts string, trade_pr float",
       "ts_col": "event_ts",
-      "partition_cols": [
-        "symbol"
-      ],
+      "series_ids": [ "symbol" ],
       "data": [
-        [
-          "S1",
-          "2020-08-01 00:00:10",
-          349.21
-        ],
-        [
-          "S1",
-          "2020-08-01 00:01:12",
-          351.32
-        ],
-        [
-          "S1",
-          "2020-09-01 00:02:10",
-          361.1
-        ],
-        [
-          "S1",
-          "2020-09-01 00:19:12",
-          362.1
-        ],
-        [
-          "S2",
-          "2020-08-01 00:01:10",
-          743.01
-        ],
-        [
-          "S2",
-          "2020-08-01 00:01:24",
-          751.92
-        ],
-        [
-          "S2",
-          "2020-09-01 00:02:10",
-          761.10
-        ],
-        [
-          "S2",
-          "2020-09-01 00:20:42",
-          762.33
-        ]
+        ["S1", "2020-08-01 00:00:10", 349.21],
+        ["S1", "2020-08-01 00:01:12", 351.32],
+        ["S1", "2020-09-01 00:02:10", 361.1],
+        ["S1", "2020-09-01 00:19:12", 362.1],
+        ["S2", "2020-08-01 00:01:10", 743.01],
+        ["S2", "2020-08-01 00:01:24", 751.92],
+        ["S2", "2020-09-01 00:02:10", 761.10],
+        ["S2", "2020-09-01 00:20:42", 762.33]
       ]
     }
   },
@@ -55,30 +21,12 @@
       "init": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "series_ids": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ]
+          ["S1", "2020-08-01 00:00:10", 349.21],
+          ["S1", "2020-08-01 00:01:12", 351.32],
+          ["S1", "2020-09-01 00:02:10", 361.1],
+          ["S1", "2020-09-01 00:19:12", 362.1]
         ]
       }
     },
@@ -89,20 +37,10 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "series_ids": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ]
+          ["S1", "2020-09-01 00:02:10", 361.1],
+          ["S2", "2020-09-01 00:02:10", 761.10]
         ]
       }
     },
@@ -113,30 +51,12 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "series_ids": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ]
+          ["S1", "2020-08-01 00:00:10", 349.21],
+          ["S1", "2020-08-01 00:01:12", 351.32],
+          ["S2", "2020-08-01 00:01:10", 743.01],
+          ["S2", "2020-08-01 00:01:24", 751.92]
         ]
       }
     },
@@ -147,9 +67,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
+        "series_ids": ["symbol"],
         "data": [
           [
             "S1",
@@ -161,26 +79,10 @@
             "2020-08-01 00:01:12",
             351.32
           ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ]
+          ["S1", "2020-09-01 00:02:10", 361.1],
+          ["S2", "2020-08-01 00:01:10", 743.01],
+          ["S2", "2020-08-01 00:01:24", 751.92],
+          ["S2", "2020-09-01 00:02:10", 761.10]
         ]
       }
     },
@@ -191,7 +93,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -215,7 +117,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -249,7 +151,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -288,7 +190,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -322,7 +224,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -366,7 +268,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -410,7 +312,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -434,7 +336,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -457,7 +359,7 @@
       "init": {
         "schema": "group string, time long, val double",
         "ts_col": "time",
-        "partition_cols": [
+        "series_ids": [
           "group"
         ],
         "data": [
@@ -506,7 +408,7 @@
       "expected": {
         "schema": "group string, time long, val double, freq double, ft_real double, ft_imag double",
         "ts_col": "time",
-        "partition_cols": [
+        "series_ids": [
           "group"
         ],
         "data": [
@@ -583,7 +485,7 @@
       "init": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -612,7 +514,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -667,7 +569,7 @@
       "init": {
         "schema": "symbol string, event_ts string, trade_pr float, index integer",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -700,7 +602,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -745,7 +647,7 @@
       "input": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -803,7 +705,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, floor_trade_pr float, floor_date string, floor_trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -840,7 +742,7 @@
       "expected30m": {
         "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -870,7 +772,7 @@
       "expectedbars": {
         "schema": "symbol string, event_ts string, close_trade_pr float, close_trade_pr_2 float, high_trade_pr float, high_trade_pr_2 float, low_trade_pr float, low_trade_pr_2 float, open_trade_pr float, open_trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -929,7 +831,7 @@
       "init": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -959,7 +861,7 @@
       "expectedms": {
         "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -984,7 +886,7 @@
       "input": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -1042,7 +944,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, floor_trade_pr float, floor_date string, floor_trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -1079,7 +981,7 @@
       "expected30m": {
         "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -1116,7 +1018,7 @@
       "expectedbars": {
         "schema": "symbol string, event_ts string, close_trade_pr float, close_trade_pr_2 float, high_trade_pr float, high_trade_pr_2 float, low_trade_pr float, low_trade_pr_2 float, open_trade_pr float, open_trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -1177,7 +1079,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1312,7 +1214,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1440,7 +1342,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1575,7 +1477,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1631,7 +1533,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1773,7 +1675,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1829,7 +1731,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -1964,7 +1866,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2020,7 +1922,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2155,7 +2057,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2211,7 +2113,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2360,7 +2262,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2416,7 +2318,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2551,7 +2453,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2686,7 +2588,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2814,7 +2716,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT, metric_2 FLOAT, metric_3 FLOAT",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2920,7 +2822,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"
@@ -2942,7 +2844,7 @@
       "input": {
         "schema": "event_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, identifier_3 STRING NOT NULL, metric_1 FLOAT NOT NULL, metric_2 FLOAT NOT NULL, metric_3 FLOAT NOT NULL",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "identifier_1",
           "identifier_2",
           "identifier_3"

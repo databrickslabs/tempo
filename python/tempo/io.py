@@ -18,7 +18,7 @@ def write(tsdf, spark, tabName, optimizationCols=None):
 
     df = tsdf.df
     ts_col = tsdf.ts_col
-    partitionCols = tsdf.partitionCols
+    series_ids = tsdf.series_ids
     if optimizationCols:
         optimizationCols = optimizationCols + ["event_time"]
     else:
@@ -44,7 +44,7 @@ def write(tsdf, spark, tabName, optimizationCols=None):
         try:
             spark.sql(
                 "optimize {} zorder by {}".format(
-                    tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
+                    tabName, "(" + ",".join(series_ids + optimizationCols) + ")"
                 )
             )
         except Exception as e:

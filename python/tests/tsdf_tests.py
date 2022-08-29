@@ -49,7 +49,7 @@ class BasicTests(SparkTest):
         with_double_tscol_df = tsdf.df.withColumn(
             tsdf.ts_col, F.col(tsdf.ts_col).cast("double")
         )
-        return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
+        return TSDF(with_double_tscol_df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids)
 
     def test_at(self):
         """

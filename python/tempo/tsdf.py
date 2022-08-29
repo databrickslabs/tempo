@@ -52,15 +52,28 @@ class TSDF:
         if validate_schema:
             self.ts_schema.validate(df.schema)
 
+    def __withTransformedDF(self, new_df: DataFrame) -> "TSDF":
+        return TSDF(new_df, ts_schema=self.ts_schema, validate_schema=False)
+
+    @classmethod
+    def fromSubsequenceCol(cls, df: DataFrame, ts_col: str, subsequence_col: str, series_ids: Collection[str] = None) -> "TSDF":
+        pass
+
+    @classmethod
+    def fromTimestampString(cls, df: DataFrame, ts_col: str, series_ids: Collection[str] = None, ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]") -> "TSDF":
+        pass
+
+    @classmethod
+    def fromDateString(cls, df: DataFrame, ts_col: str, series_ids: Collection[str], date_fmt: str = "YYYY-MM-DD") -> "TSDF ":
+        pass
+
     @property
     def ts_index(self) -> str:
         return self.ts_schema.ts_index
 
     @property
     def ts_col(self) -> str:
-        if self.ts_schema.user_ts_col:
-            return self.ts_schema.user_ts_col
-        return self.ts_index
+        return self.ts_index.name
 
     @property
     def series_ids(self) -> List[str]:
@@ -80,14 +93,6 @@ class TSDF:
     @property
     def metric_cols(self) -> List[str]:
         return [col.name for col in self.ts_schema.find_metric_columns(self.df.schema)]
-
-    #
-    # Class Factory Methods
-    #
-
-    @classmethod
-    def __withTransformedDF(cls, new_df: DataFrame, ts_schema: TSSchema) -> "TSDF":
-        return cls(new_df, ts_schema=ts_schema, validate_schema=False)
 
     # def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col=None):
     #     """
@@ -421,7 +426,7 @@ class TSDF:
         target_expr = f"'{target_ts}'" if isinstance(target_ts, str) else target_ts
         slice_expr = f.expr(f"{self.ts_col} {op} {target_expr}")
         sliced_df = self.df.where(slice_expr)
-        return TSDF.__withTransformedDF(sliced_df, self.ts_schema)
+        return self.__withTransformedDF(sliced_df)
 
     def at(self, ts):
         """
@@ -503,7 +508,7 @@ class TSDF:
             .where(f.col(row_num_col) <= f.lit(n))
             .drop(row_num_col)
         )
-        return TSDF.__withTransformedDF(prev_records_df, self.ts_schema)
+        return self.__withTransformedDF(prev_records_df)
 
     def earliest(self, n: int = 1):
         """
@@ -904,15 +909,6 @@ class TSDF:
     def __rowsBetweenWindow(self, rows_from, rows_to, reverse=False):
         return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
 
-    def withPartitionCols(self, partitionCols):
-        """
-        Sets certain columns of the TSDF as partition columns. Partition columns are those that differentiate distinct timeseries
-        from each other.
-        :param partitionCols: a list of columns used to partition distinct timeseries
-        :return: a TSDF object with the given partition columns
-        """
-        return TSDF(self.df, self.ts_col, partitionCols)
-
     def vwap(self, frequency="m", volume_col="volume", price_col="price"):
         # set pre_vwap as self or enrich with the frequency
         pre_vwap = self.df
@@ -1051,7 +1047,7 @@ class TSDF:
 
         # build window
         if str(self.df.schema[self.ts_col].dataType) == "TimestampType":
-            self.__add_double_ts()
+            self. __add_double_ts()
             prohibited_cols.extend(["double_ts"])
             w = self.__rangeBetweenWindow(
                 -1 * rangeBackWindowSecs, 0, sort_col="double_ts"
