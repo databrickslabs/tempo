@@ -203,6 +203,7 @@
       "expected": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_ask_pr float, right_bid_pr float",
         "ts_col": "left_event_ts",
+        "other_ts_cols": ["right_event_ts"],
         "series_ids": ["symbol"],
         "data": [
           ["S1", "2022-01-01 09:59:59.123456789", 349.21, null, null, null],

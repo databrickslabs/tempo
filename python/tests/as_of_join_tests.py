@@ -102,6 +102,12 @@ class AsOfJoinTest(SparkTest):
             tsdf_right, left_prefix="left", right_prefix="right"
         ).df
 
+        print("joined_df:")
+        joined_df.printSchema()
+
+        print("defExpected:")
+        dfExpected.printSchema()
+
         # compare
         self.assertDataFramesEqual(joined_df, dfExpected)
 

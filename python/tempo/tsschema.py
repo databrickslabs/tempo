@@ -17,9 +17,16 @@ class TSIndex(ABC):
 
     @property
     @abstractmethod
-    def name(self):
+    def name(self) -> str:
         """
         :return: the column name of the timeseries index
+        """
+
+    @property
+    @abstractmethod
+    def ts_col(self) -> str:
+        """
+        :return: the name of the primary timeseries column (may or may not be the same as the name)
         """
 
     def _reverseOrNot(self, expr: Union[Column, List[Column]], reverse: bool) -> Union[Column, List[Column]]:
@@ -68,6 +75,10 @@ class SimpleTSIndex(TSIndex, ABC):
     @property
     def name(self):
         return self.__name
+
+    @property
+    def ts_col(self) -> str:
+        return self.name
 
     def orderByExpr(self, reverse: bool = False) -> Column:
         expr = Fn.col(self.name)
@@ -149,6 +160,10 @@ class CompositeTSIndex(TSIndex, ABC):
     @property
     def name(self) -> str:
         return self.ts_idx
+
+    @property
+    def ts_col(self) -> str:
+        return self.primary_ts_col
 
     @property
     def primary_ts_col(self) -> str:

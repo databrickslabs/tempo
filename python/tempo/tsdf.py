@@ -4,6 +4,7 @@ import logging
 import operator
 from functools import reduce
 from typing import List, Union, Callable, Collection, Set
+from copy import deepcopy
 
 import numpy as np
 import pyspark.sql.functions as f
@@ -18,7 +19,7 @@ from scipy.fft import fft, fftfreq
 import tempo.io as tio
 import tempo.resample as rs
 from tempo.interpol import Interpolation
-from tempo.tsschema import TSIndex, TSSchema
+from tempo.tsschema import TSIndex, TSSchema, SubSequenceTSIndex
 from tempo.utils import (
     ENV_CAN_RENDER_HTML,
     IS_DATABRICKS,
@@ -53,11 +54,41 @@ class TSDF:
             self.ts_schema.validate(df.schema)
 
     def __withTransformedDF(self, new_df: DataFrame) -> "TSDF":
-        return TSDF(new_df, ts_schema=self.ts_schema, validate_schema=False)
+        """
+        This helper function will create a new :class:`TSDF` using the current schema, but a new / transformed :class:`DataFrame`
+
+        :param new_df: the new / transformed :class:`DataFrame` to
+
+        :return: a new TSDF object with the transformed DataFrame
+        """
+        return TSDF(new_df, ts_schema=deepcopy(self.ts_schema), validate_schema=False)
+
+    @classmethod
+    def __makeStructFromCols(cls, df: DataFrame, struct_col_name: str, cols_to_move: List[str]) -> DataFrame:
+        """
+        Transform a :class:`DataFrame` by moving certain columns into a struct
+
+        :param df: the :class:`DataFrame` to transform
+        :param struct_col_name: name of the struct column to create
+        :param cols_to_move: name of the columns to move into the struct
+
+        :return: the transformed :class:`DataFrame`
+        """
+        return df.withColumn(struct_col_name, f.struct(cols_to_move)).drop(*cols_to_move)
+
+    __DEFAULT_TS_IDX_COL = "ts_idx"
 
     @classmethod
     def fromSubsequenceCol(cls, df: DataFrame, ts_col: str, subsequence_col: str, series_ids: Collection[str] = None) -> "TSDF":
-        pass
+        # construct a struct with the ts_col and subsequence_col
+        struct_col_name = cls.__DEFAULT_TS_IDX_COL
+        with_subseq_struct_df = cls.__makeStructFromCols(df, struct_col_name, [ts_col, subsequence_col])
+        # construct an appropriate TSIndex
+        subseq_struct = with_subseq_struct_df.schema[struct_col_name]
+        subseq_idx = SubSequenceTSIndex(subseq_struct, ts_col, subsequence_col)
+        # construct & return the TSDF with appropriate schema
+        return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
+
 
     @classmethod
     def fromTimestampString(cls, df: DataFrame, ts_col: str, series_ids: Collection[str] = None, ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]") -> "TSDF":
@@ -73,7 +104,7 @@ class TSDF:
 
     @property
     def ts_col(self) -> str:
-        return self.ts_index.name
+        return self.ts_index.ts_col
 
     @property
     def series_ids(self) -> List[str]:
@@ -180,8 +211,9 @@ class TSDF:
                 )
 
     def __validateTsColMatch(self, right_tsdf):
+        # TODO - can simplify this to get types from schema object
         left_ts_datatype = self.df.select(self.ts_col).dtypes[0][1]
-        right_ts_datatype = right_tsdf.df.select(self.ts_col).dtypes[0][1]
+        right_ts_datatype = right_tsdf.df.select(right_tsdf.ts_col).dtypes[0][1]
         if left_ts_datatype != right_ts_datatype:
             raise ValueError(
                 "left and right dataframe timestamp index columns should have same type"
@@ -243,7 +275,7 @@ class TSDF:
         since it is no longer used in subsequent methods.
         """
         ptntl_sort_keys = [self.ts_col, "rec_ind", sequence_col]
-        sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
+        sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name]
 
         window_spec = (
             Window.partitionBy(self.series_ids)
@@ -840,10 +872,13 @@ class TSDF:
 
         # perform asof join.
         if tsPartitionVal is None:
+            seq_col = None
+            if isinstance(combined_df.ts_index, SubSequenceTSIndex):
+                seq_col = combined_df.ts_index.sub_seq_col
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
-                right_tsdf.sequence_col,
+                seq_col,
                 tsPartitionVal,
                 skipNulls,
                 suppress_null_warning,
@@ -852,10 +887,13 @@ class TSDF:
             tsPartitionDF = combined_df.__getTimePartitions(
                 tsPartitionVal, fraction=fraction
             )
+            seq_col = None
+            if isinstance(tsPartitionDF.ts_index, SubSequenceTSIndex):
+                seq_col = tsPartitionDF.ts_index.sub_seq_col
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
-                right_tsdf.sequence_col,
+                seq_col,
                 tsPartitionVal,
                 skipNulls,
                 suppress_null_warning,
