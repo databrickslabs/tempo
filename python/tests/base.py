@@ -134,17 +134,9 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
+        # convert timstamp fields to timestamp type
         for tsc in ts_cols:
-            ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
-            ts_pattern = "^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
-            decimal_pattern = "[.]\d+"
-            if re.match(ts_pattern, str(ts_value)) is not None:
-                if (
-                    re.search(decimal_pattern, ts_value) is None
-                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
-                ):
-                    df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
+            df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
     #

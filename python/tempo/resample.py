@@ -46,7 +46,7 @@ def __appendAggKey(tsdf, freq=None):
 
     df = df.withColumn("agg_key", agg_window)
     return (
-        tempo.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
+        tempo.TSDF(df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids),
         parsed_freq[0],
         freq_dict[parsed_freq[1]],
     )
@@ -65,7 +65,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     tsdf, period, unit = __appendAggKey(tsdf, freq)
     df = tsdf.df
 
-    groupingCols = tsdf.partitionCols + ["agg_key"]
+    groupingCols = tsdf.series_ids + ["agg_key"]
     if metricCols is None:
         metricCols = list(set(df.columns).difference(set(groupingCols + [tsdf.ts_col])))
     if prefix is None:
@@ -90,7 +90,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
             set(res.columns).difference(
-                set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
+                set(tsdf.series_ids + [tsdf.ts_col, "agg_key"])
             )
         )
         new_cols = [
@@ -103,7 +103,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
             set(res.columns).difference(
-                set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
+                set(tsdf.series_ids + [tsdf.ts_col, "agg_key"])
             )
         )
         new_cols = [
@@ -116,7 +116,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
             set(res.columns).difference(
-                set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
+                set(tsdf.series_ids + [tsdf.ts_col, "agg_key"])
             )
         )
         new_cols = [
@@ -143,15 +143,15 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     )
 
     # sort columns so they are consistent
-    non_part_cols = set(set(res.columns) - set(tsdf.partitionCols)) - set([tsdf.ts_col])
-    sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
+    non_part_cols = set(set(res.columns) - set(tsdf.series_ids)) - {tsdf.ts_col}
+    sel_and_sort = tsdf.series_ids + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
-    fillW = Window.partitionBy(tsdf.partitionCols)
+    fillW = Window.partitionBy(tsdf.series_ids)
 
     imputes = (
         res.select(
-            *tsdf.partitionCols,
+            *tsdf.series_ids,
             f.min(tsdf.ts_col).over(fillW).alias("from"),
             f.max(tsdf.ts_col).over(fillW).alias("until")
         )
@@ -172,7 +172,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
 
     if fill:
         res = imputes.join(
-            res, tsdf.partitionCols + [tsdf.ts_col], "leftouter"
+            res, tsdf.series_ids + [tsdf.ts_col], "leftouter"
         ).na.fill(0, metrics)
 
     return res

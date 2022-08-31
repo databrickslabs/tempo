@@ -26,7 +26,7 @@ class InterpolationUnitTest(SparkTest):
         try:
             self.interpolate_helper.interpolate(
                 tsdf=input_tsdf,
-                partition_cols=["partition_a", "partition_b"],
+                series_ids=["partition_a", "partition_b"],
                 target_cols=["value_a", "value_b"],
                 freq="30 seconds",
                 ts_col="event_ts",
@@ -49,7 +49,7 @@ class InterpolationUnitTest(SparkTest):
         try:
             self.interpolate_helper.interpolate(
                 tsdf=input_tsdf,
-                partition_cols=["partition_a", "partition_b"],
+                series_ids=["partition_a", "partition_b"],
                 target_cols=["partition_a", "value_b"],
                 freq="30 seconds",
                 ts_col="event_ts",
@@ -72,7 +72,7 @@ class InterpolationUnitTest(SparkTest):
         try:
             self.interpolate_helper.interpolate(
                 tsdf=input_tsdf,
-                partition_cols=["partition_c", "partition_b"],
+                series_ids=["partition_c", "partition_b"],
                 target_cols=["value_a", "value_b"],
                 freq="30 seconds",
                 ts_col="event_ts",
@@ -95,7 +95,7 @@ class InterpolationUnitTest(SparkTest):
         try:
             self.interpolate_helper.interpolate(
                 tsdf=input_tsdf,
-                partition_cols=["partition_a", "partition_b"],
+                series_ids=["partition_a", "partition_b"],
                 target_cols=["value_a", "value_b"],
                 freq="30 seconds",
                 ts_col="value_a",
@@ -123,7 +123,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -149,7 +149,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -176,7 +176,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -203,7 +203,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -230,7 +230,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -255,7 +255,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 sec",
             ts_col="event_ts",
@@ -282,7 +282,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -322,14 +322,14 @@ class InterpolationIntegrationTest(SparkTest):
 
         input_tsdf = TSDF(
             simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"),
-            partition_cols=["partition_a", "partition_b"],
             ts_col="other_ts_col",
+            series_ids=["partition_a", "partition_b"]
         )
 
         actual_df: DataFrame = input_tsdf.interpolate(
             ts_col="other_ts_col",
             show_interpolated=True,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a"],
             freq="30 seconds",
             func="mean",
@@ -347,7 +347,7 @@ class InterpolationIntegrationTest(SparkTest):
         actual_tsdf: TSDF = simple_input_tsdf.interpolate(
             ts_col="event_ts",
             show_interpolated=True,
-            partition_cols=["partition_b"],
+            series_ids=["partition_b"],
             target_cols=["value_a"],
             freq="30 seconds",
             func="mean",
@@ -355,7 +355,7 @@ class InterpolationIntegrationTest(SparkTest):
         )
 
         self.assertEqual(actual_tsdf.ts_col, "event_ts")
-        self.assertEqual(actual_tsdf.partitionCols, ["partition_b"])
+        self.assertEqual(actual_tsdf.series_ids, ["partition_b"])
 
     def test_interpolation_on_sampled_data(self):
         """Verify interpolation can be chained with resample within the TSDF class"""

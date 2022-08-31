@@ -831,54 +831,20 @@
       "init": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
+        "series_ids": ["symbol"],
         "data": [
-          [
-            "S1",
-            "SAME_DT",
-            "2020-08-01 00:00:10.12345",
-            349.21,
-            10.0
-          ],
-          [
-            "S1",
-            "SAME_DT",
-            "2020-08-01 00:00:10.123",
-            340.21,
-            9.0
-          ],
-          [
-            "S1",
-            "SAME_DT",
-            "2020-08-01 00:00:10.124",
-            353.32,
-            8.0
-          ]
+          ["S1", "SAME_DT", "2020-08-01 00:00:10.12345", 349.21, 10.0],
+          ["S1", "SAME_DT", "2020-08-01 00:00:10.123", 340.21, 9.0],
+          ["S1", "SAME_DT", "2020-08-01 00:00:10.124", 353.32, 8.0]
         ]
       },
       "expectedms": {
         "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
         "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
+        "series_ids": ["symbol"],
         "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10.123",
-            null,
-            344.71,
-            9.5
-          ],
-          [
-            "S1",
-            "2020-08-01 00:00:10.124",
-            null,
-            353.32,
-            8.0
-          ]
+          ["S1", "2020-08-01 00:00:10.123", null, 344.71, 9.5],
+          ["S1", "2020-08-01 00:00:10.124", null, 353.32, 8.0]
         ]
       }
     },

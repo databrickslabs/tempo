@@ -265,7 +265,7 @@ class Interpolation:
         self,
         tsdf,
         ts_col: str,
-        partition_cols: List[str],
+        series_ids: List[str],
         target_cols: List[str],
         freq: str,
         func: str,
@@ -279,7 +279,7 @@ class Interpolation:
         :param tsdf: input TSDF
         :param ts_col: timestamp column name
         :param target_cols: numeric columns to interpolate
-        :param partition_cols: partition columns names
+        :param series_ids: partition columns names
         :param freq: frequency at which to sample
         :param func: aggregate function used for sampling to the specified interval
         :param method: interpolation function usded to fill missing values
@@ -289,7 +289,7 @@ class Interpolation:
         """
         # Validate input parameters
         self.__validate_fill(method)
-        self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
+        self.__validate_col(tsdf.df, series_ids, target_cols, ts_col)
 
         # Convert Frequency using resample dictionary
         parsed_freq = checkAllowableFreq(freq)
@@ -297,10 +297,10 @@ class Interpolation:
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if perform_checks:
-            calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
+            calculate_time_horizon(tsdf.df, ts_col, freq, series_ids)
 
         # Only select required columns for interpolation
-        input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
+        input_cols: List[str] = [*series_ids, ts_col, *target_cols]
         sampled_input: DataFrame = tsdf.df.select(*input_cols)
 
         if self.is_resampled is False:
@@ -311,7 +311,7 @@ class Interpolation:
 
         # Fill timeseries for nearest values
         time_series_filled = self.__generate_time_series_fill(
-            sampled_input, partition_cols, ts_col
+            sampled_input, series_ids, ts_col
         )
 
         # Generate surrogate timestamps for each target column
@@ -323,7 +323,7 @@ class Interpolation:
                 when(col(column).isNull(), None).otherwise(col(ts_col)),
             )
             add_column_time = self.__generate_column_time_fill(
-                add_column_time, partition_cols, ts_col, column
+                add_column_time, series_ids, ts_col, column
             )
 
         # Handle edge case if last value (latest) is null
@@ -338,7 +338,7 @@ class Interpolation:
         target_column_filled = edge_filled
         for column in target_cols:
             target_column_filled = self.__generate_target_fill(
-                target_column_filled, partition_cols, ts_col, column
+                target_column_filled, series_ids, ts_col, column
             )
 
         # Generate missing timeseries values

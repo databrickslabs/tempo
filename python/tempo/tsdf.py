@@ -85,14 +85,11 @@ class TSDF:
 
     @property
     def observational_cols(self) -> List[str]:
-        return [
-            col.name
-            for col in self.ts_schema.find_observational_columns(self.df.schema)
-        ]
+        return list(self.ts_schema.find_observational_columns(self.df.schema))
 
     @property
     def metric_cols(self) -> List[str]:
-        return [col.name for col in self.ts_schema.find_metric_columns(self.df.schema)]
+        return self.ts_schema.find_metric_columns(self.df.schema)
 
     # def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col=None):
     #     """
@@ -207,15 +204,10 @@ class TSDF:
 
         if prefix == "":
             ts_col = self.ts_col
-            seq_col = self.sequence_col if self.sequence_col else self.sequence_col
         else:
             ts_col = "".join([prefix, self.ts_col])
-            seq_col = (
-                "".join([prefix, self.sequence_col])
-                if self.sequence_col
-                else self.sequence_col
-            )
-        return TSDF(df, ts_col, self.series_ids, sequence_col=seq_col)
+
+        return TSDF(df, ts_col=ts_col, series_ids=self.series_ids)
 
     def __addColumnsFromOtherDF(self, other_cols):
         """
@@ -227,14 +219,14 @@ class TSDF:
             self.df,
         )
 
-        return TSDF(new_df, self.ts_col, self.series_ids)
+        return self.__withTransformedDF(new_df)
 
     def __combineTSDF(self, ts_df_right, combined_ts_col):
         combined_df = self.df.unionByName(ts_df_right.df).withColumn(
             combined_ts_col, f.coalesce(self.ts_col, ts_df_right.ts_col)
         )
 
-        return TSDF(combined_df, combined_ts_col, self.series_ids)
+        return TSDF(combined_df, ts_col=combined_ts_col, series_ids=self.series_ids)
 
     def __getLastRightRow(
         self,
@@ -332,7 +324,7 @@ class TSDF:
                             )
                     df = df.drop(column)
 
-        return TSDF(df, left_ts_col, self.series_ids)
+        return TSDF(df, ts_col=left_ts_col, series_ids=self.series_ids)
 
     def __getTimePartitions(self, tsPartitionVal, fraction=0.1):
         """
@@ -373,7 +365,7 @@ class TSDF:
         df = partition_df.union(remainder_df).drop(
             "partition_remainder", "ts_col_double"
         )
-        return TSDF(df, self.ts_col, self.series_ids + ["ts_partition"])
+        return TSDF(df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"])
 
     #
     # Slicing & Selection
@@ -398,15 +390,8 @@ class TSDF:
 
         """
         # The columns which will be a mandatory requirement while selecting from TSDFs
-        seq_col_stub = [] if bool(self.sequence_col) is False else [self.sequence_col]
-        mandatory_cols = [self.ts_col] + self.series_ids + seq_col_stub
-        if set(mandatory_cols).issubset(set(cols)):
-            return TSDF(
-                self.df.select(*cols),
-                self.ts_col,
-                self.series_ids,
-                self.sequence_col,
-            )
+        if set(self.structural_cols).issubset(set(cols)):
+            return self.__withTransformedDF(self.df.select(*cols))
         else:
             raise Exception(
                 "In TSDF's select statement original ts_col, partitionCols and seq_col_stub(optional) must be present"
@@ -881,11 +866,11 @@ class TSDF:
                 "ts_partition", "is_original"
             )
 
-            asofDF = TSDF(df, asofDF.ts_col, combined_df.series_ids)
+            asofDF = TSDF(df, ts_col=asofDF.ts_col, series_ids=combined_df.series_ids)
 
         return asofDF
 
-    def __baseWindow(self, sort_col=None, reverse=False):
+    def __baseWindow(self, reverse=False):
         # The index will determine the appropriate sort order
         w = Window().orderBy(self.ts_index.orderByExpr(reverse))
 
@@ -894,13 +879,13 @@ class TSDF:
             w = w.partitionBy([f.col(sid) for sid in self.series_ids])
         return w
 
-    def __rangeBetweenWindow(self, range_from, range_to, sort_col=None, reverse=False):
-        return self.__baseWindow(sort_col=sort_col, reverse=reverse).rangeBetween(
-            range_from, range_to
-        )
-
     def __rowsBetweenWindow(self, rows_from, rows_to, reverse=False):
         return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
+
+    def __rangeBetweenWindow(self, range_from, range_to, reverse=False):
+        return ( self.__baseWindow(reverse=reverse)
+                     .orderBy(self.ts_index.rangeOrderByExpr(reverse=reverse))
+                     .rangeBetween(range_from, range_to ) )
 
     def vwap(self, frequency="m", volume_col="volume", price_col="price"):
         # set pre_vwap as self or enrich with the frequency
@@ -937,7 +922,7 @@ class TSDF:
             .withColumn("vwap", f.col("dllr_value") / f.col(volume_col))
         )
 
-        return TSDF(vwapped, self.ts_col, self.series_ids)
+        return self.__withTransformedDF(vwapped)
 
     def EMA(self, colName, window=30, exp_factor=0.2):
         """
@@ -964,7 +949,7 @@ class TSDF:
             ).drop(lagColName)
             # Nulls are currently removed
 
-        return TSDF(df, self.ts_col, self.series_ids)
+        return self.__withTransformedDF(df)
 
     def withLookbackFeatures(
         self, featureCols, lookbackWindowSize, exactSize=True, featureColName="features"
@@ -998,7 +983,7 @@ class TSDF:
         if exactSize:
             return lookback_tsdf.where(f.size(featureColName) == lookbackWindowSize)
 
-        return TSDF(lookback_tsdf, self.ts_col, self.series_ids)
+        return self.__withTransformedDF(lookback_tsdf)
 
     def withRangeStats(
         self, type="range", colsToSummarize=[], rangeBackWindowSecs=1000
@@ -1018,35 +1003,12 @@ class TSDF:
         4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
         """
 
-        # identify columns to summarize if not provided
-        # these should include all numeric columns that
-        # are not the timestamp column and not any of the partition columns
+        # by default summarize all metric columns
         if not colsToSummarize:
-            # columns we should never summarize
-            prohibited_cols = [self.ts_col.lower()]
-            if self.series_ids:
-                prohibited_cols.extend([pc.lower() for pc in self.series_ids])
-            # types that can be summarized
-            summarizable_types = ["int", "bigint", "float", "double"]
-            # filter columns to find summarizable columns
-            colsToSummarize = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
+            colsToSummarize = self.metric_cols
 
         # build window
-        if str(self.df.schema[self.ts_col].dataType) == "TimestampType":
-            self. __add_double_ts()
-            prohibited_cols.extend(["double_ts"])
-            w = self.__rangeBetweenWindow(
-                -1 * rangeBackWindowSecs, 0, sort_col="double_ts"
-            )
-        else:
-            w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
+        w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
 
         # compute column summaries
         selectedCols = self.df.columns
@@ -1069,7 +1031,7 @@ class TSDF:
             "double_ts"
         )
 
-        return TSDF(summary_df, self.ts_col, self.series_ids)
+        return self.__withTransformedDF(summary_df)
 
     def withGroupedStats(self, metricCols=[], freq=None):
         """
@@ -1128,7 +1090,7 @@ class TSDF:
             .drop("window")
         )
 
-        return TSDF(summary_df, self.ts_col, self.series_ids)
+        return self.__withTransformedDF(summary_df)
 
     def write(self, spark, tabName, optimizationCols=None):
         tio.write(self, spark, tabName, optimizationCols)
@@ -1176,7 +1138,7 @@ class TSDF:
         method: str,
         target_cols: List[str] = None,
         ts_col: str = None,
-        partition_cols: List[str] = None,
+        series_ids: List[str] = None,
         show_interpolated: bool = False,
         perform_checks: bool = True,
     ):
@@ -1198,10 +1160,10 @@ class TSDF:
         # Set defaults for target columns, timestamp column and partition columns when not provided
         if ts_col is None:
             ts_col = self.ts_col
-        if partition_cols is None:
-            partition_cols = self.series_ids
+        if series_ids is None:
+            series_ids = self.series_ids
         if target_cols is None:
-            prohibited_cols: List[str] = partition_cols + [ts_col]
+            prohibited_cols: List[str] = series_ids + [ts_col]
             summarizable_types = ["int", "bigint", "float", "double"]
 
             # get summarizable find summarizable columns
@@ -1215,11 +1177,11 @@ class TSDF:
             ]
 
         interpolate_service: Interpolation = Interpolation(is_resampled=False)
-        tsdf_input = TSDF(self.df, ts_col=ts_col, series_ids=partition_cols)
+        tsdf_input = TSDF(self.df, ts_col=ts_col, series_ids=series_ids)
         interpolated_df: DataFrame = interpolate_service.interpolate(
             tsdf_input,
             ts_col,
-            partition_cols,
+            series_ids,
             target_cols,
             freq,
             func,
@@ -1228,7 +1190,7 @@ class TSDF:
             perform_checks,
         )
 
-        return TSDF(interpolated_df, ts_col=ts_col, series_ids=partition_cols)
+        return TSDF(interpolated_df, ts_col=ts_col, series_ids=series_ids)
 
     def calc_bars(tsdf, freq, func=None, metricCols=None, fill=None):
 
@@ -1259,7 +1221,7 @@ class TSDF:
         )
         bars = bars.select(sel_and_sort)
 
-        return TSDF(bars, resample_open.ts_col, resample_open.series_ids)
+        return TSDF(bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids)
 
     def fourier_transform(self, timestep, valueCol):
         """
@@ -1288,77 +1250,39 @@ class TSDF:
 
         valueCol = self.__validated_column(self.df, valueCol)
         data = self.df
-        if self.sequence_col:
-            if self.series_ids == []:
-                data = data.withColumn("dummy_group", f.lit("dummy_val"))
-                data = (
-                    data.select(
-                        f.col("dummy_group"),
-                        self.ts_col,
-                        self.sequence_col,
-                        f.col(valueCol),
-                    )
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy("dummy_group").applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("dummy_group", "tdval", "tpoints")
-            else:
-                group_cols = self.series_ids
-                data = (
-                    data.select(
-                        *group_cols, self.ts_col, self.sequence_col, f.col(valueCol)
-                    )
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy(*group_cols).applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("tdval", "tpoints")
-        else:
-            if self.series_ids == []:
-                data = data.withColumn("dummy_group", f.lit("dummy_val"))
-                data = (
-                    data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol))
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy("dummy_group").applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("dummy_group", "tdval", "tpoints")
-            else:
-                group_cols = self.series_ids
-                data = (
-                    data.select(*group_cols, self.ts_col, f.col(valueCol))
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy(*group_cols).applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("tdval", "tpoints")
 
-        return TSDF(result, self.ts_col, self.series_ids, self.sequence_col)
+        if self.series_ids == []:
+            data = data.withColumn("dummy_group", f.lit("dummy_val"))
+            data = (
+                data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol))
+                .withColumn("tdval", f.col(valueCol))
+                .withColumn("tpoints", f.col(self.ts_col))
+            )
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                + ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(
+                tempo_fourier_util, return_schema
+            )
+            result = result.drop("dummy_group", "tdval", "tpoints")
+        else:
+            group_cols = self.series_ids
+            data = (
+                data.select(*group_cols, self.ts_col, f.col(valueCol))
+                .withColumn("tdval", f.col(valueCol))
+                .withColumn("tpoints", f.col(self.ts_col))
+            )
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                + ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(
+                tempo_fourier_util, return_schema
+            )
+            result = result.drop("tdval", "tpoints")
+
+        return self.__withTransformedDF(result)
 
     def extractStateIntervals(
         self,
@@ -1486,11 +1410,10 @@ class _ResampledTSDF(TSDF):
         df,
         ts_col="event_ts",
         series_ids=None,
-        sequence_col=None,
         freq=None,
         func=None,
     ):
-        super(_ResampledTSDF, self).__init__(df, ts_col, series_ids, sequence_col)
+        super(_ResampledTSDF, self).__init__(df, ts_col=ts_col, series_ids=series_ids)
         self.__freq = freq
         self.__func = func
 
