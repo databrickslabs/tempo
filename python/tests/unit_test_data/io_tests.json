@@ -1,0 +1,84 @@
+{
+  "__SharedData": {
+    "input_data": {
+      "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+      "ts_col": "event_ts",
+      "partition_cols": [
+        "symbol"
+      ],
+      "data": [
+        [
+          "S1",
+          "SAME_DT",
+          "2020-08-01 00:00:10",
+          349.21,
+          10.0
+        ],
+        [
+          "S1",
+          "SAME_DT",
+          "2020-08-01 00:00:11",
+          340.21,
+          9.0
+        ],
+        [
+          "S1",
+          "SAME_DT",
+          "2020-08-01 00:01:12",
+          353.32,
+          8.0
+        ],
+        [
+          "S1",
+          "SAME_DT",
+          "2020-08-01 00:01:13",
+          351.32,
+          7.0
+        ],
+        [
+          "S1",
+          "SAME_DT",
+          "2020-08-01 00:01:14",
+          350.32,
+          6.0
+        ],
+        [
+          "S1",
+          "SAME_DT",
+          "2020-09-01 00:01:12",
+          361.1,
+          5.0
+        ],
+        [
+          "S1",
+          "SAME_DT",
+          "2020-09-01 00:19:12",
+          362.1,
+          4.0
+        ]
+      ]
+    }
+  },
+  "DeltaWriteTest": {
+    "test_write_to_delta_without_optimization_cols": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_write_to_delta_with_optimization_cols": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_write_to_delta_non_dbr_environment_logging": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_write_to_delta_bad_dbr_environment_logging": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    }
+  }
+}

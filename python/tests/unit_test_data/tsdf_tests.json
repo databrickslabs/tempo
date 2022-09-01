@@ -50,7 +50,305 @@
       ]
     }
   },
-  "BasicTests": {
+  "TSDFBaseTests": {
+    "test_TSDF_init": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__add_double_ts": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_column_not_string": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_column_not_found": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_column": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_columns_string": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_columns_none": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_columns_tuple": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validated_columns_list_multiple_elems": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__checkPartitionCols": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "right_tsdf": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "event_ts"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ]
+        ]
+      }
+    },
+    "test__validateTsColMatch": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "right_tsdf": {
+        "schema": "symbol string, event_ts int, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            1596240010,
+            349.21
+          ]
+        ]
+      }
+    },
+    "test__addPrefixToColumns_non_empty_string": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__addPrefixToColumns_empty_string": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__addColumnsFromOtherDF": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__combineTSDF": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__getLastRightRow": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__getTimePartitions": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float, ts_partition int, is_original int",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21,
+            1596240010,
+            1
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32,
+            1596240070,
+            1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1,
+            1598918530,
+            1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1,
+            1598919550,
+            1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01,
+            1596240070,
+            1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92,
+            1596240080,
+            1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.1,
+            1598918530,
+            1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33,
+            1598919640,
+            1
+          ]
+        ]
+      }
+    },
+    "test__getTimePartitions_with_fraction": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float, ts_partition int, is_original int",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21,
+            1596240010,
+            1
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32,
+            1596240070,
+            1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1,
+            1598918530,
+            1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1,
+            1598919550,
+            1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01,
+            1596240070,
+            1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92,
+            1596240080,
+            1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.1,
+            1598918530,
+            1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33,
+            1598919640,
+            1
+          ]
+        ]
+      }
+    },
+    "test_select_empty": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_select_only_required_cols": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_select_all_cols": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show_n_5": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show_k_gt_n": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show_truncate_false": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show_vertical_true": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show_vertical_true_n_5": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_show_truncate_false_vertical_true": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
     "test_describe": {
       "init": {
         "schema": "symbol string, event_ts string, trade_pr float",
@@ -82,7 +380,38 @@
         ]
       }
     },
-    "test_at": {
+    "test__getBytesFromPlan": {
+      "init": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ]
+        ]
+      }
+    },
+    "test_at_string_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
@@ -106,7 +435,15 @@
         ]
       }
     },
-    "test_before": {
+    "test_at_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_at_string_timestamp/expected"
+      }
+    },
+    "test_before_string_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
@@ -140,182 +477,15 @@
         ]
       }
     },
-    "test_atOrBefore": {
+    "test_before_numeric_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ]
-        ]
+        "$ref": "#/TSDFBaseTests/test_before_string_timestamp/expected"
       }
     },
-    "test_after": {
-      "init": {
-        "$ref": "#/__SharedData/temp_slice_init_data"
-      },
-      "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33
-          ]
-        ]
-      }
-    },
-    "test_atOrAfter": {
-      "init": {
-        "$ref": "#/__SharedData/temp_slice_init_data"
-      },
-      "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33
-          ]
-        ]
-      }
-    },
-    "test_between": {
-      "init": {
-        "$ref": "#/__SharedData/temp_slice_init_data"
-      },
-      "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ]
-        ]
-      }
-    },
-    "test_between_exclusive": {
-      "init": {
-        "$ref": "#/__SharedData/temp_slice_init_data"
-      },
-      "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ]
-        ]
-      }
-    },
-    "test_earliest": {
+    "test_atOrBefore_string_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
@@ -359,7 +529,230 @@
         ]
       }
     },
-    "test_latest": {
+    "test_atOrBefore_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_atOrBefore_string_timestamp/expected"
+      }
+    },
+    "test_after_string_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
+        ]
+      }
+    },
+    "test_after_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_after_string_timestamp/expected"
+      }
+    },
+    "test_atOrAfter_string_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
+        ]
+      }
+    },
+    "test_atOrAfter_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_atOrAfter_string_timestamp/expected"
+      }
+    },
+    "test_between_string_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
+        ]
+      }
+    },
+    "test_between_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_between_string_timestamp/expected"
+      }
+    },
+    "test_between_exclusive_string_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
+        ]
+      }
+    },
+    "test_between_exclusive_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_between_exclusive_string_timestamp/expected"
+      }
+    },
+    "test_earliest_string_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
+        ],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ]
+        ]
+      }
+    },
+    "test_earliest_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_earliest_string_timestamp/expected"
+      }
+    },
+    "test_latest_string_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
@@ -403,7 +796,15 @@
         ]
       }
     },
-    "test_priorTo": {
+    "test_latest_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_latest_string_timestamp/expected"
+      }
+    },
+    "test_priorTo_string_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
@@ -427,7 +828,15 @@
         ]
       }
     },
-    "test_subsequentTo": {
+    "test_priorTo_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_priorTo_string_timestamp/expected"
+      }
+    },
+    "test_subsequentTo_string_timestamp": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
@@ -449,6 +858,28 @@
             761.10
           ]
         ]
+      }
+    },
+    "test_subsequentTo_numeric_timestamp": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      },
+      "expected": {
+        "$ref": "#/TSDFBaseTests/test_subsequentTo_string_timestamp/expected"
+      }
+    },
+    "test__rowsBetweenWindow": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test_withPartitionCols": {
+      "init": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_col": "event_ts",
+        "data": {
+        "$ref": "#/__SharedData/temp_slice_init_data/data"
+        }
       }
     }
   },
@@ -2960,6 +3391,5 @@
         ]
       }
     }
-
   }
 }
