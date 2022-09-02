@@ -70,6 +70,7 @@ class IntervalsDF:
 
     def disjoint(self) -> "IntervalsDF":
 
+        # TODO : can we change window and use `last`?
         # internal slack thread: https://databricks.slack.com/archives/C0JCGEF17/p1662125947149539
         disjoint_series_window = self._window.orderBy(
             f.col(self.start_ts).desc(), f.col(self.end_ts).desc()
@@ -116,8 +117,6 @@ class IntervalsDF:
             self.series_ids,
         )
 
-    # TODO: do we want to allow IDF and DF?
-    #  all metadata already available in IDF so would just need data from DF
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
 
         if not isinstance(other, IntervalsDF):
