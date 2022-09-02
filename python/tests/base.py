@@ -7,6 +7,7 @@ import jsonref
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from tempo.tsdf import TSDF
+from tempo.intervals import IntervalsDF
 
 
 class SparkTest(unittest.TestCase):
@@ -78,6 +79,18 @@ class SparkTest(unittest.TestCase):
             sequence_col=td.get("sequence_col", None),
         )
         return tsdf
+
+    def get_data_as_idf(self, name: str, convert_ts_col=True):
+        df = self.get_data_as_sdf(name, convert_ts_col)
+        td = self.test_data[name]
+        idf = IntervalsDF(
+            df,
+            start_ts=td["start_ts"],
+            end_ts=td["end_ts"],
+            identifiers=td.get("identifiers", None),
+            series=td.get("series", None),
+        )
+        return idf
 
     TEST_DATA_FOLDER = "unit_test_data"
 

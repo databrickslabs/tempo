@@ -1,0 +1,296 @@
+{
+  "__SharedData": {
+    "init": {
+      "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_1 INT, series_2 INT",
+      "other_ts_cols": [
+        "start_ts",
+        "end_ts"
+      ],
+      "start_ts": "start_ts",
+      "end_ts": "end_ts",
+      "identifiers": [
+        "identifier_1"
+      ],
+      "series": [
+        "series_1",
+        "series_2"
+      ],
+      "data": [
+        [
+          "2020-08-01 00:00:09",
+          "2020-08-01 00:00:14",
+          "v1",
+          5,
+          null
+        ],
+        [
+          "2020-08-01 00:00:09",
+          "2020-08-01 00:00:11",
+          "v1",
+          null,
+          0
+        ],
+        [
+          "2020-08-01 00:00:09",
+          "2020-08-01 00:00:12",
+          "v1",
+          null,
+          4
+        ]
+      ]
+    }
+  },
+  "IntervalsDFTests": {
+    "test_init_identifier_series_str": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_init_identifier_series_tuple": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_init_identifier_series_list": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_init_series_none": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_init_series_truthiness": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_init_identifier_none": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_fromStackedSeries_identifier_str": {
+      "input": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_name STRING NOT NULL, series_value INT NOT NULL",
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "v1",
+            "series_1",
+            5
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "v1",
+            "series_2",
+            0
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:12",
+            "v1",
+            "series_2",
+            4
+          ]
+        ]
+      },
+      "expected": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_1 INT, series_2 INT",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "start_ts": "start_ts",
+        "end_ts": "end_ts",
+        "identifiers": [
+          "identifier_1"
+        ],
+        "series": [
+          "series_1",
+          "series_2"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "v1",
+            5,
+            null
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "v1",
+            null,
+            0
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:12",
+            "v1",
+            null,
+            4
+          ]
+        ]
+      }
+    },
+    "test_fromStackedSeries_identifier_seq": {
+      "input": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/input"
+      },
+      "expected": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/expected"
+      }
+    },
+    "test_disjoint": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      },
+      "expected": {
+        "schema": {
+          "$ref": "#/__SharedData/init/schema"
+        },
+        "other_ts_cols": {
+          "$ref": "#/__SharedData/init/other_ts_cols"
+        },
+        "start_ts": {
+          "$ref": "#/__SharedData/init/start_ts"
+        },
+        "end_ts": {
+          "$ref": "#/__SharedData/init/end_ts"
+        },
+        "identifiers": {
+          "$ref": "#/__SharedData/init/identifiers"
+        },
+        "series": {
+          "$ref": "#/__SharedData/init/series"
+        },
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "v1",
+            5,
+            0
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "2020-08-01 00:00:12",
+            "v1",
+            5,
+            4
+          ],
+          [
+            "2020-08-01 00:00:12",
+            "2020-08-01 00:00:14",
+            "v1",
+            5,
+            null
+          ]
+        ]
+      }
+    },
+    "test_union_other_idf": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_union_other_df": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_union_other_list_dicts": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_unionByName_other_idf": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_unionByName_other_df": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_unionByName_other_list_dicts": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_unionByName_extra_column": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      },
+      "input_extra_col": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_1 INT, series_2 INT, series_3 INT",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "start_ts": "start_ts",
+        "end_ts": "end_ts",
+        "identifiers": [
+          "identifier_1"
+        ],
+        "series": [
+          "series_1",
+          "series_2"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "v1",
+            5,
+            null,
+            1
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "v1",
+            null,
+            0,
+            2
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:12",
+            "v1",
+            null,
+            4,
+            3
+          ]
+        ]
+      }
+    },
+    "test_unionByName_other_extra_column": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      },
+      "input_extra_col": {
+        "$ref": "#/IntervalsDFTests/test_unionByName_extra_column/input_extra_col"
+      }
+    },
+    "test_toDF": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_toDF_stack": {
+      "input": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/expected"
+      },
+      "expected": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/input"
+      }
+    }
+  }
+}
