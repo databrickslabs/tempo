@@ -118,35 +118,26 @@ class IntervalsDF:
 
     # TODO: do we want to allow IDF and DF?
     #  all metadata already available in IDF so would just need data from DF
-    def union(self, other: ["IntervalsDF" | DataFrame]) -> "IntervalsDF":
+    def union(self, other: "IntervalsDF") -> "IntervalsDF":
 
-        if isinstance(other, DataFrame):
-            union_df = self.df.union(other)
-        elif isinstance(other, IntervalsDF):
-            union_df = self.df.union(other.df)
-        else:
+        if not isinstance(other, IntervalsDF):
             raise TypeError
 
         return IntervalsDF(
-            union_df, self.start_ts, self.end_ts, self.identifiers, self.series_ids
+            self.df.union(other.df),
+            self.start_ts,
+            self.end_ts,
+            self.identifiers,
+            self.series_ids,
         )
 
-    def unionByName(
-        self,
-        # TODO: do we want to allow IDF and DF?
-        #  all metadata already available in IDF so would just need data from DF
-        other: ["IntervalsDF" | DataFrame],
-    ) -> "IntervalsDF":
+    def unionByName(self, other: "IntervalsDF") -> "IntervalsDF":
 
-        if isinstance(other, DataFrame):
-            union_by_name_df = self.df.unionByName(other)
-        elif isinstance(other, IntervalsDF):
-            union_by_name_df = self.df.unionByName(other.df)
-        else:
+        if not isinstance(other, IntervalsDF):
             raise TypeError
 
         return IntervalsDF(
-            union_by_name_df,
+            self.df.unionByName(other.df),
             self.start_ts,
             self.end_ts,
             self.identifiers,

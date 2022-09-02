@@ -200,14 +200,9 @@ class IntervalsDFTests(SparkTest):
         idf_input = self.get_data_as_idf("input")
         df_input = self.get_data_as_sdf("input")
 
-        count_idf = idf_input.df.count()
-        count_df = df_input.count()
-
-        union_idf = idf_input.union(df_input)
-
-        count_union = union_idf.df.count()
-
-        self.assertEqual(count_idf + count_df, count_union)
+        self.assertRaises(
+            TypeError, idf_input.union, df_input
+        )
 
     def test_union_other_list_dicts(self):
         idf_input = self.get_data_as_idf("input")
@@ -233,14 +228,9 @@ class IntervalsDFTests(SparkTest):
         idf_input = self.get_data_as_idf("input")
         df_input = self.get_data_as_sdf("input")
 
-        count_idf = idf_input.df.count()
-        count_df = df_input.count()
-
-        union_idf = idf_input.unionByName(df_input)
-
-        count_union_by_name = union_idf.df.count()
-
-        self.assertEqual(count_idf + count_df, count_union_by_name)
+        self.assertRaises(
+            TypeError, idf_input.unionByName, df_input
+        )
 
     def test_unionByName_other_list_dicts(self):
         idf_input = self.get_data_as_idf("input")
@@ -278,6 +268,5 @@ class IntervalsDFTests(SparkTest):
         ).withColumn("end_ts", f.to_timestamp("end_ts"))
 
         actual_df = idf_input.toDF(stack=True)
-        actual_df.show()
 
         self.assertDataFramesEqual(actual_df, expected_df)
