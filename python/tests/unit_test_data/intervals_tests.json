@@ -31,7 +31,7 @@
           0
         ],
         [
-          "2020-08-01 00:00:09",
+          "2020-08-01 00:00:11",
           "2020-08-01 00:00:12",
           "v1",
           null,
@@ -56,17 +56,22 @@
         "$ref": "#/__SharedData/init"
       }
     },
+    "test_init_identifier_none": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_init_identifier_truthiness": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
     "test_init_series_none": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_init_series_truthiness": {
-      "input": {
-        "$ref": "#/__SharedData/init"
-      }
-    },
-    "test_init_identifier_none": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
@@ -97,6 +102,16 @@
             4
           ]
         ]
+      }
+    },
+    "test_fromStackedSeries_identifier_tuple": {
+      "input": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/input"
+      }
+    },
+    "test_fromStackedSeries_identifier_list": {
+      "input": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/input"
       },
       "expected": {
         "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_1 INT, series_2 INT",
@@ -138,15 +153,101 @@
         ]
       }
     },
-    "test_fromStackedSeries_identifier_seq": {
+    "test_disjoint_different_start_ts_same_end": {
       "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/input"
+        "schema": {
+          "$ref": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_1 INT, series_2 INT, series_3 INT"
+        },
+        "other_ts_cols": {
+          "$ref": "#/__SharedData/init/other_ts_cols"
+        },
+        "start_ts": {
+          "$ref": "#/__SharedData/init/start_ts"
+        },
+        "end_ts": {
+          "$ref": "#/__SharedData/init/end_ts"
+        },
+        "identifiers": {
+          "$ref": "#/__SharedData/init/identifiers"
+        },
+        "series": {
+          "$ref": "#/__SharedData/init/series"
+        },
+        "data": [
+          [
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:14",
+            "v1",
+            5,
+            null,
+            null
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "v1",
+            null,
+            0,
+            null
+          ],
+          [
+            "2020-08-01 00:00:13",
+            "2020-08-01 00:00:14",
+            "v1",
+            null,
+            null,
+            6
+          ]
+        ]
       },
       "expected": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/expected"
+        "schema": {
+          "$ref": "#/__SharedData/init/schema"
+        },
+        "other_ts_cols": {
+          "$ref": "#/__SharedData/init/other_ts_cols"
+        },
+        "start_ts": {
+          "$ref": "#/__SharedData/init/start_ts"
+        },
+        "end_ts": {
+          "$ref": "#/__SharedData/init/end_ts"
+        },
+        "identifiers": {
+          "$ref": "#/__SharedData/init/identifiers"
+        },
+        "series": {
+          "$ref": "#/__SharedData/init/series"
+        },
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
+            "v1",
+            null,
+            0,
+            null
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:13",
+            "v1",
+            5,
+            0,
+            null
+          ],
+          [
+            "2020-08-01 00:00:13",
+            "2020-08-01 00:00:14",
+            "v1",
+            5,
+            0,
+            6
+          ]
+        ]
       }
     },
-    "test_disjoint": {
+    "test_disjoint_different_end_ts_same_start": {
       "input": {
         "$ref": "#/__SharedData/init"
       },
@@ -286,10 +387,10 @@
     },
     "test_toDF_stack": {
       "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/expected"
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_list/expected"
       },
       "expected": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_str/input"
+        "$ref": "#/IntervalsDFTests/test_fromStackedSeries_identifier_list/input"
       }
     }
   }

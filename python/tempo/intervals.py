@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Sequence
-
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
@@ -13,8 +11,8 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        identifiers: [str | Sequence[str]],
-        series: [str | Sequence[str]] = None,
+        identifiers: list[str],
+        series: list[str] = None,
     ):
         # TODO: validate data types
         # TODO: should we convert start_ts & end_ts to timestamp or double type?
@@ -24,24 +22,19 @@ class IntervalsDF:
         self.start_ts = start_ts
         self.end_ts = end_ts
 
-        if not identifiers:
+        if not identifiers or not isinstance(identifiers, list):
             raise ValueError
-        elif isinstance(identifiers, str):
-            self.identifiers = (identifiers,)
         else:
             self.identifiers = identifiers
 
-        if not series:
-            if series is None:
-                self.series_ids = series
-            else:
-                raise ValueError
-        elif isinstance(series, str):
-            self.series_ids = (series,)
+        if series is None:
+            self.series_ids = series
+        elif not series or not isinstance(series, list):
+            raise ValueError
         else:
             self.series_ids = series
 
-        self._window = Window.partitionBy(*self.identifiers)
+        self._window = Window.partitionBy(*self.identifiers).orderBy("start_ts", "end_ts")
 
     @classmethod
     def fromStackedSeries(
@@ -49,12 +42,12 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        identifiers: [str | Sequence[str]],
+        identifiers: list[str],
         series_name_col: str,
         series_value_col: str,
     ):
-        if isinstance(identifiers, str):
-            identifiers = (identifiers,)
+        if not isinstance(identifiers, list):
+            raise ValueError
 
         df = (
             df.groupBy(start_ts, end_ts, *identifiers)
@@ -62,7 +55,7 @@ class IntervalsDF:
             .max(series_value_col)
         )
 
-        series_ids = tuple(
+        series_ids = list(
             col for col in df.columns if col not in (start_ts, end_ts, *identifiers)
         )
 
@@ -70,44 +63,9 @@ class IntervalsDF:
 
     def disjoint(self) -> "IntervalsDF":
 
-        # TODO : can we change window and use `last`?
-        # internal slack thread: https://databricks.slack.com/archives/C0JCGEF17/p1662125947149539
-        disjoint_series_window = self._window.orderBy(
-            f.col(self.start_ts).desc(), f.col(self.end_ts).desc()
-        )
-        disjoint_ts_window = self._window.orderBy(self.start_ts, self.end_ts)
-        disjoint_prefix = "disjoint_"
-
         df = self.df
 
-        # TODO: overwrite columns in place here instead or keep for debugging?
-        for series_id in self.series_ids:
-            df = df.withColumn(
-                f"{disjoint_prefix}{series_id}",
-                f.coalesce(
-                    series_id,
-                    f.first(series_id).over(disjoint_series_window),
-                ),
-            )
-
-        df = df.orderBy(self.start_ts, self.end_ts)
-
-        df = df.withColumn(
-            f"{disjoint_prefix}{self.start_ts}",
-            f.coalesce(
-                f.lag(f.col(self.end_ts), 1).over(disjoint_ts_window),
-                self.start_ts,
-            ),
-        )
-
-        for series_id in self.series_ids:
-            df = df.withColumn(series_id, f.col(f"{disjoint_prefix}{series_id}")).drop(
-                f"{disjoint_prefix}{series_id}"
-            )
-
-        df = df.withColumn(
-            self.start_ts, f.col(f"{disjoint_prefix}{self.start_ts}")
-        ).drop(f"{disjoint_prefix}{self.start_ts}")
+        ...
 
         return IntervalsDF(
             df,

@@ -53,7 +53,9 @@ class IntervalsDFTests(SparkTest):
     def test_init_identifier_series_str(self):
         df_input = self.get_data_as_sdf("input")
 
-        idf = IntervalsDF(
+        self.assertRaises(
+            ValueError,
+            IntervalsDF,
             df_input,
             "start_ts",
             "end_ts",
@@ -61,30 +63,16 @@ class IntervalsDFTests(SparkTest):
             "series_1",
         )
 
-        self.assertIsInstance(idf, IntervalsDF)
-        self.assertIsInstance(idf.df, DataFrame)
-        self.assertEqual(idf.start_ts, "start_ts")
-        self.assertEqual(idf.end_ts, "end_ts")
-        self.assertEqual(idf.identifiers, ("identifier_1",))
-        self.assertEqual(idf.series_ids, ("series_1",))
-
     def test_init_identifier_series_tuple(self):
         df_input = self.get_data_as_sdf("input")
 
-        idf = IntervalsDF(
+        self.assertRaises(
+            ValueError,
+            IntervalsDF,
             df_input,
             "start_ts",
             "end_ts",
             ("identifier_1",),
-            (
-                "series_1",
-                "series_2",
-            ),
-        )
-
-        self.assertEqual(idf.identifiers, ("identifier_1",))
-        self.assertEqual(
-            idf.series_ids,
             (
                 "series_1",
                 "series_2",
@@ -102,28 +90,12 @@ class IntervalsDFTests(SparkTest):
             ["series_1", "series_2"],
         )
 
+        self.assertIsInstance(idf, IntervalsDF)
+        self.assertIsInstance(idf.df, DataFrame)
+        self.assertEqual(idf.start_ts, "start_ts")
+        self.assertEqual(idf.end_ts, "end_ts")
         self.assertEqual(idf.identifiers, ["identifier_1"])
         self.assertEqual(idf.series_ids, ["series_1", "series_2"])
-
-    def test_init_series_none(self):
-        df_input = self.get_data_as_sdf("input")
-
-        idf = IntervalsDF(
-            df_input,
-            "start_ts",
-            "end_ts",
-            "identifier_1",
-            None,
-        )
-
-        self.assertEqual(idf.series_ids, None)
-
-    def test_init_series_truthiness(self):
-        df_input = self.get_data_as_sdf("input")
-
-        self.assertRaises(
-            ValueError, IntervalsDF, df_input, "start_ts", "end_ts", "identifier_1", ""
-        )
 
     def test_init_identifier_none(self):
         df_input = self.get_data_as_sdf("input")
@@ -137,15 +109,51 @@ class IntervalsDFTests(SparkTest):
             None,
         )
 
+    def test_init_identifier_truthiness(self):
+        df_input = self.get_data_as_sdf("input")
+
+        self.assertRaises(
+            ValueError,
+            IntervalsDF,
+            df_input,
+            "start_ts",
+            "end_ts",
+            [],
+            None,
+        )
+
+    def test_init_series_none(self):
+        df_input = self.get_data_as_sdf("input")
+
+        idf = IntervalsDF(
+            df_input,
+            "start_ts",
+            "end_ts",
+            ["identifier_1"],
+            None,
+        )
+
+        self.assertEqual(idf.series_ids, None)
+
+    def test_init_series_truthiness(self):
+        df_input = self.get_data_as_sdf("input")
+
+        self.assertRaises(
+            ValueError,
+            IntervalsDF,
+            df_input,
+            "start_ts",
+            "end_ts",
+            ["identifier_1"],
+            [],
+        )
+
     def test_fromStackedSeries_identifier_str(self):
         df_input = self.get_data_as_sdf("input")
-        idf_expected = self.get_data_as_idf("expected")
 
-        df_input = df_input.withColumn(
-            "start_ts", f.to_timestamp("start_ts")
-        ).withColumn("end_ts", f.to_timestamp("end_ts"))
-
-        idf = IntervalsDF.fromStackedSeries(
+        self.assertRaises(
+            ValueError,
+            IntervalsDF.fromStackedSeries,
             df_input,
             "start_ts",
             "end_ts",
@@ -154,9 +162,21 @@ class IntervalsDFTests(SparkTest):
             "series_value",
         )
 
-        self.assertDataFramesEqual(idf.df, idf_expected.df)
+    def test_fromStackedSeries_identifier_tuple(self):
+        df_input = self.get_data_as_sdf("input")
 
-    def test_fromStackedSeries_identifier_seq(self):
+        self.assertRaises(
+            ValueError,
+            IntervalsDF.fromStackedSeries,
+            df_input,
+            "start_ts",
+            "end_ts",
+            ("identifier_1",),
+            "series_name",
+            "series_value",
+        )
+
+    def test_fromStackedSeries_identifier_list(self):
         df_input = self.get_data_as_sdf("input")
         idf_expected = self.get_data_as_idf("expected")
 
@@ -168,14 +188,23 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            ("identifier_1",),
+            ["identifier_1",],
             "series_name",
             "series_value",
         )
 
         self.assertDataFramesEqual(idf.df, idf_expected.df)
 
-    def test_disjoint(self):
+    def test_disjoint_different_start_ts(self):
+        idf_input = self.get_data_as_idf("input")
+        # idf_expected = self.get_data_as_idf("expected")
+
+        idf_actual = idf_input.disjoint()
+        idf_actual.df.show()
+
+        # self.assertDataFramesEqual(idf_expected.df, idf_actual.df)
+
+    def test_disjoint_different_end_ts(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
