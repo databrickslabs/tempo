@@ -188,29 +188,44 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            ["identifier_1",],
+            [
+                "identifier_1",
+            ],
             "series_name",
             "series_value",
         )
 
         self.assertDataFramesEqual(idf.df, idf_expected.df)
 
-    def test_disjoint_different_start_ts(self):
-        idf_input = self.get_data_as_idf("input")
-        # idf_expected = self.get_data_as_idf("expected")
-
-        idf_actual = idf_input.disjoint()
-        idf_actual.df.show()
-
-        # self.assertDataFramesEqual(idf_expected.df, idf_actual.df)
-
-    def test_disjoint_different_end_ts(self):
+    def test_disjoint_overlapping_intervals(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
         idf_actual = idf_input.disjoint()
 
         self.assertDataFramesEqual(idf_expected.df, idf_actual.df)
+
+    def test_disjoint_interval_no_overlap(self):
+        ...
+
+    def test_disjoint_intervals_same_start(self):
+        ...
+
+    def test_disjoint_intervals_same_end(self):
+        ...
+
+    def test_disjoint_active_interval(self):
+        # end_ts is null since interval is current state
+        ...
+
+    def test_disjoint_multiple_identifiers(self):
+        ...
+
+    def test_disjoint_single_series(self):
+        ...
+
+    def test_disjoint_interval_is_subset_of_another(self):
+        ...
 
     def test_union_other_idf(self):
         idf_input_1 = self.get_data_as_idf("input")
@@ -229,9 +244,7 @@ class IntervalsDFTests(SparkTest):
         idf_input = self.get_data_as_idf("input")
         df_input = self.get_data_as_sdf("input")
 
-        self.assertRaises(
-            TypeError, idf_input.union, df_input
-        )
+        self.assertRaises(TypeError, idf_input.union, df_input)
 
     def test_union_other_list_dicts(self):
         idf_input = self.get_data_as_idf("input")
@@ -257,9 +270,7 @@ class IntervalsDFTests(SparkTest):
         idf_input = self.get_data_as_idf("input")
         df_input = self.get_data_as_sdf("input")
 
-        self.assertRaises(
-            TypeError, idf_input.unionByName, df_input
-        )
+        self.assertRaises(TypeError, idf_input.unionByName, df_input)
 
     def test_unionByName_other_list_dicts(self):
         idf_input = self.get_data_as_idf("input")

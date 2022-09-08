@@ -95,7 +95,7 @@
             0
           ],
           [
-            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
             "2020-08-01 00:00:12",
             "v1",
             "series_2",
@@ -144,7 +144,7 @@
             0
           ],
           [
-            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
             "2020-08-01 00:00:12",
             "v1",
             null,
@@ -153,10 +153,10 @@
         ]
       }
     },
-    "test_disjoint_different_start_ts_same_end": {
+    "test_disjoint_overlapping_intervals": {
       "input": {
         "schema": {
-          "$ref": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, series_1 INT, series_2 INT, series_3 INT"
+          "$ref": "#/__SharedData/init/schema"
         },
         "other_ts_cols": {
           "$ref": "#/__SharedData/init/other_ts_cols"
@@ -179,24 +179,14 @@
             "2020-08-01 00:00:14",
             "v1",
             5,
-            null,
             null
           ],
           [
             "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
+            "2020-08-01 00:00:11",
             "v1",
             null,
-            0,
-            null
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v1",
-            null,
-            null,
-            6
+            0
           ]
         ]
       },
@@ -225,54 +215,10 @@
             "2020-08-01 00:00:10",
             "v1",
             null,
-            0,
-            null
+            0
           ],
           [
             "2020-08-01 00:00:10",
-            "2020-08-01 00:00:13",
-            "v1",
-            5,
-            0,
-            null
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            0,
-            6
-          ]
-        ]
-      }
-    },
-    "test_disjoint_different_end_ts_same_start": {
-      "input": {
-        "$ref": "#/__SharedData/init"
-      },
-      "expected": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
-        },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
             "2020-08-01 00:00:11",
             "v1",
             5,
@@ -280,13 +226,6 @@
           ],
           [
             "2020-08-01 00:00:11",
-            "2020-08-01 00:00:12",
-            "v1",
-            5,
-            4
-          ],
-          [
-            "2020-08-01 00:00:12",
             "2020-08-01 00:00:14",
             "v1",
             5,
