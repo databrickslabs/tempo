@@ -205,6 +205,7 @@ class SparkTest(unittest.TestCase):
         df1: Union[TSDF, DataFrame],
         df2: Union[TSDF, DataFrame],
         from_tsdf: bool = False,
+        from_idf: bool = False,
         ignore_row_order: bool = False,
         ignore_column_order: bool = True,
         ignore_nullable: bool = True,
@@ -214,7 +215,7 @@ class SparkTest(unittest.TestCase):
         That is, they have equivalent schemas, and both contain the same values
         """
 
-        if from_tsdf:
+        if from_tsdf or from_idf:
             df1 = df1.df
             df2 = df2.df
 

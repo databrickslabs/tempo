@@ -68,6 +68,9 @@ class IntervalsDF:
 
         return cls(df, start_ts, end_ts, identifiers, series_ids)
 
+    def equals(self) -> "IntervalsDF":
+        ...
+
     def disjoint(self) -> "IntervalsDF":
 
         df = self.df
@@ -122,21 +125,12 @@ class IntervalsDF:
 
         # extract intervals that are already disjoint
 
-        equivalent_intervals_aggregator_expr = tuple(
-            f.max(c).alias(c) for c in self.series_ids
-        )
-
-        disjoint_intervals_df = (
-            df.filter(disjoint_predicate)
-            .drop(
-                *tuple(
-                    col
-                    for col in df.columns
-                    if col.startswith(next_prefix) or col.startswith(prev_prefix)
-                )
+        disjoint_intervals_df = df.filter(disjoint_predicate).drop(
+            *tuple(
+                col
+                for col in df.columns
+                if col.startswith(next_prefix) or col.startswith(prev_prefix)
             )
-            .groupBy(*self.interval_boundaries, *self.identifiers)
-            .agg(*equivalent_intervals_aggregator_expr)
         )
 
         # get previous and next series per interval for constructing disjoint intervals
@@ -258,10 +252,18 @@ class IntervalsDF:
             ),
         )
 
+        equal_intervals_aggregator_expr = tuple(
+            f.max(c).alias(c) for c in self.series_ids
+        )
+
         final_disjoint_df = (
-            disjoint_intervals_df.unionByName(left_interval_sections_df)
-            .unionByName(right_interval_sections_df)
-            .distinct()
+            (
+                disjoint_intervals_df.unionByName(
+                    left_interval_sections_df
+                ).unionByName(right_interval_sections_df)
+            )
+            .groupBy(*self.interval_boundaries, *self.identifiers)
+            .agg(*equal_intervals_aggregator_expr)
         )
 
         return_df = final_disjoint_df
