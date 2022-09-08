@@ -5,7 +5,7 @@ import warnings
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-from pandas import DataFrame as pandasDataFrame
+from pandas.core.frame import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
@@ -30,7 +30,7 @@ class ResampleWarning(Warning):
     pass
 
 
-def __is_capable_of_html_rendering():
+def _is_capable_of_html_rendering():
     """
     This method returns a boolean value signifying whether the environment is a notebook environment
     capable of rendering HTML or not.
@@ -126,7 +126,7 @@ def display_html(df):
     if isinstance(df, DataFrame):
         df.show(truncate=False, vertical=False)
     elif isinstance(df, pandasDataFrame):
-        df.head()
+        print(df.head())
     else:
         logger.error("'display' method not available for this object")
 
@@ -149,8 +149,7 @@ def get_display_df(tsdf, k):
     return tsdf.latest(k).df.orderBy(orderCols)
 
 
-ENV_CAN_RENDER_HTML = __is_capable_of_html_rendering()
-
+ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
     IS_DATABRICKS

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import operator
 from functools import reduce
-from typing import List, Union, Callable
+from typing import List, Union, Callable, Optional, Sequence
 
 import numpy as np
 import pyspark.sql.functions as f
@@ -33,12 +33,18 @@ class TSDF:
     This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
     """
 
-    def __init__(self, df, ts_col="event_ts", partition_cols=None, sequence_col=None):
+    def __init__(
+        self,
+        df: DataFrame,
+        ts_col: str = "event_ts",
+        partition_cols: Optional[list[str]] = None,
+        sequence_col: Optional[str] = None,
+    ):
         """
         Constructor
         :param df:
         :param ts_col:
-        :param partitionCols:
+        :param partition_cols:
         :sequence_col every tsdf allows for a tie-breaker secondary sort key
         """
         self.ts_col = self.__validated_column(df, ts_col)
@@ -51,11 +57,20 @@ class TSDF:
         self.df = df
         self.sequence_col = "" if sequence_col is None else sequence_col
 
-        # Add customized check for string type for the timestamp. If we see a string, we will proactively created a double version of the string timestamp for sorting purposes and rename to ts_col
-        if df.schema[ts_col].dataType == "StringType":
+        # Add customized check for string type for the timestamp.
+        # If we see a string, we will proactively created a double
+        # version of the string timestamp for sorting purposes and
+        # rename to ts_col
+
+        # TODO : we validate the string is of a specific format. Spark will
+        # convert a valid formatted timestamp string to timestamp type so
+        # this if clause seems unneeded. Perhaps we should check for non-valid
+        # Timestamp string matching then do some pattern matching to extract
+        # the time stamp.
+        if df.schema[ts_col].dataType == "StringType":  # pragma: no cover
             sample_ts = df.limit(1).collect()[0][0]
             self.__validate_ts_string(sample_ts)
-            self.__add_double_ts().withColumnRenamed("double_ts", self.ts_col)
+            self.df = self.__add_double_ts().withColumnRenamed("double_ts", self.ts_col)
 
         """
     Make sure DF is ordered by its respective ts_col and partition columns.
@@ -65,15 +80,15 @@ class TSDF:
     # Helper functions
     #
 
-    def __add_double_ts(self):
+    def __add_double_ts(self) -> DataFrame:
         """Add a double (epoch) version of the string timestamp out to nanos"""
-        self.df = (
+        return (
             self.df.withColumn(
                 "nanos",
                 (
                     f.when(
                         f.col(self.ts_col).contains("."),
-                        f.concat(f.lit("0."), f.split(f.col(self.ts_col), "\.")[1]),
+                        f.concat(f.lit("0."), f.split(f.col(self.ts_col), r"\.")[1]),
                     ).otherwise(0)
                 ).cast("double"),
             )
@@ -83,17 +98,19 @@ class TSDF:
             .drop("long_ts")
         )
 
-    def __validate_ts_string(self, ts_text):
+    @staticmethod
+    def __validate_ts_string(ts_text: str) -> None:
         """Validate the format for the string using Regex matching for ts_string"""
         import re
 
-        ts_pattern = "^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
+        ts_pattern = r"^(\d{4}-\d{2}-\d{2}[T| ]\d{2}:\d{2}:\d{2})(\.\d+)?$"
         if re.match(ts_pattern, ts_text) is None:
             raise ValueError(
                 "Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]"
             )
 
-    def __validated_column(self, df, colname):
+    @staticmethod
+    def __validated_column(df: DataFrame, colname: str):
         if type(colname) != str:
             raise TypeError(
                 f"Column names must be of type str; found {type(colname)} instead!"
@@ -133,7 +150,7 @@ class TSDF:
                 "left and right dataframe timestamp index columns should have same type"
             )
 
-    def __addPrefixToColumns(self, col_list, prefix):
+    def __addPrefixToColumns(self, col_list: list[str], prefix: str):
         """
         Add prefix to all specified columns.
         """
@@ -160,7 +177,7 @@ class TSDF:
             )
         return TSDF(df, ts_col, self.partitionCols, sequence_col=seq_col)
 
-    def __addColumnsFromOtherDF(self, other_cols):
+    def __addColumnsFromOtherDF(self, other_cols: Sequence[str]):
         """
         Add columns from some other DF as lit(None), as pre-step before union.
         """
@@ -193,7 +210,10 @@ class TSDF:
         self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
         since it is no longer used in subsequent methods.
         """
-        ptntl_sort_keys = [self.ts_col, "rec_ind", sequence_col]
+        ptntl_sort_keys = [self.ts_col, "rec_ind"]
+        if sequence_col:
+            ptntl_sort_keys.append(sequence_col)
+
         sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
 
         window_spec = (
@@ -277,7 +297,7 @@ class TSDF:
 
         return TSDF(df, left_ts_col, self.partitionCols)
 
-    def __getTimePartitions(self, tsPartitionVal, fraction=0.1):
+    def __getTimePartitions(self, tsPartitionVal: int, fraction: float = 0.1):
         """
         Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
         are rounded down to the nearest <tsPartitionVal> seconds.
@@ -287,7 +307,7 @@ class TSDF:
         Additionally, we make these partitions overlapping by adding a remainder df. This way when calculating the
         last right timestamp we will not end up with nulls for the first left timestamp in each partition.
 
-        TODO: change ts_partition to accomodate for higher precision than seconds.
+        TODO: change ts_partition to accommodate for higher precision than seconds.
         """
         partition_df = (
             self.df.withColumn(
@@ -546,9 +566,12 @@ class TSDF:
         if k > n:
             raise ValueError(f"Parameter k {k} cannot be greater than parameter n {n}")
 
-        if not (IS_DATABRICKS) and ENV_CAN_RENDER_HTML:
-            # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
-            ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
+        if not IS_DATABRICKS and ENV_CAN_RENDER_HTML:
+            # In Jupyter notebooks, for wide dataframes the below line will enable
+            # rendering the output in a scrollable format.
+            ipydisplay(
+                HTML("<style>pre { white-space: pre !important; }</style>")
+            )  # pragma: no cover
         get_display_df(self, k).show(n, truncate, vertical)
 
     def describe(self):
@@ -623,16 +646,20 @@ class TSDF:
             "unique_ts_count", "unique_time_series_count"
         )
 
-        try:
+        try:  # pragma: no cover
             dbutils.fs.ls("/")
             return full_smry
+        # TODO: Can we raise something other than generic Exception?
+        #  perhaps refactor to check for IS_DATABRICKS
         except Exception:
             return full_smry
             pass
 
     def __getBytesFromPlan(self, df, spark):
         """
-        Internal helper function to obtain how many bytes in memory the Spark data frame is likely to take up. This is an upper bound and is obtained from the plan details in Spark
+        Internal helper function to obtain how many bytes in memory the Spark data
+        frame is likely to take up. This is an upper bound and is obtained from the
+        plan details in Spark
 
         Parameters
         :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
@@ -676,11 +703,11 @@ class TSDF:
         suppress_null_warning=False,
     ):
         """
-        Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
-        time brackets, which can help alleviate skew.
+        Performs an as-of join between two time-series. If a tsPartitionVal is
+        specified, it will do this partitioned by time brackets, which can help alleviate skew.
 
-        NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
-        enabled also.
+        NOTE: partition cols have to be the same for both Dataframes. We are
+        collecting stats when the WARNING level is enabled also.
 
         Parameters
         :param right_tsdf - right-hand data frame containing columns to merge in
@@ -869,7 +896,7 @@ class TSDF:
     def __rowsBetweenWindow(self, rows_from, rows_to, reverse=False):
         return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
 
-    def withPartitionCols(self, partitionCols):
+    def withPartitionCols(self, partitionCols: list[str]):
         """
         Sets certain columns of the TSDF as partition columns. Partition columns are those that differentiate distinct timeseries
         from each other.
@@ -1016,7 +1043,7 @@ class TSDF:
 
         # build window
         if str(self.df.schema[self.ts_col].dataType) == "TimestampType":
-            self.__add_double_ts()
+            self.df = self.__add_double_ts()
             prohibited_cols.extend(["double_ts"])
             w = self.__rangeBetweenWindow(
                 -1 * rangeBackWindowSecs, 0, sort_col="double_ts"
