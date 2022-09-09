@@ -234,7 +234,7 @@
         ]
       }
     },
-    "test_disjoint_contains_interval_disjoint": {
+    "test_disjoint_contains_interval_already_disjoint": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"

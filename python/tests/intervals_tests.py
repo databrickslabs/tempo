@@ -207,7 +207,7 @@ class IntervalsDFTests(SparkTest):
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_contains_interval_disjoint(self):
+    def test_disjoint_contains_interval_already_disjoint(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
