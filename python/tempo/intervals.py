@@ -7,25 +7,23 @@ from pyspark.sql.window import Window
 
 class IntervalsDF:
     def __init__(
-        self,
-        df: DataFrame,
-        start_ts: str,
-        end_ts: str,
-        identifiers: list[str],
-        series: list[str] = None,
+            self,
+            df: DataFrame,
+            start_ts: str,
+            end_ts: str,
+            identifiers: list[str],
+            series: list[str] = None,
     ):
         # TODO: validate data types
-        # TODO: should we convert start_ts & end_ts to timestamp or double type?
-        self.df = df
         # TODO: validate cols exist
         #  wait until refactor (v0.2 to see if this is exposed in meaningful way from TSDF)
         self.start_ts = start_ts
         self.end_ts = end_ts
 
-        self.interval_boundaries = (
+        self.interval_boundaries = [
             self.start_ts,
             self.end_ts,
-        )
+        ]
 
         if not identifiers or not isinstance(identifiers, list):
             raise ValueError
@@ -43,15 +41,26 @@ class IntervalsDF:
             *self.interval_boundaries
         )
 
+        self.df = df
+
+        for c in self.interval_boundaries + self.series_ids:
+            self.df = self.df.withColumn(
+                f"_lead_1_{c}",
+                f.lead(c, 1).over(self._window),
+            ).withColumn(
+                f"_lag_1_{c}",
+                f.lag(c, 1).over(self._window),
+            )
+
     @classmethod
     def fromStackedSeries(
-        cls,
-        df: DataFrame,
-        start_ts: str,
-        end_ts: str,
-        identifiers: list[str],
-        series_name_col: str,
-        series_value_col: str,
+            cls,
+            df: DataFrame,
+            start_ts: str,
+            end_ts: str,
+            identifiers: list[str],
+            series_name_col: str,
+            series_value_col: str,
     ):
         if not isinstance(identifiers, list):
             raise ValueError
@@ -68,55 +77,55 @@ class IntervalsDF:
 
         return cls(df, start_ts, end_ts, identifiers, series_ids)
 
-    def equals(self) -> "IntervalsDF":
-        ...
-
-    def disjoint(self) -> "IntervalsDF":
+    def _identify_intersecting_boundaries(self) -> [DataFrame, list[str]]:
 
         df = self.df
+        intersect_indicators = []
 
-        next_prefix = "next"
-        prev_prefix = "prev"
-
-        # create list to store boolean columns indicating overlap
-        overlap_bool_indicators = []
-
-        # get previous and next interval timestamps to use for checking overlaps
+        # identify overlaps for each interval boundary
         for ts in self.interval_boundaries:
             df = df.withColumn(
-                f"{next_prefix}_{ts}",
-                f.lead(ts, 1).over(self._window),
+                f"_lead_1_{ts}_intersects",
+                (f.col(f"_lead_1_{ts}") > f.col(self.start_ts))
+                & (f.col(f"_lead_1_{ts}") < f.col(self.end_ts)),
             ).withColumn(
-                f"{prev_prefix}_{ts}",
-                f.lag(ts, 1).over(self._window),
+                f"_lag_1_{ts}_intersects",
+                (f.col(f"_lag_1_{ts}") > f.col(self.start_ts))
+                & (f.col(f"_lag_1_{ts}") < f.col(self.end_ts)),
             )
 
-            # identify overlaps for each interval boundary
-            df = df.withColumn(
-                f"{next_prefix}_{ts}_has_overlap",
-                (f.col(f"{next_prefix}_{ts}") > f.col(self.start_ts))
-                & (f.col(f"{next_prefix}_{ts}") < f.col(self.end_ts)),
-            ).withColumn(
-                f"{prev_prefix}_{ts}_has_overlap",
-                (f.col(f"{prev_prefix}_{ts}") > f.col(self.start_ts))
-                & (f.col(f"{prev_prefix}_{ts}") < f.col(self.end_ts)),
-            )
-
-            overlap_bool_indicators.extend(
+            intersect_indicators.extend(
                 (
-                    f"{next_prefix}_{ts}_has_overlap",
-                    f"{prev_prefix}_{ts}_has_overlap",
+                    f"_lead_1_{ts}_intersects",
+                    f"_lag_1_{ts}_intersects",
                 )
             )
 
         # null values will have no overlap
         df = df.fillna(
             False,
-            subset=[*overlap_bool_indicators],
+            subset=[*intersect_indicators],
         )
 
+        return_df = df
+
+        return df, intersect_indicators
+
+    def subset(self) -> "IntervalsDF":
+        ...
+
+    def equal(self) -> "IntervalsDF":
+        ...
+
+    def equivalent(self) -> "IntervalsDF":
+        ...
+
+    def disjoint(self) -> "IntervalsDF":
+
+        df, intersect_indicators = self._identify_intersecting_boundaries()
+
         non_disjoint_predicate = " OR ".join(
-            tuple(col for col in overlap_bool_indicators)
+            tuple(col for col in intersect_indicators)
         )
 
         non_disjoint_intervals = df.filter(non_disjoint_predicate)
@@ -124,133 +133,82 @@ class IntervalsDF:
         disjoint_predicate = f"NOT({non_disjoint_predicate})"
 
         # extract intervals that are already disjoint
-
-        disjoint_intervals_df = df.filter(disjoint_predicate).drop(
-            *tuple(
-                col
-                for col in df.columns
-                if col.startswith(next_prefix) or col.startswith(prev_prefix)
-            )
-        )
-
-        # get previous and next series per interval for constructing disjoint intervals
-        for c in self.series_ids:
-            non_disjoint_intervals = non_disjoint_intervals.withColumn(
-                f"{prev_prefix}_{c}",
-                f.when(
-                    f.col(f"{prev_prefix}_{self.start_ts}_has_overlap")
-                    | f.col(f"{prev_prefix}_{self.end_ts}_has_overlap"),
-                    f.lag(c, 1).over(self._window),
-                ).otherwise(None),
-            ).withColumn(
-                f"{next_prefix}_{c}",
-                f.when(
-                    f.col(f"{next_prefix}_{self.start_ts}_has_overlap")
-                    | f.col(f"{next_prefix}_{self.end_ts}_has_overlap"),
-                    f.lead(c, 1).over(self._window),
-                ).otherwise(None),
-            )
+        disjoint_intervals_df = df.filter(disjoint_predicate)
 
         # use prev/next timestamps to construct new interval boundaries
+        # TODO : this is the problem for subset test; we don't reach ever `when`
+        #  if both start and end are within the interval (ie is subset)
         interval_boundary_logic = (
             f.when(
-                f.col(f"{next_prefix}_{self.start_ts}_has_overlap"),
-                f.col(f"{next_prefix}_{self.start_ts}"),
+                f.col(f"_lead_1_{self.start_ts}_intersects"),
+                f.col(f"_lead_1_{self.start_ts}"),
             )
             .when(
-                f.col(f"{next_prefix}_{self.end_ts}_has_overlap"),
-                f.col(f"{next_prefix}_{self.end_ts}"),
+                f.col(f"_lead_1_{self.end_ts}_intersects"),
+                f.col(f"_lead_1_{self.end_ts}"),
             )
             .when(
-                f.col(f"{prev_prefix}_{self.start_ts}_has_overlap"),
-                f.col(f"{prev_prefix}_{self.start_ts}"),
+                f.col(f"_lag_1_{self.start_ts}_intersects"),
+                f.col(f"_lag_1_{self.start_ts}"),
             )
             .when(
-                f.col(f"{prev_prefix}_{self.end_ts}_has_overlap"),
-                f.col(f"{prev_prefix}_{self.end_ts}"),
+                f.col(f"_lag_1_{self.end_ts}_intersects"),
+                f.col(f"_lag_1_{self.end_ts}"),
             )
             .otherwise(None)
         )
 
         # create left section for disjoint intervals
-
-        left_prefix = "left"
         left_interval_sections_df = non_disjoint_intervals
 
         left_interval_sections_df = left_interval_sections_df.withColumn(
-            f"{left_prefix}_end_ts",
+            f"end_ts",
             interval_boundary_logic,
         )
 
         for c in self.series_ids:
             left_interval_sections_df = left_interval_sections_df.withColumn(
-                f"{left_prefix}_{c}",
+                f"{c}",
                 f.when(
-                    f.col(f"{next_prefix}_{self.start_ts}_has_overlap"),
+                    f.col(f"_lead_1_{self.start_ts}_intersects"),
                     f.col(c),
                 )
                 .when(
-                    f.col(f"{next_prefix}_{self.end_ts}_has_overlap"),
-                    f.coalesce(f.col(c), f.col(f"{next_prefix}_{c}")),
+                    f.col(f"_lead_1_{self.end_ts}_intersects"),
+                    f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
                 )
                 .when(
-                    f.col(f"{prev_prefix}_{self.start_ts}_has_overlap"),
+                    f.col(f"_lag_1_{self.start_ts}_intersects"),
                     f.col(c),
                 )
                 .when(
-                    f.col(f"{prev_prefix}_{self.end_ts}_has_overlap"),
-                    f.coalesce(f.col(c), f.col(f"{prev_prefix}_{c}")),
+                    f.col(f"_lag_1_{self.end_ts}_intersects"),
+                    f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
                 ),
             )
 
-        left_cols = left_interval_sections_df.columns
-
-        left_interval_sections_df = left_interval_sections_df.select(
-            "start_ts",
-            *self.identifiers,
-            *tuple(
-                f.col(c).alias(c.replace(f"{left_prefix}_", ""))
-                for c in left_cols
-                if c.startswith(left_prefix)
-            ),
-        )
-
         # create right section for disjoint intervals
-
-        right_prefix = "right"
         right_interval_sections_df = non_disjoint_intervals
 
         right_interval_sections_df = right_interval_sections_df.withColumn(
-            f"{right_prefix}_{self.start_ts}",
+            f"{self.start_ts}",
             interval_boundary_logic,
         )
 
         for c in self.series_ids:
             right_interval_sections_df = right_interval_sections_df.withColumn(
-                f"{right_prefix}_{c}",
+                f"{c}",
                 f.when(
-                    f.col(f"{next_prefix}_{self.start_ts}_has_overlap"),
-                    f.coalesce(f.col(c), f.col(f"{next_prefix}_{c}")),
+                    f.col(f"_lead_1_{self.start_ts}_intersects"),
+                    f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
                 )
-                .when(f.col(f"{next_prefix}_{self.end_ts}_has_overlap"), f.col(c))
+                .when(f.col(f"_lead_1_{self.end_ts}_intersects"), f.col(c))
                 .when(
-                    f.col(f"{prev_prefix}_{self.start_ts}_has_overlap"),
-                    f.coalesce(f.col(c), f.col(f"{prev_prefix}_{c}")),
+                    f.col(f"_lag_1_{self.start_ts}_intersects"),
+                    f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
                 )
-                .when(f.col(f"{prev_prefix}_{self.end_ts}_has_overlap"), f.col(c)),
+                .when(f.col(f"_lag_1_{self.end_ts}_intersects"), f.col(c)),
             )
-
-        right_cols = right_interval_sections_df.columns
-
-        right_interval_sections_df = right_interval_sections_df.select(
-            "end_ts",
-            *self.identifiers,
-            *tuple(
-                f.col(c).alias(c.replace(f"{right_prefix}_", ""))
-                for c in right_cols
-                if c.startswith(right_prefix)
-            ),
-        )
 
         equal_intervals_aggregator_expr = tuple(
             f.max(c).alias(c) for c in self.series_ids
@@ -266,7 +224,19 @@ class IntervalsDF:
             .agg(*equal_intervals_aggregator_expr)
         )
 
+        print("df")
+        df.show(truncate=False)
+        print("disjoint_intervals_df")
+        disjoint_intervals_df.show(truncate=False)
+        print("left_interval_sections_df")
+        left_interval_sections_df.show(truncate=False)
+        print("right_interval_sections_df")
+        right_interval_sections_df.show(truncate=False)
+
         return_df = final_disjoint_df
+
+        print("final_disjoint_df")
+        final_disjoint_df.show()
 
         return IntervalsDF(
             return_df,
@@ -275,6 +245,9 @@ class IntervalsDF:
             self.identifiers,
             self.series_ids,
         )
+
+    def overlap(self) -> "IntervalsDF":
+        ...
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
 
