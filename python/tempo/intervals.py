@@ -12,7 +12,7 @@ class IntervalsDF:
         start_ts: str,
         end_ts: str,
         identifiers: list[str],
-        series: list[str] = None,
+        series: list[str],
     ):
         # TODO: validate data types
         # TODO: validate cols exist
@@ -30,9 +30,7 @@ class IntervalsDF:
         else:
             self.identifiers = identifiers
 
-        if series is None:
-            self.series_ids = series
-        elif not series or not isinstance(series, list):
+        if not series or not isinstance(series, list):
             raise ValueError
         else:
             self.series_ids = series
@@ -77,10 +75,10 @@ class IntervalsDF:
 
         return cls(df, start_ts, end_ts, identifiers, series_ids)
 
-    def _identify_intersecting_boundaries(self) -> [DataFrame, list[str]]:
+    def _identify_intersecting_boundaries(self) -> tuple[DataFrame, list[str], str]:
 
         df = self.df
-        overlap_indicators = []
+        overlap_indicators: list[str] = []
         subset_indicator = "_lag_1_is_subset"
 
         # identify overlaps for each interval boundary
@@ -334,23 +332,27 @@ class IntervalsDF:
         )
 
     def toDF(self, stack: bool = False) -> DataFrame:
+
+        df = self.df
+
+        write_df = df.select(
+            *self.interval_boundaries, *self.identifiers, *self.series_ids
+        )
+
         if stack:
 
             n_cols = len(self.series_ids)
             series_cols_expr = ",".join(
                 tuple(f"'{col}', {col}" for col in self.series_ids)
             )
-            other_cols_expr = tuple(
-                col for col in self.df.columns if col not in self.series_ids
-            )
 
             stack_expr = (
                 f"STACK({n_cols}, {series_cols_expr}) AS (series_name, series_value)"
             )
 
-            return self.df.select(*other_cols_expr, f.expr(stack_expr)).dropna(
-                subset="series_value"
-            )
+            return write_df.select(
+                *self.interval_boundaries, *self.identifiers, f.expr(stack_expr)
+            ).dropna(subset="series_value")
 
         else:
-            return self.df
+            return write_df
