@@ -801,7 +801,7 @@
         }
       }
     },
-    "test_disjoint_interval_is_subset_of_another": {
+    "test_disjoint_interval_is_subset": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"

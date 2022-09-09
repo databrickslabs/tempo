@@ -197,6 +197,9 @@ class IntervalsDFTests(SparkTest):
 
         self.assertDataFrameEquality(idf, idf_expected, from_idf=True)
 
+    def test_subset(self):
+        ...
+
     def test_disjoint(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
@@ -267,7 +270,7 @@ class IntervalsDFTests(SparkTest):
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_interval_is_subset_of_another(self):
+    def test_disjoint_interval_is_subset(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
