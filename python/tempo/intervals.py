@@ -22,7 +22,7 @@ class IntervalsDF:
         self.start_ts = start_ts
         self.end_ts = end_ts
 
-        self.interval_boundaries = [
+        self._interval_boundaries = [
             self.start_ts,
             self.end_ts,
         ]
@@ -38,7 +38,7 @@ class IntervalsDF:
             self.metric_cols = metrics
 
         self._window = Window.partitionBy(*self.series_cols).orderBy(
-            *self.interval_boundaries
+            *self._interval_boundaries
         )
 
         self.df = df
@@ -70,7 +70,7 @@ class IntervalsDF:
 
     def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
 
-        for c in self.interval_boundaries + self.metric_cols:
+        for c in self._interval_boundaries + self.metric_cols:
             df = df.withColumn(
                 f"_lead_1_{c}",
                 f.lead(c, 1).over(self._window),
@@ -103,7 +103,7 @@ class IntervalsDF:
         overlap_indicators: list[str] = []
 
         # identify overlaps for each interval boundary
-        for ts in self.interval_boundaries:
+        for ts in self._interval_boundaries:
             df = df.withColumn(
                 f"_lead_1_{ts}_overlaps",
                 (f.col(f"_lead_1_{ts}") > f.col(self.start_ts))
@@ -236,7 +236,7 @@ class IntervalsDF:
 
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
 
-        return df.groupBy(*self.interval_boundaries, *self.series_cols).agg(
+        return df.groupBy(*self._interval_boundaries, *self.series_cols).agg(
             *merge_expr
         )
 
@@ -255,7 +255,7 @@ class IntervalsDF:
         )
 
         subset_df = subset_df.select(
-            *self.interval_boundaries, *self.series_cols, *self.metric_cols
+            *self._interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
         non_subset_df = df.filter(~f.col(subset_indicator))
@@ -270,7 +270,7 @@ class IntervalsDF:
 
         # extract intervals that are already disjoint
         disjoint_df = non_subset_df.filter(disjoint_predicate).select(
-            *self.interval_boundaries, *self.series_cols, *self.metric_cols
+            *self._interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
         left_overlaps_df = self.__merge_adjacent_overlaps(
@@ -278,7 +278,7 @@ class IntervalsDF:
         )
 
         left_overlaps_df = left_overlaps_df.select(
-            *self.interval_boundaries, *self.series_cols, *self.metric_cols
+            *self._interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
         right_overlaps_df = self.__merge_adjacent_overlaps(
@@ -286,7 +286,7 @@ class IntervalsDF:
         )
 
         right_overlaps_df = right_overlaps_df.select(
-            *self.interval_boundaries, *self.series_cols, *self.metric_cols
+            *self._interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
         unioned_df = (
@@ -345,7 +345,7 @@ class IntervalsDF:
             )
 
             return self.df.select(
-                *self.interval_boundaries, *self.series_cols, f.expr(stack_expr)
+                *self._interval_boundaries, *self.series_cols, f.expr(stack_expr)
             ).dropna(subset="metric_value")
 
         else:
