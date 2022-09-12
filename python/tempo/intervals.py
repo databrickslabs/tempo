@@ -13,7 +13,7 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        identifiers: list[str],
+        series: list[str],
         metrics: list[str],
     ):
         # TODO: validate data types
@@ -27,17 +27,17 @@ class IntervalsDF:
             self.end_ts,
         ]
 
-        if not identifiers or not isinstance(identifiers, list):
+        if not series or not isinstance(series, list):
             raise ValueError
         else:
-            self.identifier_cols = identifiers
+            self.series_cols = series
 
         if not metrics or not isinstance(metrics, list):
             raise ValueError
         else:
             self.metric_cols = metrics
 
-        self._window = Window.partitionBy(*self.identifier_cols).orderBy(
+        self._window = Window.partitionBy(*self.series_cols).orderBy(
             *self.interval_boundaries
         )
 
@@ -98,9 +98,7 @@ class IntervalsDF:
 
         return df, subset_indicator
 
-    def __identify_overlaps(
-        self, df: DataFrame
-    ) -> tuple[DataFrame, list[str]]:
+    def __identify_overlaps(self, df: DataFrame) -> tuple[DataFrame, list[str]]:
 
         overlap_indicators: list[str] = []
 
@@ -238,7 +236,7 @@ class IntervalsDF:
 
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
 
-        return df.groupBy(*self.interval_boundaries, *self.identifier_cols).agg(
+        return df.groupBy(*self.interval_boundaries, *self.series_cols).agg(
             *merge_expr
         )
 
@@ -257,7 +255,7 @@ class IntervalsDF:
         )
 
         subset_df = subset_df.select(
-            *self.interval_boundaries, *self.identifier_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
         non_subset_df = df.filter(~f.col(subset_indicator))
@@ -272,19 +270,23 @@ class IntervalsDF:
 
         # extract intervals that are already disjoint
         disjoint_df = non_subset_df.filter(disjoint_predicate).select(
-            *self.interval_boundaries, *self.identifier_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
-        left_overlaps_df = self.__merge_adjacent_overlaps(overlaps_df, "left", overlap_indicators)
+        left_overlaps_df = self.__merge_adjacent_overlaps(
+            overlaps_df, "left", overlap_indicators
+        )
 
         left_overlaps_df = left_overlaps_df.select(
-            *self.interval_boundaries, *self.identifier_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
-        right_overlaps_df = self.__merge_adjacent_overlaps(overlaps_df, "right", overlap_indicators)
+        right_overlaps_df = self.__merge_adjacent_overlaps(
+            overlaps_df, "right", overlap_indicators
+        )
 
         right_overlaps_df = right_overlaps_df.select(
-            *self.interval_boundaries, *self.identifier_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_cols, *self.metric_cols
         )
 
         unioned_df = (
@@ -299,7 +301,7 @@ class IntervalsDF:
             disjoint_df,
             self.start_ts,
             self.end_ts,
-            self.identifier_cols,
+            self.series_cols,
             self.metric_cols,
         )
 
@@ -312,7 +314,7 @@ class IntervalsDF:
             self.df.union(other.df),
             self.start_ts,
             self.end_ts,
-            self.identifier_cols,
+            self.series_cols,
             self.metric_cols,
         )
 
@@ -325,7 +327,7 @@ class IntervalsDF:
             self.df.unionByName(other.df),
             self.start_ts,
             self.end_ts,
-            self.identifier_cols,
+            self.series_cols,
             self.metric_cols,
         )
 
@@ -343,7 +345,7 @@ class IntervalsDF:
             )
 
             return self.df.select(
-                *self.interval_boundaries, *self.identifier_cols, f.expr(stack_expr)
+                *self.interval_boundaries, *self.series_cols, f.expr(stack_expr)
             ).dropna(subset="metric_value")
 
         else:

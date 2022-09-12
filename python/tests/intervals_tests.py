@@ -9,48 +9,48 @@ class IntervalsDFTests(SparkTest):
         {
             "start_ts": "2020-08-01 00:00:09",
             "end_ts": "2020-08-01 00:00:14",
-            "identifier_1": "v1",
+            "series_1": "v1",
             "metric_1": 5,
             "metric_2": None,
         },
         {
             "start_ts": "2020-08-01 00:00:09",
             "end_ts": "2020-08-01 00:00:11",
-            "identifier_1": "v1",
+            "series_1": "v1",
             "metric_1": None,
             "metric_2": 0,
         },
         {
             "start_ts": "2020-08-01 00:00:09",
             "end_ts": "2020-08-01 00:00:12",
-            "identifier_1": "v1",
+            "series_1": "v1",
             "metric_1": None,
             "metric_2": 4,
         },
         {
             "start_ts": "2020-08-01 00:00:09",
             "end_ts": "2020-08-01 00:00:14",
-            "identifier_1": "v1",
+            "series_1": "v1",
             "metric_1": 5,
             "metric_2": None,
         },
         {
             "start_ts": "2020-08-01 00:00:09",
             "end_ts": "2020-08-01 00:00:11",
-            "identifier_1": "v1",
+            "series_1": "v1",
             "metric_1": None,
             "metric_2": 0,
         },
         {
             "start_ts": "2020-08-01 00:00:09",
             "end_ts": "2020-08-01 00:00:12",
-            "identifier_1": "v1",
+            "series_1": "v1",
             "metric_1": None,
             "metric_2": 4,
         },
     ]
 
-    def test_init_identifier_metric_str(self):
+    def test_init_series_metric_str(self):
         df_input = self.get_data_as_sdf("input")
 
         self.assertRaises(
@@ -59,11 +59,11 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            "identifier_1",
+            "series_1",
             "metric_1",
         )
 
-    def test_init_identifier_metric_tuple(self):
+    def test_init_series_metric_tuple(self):
         df_input = self.get_data_as_sdf("input")
 
         self.assertRaises(
@@ -72,32 +72,28 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            ("identifier_1",),
+            ("series_1",),
             (
                 "metric_1",
                 "metric_2",
             ),
         )
 
-    def test_init_identifier_metric_list(self):
+    def test_init_series_metric_list(self):
         df_input = self.get_data_as_sdf("input")
 
         idf = IntervalsDF(
-            df_input,
-            "start_ts",
-            "end_ts",
-            ["identifier_1"],
-            ["metric_1", "metric_2"],
+            df_input, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"]
         )
 
         self.assertIsInstance(idf, IntervalsDF)
         self.assertIsInstance(idf.df, DataFrame)
         self.assertEqual(idf.start_ts, "start_ts")
         self.assertEqual(idf.end_ts, "end_ts")
-        self.assertEqual(idf.identifier_cols, ["identifier_1"])
+        self.assertEqual(idf.series_cols, ["series_1"])
         self.assertEqual(idf.metric_cols, ["metric_1", "metric_2"])
 
-    def test_init_identifier_none(self):
+    def test_init_series_none(self):
         df_input = self.get_data_as_sdf("input")
 
         self.assertRaises(
@@ -110,7 +106,7 @@ class IntervalsDFTests(SparkTest):
             ["metric_1", "metric_2"],
         )
 
-    def test_init_identifier_truthiness(self):
+    def test_init_series_truthiness(self):
         df_input = self.get_data_as_sdf("input")
 
         self.assertRaises(
@@ -132,7 +128,7 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            ["identifier_1"],
+            ["series_1"],
             None,
         )
 
@@ -145,11 +141,11 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            ["identifier_1"],
+            ["series_1"],
             [],
         )
 
-    def test_fromStackedMetrics_identifier_str(self):
+    def test_fromStackedMetrics_series_str(self):
         df_input = self.get_data_as_sdf("input")
 
         self.assertRaises(
@@ -158,12 +154,12 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            "identifier_1",
+            "series_1",
             "metric_name",
             "metric_value",
         )
 
-    def test_fromStackedMetrics_identifier_tuple(self):
+    def test_fromStackedMetrics_series_tuple(self):
         df_input = self.get_data_as_sdf("input")
 
         self.assertRaises(
@@ -172,12 +168,12 @@ class IntervalsDFTests(SparkTest):
             df_input,
             "start_ts",
             "end_ts",
-            ("identifier_1",),
+            ("series_1",),
             "metric_name",
             "metric_value",
         )
 
-    def test_fromStackedMetrics_identifier_list(self):
+    def test_fromStackedMetrics_series_list(self):
         df_input = self.get_data_as_sdf("input")
         idf_expected = self.get_data_as_idf("expected")
 
@@ -190,7 +186,7 @@ class IntervalsDFTests(SparkTest):
             "start_ts",
             "end_ts",
             [
-                "identifier_1",
+                "series_1",
             ],
             "metric_name",
             "metric_value",
@@ -248,7 +244,7 @@ class IntervalsDFTests(SparkTest):
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_multiple_identifiers(self):
+    def test_disjoint_multiple_series(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 

@@ -1,15 +1,15 @@
 {
   "__SharedData": {
     "init": {
-      "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
+      "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
       "other_ts_cols": [
         "start_ts",
         "end_ts"
       ],
       "start_ts": "start_ts",
       "end_ts": "end_ts",
-      "identifiers": [
-        "identifier_1"
+      "series": [
+        "series_1"
       ],
       "metrics": [
         "metric_1",
@@ -41,27 +41,27 @@
     }
   },
   "IntervalsDFTests": {
-    "test_init_identifier_metric_str": {
+    "test_init_series_metric_str": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_identifier_metric_tuple": {
+    "test_init_series_metric_tuple": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_identifier_metric_list": {
+    "test_init_series_metric_list": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_identifier_none": {
+    "test_init_series_none": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_identifier_truthiness": {
+    "test_init_series_truthiness": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
@@ -76,9 +76,9 @@
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_fromStackedMetrics_identifier_str": {
+    "test_fromStackedMetrics_series_str": {
       "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, metric_name STRING NOT NULL, metric_value INT NOT NULL",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_name STRING NOT NULL, metric_value INT NOT NULL",
         "data": [
           [
             "2020-08-01 00:00:09",
@@ -104,25 +104,25 @@
         ]
       }
     },
-    "test_fromStackedMetrics_identifier_tuple": {
+    "test_fromStackedMetrics_series_tuple": {
       "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_identifier_str/input"
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_str/input"
       }
     },
-    "test_fromStackedMetrics_identifier_list": {
+    "test_fromStackedMetrics_series_list": {
       "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_identifier_str/input"
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_str/input"
       },
       "expected": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
         "other_ts_cols": [
           "start_ts",
           "end_ts"
         ],
         "start_ts": "start_ts",
         "end_ts": "end_ts",
-        "identifiers": [
-          "identifier_1"
+        "series": [
+          "series_1"
         ],
         "metrics": [
           "metric_1",
@@ -167,8 +167,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -203,8 +203,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -248,8 +248,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -291,8 +291,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -343,8 +343,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -393,8 +393,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -445,8 +445,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -481,8 +481,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -519,8 +519,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -555,8 +555,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -579,9 +579,9 @@
         ]
       }
     },
-    "test_disjoint_multiple_identifiers": {
+    "test_disjoint_multiple_series": {
       "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, identifier_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
         "other_ts_cols": {
           "$ref": "#/__SharedData/init/other_ts_cols"
         },
@@ -591,9 +591,9 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": [
-          "identifier_1",
-          "identifier_2"
+        "series": [
+          "series_1",
+          "series_2"
         ],
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -659,7 +659,7 @@
       },
       "expected": {
         "schema": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_multiple_identifiers/input/schema"
+          "$ref": "#/IntervalsDFTests/test_disjoint_multiple_series/input/schema"
         },
         "other_ts_cols": {
           "$ref": "#/__SharedData/init/other_ts_cols"
@@ -670,8 +670,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_multiple_identifiers/input/identifiers"
+        "series": {
+          "$ref": "#/IntervalsDFTests/test_disjoint_multiple_series/input/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -746,7 +746,7 @@
     },
     "test_disjoint_single_metric": {
       "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, metric_1 INT",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT",
         "other_ts_cols": {
           "$ref": "#/__SharedData/init/other_ts_cols"
         },
@@ -756,8 +756,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": [
           "metric_1"
@@ -790,8 +790,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/IntervalsDFTests/test_disjoint_single_metric/input/metrics"
@@ -815,8 +815,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -851,8 +851,8 @@
         "end_ts": {
           "$ref": "#/__SharedData/init/end_ts"
         },
-        "identifiers": {
-          "$ref": "#/__SharedData/init/identifiers"
+        "series": {
+          "$ref": "#/__SharedData/init/series"
         },
         "metrics": {
           "$ref": "#/__SharedData/init/metrics"
@@ -917,15 +917,15 @@
         "$ref": "#/__SharedData/init"
       },
       "input_extra_col": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, identifier_1 STRING NOT NULL, metric_1 INT, metric_2 INT, metric_3 INT",
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT, metric_3 INT",
         "other_ts_cols": [
           "start_ts",
           "end_ts"
         ],
         "start_ts": "start_ts",
         "end_ts": "end_ts",
-        "identifiers": [
-          "identifier_1"
+        "series": [
+          "series_1"
         ],
         "metrics": [
           "metric_1",
@@ -974,10 +974,10 @@
     },
     "test_toDF_stack": {
       "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_identifier_list/expected"
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/expected"
       },
       "expected": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_identifier_list/input"
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/input"
       }
     }
   }
