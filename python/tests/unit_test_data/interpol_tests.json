@@ -3,7 +3,10 @@
     "input_data": {
       "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
       "ts_col": "event_ts",
-      "series_ids": ["partition_a", "partition_b"],
+      "partition_cols": [
+        "partition_a",
+        "partition_b"
+      ],
       "data": [
         [
           "A",
@@ -66,7 +69,10 @@
     "simple_input_data": {
       "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
       "ts_col": "event_ts",
-      "series_ids": ["partition_a", "partition_b"],
+      "partition_cols": [
+        "partition_a",
+        "partition_b"
+      ],
       "data": [
         [
           "A",
@@ -121,6 +127,79 @@
     }
   },
   "InterpolationUnitTest": {
+    "test_validate_col_exist_in_df": {
+      "input_data": {
+        "$ref": "#/__SharedData/input_data"
+      }
+    },
+    "test_validate_col_target_cols_data_type": {
+      "input_data": {
+        "schema": "partition_a string, partition_b string, event_ts string, string_target string, float_target float",
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
+        "data": [
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:10",
+            349.21,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:03",
+            null,
+            4.0
+          ],
+          [
+            "A",
+            "A-2",
+            "2020-01-01 00:01:15",
+            340.21,
+            9.0
+          ],
+          [
+            "B",
+            "B-1",
+            "2020-01-01 00:01:15",
+            362.1,
+            4.0
+          ],
+          [
+            "A",
+            "A-2",
+            "2020-01-01 00:01:17",
+            353.32,
+            8.0
+          ],
+          [
+            "B",
+            "B-2",
+            "2020-01-01 00:02:14",
+            null,
+            6.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:02",
+            351.32,
+            7.0
+          ],
+          [
+            "B",
+            "B-2",
+            "2020-01-01 00:01:12",
+            361.1,
+            5.0
+          ]
+        ]
+      }
+    },
     "test_fill_validation": {
       "input_data": {
         "$ref": "#/__SharedData/input_data"
@@ -148,7 +227,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -273,6 +355,14 @@
         ]
       }
     },
+    "test_zero_fill_interpolation_no_perform_checks": {
+      "simple_input_data": {
+        "$ref": "#/__SharedData/simple_input_data"
+      },
+      "expected_data": {
+        "$ref": "#/InterpolationUnitTest/test_zero_fill_interpolation/expected_data"
+      }
+    },
     "test_null_fill_interpolation": {
       "simple_input_data": {
         "$ref": "#/__SharedData/simple_input_data"
@@ -280,7 +370,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -412,7 +505,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -544,7 +640,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -676,7 +775,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -808,7 +910,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -940,7 +1045,10 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -1041,7 +1149,10 @@
       "expected": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -1140,7 +1251,10 @@
       "expected": {
         "schema": "partition_a string, partition_b string, other_ts_col string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
         "ts_col": "other_ts_col",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
           [
             "A",
@@ -1251,20 +1365,107 @@
       "expected": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
-          ["A", "A-1", "2020-01-01 00:00:00", 0.0, false, false],
-          ["A", "A-1", "2020-01-01 00:00:30", 1.0, true, true],
-          ["A", "A-1", "2020-01-01 00:01:00", 2.0, false, false],
-          ["A", "A-1", "2020-01-01 00:01:30", 3.0, false, true],
-          ["A", "A-1", "2020-01-01 00:02:00", 4.0, false, true],
-          ["A", "A-1", "2020-01-01 00:02:30", 5.0, true, true],
-          ["A", "A-1", "2020-01-01 00:03:00", 6.0, true, true],
-          ["A", "A-1", "2020-01-01 00:03:30", 7.0, false, true],
-          ["A", "A-1", "2020-01-01 00:04:00", 8.0, false, false],
-          ["A", "A-1", "2020-01-01 00:04:30", 9.0, true, true],
-          ["A", "A-1", "2020-01-01 00:05:00", 10.0, true, true],
-          ["A", "A-1", "2020-01-01 00:05:30", 11.0, false, false]
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            1.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            3.0,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            4.0,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            5.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            6.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            7.0,
+            false,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            false,
+            false
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            9.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            10.0,
+            true,
+            true
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            false,
+            false
+          ]
         ]
       }
     },
@@ -1278,20 +1479,95 @@
       "expected": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
         "ts_col": "event_ts",
-        "series_ids": ["partition_a", "partition_b"],
+        "partition_cols": [
+          "partition_a",
+          "partition_b"
+        ],
         "data": [
-          ["A", "A-1", "2020-01-01 00:00:00", 0.0, null],
-          ["A", "A-1", "2020-01-01 00:00:30", 0.0, null],
-          ["A", "A-1", "2020-01-01 00:01:00", 2.0, 2.0],
-          ["A", "A-1", "2020-01-01 00:01:30", 2.0, 2.0],
-          ["A", "A-1", "2020-01-01 00:02:00", 2.0, 2.0],
-          ["A", "A-1", "2020-01-01 00:02:30", 2.0, 2.0],
-          ["A", "A-1", "2020-01-01 00:03:00", 2.0, 2.0],
-          ["A", "A-1", "2020-01-01 00:03:30", 2.0, 7.0],
-          ["A", "A-1", "2020-01-01 00:04:00", 8.0, 8.0],
-          ["A", "A-1", "2020-01-01 00:04:30", 8.0, 8.0],
-          ["A", "A-1", "2020-01-01 00:05:00", 8.0, 8.0],
-          ["A", "A-1", "2020-01-01 00:05:30", 11.0, 8.0]
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:00",
+            0.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:00:30",
+            0.0,
+            null
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:00",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:01:30",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:00",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:02:30",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:00",
+            2.0,
+            2.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:03:30",
+            2.0,
+            7.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:00",
+            8.0,
+            8.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:04:30",
+            8.0,
+            8.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:00",
+            8.0,
+            8.0
+          ],
+          [
+            "A",
+            "A-1",
+            "2020-01-01 00:05:30",
+            11.0,
+            8.0
+          ]
         ]
       }
     },

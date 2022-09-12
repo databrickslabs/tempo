@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+from typing import Union, Optional
+
 import tempo
 
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
+from pyspark.sql import DataFrame
 
 # define global frequency options
 MUSEC = "microsec"
@@ -32,7 +37,7 @@ allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def __appendAggKey(tsdf, freq=None):
+def _appendAggKey(tsdf: tempo.TSDF, freq: str = None):
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -45,6 +50,7 @@ def __appendAggKey(tsdf, freq=None):
     )
 
     df = df.withColumn("agg_key", agg_window)
+
     return (
         tempo.TSDF(df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids),
         parsed_freq[0],
@@ -52,7 +58,14 @@ def __appendAggKey(tsdf, freq=None):
     )
 
 
-def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
+def aggregate(
+    tsdf: tempo.TSDF,
+    freq: str,
+    func: str,
+    metricCols: list[str] = None,
+    prefix: str = None,
+    fill: bool = None,
+) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
@@ -62,12 +75,14 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     :param fill: upsample based on the time increment for 0s in numeric columns
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
     """
-    tsdf, period, unit = __appendAggKey(tsdf, freq)
+    tsdf, period, unit = _appendAggKey(tsdf, freq)
+
     df = tsdf.df
 
     groupingCols = tsdf.series_ids + ["agg_key"]
     if metricCols is None:
         metricCols = list(set(df.columns).difference(set(groupingCols + [tsdf.ts_col])))
+
     if prefix is None:
         prefix = ""
     else:
@@ -153,7 +168,7 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
         res.select(
             *tsdf.series_ids,
             f.min(tsdf.ts_col).over(fillW).alias("from"),
-            f.max(tsdf.ts_col).over(fillW).alias("until")
+            f.max(tsdf.ts_col).over(fillW).alias("until"),
         )
         .distinct()
         .withColumn(
@@ -178,39 +193,43 @@ def aggregate(tsdf, freq, func, metricCols=None, prefix=None, fill=None):
     return res
 
 
-def checkAllowableFreq(freq):
+def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[str]]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
     :return: list of parsed frequency value and time suffix
     """
-    if freq not in allowableFreqs:
+    if not isinstance(freq, str):
+        raise TypeError(f"Invalid type for `freq` argument: {freq}.")
+    elif freq in allowableFreqs:
+        return 1, freq
+    else:
         try:
             periods = freq.lower().split(" ")[0].strip()
             units = freq.lower().split(" ")[1].strip()
-        except Exception:
+        except IndexError:
             raise ValueError(
                 "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
             )
         if units.startswith(MUSEC):
-            return (periods, MUSEC)
+            return periods, MUSEC
         elif units.startswith(MS) | units.startswith("millis"):
-            return (periods, MS)
+            return periods, MS
         elif units.startswith(SEC):
-            return (periods, SEC)
+            return periods, SEC
         elif units.startswith(MIN):
-            return (periods, MIN)
+            return periods, MIN
         elif units.startswith("hour") | units.startswith(HR):
-            return (periods, "hour")
+            return periods, "hour"
         elif units.startswith(DAY):
-            return (periods, DAY)
-    elif freq in allowableFreqs:
-        return (1, freq)
+            return periods, DAY
+        else:
+            raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
 
-def validateFuncExists(func):
+def validateFuncExists(func: str):
     if func is None:
-        raise ValueError(
+        raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "
             + ", ".join(allowableFuncs)
         )

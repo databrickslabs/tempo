@@ -53,7 +53,7 @@ class Interpolation:
                     f"Target Column: '{column}' does not exist in DataFrame."
                 )
             if df.select(column).dtypes[0][1] not in supported_target_col_types:
-                raise ValueError(
+                raise TypeError(
                     f"Target Column needs to be one of the following types: {supported_target_col_types}"
                 )
 

@@ -1,6 +1,5 @@
 import unittest
 
-from chispa.dataframe_comparer import *
 from pyspark.sql.types import *
 
 from tempo.interpol import Interpolation
@@ -15,6 +14,58 @@ class InterpolationUnitTest(SparkTest):
         super().setUp()
         # register interpolation helper
         self.interpolate_helper = Interpolation(is_resampled=False)
+
+    def test_is_resampled_type(self):
+        self.assertIsInstance(self.interpolate_helper.is_resampled, bool)
+
+    def test_validate_fill_method(self):
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_fill,
+            "abcd",
+        )
+
+    def test_validate_col_exist_in_df(self):
+        input_df: DataFrame = self.get_data_as_sdf("input_data")
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "does_not_exist"],
+            ["value_a", "value_b"],
+            "event_ts",
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "partition_b"],
+            ["does_not_exist", "value_b"],
+            "event_ts",
+        )
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "partition_b"],
+            ["value_a", "value_b"],
+            "wrongly_named",
+        )
+
+    def test_validate_col_target_cols_data_type(self):
+        input_df: DataFrame = self.get_data_as_sdf("input_data")
+
+        self.assertRaises(
+            TypeError,
+            self.interpolate_helper._Interpolation__validate_col,
+            input_df,
+            ["partition_a", "partition_b"],
+            ["string_target", "float_target"],
+            "event_ts",
+        )
 
     def test_fill_validation(self):
         """Test fill parameter is valid."""
@@ -57,8 +108,8 @@ class InterpolationUnitTest(SparkTest):
                 method="zero",
                 show_interpolated=True,
             )
-        except ValueError as e:
-            self.assertEqual(type(e), ValueError)
+        except TypeError as e:
+            self.assertEqual(type(e), TypeError)
         else:
             self.fail("ValueError not raised")
 
@@ -132,7 +183,34 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+
+    def test_zero_fill_interpolation_no_perform_checks(self):
+        """Test zero fill interpolation.
+
+        For zero fill interpolation we expect any missing timeseries values to be generated and filled in with zeroes.
+        If after sampling there are null values in the target column these will also be filled with zeroes.
+
+        """
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
+        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+
+        # interpolate
+        actual_df: DataFrame = self.interpolate_helper.interpolate(
+            tsdf=simple_input_tsdf,
+            partition_cols=["partition_a", "partition_b"],
+            target_cols=["value_a", "value_b"],
+            freq="30 seconds",
+            ts_col="event_ts",
+            func="mean",
+            method="zero",
+            show_interpolated=True,
+            perform_checks=False,
+        )
+
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_null_fill_interpolation(self):
         """Test null fill interpolation.
@@ -158,7 +236,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_back_fill_interpolation(self):
         """Test back fill interpolation.
@@ -185,7 +263,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_forward_fill_interpolation(self):
         """Test forward fill interpolation.
@@ -212,7 +290,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_linear_fill_interpolation(self):
         """Test linear fill interpolation.
@@ -239,7 +317,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_different_freq_abbreviations(self):
         """Test abbreviated frequency values
@@ -264,7 +342,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=True,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_show_interpolated(self):
         """Test linear `show_interpolated` flag
@@ -291,7 +369,7 @@ class InterpolationUnitTest(SparkTest):
             show_interpolated=False,
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
 
 class InterpolationIntegrationTest(SparkTest):
@@ -311,7 +389,7 @@ class InterpolationIntegrationTest(SparkTest):
         ).df
 
         # compare with expected
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_interpolation_using_custom_params(self):
         """Verify that by specifying optional paramters it will change the result of the interpolation based on those modified params."""
@@ -336,7 +414,7 @@ class InterpolationIntegrationTest(SparkTest):
             method="linear",
         ).df
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_tsdf_constructor_params_are_updated(self):
         """Verify that resulting TSDF class has the correct values for ts_col and partition_col based on the interpolation."""
@@ -372,7 +450,7 @@ class InterpolationIntegrationTest(SparkTest):
             .df
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_defaults_with_resampled_df(self):
         """Verify interpolation can be chained with resample within the TSDF class"""
@@ -388,7 +466,7 @@ class InterpolationIntegrationTest(SparkTest):
             .df
         )
 
-        assert_df_equality(expected_df, actual_df, ignore_nullable=True)
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
 
 # MAIN

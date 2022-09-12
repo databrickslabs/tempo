@@ -1,13 +1,22 @@
+from __future__ import annotations
+
 import os
 import logging
 from collections import deque
-
+import tempo
 import pyspark.sql.functions as f
+from pyspark.sql import SparkSession
+from pyspark.sql.utils import ParseException
 
 logger = logging.getLogger(__name__)
 
 
-def write(tsdf, spark, tabName, optimizationCols=None):
+def write(
+    tsdf: tempo.TSDF,
+    spark: SparkSession,
+    tabName: str,
+    optimizationCols: list[str] = None,
+):
     """
     param: tsdf: input TSDF object to write
     param: tabName Delta output table name
@@ -47,7 +56,7 @@ def write(tsdf, spark, tabName, optimizationCols=None):
                     tabName, "(" + ",".join(series_ids + optimizationCols) + ")"
                 )
             )
-        except Exception as e:
+        except ParseException as e:
             logger.error(
                 "Delta optimizations attempted, but was not successful.\nError: {}".format(
                     e
@@ -55,5 +64,6 @@ def write(tsdf, spark, tabName, optimizationCols=None):
             )
     else:
         logger.warning(
-            "Delta optimizations attempted on a non-Databricks platform. Switch to use Databricks Runtime to get optimization advantages."
+            "Delta optimizations attempted on a non-Databricks platform. "
+            "Switch to use Databricks Runtime to get optimization advantages."
         )
