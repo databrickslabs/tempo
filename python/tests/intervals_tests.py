@@ -107,6 +107,7 @@ class IntervalsDFTests(SparkTest):
             "start_ts",
             "end_ts",
             None,
+            ["series_1", "series_2"],
         )
 
     def test_init_identifier_truthiness(self):
@@ -125,15 +126,15 @@ class IntervalsDFTests(SparkTest):
     def test_init_series_none(self):
         df_input = self.get_data_as_sdf("input")
 
-        idf = IntervalsDF(
+        self.assertRaises(
+            ValueError,
+            IntervalsDF,
             df_input,
             "start_ts",
             "end_ts",
             ["identifier_1"],
             None,
         )
-
-        self.assertEqual(idf.series_ids, None)
 
     def test_init_series_truthiness(self):
         df_input = self.get_data_as_sdf("input")
@@ -196,9 +197,6 @@ class IntervalsDFTests(SparkTest):
         )
 
         self.assertDataFrameEquality(idf, idf_expected, from_idf=True)
-
-    def test_subset(self):
-        ...
 
     def test_disjoint(self):
         idf_input = self.get_data_as_idf("input")

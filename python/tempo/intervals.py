@@ -41,15 +41,6 @@ class IntervalsDF:
 
         self.df = df
 
-        for c in self.interval_boundaries + self.series_ids:
-            self.df = self.df.withColumn(
-                f"_lead_1_{c}",
-                f.lead(c, 1).over(self._window),
-            ).withColumn(
-                f"_lag_1_{c}",
-                f.lag(c, 1).over(self._window),
-            )
-
     @classmethod
     def fromStackedSeries(
         cls,
@@ -75,30 +66,21 @@ class IntervalsDF:
 
         return cls(df, start_ts, end_ts, identifiers, series_ids)
 
-    def _identify_intersecting_boundaries(self) -> tuple[DataFrame, list[str], str]:
-
-        df = self.df
-        overlap_indicators: list[str] = []
-        subset_indicator = "_lag_1_is_subset"
-
-        # identify overlaps for each interval boundary
-        for ts in self.interval_boundaries:
+    def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
+        for c in self.interval_boundaries + self.series_ids:
             df = df.withColumn(
-                f"_lead_1_{ts}_intersects",
-                (f.col(f"_lead_1_{ts}") > f.col(self.start_ts))
-                & (f.col(f"_lead_1_{ts}") < f.col(self.end_ts)),
+                f"_lead_1_{c}",
+                f.lead(c, 1).over(self._window),
             ).withColumn(
-                f"_lag_1_{ts}_intersects",
-                (f.col(f"_lag_1_{ts}") > f.col(self.start_ts))
-                & (f.col(f"_lag_1_{ts}") < f.col(self.end_ts)),
+                f"_lag_1_{c}",
+                f.lag(c, 1).over(self._window),
             )
 
-            overlap_indicators.extend(
-                (
-                    f"_lead_1_{ts}_intersects",
-                    f"_lag_1_{ts}_intersects",
-                )
-            )
+        return df
+
+    def __identify_subset_intervals(self, df: DataFrame) -> tuple[DataFrame, str]:
+
+        subset_indicator = "_lag_1_is_subset"
 
         df = df.withColumn(
             subset_indicator,
@@ -106,190 +88,240 @@ class IntervalsDF:
             & (f.col(f"_lag_1_{self.end_ts}") >= f.col(self.end_ts)),
         )
 
-        # null values will have no overlap and not be subset
-        df = df.fillna(
+        return_df = df.fillna(
             False,
-            subset=[*overlap_indicators, subset_indicator],
+            subset=[subset_indicator],
         )
 
-        return_df = df
+        return return_df, subset_indicator
 
-        return return_df, overlap_indicators, subset_indicator
+    def __identify_overlap_intervals(
+        self, df: DataFrame
+    ) -> tuple[DataFrame, list[str]]:
 
-    def subset(self) -> "IntervalsDF":
-        ...
+        overlap_indicators: list[str] = []
 
-    def equal(self) -> "IntervalsDF":
-        ...
+        # identify overlaps for each interval boundary
+        for ts in self.interval_boundaries:
+            df = df.withColumn(
+                f"_lead_1_{ts}_overlaps",
+                (f.col(f"_lead_1_{ts}") > f.col(self.start_ts))
+                & (f.col(f"_lead_1_{ts}") < f.col(self.end_ts)),
+            ).withColumn(
+                f"_lag_1_{ts}_overlaps",
+                (f.col(f"_lag_1_{ts}") > f.col(self.start_ts))
+                & (f.col(f"_lag_1_{ts}") < f.col(self.end_ts)),
+            )
 
-    def equivalent(self) -> "IntervalsDF":
-        ...
+            overlap_indicators.extend(
+                (
+                    f"_lead_1_{ts}_overlaps",
+                    f"_lag_1_{ts}_overlaps",
+                )
+            )
 
-    def disjoint(self) -> "IntervalsDF":
+        # null values will have no overlap and not be subset
+        return_df = df.fillna(
+            False,
+            subset=overlap_indicators,
+        )
 
-        (
-            df,
-            intersect_indicators,
-            subset_indicator,
-        ) = self._identify_intersecting_boundaries()
+        return return_df, overlap_indicators
 
-        non_disjoint_predicate = " OR ".join(tuple(col for col in intersect_indicators))
-        print(non_disjoint_predicate)
-
-        non_disjoint_intervals = df.filter(non_disjoint_predicate)
-        print("non_disjoint_intervals")
-        non_disjoint_intervals.show(truncate=False)
-
-        disjoint_predicate = f"NOT({non_disjoint_predicate})"
-        print(disjoint_predicate)
-
-        # extract intervals that are already disjoint
-        disjoint_intervals_df = df.filter(disjoint_predicate)
-        print("disjoint_intervals_df before subset processing")
-        disjoint_intervals_df.show(truncate=False)
+    def __merge_adjacent_subset_and_superset(
+        self, df: DataFrame, subset_indicator: str
+    ) -> DataFrame:
 
         for c in self.series_ids:
-            disjoint_intervals_df = disjoint_intervals_df.withColumn(
+            df = df.withColumn(
                 c,
                 f.when(
                     f.col(subset_indicator), f.coalesce(f.col(c), f"_lag_1_{c}")
                 ).otherwise(f.col(c)),
             )
-        print("disjoint_intervals_df before after processing")
-        disjoint_intervals_df.show(truncate=False)
 
-        # create left section for disjoint intervals
-        left_interval_sections_df = non_disjoint_intervals
+        return df
 
-        left_interval_sections_df = left_interval_sections_df.withColumn(
-            "end_ts",
-            (
-                f.when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects")
-                    & f.col(f"_lead_1_{self.end_ts}_intersects"),
-                    f.col(f"_lead_1_{self.start_ts}"),
-                )
-                .when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects"),
-                    f.col(f"_lead_1_{self.start_ts}"),
-                )
-                .when(
-                    f.col(f"_lead_1_{self.end_ts}_intersects"),
-                    f.col(f"_lead_1_{self.end_ts}"),
-                )
-                .when(
-                    f.col(f"_lag_1_{self.start_ts}_intersects"),
-                    f.col(f"_lag_1_{self.start_ts}"),
-                )
-                .when(
-                    f.col(f"_lag_1_{self.end_ts}_intersects"),
-                    f.col(f"_lag_1_{self.end_ts}"),
-                )
-                .otherwise(None)
-            ),
-        )
+    def __merge_adjacent_overlaps(self, df: DataFrame, how: str):
 
-        for c in self.series_ids:
-            left_interval_sections_df = left_interval_sections_df.withColumn(
-                f"{c}",
-                f.when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects"),
-                    f.col(c),
-                )
-                .when(
-                    f.col(f"_lead_1_{self.end_ts}_intersects"),
-                    f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
-                )
-                .when(
-                    f.col(f"_lag_1_{self.start_ts}_intersects"),
-                    f.col(c),
-                )
-                .when(
-                    f.col(f"_lag_1_{self.end_ts}_intersects"),
-                    f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
+        if not (how == "left" or how == "right"):
+            raise ValueError
+
+        if how == "left":
+            # create left section for disjoint intervals
+            left_overlaps_df = df
+
+            left_overlaps_df = left_overlaps_df.withColumn(
+                "end_ts",
+                (
+                    f.when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps")
+                        & f.col(f"_lead_1_{self.end_ts}_overlaps"),
+                        f.col(f"_lead_1_{self.start_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps"),
+                        f.col(f"_lead_1_{self.start_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lead_1_{self.end_ts}_overlaps"),
+                        f.col(f"_lead_1_{self.end_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lag_1_{self.start_ts}_overlaps"),
+                        f.col(f"_lag_1_{self.start_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lag_1_{self.end_ts}_overlaps"),
+                        f.col(f"_lag_1_{self.end_ts}"),
+                    )
+                    .otherwise(None)
                 ),
             )
 
-        # create right section for disjoint intervals
-        right_interval_sections_df = non_disjoint_intervals
+            for c in self.series_ids:
+                left_overlaps_df = left_overlaps_df.withColumn(
+                    f"{c}",
+                    f.when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps"),
+                        f.col(c),
+                    )
+                    .when(
+                        f.col(f"_lead_1_{self.end_ts}_overlaps"),
+                        f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
+                    )
+                    .when(
+                        f.col(f"_lag_1_{self.start_ts}_overlaps"),
+                        f.col(c),
+                    )
+                    .when(
+                        f.col(f"_lag_1_{self.end_ts}_overlaps"),
+                        f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
+                    ),
+                )
 
-        right_interval_sections_df = right_interval_sections_df.withColumn(
-            f"{self.start_ts}",
-            (
-                f.when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects")
-                    & f.col(f"_lead_1_{self.end_ts}_intersects"),
-                    f.col(f"_lead_1_{self.end_ts}"),
-                )
-                .when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects"),
-                    f.col(f"_lead_1_{self.start_ts}"),
-                )
-                .when(
-                    f.col(f"_lead_1_{self.end_ts}_intersects"),
-                    f.col(f"_lead_1_{self.end_ts}"),
-                )
-                .when(
-                    f.col(f"_lag_1_{self.start_ts}_intersects"),
-                    f.col(f"_lag_1_{self.start_ts}"),
-                )
-                .when(
-                    f.col(f"_lag_1_{self.end_ts}_intersects"),
-                    f.col(f"_lag_1_{self.end_ts}"),
-                )
-                .otherwise(None)
-            ),
-        )
+            return left_overlaps_df
 
-        for c in self.series_ids:
-            right_interval_sections_df = right_interval_sections_df.withColumn(
-                f"{c}",
-                f.when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects")
-                    & f.col(f"_lead_1_{self.end_ts}_intersects"),
-                    f.col(c),
-                )
-                .when(
-                    f.col(f"_lead_1_{self.start_ts}_intersects"),
-                    f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
-                )
-                .when(f.col(f"_lead_1_{self.end_ts}_intersects"), f.col(c))
-                .when(
-                    f.col(f"_lag_1_{self.start_ts}_intersects"),
-                    f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
-                )
-                .when(f.col(f"_lag_1_{self.end_ts}_intersects"), f.col(c)),
+        else:
+            # create right section for disjoint intervals
+            right_overlaps_df = df
+
+            right_overlaps_df = right_overlaps_df.withColumn(
+                f"{self.start_ts}",
+                (
+                    f.when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps")
+                        & f.col(f"_lead_1_{self.end_ts}_overlaps"),
+                        f.col(f"_lead_1_{self.end_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps"),
+                        f.col(f"_lead_1_{self.start_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lead_1_{self.end_ts}_overlaps"),
+                        f.col(f"_lead_1_{self.end_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lag_1_{self.start_ts}_overlaps"),
+                        f.col(f"_lag_1_{self.start_ts}"),
+                    )
+                    .when(
+                        f.col(f"_lag_1_{self.end_ts}_overlaps"),
+                        f.col(f"_lag_1_{self.end_ts}"),
+                    )
+                    .otherwise(None)
+                ),
             )
 
-        equal_intervals_aggregator_expr = tuple(
+            for c in self.series_ids:
+                right_overlaps_df = right_overlaps_df.withColumn(
+                    f"{c}",
+                    f.when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps")
+                        & f.col(f"_lead_1_{self.end_ts}_overlaps"),
+                        f.col(c),
+                    )
+                    .when(
+                        f.col(f"_lead_1_{self.start_ts}_overlaps"),
+                        f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
+                    )
+                    .when(f.col(f"_lead_1_{self.end_ts}_overlaps"), f.col(c))
+                    .when(
+                        f.col(f"_lag_1_{self.start_ts}_overlaps"),
+                        f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
+                    )
+                    .when(f.col(f"_lag_1_{self.end_ts}_overlaps"), f.col(c)),
+                )
+
+            return right_overlaps_df
+
+    def __merge_equal_intervals(self, df: DataFrame) -> DataFrame:
+
+        merge_expr = tuple(
             f.max(c).alias(c) for c in self.series_ids
         )
 
-        final_disjoint_df = (
-            (
-                disjoint_intervals_df.unionByName(
-                    left_interval_sections_df
-                ).unionByName(right_interval_sections_df)
-            )
-            .groupBy(*self.interval_boundaries, *self.identifiers)
-            .agg(*equal_intervals_aggregator_expr)
+        return_df = df.groupBy(*self.interval_boundaries, *self.identifiers).agg(
+            *merge_expr
         )
 
-        print("df")
-        df.show(truncate=False)
-        print("disjoint_intervals_df")
-        disjoint_intervals_df.show(truncate=False)
-        print("non_disjoint_intervals")
-        non_disjoint_intervals.show(truncate=False)
-        print("left_interval_sections_df")
-        left_interval_sections_df.show(truncate=False)
-        print("right_interval_sections_df")
-        right_interval_sections_df.show(truncate=False)
+        return return_df
 
-        return_df = final_disjoint_df
+    def disjoint(self) -> "IntervalsDF":
 
-        print("final_disjoint_df")
-        final_disjoint_df.show()
+        df = self.df
+
+        df = self.__get_adjacent_rows(df)
+
+        (df, subset_indicator) = self.__identify_subset_intervals(df)
+
+        subset_df = df.filter(f.col(subset_indicator))
+
+        subset_df = self.__merge_adjacent_subset_and_superset(
+            subset_df, subset_indicator
+        )
+
+        subset_df = subset_df.select(
+            *self.interval_boundaries, *self.identifiers, *self.series_ids
+        )
+
+        non_subset_df = df.filter(~f.col(subset_indicator))
+
+        (non_subset_df, overlap_indicators) = self.__identify_overlap_intervals(
+            non_subset_df
+        )
+
+        overlaps_predicate = " OR ".join(tuple(col for col in overlap_indicators))
+
+        overlaps_df = non_subset_df.filter(overlaps_predicate)
+
+        disjoint_predicate = f"NOT({overlaps_predicate})"
+
+        # extract intervals that are already disjoint
+        disjoint_df = non_subset_df.filter(disjoint_predicate).select(
+            *self.interval_boundaries, *self.identifiers, *self.series_ids
+        )
+
+        left_overlaps_df = self.__merge_adjacent_overlaps(overlaps_df, "left")
+
+        left_overlaps_df = left_overlaps_df.select(
+            *self.interval_boundaries, *self.identifiers, *self.series_ids
+        )
+
+        right_overlaps_df = self.__merge_adjacent_overlaps(overlaps_df, "right")
+
+        right_overlaps_df = right_overlaps_df.select(
+            *self.interval_boundaries, *self.identifiers, *self.series_ids
+        )
+
+        unioned_df = (
+            subset_df.unionByName(disjoint_df)
+            .unionByName(left_overlaps_df)
+            .unionByName(right_overlaps_df)
+        )
+
+        return_df = self.__merge_equal_intervals(unioned_df)
 
         return IntervalsDF(
             return_df,
@@ -298,12 +330,6 @@ class IntervalsDF:
             self.identifiers,
             self.series_ids,
         )
-
-    def overlap(self) -> "IntervalsDF":
-        ...
-
-    def intersect(self, other: "IntervalsDF") -> "IntervalsDF":
-        ...
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
 
@@ -333,11 +359,7 @@ class IntervalsDF:
 
     def toDF(self, stack: bool = False) -> DataFrame:
 
-        df = self.df
-
-        write_df = df.select(
-            *self.interval_boundaries, *self.identifiers, *self.series_ids
-        )
+        write_df = self.df
 
         if stack:
 
