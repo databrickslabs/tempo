@@ -93,7 +93,7 @@ class SparkTest(unittest.TestCase):
             start_ts=td["start_ts"],
             end_ts=td["end_ts"],
             identifiers=td.get("identifiers", None),
-            series=td.get("series", None),
+            metrics=td.get("metrics", None),
         )
         return idf
 
