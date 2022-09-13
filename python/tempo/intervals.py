@@ -94,7 +94,7 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        series_cols: list[str],
+        series: list[str],
         metrics_name_col: str,
         metrics_value_col: str,
         metric_names: Optional[list[str]] = None,
@@ -112,8 +112,8 @@ class IntervalsDF:
         :type start_ts: str
         :param end_ts: Name of the column which denotes interval end
         :type end_ts: str
-        :param series_cols: name of columns
-        :type series_cols: list[str]
+        :param series: column names
+        :type series: list[str]
         :param metrics_name_col: column name
         :type metrics_name_col: str
         :param metrics_value_col: column name
@@ -132,12 +132,12 @@ class IntervalsDF:
 
         # With distinct metric names specified
 
-        >>> idf = IntervalsDF.fromStackedMetrics(df, "start_ts", "end_ts", ["series_1"], "metric_name", "metric_value", ["metric_1", "metric_2"])
+        >>> idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value",["metric_1", "metric_2"])
         >>> idf.df.collect()
 
         # Or without specifiying metric names (less efficient)
 
-        >>> idf = IntervalsDF.fromStackedMetrics(df, "start_ts", "end_ts", ["series_1"], "metric_name", "metric_value")
+        >>> idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value")
         >>> idf.df.collect()
         [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
          Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
@@ -151,20 +151,20 @@ class IntervalsDF:
 
         """
 
-        if not isinstance(series_cols, list):
+        if not isinstance(series, list):
             raise ValueError
 
         df = (
-            df.groupBy(start_ts, end_ts, *series_cols)
+            df.groupBy(start_ts, end_ts, *series)
             .pivot(metrics_name_col, values=metric_names)  # type: ignore
             .max(metrics_value_col)
         )
 
         metric_cols = list(
-            col for col in df.columns if col not in (start_ts, end_ts, *series_cols)
+            col for col in df.columns if col not in (start_ts, end_ts, *series)
         )
 
-        return cls(df, start_ts, end_ts, series_cols, metric_cols)
+        return cls(df, start_ts, end_ts, series, metric_cols)
 
     def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
         """
