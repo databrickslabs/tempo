@@ -134,6 +134,8 @@ class IntervalsDF:
 
         >>> idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value",["metric_1", "metric_2"])
         >>> idf.df.collect()
+        [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
+         Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
 
         # Or without specifiying metric names (less efficient)
 
