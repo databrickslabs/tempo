@@ -47,13 +47,15 @@ class IntervalsDF:
 
         :Example:
 
-        >>>> df = spark.createDataFrame(
-        >>>>     [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", 5, 0]],
-        >>>>     "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 INT, metric_2 INT",
-        >>>> )
-        >>>> idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
-        >>>> idf.df.collect()
-        [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=0)]
+        .. code-block:
+
+            df = spark.createDataFrame(
+                [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", 5, 0]],
+                "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 INT, metric_2 INT",
+            )
+            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
+            idf.df.collect()
+            [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=0)]
 
         .. _`DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
@@ -124,25 +126,27 @@ class IntervalsDF:
 
         :Example:
 
-        >>> df = spark.createDataFrame(
-        >>>      [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", "metric_1", 5],
-        >>>      ["2020-08-01 00:00:09", "2020-08-01 00:00:11", "v1", "metric_2", 0]],
-        >>>     "start_ts STRING, end_ts STRING, series_1 STRING, metric_name STRING, metric_value INT",
-        >>> )
+        .. code-block::
 
-        # With distinct metric names specified
+            df = spark.createDataFrame(
+                 [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", "metric_1", 5],
+                 ["2020-08-01 00:00:09", "2020-08-01 00:00:11", "v1", "metric_2", 0]],
+                "start_ts STRING, end_ts STRING, series_1 STRING, metric_name STRING, metric_value INT",
+            )
 
-        >>> idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value",["metric_1", "metric_2"])
-        >>> idf.df.collect()
-        [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
-         Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
+            # With distinct metric names specified
 
-        # Or without specifiying metric names (less efficient)
+            idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value",["metric_1", "metric_2"])
+            idf.df.collect()
+            [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
+             Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
 
-        >>> idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value")
-        >>> idf.df.collect()
-        [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
-         Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
+            # Or without specifiying metric names (less efficient)
+
+            idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value")
+            idf.df.collect()
+            [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
+             Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
 
         .. _`DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
@@ -170,9 +174,18 @@ class IntervalsDF:
 
     def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
         """
+        Returns a new `Spark DataFrame`_ containing columns from applying the
+        `lead`_ and `lag`_ window functions.
 
-        :param df:
-        :return:
+
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+        .. `lead`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lead.html#pyspark.sql.functions.lead
+        .. `lag`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lag.html#pyspark.sql.functions.lag
+
+        .. todo:
+            should column names generated here be created at class initialization, saved as attributes then iterated on here?
+             this would allow easier reuse throughout code
+
         """
         for c in self._interval_boundaries + self.metric_cols:
             df = df.withColumn(
@@ -187,9 +200,15 @@ class IntervalsDF:
 
     def __identify_subset_intervals(self, df: DataFrame) -> tuple[DataFrame, str]:
         """
+        Returns a new `Spark DataFrame`_ containing a boolean column if the
+        current interval is a subset of the previous interval and the name
+        of this column for future use
 
-        :param df:
-        :return:
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+
+        .. todo:
+            should subset_indicator be defined here or as an attribute for easier reuse across code?
+
         """
 
         subset_indicator = "_lag_1_is_subset"
@@ -200,6 +219,8 @@ class IntervalsDF:
             & (f.col(f"_lag_1_{self.end_ts}") >= f.col(self.end_ts)),
         )
 
+        # the first record cannot be a subset of the previous
+        # lag will return null for this record with no default set
         df = df.fillna(
             False,
             subset=[subset_indicator],
@@ -237,6 +258,8 @@ class IntervalsDF:
                 )
             )
 
+        # the first and last record cannot be a subset of the previous and next respectively
+        # lag will return null for this record with no default set
         df = df.fillna(
             False,
             subset=overlap_indicators,
