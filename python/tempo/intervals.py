@@ -8,6 +8,19 @@ from pyspark.sql.window import Window
 
 
 class IntervalsDF:
+    """
+    This object is the main wrapper over a `Spark DataFrame`_ which allows a
+    user to parallelize computations over snapshots of metrics for intervals
+    of time defined by a start and end timestamp and various dimensions.
+
+    The required dimensions are `series` (list of columns by which to summarize),
+    `metrics` (list of columns to analyze), `start_ts` (timestamp column), and
+    `end_ts` (timestamp column). `start_ts` and `end_ts` can be epoch or TimestampType.
+
+    .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+
+    """
+
     def __init__(
         self,
         df: DataFrame,
@@ -15,10 +28,41 @@ class IntervalsDF:
         end_ts: str,
         series: list[str],
         metrics: list[str],
-    ):
-        # TODO: validate data types
-        # TODO: validate cols exist
-        #  wait until refactor (v0.2 to see if this is exposed in meaningful way from TSDF)
+    ) -> None:
+        """
+        :class:`IntervalsDF` Constructor
+
+        :param df:
+        :type df: `DataFrame`_
+        :param start_ts:
+        :type start_ts: str
+        :param end_ts:
+        :type end_ts: str
+        :param series:
+        :type series: list[str]
+        :param metrics:
+        :type metrics: list[str]
+        :rtype: None
+
+        :Example:
+
+        >>>> df = spark.createDataFrame(
+        >>>>     [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", 5, 0]],
+        >>>>     "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 INT, metric_2 INT",
+        >>>> )
+        >>>> idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
+        >>>> idf.df.collect()
+        [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=0)]
+
+        .. _`DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+
+        .. todo::
+            create IntervalsSchema class to validate data types and column existence
+            check elements of series and identifers to ensure all are str
+            check if start_ts, end_ts, and the elements of series and identifiers can be of type col
+
+        """
+
         self.start_ts = start_ts
         self.end_ts = end_ts
 
@@ -49,27 +93,84 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        identifiers: list[str],
+        series_cols: list[str],
         metrics_name_col: str,
         metrics_value_col: str,
-    ):
-        if not isinstance(identifiers, list):
+        metric_names: Optional[list[str]] = None,
+    ) -> "IntervalsDF":
+        """
+        Pivots metrics of the current DataFrame by start and end timestamp and identifiers.
+        There are two versions of :meth:`fromStackedMetrics`. One that requires the caller
+        to specify the list of distinct metric names to pivot on, and one that does not. The
+        latter is more concise but less efficient, because Spark needs to first compute the
+        list of distinct metric names internally.
+
+        :param df: :class:`DataFrame` to wrap with :class:`IntervalsDF`
+        :type df: `DataFrame`_
+        :param start_ts: Name of the column which denotes interval start
+        :type start_ts: str
+        :param end_ts: Name of the column which denotes interval end
+        :type end_ts: str
+        :param series_cols: name of columns
+        :type series_cols: list[str]
+        :param metrics_name_col: column name
+        :type metrics_name_col: str
+        :param metrics_value_col: column name
+        :type metrics_value_col: str
+        :param metric_names: List of metric names that will be translated to columns in the output :class:`IntervalsDF`.
+        :type metric_names: list[str], optional
+        :return: A new :class:`IntervalsDF` with a column and respective values per distinct metric in `metrics_name_col`.
+
+        :Example:
+
+        >>> df = spark.createDataFrame(
+        >>>      [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", "metric_1", 5],
+        >>>      ["2020-08-01 00:00:09", "2020-08-01 00:00:11", "v1", "metric_2", 0]],
+        >>>     "start_ts STRING, end_ts STRING, series_1 STRING, metric_name STRING, metric_value INT",
+        >>> )
+
+        # With distinct metric names specified
+
+        >>> idf = IntervalsDF.fromStackedMetrics(df, "start_ts", "end_ts", ["series_1"], "metric_name", "metric_value", ["metric_1", "metric_2"])
+        >>> idf.df.collect()
+
+        # Or without specifiying metric names (less efficient)
+
+        >>> idf = IntervalsDF.fromStackedMetrics(df, "start_ts", "end_ts", ["series_1"], "metric_name", "metric_value")
+        >>> idf.df.collect()
+        [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
+         Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
+
+        .. _`DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+
+        .. todo::
+            check elements of identifiers to ensure all are str
+            check if start_ts, end_ts, and the elements of series and identifiers can be of type col
+            new test case for metric_names
+
+        """
+
+        if not isinstance(series_cols, list):
             raise ValueError
 
         df = (
-            df.groupBy(start_ts, end_ts, *identifiers)
-            .pivot(metrics_name_col)
+            df.groupBy(start_ts, end_ts, *series_cols)
+            .pivot(metrics_name_col, values=metric_names)
             .max(metrics_value_col)
         )
 
         metric_cols = list(
-            col for col in df.columns if col not in (start_ts, end_ts, *identifiers)
+            col for col in df.columns if col not in (start_ts, end_ts, *series_cols)
         )
 
-        return cls(df, start_ts, end_ts, identifiers, metric_cols)
+        return cls(df, start_ts, end_ts, series_cols, metric_cols)
 
     def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
+        """
 
+        :param df:
+        :return:
+        """
         for c in self._interval_boundaries + self.metric_cols:
             df = df.withColumn(
                 f"_lead_1_{c}",
@@ -82,6 +183,11 @@ class IntervalsDF:
         return df
 
     def __identify_subset_intervals(self, df: DataFrame) -> tuple[DataFrame, str]:
+        """
+
+        :param df:
+        :return:
+        """
 
         subset_indicator = "_lag_1_is_subset"
 
@@ -99,6 +205,13 @@ class IntervalsDF:
         return df, subset_indicator
 
     def __identify_overlaps(self, df: DataFrame) -> tuple[DataFrame, list[str]]:
+        """
+
+        :type df: DataFrame
+        :rtype: object
+        :param df:
+        :return:
+        """
 
         overlap_indicators: list[str] = []
 
@@ -121,7 +234,6 @@ class IntervalsDF:
                 )
             )
 
-        # null values will have no overlap and not be subset
         df = df.fillna(
             False,
             subset=overlap_indicators,
@@ -132,7 +244,13 @@ class IntervalsDF:
     def __merge_adjacent_subset_and_superset(
         self, df: DataFrame, subset_indicator: Optional[str]
     ) -> DataFrame:
+        """
 
+        :rtype: DataFrame
+        :param df:
+        :param subset_indicator:
+        :return:
+        """
         if not subset_indicator:
             df, subset_indicator = self.__identify_subset_intervals(df)
 
@@ -148,8 +266,15 @@ class IntervalsDF:
 
     def __merge_adjacent_overlaps(
         self, df: DataFrame, how: str, overlap_indicators: Optional[list[str]]
-    ):
+    ) -> DataFrame:
+        """
 
+        :rtype: DataFrame
+        :param df:
+        :param how:
+        :param overlap_indicators:
+        :return:
+        """
         if not (how == "left" or how == "right"):
             raise ValueError
         elif how == "left":
@@ -233,7 +358,12 @@ class IntervalsDF:
         return df
 
     def __merge_equal_intervals(self, df: DataFrame) -> DataFrame:
+        """
 
+        :param df:
+        :return:
+        :rtype: DataFrame
+        """
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
 
         return df.groupBy(*self._interval_boundaries, *self.series_cols).agg(
@@ -241,7 +371,10 @@ class IntervalsDF:
         )
 
     def disjoint(self) -> "IntervalsDF":
+        """
 
+        :return:
+        """
         df = self.df
 
         df = self.__get_adjacent_rows(df)
@@ -306,7 +439,11 @@ class IntervalsDF:
         )
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
+        """
 
+        :param other:
+        :return:
+        """
         if not isinstance(other, IntervalsDF):
             raise TypeError
 
@@ -319,7 +456,11 @@ class IntervalsDF:
         )
 
     def unionByName(self, other: "IntervalsDF") -> "IntervalsDF":
+        """
 
+        :param other:
+        :return:
+        """
         if not isinstance(other, IntervalsDF):
             raise TypeError
 
@@ -332,7 +473,11 @@ class IntervalsDF:
         )
 
     def toDF(self, stack: bool = False) -> DataFrame:
+        """
 
+        :param stack:
+        :return:
+        """
         if stack:
 
             n_cols = len(self.metric_cols)

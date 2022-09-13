@@ -9,3 +9,4 @@ API Reference
 .. toctree::
 
    tempo.tsdf
+   tempo.intervals

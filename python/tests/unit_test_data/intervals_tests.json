@@ -153,6 +153,14 @@
         ]
       }
     },
+    "test_fromStackedMetrics_metric_names": {
+      "input": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/input"
+      },
+      "expected": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/expected"
+      }
+    },
     "test_disjoint": {
       "input": {
         "schema": {

@@ -202,8 +202,8 @@ class SparkTest(unittest.TestCase):
 
     @staticmethod
     def assertDataFrameEquality(
-        df1: Union[TSDF, DataFrame],
-        df2: Union[TSDF, DataFrame],
+        df1: Union[IntervalsDF, TSDF, DataFrame],
+        df2: Union[IntervalsDF, TSDF, DataFrame],
         from_tsdf: bool = False,
         from_idf: bool = False,
         ignore_row_order: bool = False,

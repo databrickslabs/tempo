@@ -194,6 +194,28 @@ class IntervalsDFTests(SparkTest):
 
         self.assertDataFrameEquality(idf, idf_expected, from_idf=True)
 
+    def test_fromStackedMetrics_metric_names(self):
+        df_input = self.get_data_as_sdf("input")
+        idf_expected = self.get_data_as_idf("expected")
+
+        df_input = df_input.withColumn(
+            "start_ts", f.to_timestamp("start_ts")
+        ).withColumn("end_ts", f.to_timestamp("end_ts"))
+
+        idf = IntervalsDF.fromStackedMetrics(
+            df_input,
+            "start_ts",
+            "end_ts",
+            [
+                "series_1",
+            ],
+            "metric_name",
+            "metric_value",
+            ["metric_1", "metric_2"]
+        )
+
+        self.assertDataFrameEquality(idf, idf_expected, from_idf=True)
+
     def test_disjoint(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
