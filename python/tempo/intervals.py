@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Sequence
+from typing import cast as typing_cast
 
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as f
@@ -155,7 +156,7 @@ class IntervalsDF:
 
         df = (
             df.groupBy(start_ts, end_ts, *series_cols)
-            .pivot(metrics_name_col, values=metric_names)
+            .pivot(metrics_name_col, values=metric_names)  # type: ignore
             .max(metrics_value_col)
         )
 

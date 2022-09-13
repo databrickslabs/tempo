@@ -211,7 +211,7 @@ class IntervalsDFTests(SparkTest):
             ],
             "metric_name",
             "metric_value",
-            ["metric_1", "metric_2"]
+            ["metric_1", "metric_2"],
         )
 
         self.assertDataFrameEquality(idf, idf_expected, from_idf=True)
