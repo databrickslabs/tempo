@@ -135,21 +135,23 @@ class IntervalsDF:
         .. code-block::
 
             df = spark.createDataFrame(
-                 [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", "metric_1", 5],
+                [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", "metric_1", 5],
                  ["2020-08-01 00:00:09", "2020-08-01 00:00:11", "v1", "metric_2", 0]],
                 "start_ts STRING, end_ts STRING, series_1 STRING, metric_name STRING, metric_value INT",
             )
 
             # With distinct metric names specified
 
-            idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value",["metric_1", "metric_2"])
+            idf = IntervalsDF.fromStackedMetrics(
+                df, "start_ts", "end_ts", ["series_1"], "metric_name", "metric_value", ["metric_1", "metric_2"],
+            )
             idf.df.collect()
             [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
              Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
 
             # Or without specifying metric names (less efficient)
 
-            idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value")
+            idf = IntervalsDF.fromStackedMetrics(df, "start_ts", "end_ts", ["series_1"], "metric_name", "metric_value")
             idf.df.collect()
             [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
              Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
@@ -421,8 +423,39 @@ class IntervalsDF:
 
     def disjoint(self) -> "IntervalsDF":
         """
+        Returns a new :class:`IntervalsDF` where metrics of overlapping time intervals
+        are correlated and merged prior to constructing new time interval boundaries (
+        start and end timestamp) so that all intervals are disjoint.
 
-        :return:
+        The merge process assumes that two overlapping intervals cannot simultaneously
+        report two different values for the same metric unless recorded in a data type
+        which supports multiple elements (such as ArrayType, etc.).
+
+        This is often used after :meth:`fromStackedMetrics` to reduce the number of
+        metrics with `null` values and helps when constructing filter predicates to
+        to retrieve specific metric values across all instances.
+
+        :return: A new :class:`IntervalsDF` containing disjoint time intervals
+
+        :Example:
+
+        .. code-block::
+
+            df = spark.createDataFrame(
+                [["2020-08-01 00:00:10", "2020-08-01 00:00:14", "v1", 5, null],
+                 ["2020-08-01 00:00:09", "2020-08-01 00:00:11", "v1", null, 0]],
+                "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 STRING, metric_2 INT",
+            )
+            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
+            idf.disjoint().df.collect()
+            [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:10', series_1='v1', metric_1=null, metric_2=0),
+             Row(start_ts='2020-08-01 00:00:10', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=5, metric_2=0),
+             Row(start_ts='2020-08-01 00:00:11', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null)]
+
+        .. todo:
+            - checks that when merging in helper functions, prior to coalesce at least
+                one of the metrics is null
+
         """
         df = self.df
 
