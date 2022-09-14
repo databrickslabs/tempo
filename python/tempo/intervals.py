@@ -162,7 +162,6 @@ class IntervalsDF:
             - check elements of identifiers to ensure all are str
             - check if start_ts, end_ts, and the elements of series and
                 identifiers can be of type col
-            - new test case for metric_names
 
         """
 
