@@ -305,9 +305,6 @@ class IntervalsDF:
 
         """
 
-        if not subset_indicator:
-            df, subset_indicator = self.__identify_subset_intervals(df)
-
         for c in self.metric_cols:
             df = df.withColumn(
                 c,
@@ -340,9 +337,7 @@ class IntervalsDF:
 
         """
 
-        if not (how == "left" or how == "right"):
-            raise ValueError
-        elif how == "left":
+        if how == "left":
             # new boundary for interval end will become the start of the next
             # interval
             new_boundary_col = self.end_ts
@@ -352,9 +347,6 @@ class IntervalsDF:
             # previous interval
             new_boundary_col = self.start_ts
             new_boundary_val = f"_lead_1_{self.end_ts}"
-
-        if not overlap_indicators:
-            df, overlap_indicators = self.__identify_overlaps(df)
 
         # NB: supersets are split here
         # subsets are filled with the superset metrics in
