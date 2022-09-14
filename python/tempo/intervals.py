@@ -31,7 +31,7 @@ class IntervalsDF:
         metrics: list[str],
     ) -> None:
         """
-        :class:`IntervalsDF` Constructor
+         Constructor for :class:`IntervalsDF`.
 
         :param df:
         :type df: `DataFrame`_
@@ -62,7 +62,7 @@ class IntervalsDF:
         .. todo::
             - create IntervalsSchema class to validate data types and column
                 existence
-            - check elements of series and identifers to ensure all are str
+            - check elements of series and identifiers to ensure all are str
             - check if start_ts, end_ts, and the elements of series and
                 identifiers can be of type col
 
@@ -104,12 +104,13 @@ class IntervalsDF:
         metric_names: Optional[list[str]] = None,
     ) -> "IntervalsDF":
         """
-        Pivots metrics of the current DataFrame by start and end timestamp and
-        identifiers. There are two versions of :meth:`fromStackedMetrics`.
-        One that requires the caller to specify the list of distinct metric
-        names to pivot on, and one that does not. The latter is more concise
-        but less efficient, because Spark needs to first compute the list of
-        distinct metric names internally.
+        Returns a new :class:`IntervalsDF` with metrics of the current DataFrame
+        pivoted by start and end timestamp and series.
+
+        There are two versions of `fromStackedMetrics`. One that requires the caller
+        to specify the list of distinct metric names to pivot on, and one that does
+        not. The latter is more concise but less efficient, because Spark needs to
+        first compute the list of distinct metric names internally.
 
         :param df: :class:`DataFrame` to wrap with :class:`IntervalsDF`
         :type df: `DataFrame`_
@@ -183,7 +184,6 @@ class IntervalsDF:
         Returns a new `Spark DataFrame`_ containing columns from applying the
         `lead`_ and `lag`_ window functions.
 
-
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
         .. `lead`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lead.html#pyspark.sql.functions.lead
         .. `lag`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lag.html#pyspark.sql.functions.lag
@@ -209,7 +209,7 @@ class IntervalsDF:
         """
         Returns a new `Spark DataFrame`_ containing a boolean column if the
         current interval is a subset of the previous interval and the name
-        of this column for future use
+        of this column for future use.
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
@@ -240,7 +240,7 @@ class IntervalsDF:
         """
         Returns a new `Spark DataFrame`_ containing boolean columns if the
         current interval overlaps with the previous or next interval and a list
-        with the names of these columns for future use
+        with the names of these columns for future use.
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
@@ -402,17 +402,19 @@ class IntervalsDF:
 
     def __merge_equal_intervals(self, df: DataFrame) -> DataFrame:
         """
-        Returns a new `Spark DataFrame`_ where a subset and its adjacent
-        superset, identified by `subset_indicator` are merged together.
+        Returns a new `Spark DataFrame`_ where intervals with the same start
+        and end timestamps are merged together.
 
         We assume that a metric cannot simultaneously have two values in the
         same interval (unless captured in a structure such as ArrayType, etc.)
-        so `coalesce`_ is used to merge metrics when a subset exists. Priority
-        in the `coalesce` is given to the metrics of the current record, ie it
-        is listed as the first argument.
+        so `groupBy`_ with an arbitrary `aggregate function`_ is used to merge
+        metrics when a subset exists. In this implementation, `max`_ is used to
+        perform the merge.
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-        .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
+        .. _`groupBy`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.groupBy.html
+        .. _`aggregate function`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/functions.html#aggregate-functions
+        .. _`max`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.max.html
 
         """
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
@@ -491,10 +493,27 @@ class IntervalsDF:
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
         """
+        Returns a new :class:`IntervalsDF` containing union of rows in this and another
+        :class:`IntervalsDF`.
 
-        :param other:
-        :return:
+        This is equivalent to UNION ALL in SQL. To do a SQL-style set union
+        (that does deduplication of elements), use this function followed by
+        distinct().
+
+        Also, as standard in SQL, this function resolves columns by position
+        (not by name).
+
+        Based on `pyspark.sql.DataFrame.union`_.
+
+        :param other: :class:`IntervalsDF` to `union`
+        :type other: :class:`IntervalsDF`
+        :return: A new :class:`IntervalsDF` containing union of rows in this
+            and `other`
+
+        .. _`pyspark.sql.DataFrame.union`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.union.html
+
         """
+
         if not isinstance(other, IntervalsDF):
             raise TypeError
 
@@ -508,10 +527,25 @@ class IntervalsDF:
 
     def unionByName(self, other: "IntervalsDF") -> "IntervalsDF":
         """
+        Returns a new :class:`IntervalsDF` containing union of rows in this
+        and another :class:`IntervalsDF`.
 
-        :param other:
-        :return:
+        This is different from both UNION ALL and UNION DISTINCT in SQL. To do
+        a SQL-style set union (that does deduplication of elements), use this
+        function followed by distinct().
+
+        Based on `pyspark.sql.DataFrame.unionByName`_; however,
+        `allowMissingColumns` is not supported.
+
+        :param other: :class:`IntervalsDF` to `unionByName`
+        :type other: :class:`IntervalsDF`
+        :return: A new :class:`IntervalsDF` containing union of rows in this
+            and `other`
+
+        .. _`pyspark.sql.DataFrame.unionByName`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.unionByName.html
+
         """
+
         if not isinstance(other, IntervalsDF):
             raise TypeError
 
@@ -525,10 +559,25 @@ class IntervalsDF:
 
     def toDF(self, stack: bool = False) -> DataFrame:
         """
+        Returns a new `Spark DataFrame`_ converted from :class:`IntervalsDF`.
 
-        :param stack:
+        There are two versions of `toDF`. One that will output columns as they exist
+        in :class:`IntervalsDF` and, one that will stack metric columns into
+        `metric_names` and `metric_values` columns populated with their respective
+        values. The latter can be thought of as the inverse of
+        :meth:`fromStackedMetrics`.
+
+        Based on `pyspark.sql.DataFrame.toDF`_.
+
+        :param stack: How to handle metric columns in the conversion to a `DataFrame`
+        :type stack: bool, optional
         :return:
+
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+        .. _`pyspark.sql.DataFrame.toDF`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.toDF.html
+        .. _`pyspark.sql.DataFrame.toDF`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.toDF.html
         """
+
         if stack:
 
             n_cols = len(self.metric_cols)
