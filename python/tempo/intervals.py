@@ -345,7 +345,7 @@ class IntervalsDF:
             new_boundary_val = f"_lead_1_{self.start_ts}"
 
         else:
-            
+
             # new boundary for interval start will become the end of the
             # previous interval
             new_boundary_col = self.start_ts
