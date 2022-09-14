@@ -338,11 +338,14 @@ class IntervalsDF:
         """
 
         if how == "left":
+
             # new boundary for interval end will become the start of the next
             # interval
             new_boundary_col = self.end_ts
             new_boundary_val = f"_lead_1_{self.start_ts}"
+
         else:
+            
             # new boundary for interval start will become the end of the
             # previous interval
             new_boundary_col = self.start_ts
