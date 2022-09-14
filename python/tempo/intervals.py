@@ -339,6 +339,7 @@ class IntervalsDF:
                 easier reuse across code?
 
         """
+
         if not (how == "left" or how == "right"):
             raise ValueError
         elif how == "left":
@@ -417,6 +418,7 @@ class IntervalsDF:
         .. _`max`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.max.html
 
         """
+
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
 
         return df.groupBy(*self._interval_boundaries, *self.series_cols).agg(
@@ -575,7 +577,8 @@ class IntervalsDF:
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
         .. _`pyspark.sql.DataFrame.toDF`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.toDF.html
-        .. _`pyspark.sql.DataFrame.toDF`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.toDF.html
+        .. _`STACK`: https://spark.apache.org/docs/latest/api/sql/index.html#stack
+
         """
 
         if stack:
