@@ -277,12 +277,22 @@ class IntervalsDF:
         self, df: DataFrame, subset_indicator: Optional[str]
     ) -> DataFrame:
         """
+        Returns a new `Spark DataFrame`_ where a subset and it's adjacent superset,
+        identified by `subset_indicator` are merged together.
 
-        :rtype: DataFrame
-        :param df:
-        :param subset_indicator:
-        :return:
+        We assume that a metric cannot simultaneously have two values in the same
+        interval (unless captured in a structure such as ArrayType, etc) so `coalesce`_
+        is used to merge metrics when overlaps exist. Priority in the coalesce is
+        given to the metrics of the current record, ie it is listed as the first argumnt.
+
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+        .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
+
+        .. todo:
+            should subset_indicator be defined here or as an attribute for easier reuse across code?
+
         """
+
         if not subset_indicator:
             df, subset_indicator = self.__identify_subset_intervals(df)
 
