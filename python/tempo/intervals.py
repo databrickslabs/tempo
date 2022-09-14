@@ -355,7 +355,6 @@ class IntervalsDF:
         # subsets are filled with the superset metrics in
         # `__merge_adjacent_subset_and_superset`
         superset_interval_when_case = (
-            # TODO : can replace with subset_indicator?
             f"WHEN _lead_1_{self.start_ts}_overlaps "
             f"AND _lead_1_{self.end_ts}_overlaps "
             f"THEN {new_boundary_val} "
@@ -451,7 +450,7 @@ class IntervalsDF:
 
         disjoint_predicate = f"NOT({overlaps_predicate})"
 
-        # extract intervals that are already disjoint
+        # filter for intervals that are already disjoint
         disjoint_df = non_subset_df.filter(disjoint_predicate).select(
             *self._interval_boundaries, *self.series_cols, *self.metric_cols
         )
