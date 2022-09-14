@@ -144,7 +144,14 @@ class SparkTest(unittest.TestCase):
 
         # convert timstamp fields to timestamp type
         for tsc in ts_cols:
-            df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
+            # check if the column is nested in a struct or not
+            if '.' in tsc:
+                # we're changing a field nested in a struct
+                (struct, field) = tsc.split('.')
+                df = df.withColumn(struct, F.col(struct).withField(field, F.to_timestamp(tsc)))
+            else:
+                # standard column
+                df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
         return df
 
     #
