@@ -286,7 +286,7 @@ class IntervalsDF:
         return df, overlap_indicators
 
     def __merge_adjacent_subset_and_superset(
-        self, df: DataFrame, subset_indicator: Optional[str]
+        self, df: DataFrame, subset_indicator: str
     ) -> DataFrame:
         """
         Returns a new `Spark DataFrame`_ where a subset and it's adjacent
@@ -318,7 +318,7 @@ class IntervalsDF:
         return df
 
     def __merge_adjacent_overlaps(
-        self, df: DataFrame, how: str, overlap_indicators: Optional[list[str]]
+        self, df: DataFrame, how: str, overlap_indicators: list[str]
     ) -> DataFrame:
         """
         Returns a new `Spark DataFrame`_ where adjacent intervals which overlap,
