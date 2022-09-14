@@ -13,9 +13,10 @@ class IntervalsDF:
     user to parallelize computations over snapshots of metrics for intervals
     of time defined by a start and end timestamp and various dimensions.
 
-    The required dimensions are `series` (list of columns by which to summarize),
-    `metrics` (list of columns to analyze), `start_ts` (timestamp column), and
-    `end_ts` (timestamp column). `start_ts` and `end_ts` can be epoch or TimestampType.
+    The required dimensions are `series` (list of columns by which to
+    summarize), `metrics` (list of columns to analyze), `start_ts` (timestamp
+    column), and `end_ts` (timestamp column). `start_ts` and `end_ts` can be
+    epoch or TimestampType.
 
     .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
@@ -59,9 +60,11 @@ class IntervalsDF:
         .. _`DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
         .. todo::
-            create IntervalsSchema class to validate data types and column existence
-            check elements of series and identifers to ensure all are str
-            check if start_ts, end_ts, and the elements of series and identifiers can be of type col
+            - create IntervalsSchema class to validate data types and column
+                existence
+            - check elements of series and identifers to ensure all are str
+            - check if start_ts, end_ts, and the elements of series and
+                identifiers can be of type col
 
         """
 
@@ -101,11 +104,12 @@ class IntervalsDF:
         metric_names: Optional[list[str]] = None,
     ) -> "IntervalsDF":
         """
-        Pivots metrics of the current DataFrame by start and end timestamp and identifiers.
-        There are two versions of :meth:`fromStackedMetrics`. One that requires the caller
-        to specify the list of distinct metric names to pivot on, and one that does not. The
-        latter is more concise but less efficient, because Spark needs to first compute the
-        list of distinct metric names internally.
+        Pivots metrics of the current DataFrame by start and end timestamp and
+        identifiers. There are two versions of :meth:`fromStackedMetrics`.
+        One that requires the caller to specify the list of distinct metric
+        names to pivot on, and one that does not. The latter is more concise
+        but less efficient, because Spark needs to first compute the list of
+        distinct metric names internally.
 
         :param df: :class:`DataFrame` to wrap with :class:`IntervalsDF`
         :type df: `DataFrame`_
@@ -119,9 +123,11 @@ class IntervalsDF:
         :type metrics_name_col: str
         :param metrics_value_col: column name
         :type metrics_value_col: str
-        :param metric_names: List of metric names that will be translated to columns in the output :class:`IntervalsDF`.
+        :param metric_names: List of metric names that will be translated to
+            columns in the output :class:`IntervalsDF`.
         :type metric_names: list[str], optional
-        :return: A new :class:`IntervalsDF` with a column and respective values per distinct metric in `metrics_name_col`.
+        :return: A new :class:`IntervalsDF` with a column and respective
+            values per distinct metric in `metrics_name_col`.
 
         :Example:
 
@@ -150,9 +156,10 @@ class IntervalsDF:
         .. _`DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
         .. todo::
-            check elements of identifiers to ensure all are str
-            check if start_ts, end_ts, and the elements of series and identifiers can be of type col
-            new test case for metric_names
+            - check elements of identifiers to ensure all are str
+            - check if start_ts, end_ts, and the elements of series and
+                identifiers can be of type col
+            - new test case for metric_names
 
         """
 
@@ -182,8 +189,9 @@ class IntervalsDF:
         .. `lag`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lag.html#pyspark.sql.functions.lag
 
         .. todo:
-            should column names generated here be created at class initialization, saved as attributes then iterated on here?
-             this would allow easier reuse throughout code
+            - should column names generated here be created at class
+                initialization, saved as attributes then iterated on here?
+                this would allow easier reuse throughout code
 
         """
         for c in self._interval_boundaries + self.metric_cols:
@@ -206,7 +214,8 @@ class IntervalsDF:
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
         .. todo:
-            should subset_indicator be defined here or as an attribute for easier reuse across code?
+            - should subset_indicator be defined here or as an attribute for
+                easier reuse across code?
 
         """
 
@@ -219,7 +228,7 @@ class IntervalsDF:
         )
 
         # NB: the first record cannot be a subset of the previous and
-        #     lag will return null for this record with no default set
+        # `lag` will return null for this record with no default set
         df = df.fillna(
             False,
             subset=[subset_indicator],
@@ -236,15 +245,16 @@ class IntervalsDF:
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
 
         .. todo:
-            should overlap_indicators be defined here or as an attribute for easier reuse across code?
+            - should overlap_indicators be defined here or as an attribute for
+                easier reuse across code?
 
         """
 
         overlap_indicators: list[str] = []
 
         # identify overlaps for each interval boundary
-        # NB: between is inclusive so not used here and
-        #     we don't care if the intervals match at the boundaries
+        # NB: between is inclusive so not used here, and
+        # matches on boundaries should be ignored
         for ts in self._interval_boundaries:
             df = df.withColumn(
                 f"_lead_1_{ts}_overlaps",
@@ -263,8 +273,9 @@ class IntervalsDF:
                 )
             )
 
-        # NB: the first and last record cannot be a subset of the previous and next respectively.
-        #     lag will return null for this record with no default set.
+        # NB: the first and last record cannot be a subset of the previous and
+        # next respectively. `lag` will return null for this record with no
+        # default set.
         df = df.fillna(
             False,
             subset=overlap_indicators,
@@ -276,19 +287,21 @@ class IntervalsDF:
         self, df: DataFrame, subset_indicator: Optional[str]
     ) -> DataFrame:
         """
-        Returns a new `Spark DataFrame`_ where a subset and it's adjacent superset,
-        identified by `subset_indicator` are merged together.
+        Returns a new `Spark DataFrame`_ where a subset and it's adjacent
+        superset, identified by `subset_indicator` are merged together.
 
-        We assume that a metric cannot simultaneously have two values in the same
-        interval (unless captured in a structure such as ArrayType, etc) so `coalesce`_
-        is used to merge metrics when a subset exist. Priority in the coalesce is
-        given to the metrics of the current record, ie it is listed as the first argumnt.
+        We assume that a metric cannot simultaneously have two values in the
+        same interval (unless captured in a structure such as ArrayType, etc)
+        so `coalesce`_ is used to merge metrics when a subset exist. Priority
+        in the coalesce is given to the metrics of the current record, ie it
+        is listed as the first argument.
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
         .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
 
         .. todo:
-            should subset_indicator be defined here or as an attribute for easier reuse across code?
+            - should subset_indicator be defined here or as an attribute for
+                easier reuse across code?
 
         """
 
@@ -309,29 +322,33 @@ class IntervalsDF:
         self, df: DataFrame, how: str, overlap_indicators: Optional[list[str]]
     ) -> DataFrame:
         """
-        Returns a new `Spark DataFrame`_ where adjecent intervals which overlap,
+        Returns a new `Spark DataFrame`_ where adjacent intervals which overlap,
         identified by `overlap_indicators` are merged together.
 
-        We assume that a metric cannot simultaneously have two values in the same
-        interval (unless captured in a structure such as ArrayType, etc) so `coalesce`_
-        is used to merge metrics when overlaps exist. Priority in the coalesce is
-        given to the metrics of the current record, ie it is listed as the first argumnt.
+        We assume that a metric cannot simultaneously have two values in the
+        same interval (unless captured in a structure such as ArrayType, etc)
+        so `coalesce`_ is used to merge metrics when overlaps exist. Priority
+        in the `coalesce` is given to the metrics of the current record, ie it
+        is listed as the first argument.
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
         .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
 
         .. todo:
-            should overlap_indicators be defined here or as an attribute for easier reuse across code?
+            - should overlap_indicators be defined here or as an attribute for
+                easier reuse across code?
 
         """
         if not (how == "left" or how == "right"):
             raise ValueError
         elif how == "left":
-            # new boundary for interval end will become the start of the next interval
+            # new boundary for interval end will become the start of the next
+            # interval
             new_boundary_col = self.end_ts
             new_boundary_val = f"_lead_1_{self.start_ts}"
         else:
-            # new boundary for interval start will become the end of the previous interval
+            # new boundary for interval start will become the end of the
+            # previous interval
             new_boundary_col = self.start_ts
             new_boundary_val = f"_lead_1_{self.end_ts}"
 
@@ -339,7 +356,8 @@ class IntervalsDF:
             df, overlap_indicators = self.__identify_overlaps(df)
 
         # NB: supersets are split here
-        # subsets are filled with the superset metrics in `__merge_adjacent_subset_and_superset`
+        # subsets are filled with the superset metrics in
+        # `__merge_adjacent_subset_and_superset`
         superset_interval_when_case = (
             # TODO : can replace with subset_indicator?
             f"WHEN _lead_1_{self.start_ts}_overlaps "
@@ -384,10 +402,18 @@ class IntervalsDF:
 
     def __merge_equal_intervals(self, df: DataFrame) -> DataFrame:
         """
+        Returns a new `Spark DataFrame`_ where a subset and its adjacent
+        superset, identified by `subset_indicator` are merged together.
 
-        :param df:
-        :return:
-        :rtype: DataFrame
+        We assume that a metric cannot simultaneously have two values in the
+        same interval (unless captured in a structure such as ArrayType, etc.)
+        so `coalesce`_ is used to merge metrics when a subset exists. Priority
+        in the `coalesce` is given to the metrics of the current record, ie it
+        is listed as the first argument.
+
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+        .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
+
         """
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
 
