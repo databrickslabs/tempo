@@ -14,10 +14,10 @@ class AsOfJoinTest(SparkTest):
         noRightPrefixdfExpected = self.get_data_as_sdf("expected_no_right_prefix")
 
         # perform the join
-        joined_df = tsdf_left.asOfJoin(
+        joined_df = tsdf_left.asofJoin(
             tsdf_right, left_prefix="left", right_prefix="right"
         ).df
-        non_prefix_joined_df = tsdf_left.asOfJoin(
+        non_prefix_joined_df = tsdf_left.asofJoin(
             tsdf_right, left_prefix="left", right_prefix=""
         ).df
 
@@ -25,7 +25,7 @@ class AsOfJoinTest(SparkTest):
         self.assertDataFrameEquality(joined_df, dfExpected)
         self.assertDataFrameEquality(non_prefix_joined_df, noRightPrefixdfExpected)
 
-        spark_sql_joined_df = tsdf_left.asOfJoin(
+        spark_sql_joined_df = tsdf_left.asofJoin(
             tsdf_right, left_prefix="left", right_prefix="right"
         ).df
         self.assertDataFrameEquality(spark_sql_joined_df, dfExpected)
@@ -42,7 +42,7 @@ class AsOfJoinTest(SparkTest):
         )
 
         # perform the join with skip nulls enabled (default)
-        joined_df = tsdf_left.asOfJoin(
+        joined_df = tsdf_left.asofJoin(
             tsdf_right, left_prefix="left", right_prefix="right"
         ).df
 
@@ -50,7 +50,7 @@ class AsOfJoinTest(SparkTest):
         self.assertDataFrameEquality(joined_df, dfExpectedSkipNulls)
 
         # perform the join with skip nulls disabled
-        joined_df = tsdf_left.asOfJoin(
+        joined_df = tsdf_left.asofJoin(
             tsdf_right, left_prefix="left", right_prefix="right", skipNulls=False
         ).df
 
@@ -66,10 +66,10 @@ class AsOfJoinTest(SparkTest):
         dfExpected = self.get_data_as_sdf("expected")
 
         # perform the join
-        joined_df = tsdf_left.asOfJoin(tsdf_right, right_prefix="right")
+        joined_df = tsdf_left.asofJoin(tsdf_right, right_prefix="right").df
 
         # joined dataframe should equal the expected dataframe
-        self.assertDataFrameEquality(joined_df.df, dfExpected)
+        self.assertDataFrameEquality(joined_df, dfExpected)
 
     def test_partitioned_asof_join(self):
         """AS-OF Join with a time-partition"""
@@ -79,7 +79,7 @@ class AsOfJoinTest(SparkTest):
         tsdf_right = self.get_data_as_tsdf("right")
         dfExpected = self.get_data_as_sdf("expected")
 
-        joined_df = tsdf_left.asOfJoin(
+        joined_df = tsdf_left.asofJoin(
             tsdf_right,
             left_prefix="left",
             right_prefix="right",
@@ -98,7 +98,7 @@ class AsOfJoinTest(SparkTest):
         dfExpected = self.get_data_as_sdf("expected")
 
         # perform join
-        joined_df = tsdf_left.asOfJoin(
+        joined_df = tsdf_left.asofJoin(
             tsdf_right, left_prefix="left", right_prefix="right"
         ).df
 

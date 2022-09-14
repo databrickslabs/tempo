@@ -91,20 +91,16 @@ fig.show()
   <img src="https://raw.githubusercontent.com/databrickslabs/tempo/master/AS_OF_Join.png" width="700px"/>
 </p>
 
+
 ```python
-from pyspark.sql.functions import *
+from pyspark.sql.functions import * 
 
-watch_accel_df = spark.read.format("csv").option("header", "true").load(
-    "dbfs:/home/tempo/Watch_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double") / 1000).cast(
-    "timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z",
-                                                                                                               col("z").cast(
-                                                                                                                   "double")).withColumn(
-    "event_ts_dbl", col("event_ts").cast("double"))
+watch_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Watch_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
 
-watch_accel_tsdf = TSDF(watch_accel_df, ts_col="event_ts", series_ids=["User"])
+watch_accel_tsdf = TSDF(watch_accel_df, ts_col="event_ts", series_ids = ["User"])
 
 # Applying AS OF join to TSDF datasets
-joined_df = watch_accel_tsdf.asOfJoin(phone_accel_tsdf, right_prefix="phone_accel")
+joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="phone_accel")
 
 display(joined_df)
 ```
@@ -122,7 +118,7 @@ fraction = overlap fraction
 right_prefix = prefix used for source columns when merged into fact table
 
 ```python
-joined_df = watch_accel_tsdf.asOfJoin(phone_accel_tsdf, right_prefix="watch_accel", tsPartitionVal=10, fraction=0.1)
+joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="watch_accel", tsPartitionVal = 10, fraction = 0.1)
 display(joined_df)
 ```
 

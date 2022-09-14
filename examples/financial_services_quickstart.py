@@ -125,7 +125,7 @@ fig.show()
 # COMMAND ----------
 
 # DBTITLE 1,AS OF Joins - Get Latest Quote Information As Of Time of Trades
-joined_df = trades_tsdf.asOfJoin(quotes_tsdf, right_prefix="quote_asof").df
+joined_df = trades_tsdf.asofJoin(quotes_tsdf, right_prefix="quote_asof").df
 
 display(joined_df.filter(col("symbol") == 'AMH').filter(col("quote_asof_event_ts").isNotNull()))
 
@@ -136,7 +136,7 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("py4j").setLevel(logging.WARNING)
 logging.getLogger("tempo").setLevel(logging.WARNING)
 
-joined_df = trades_tsdf.asOfJoin(quotes_tsdf, tsPartitionVal=30, right_prefix="quote_asof").df
+joined_df = trades_tsdf.asofJoin(quotes_tsdf, tsPartitionVal=30,right_prefix="quote_asof").df
 display(joined_df)
 
 # COMMAND ----------
