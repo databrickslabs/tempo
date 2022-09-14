@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
-from typing import cast as typing_cast
+from typing import Optional
 
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as f
@@ -282,7 +281,7 @@ class IntervalsDF:
 
         We assume that a metric cannot simultaneously have two values in the same
         interval (unless captured in a structure such as ArrayType, etc) so `coalesce`_
-        is used to merge metrics when overlaps exist. Priority in the coalesce is
+        is used to merge metrics when a subset exist. Priority in the coalesce is
         given to the metrics of the current record, ie it is listed as the first argumnt.
 
         .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
@@ -310,25 +309,37 @@ class IntervalsDF:
         self, df: DataFrame, how: str, overlap_indicators: Optional[list[str]]
     ) -> DataFrame:
         """
+        Returns a new `Spark DataFrame`_ where adjecent intervals which overlap,
+        identified by `overlap_indicators` are merged together.
 
-        :rtype: DataFrame
-        :param df:
-        :param how:
-        :param overlap_indicators:
-        :return:
+        We assume that a metric cannot simultaneously have two values in the same
+        interval (unless captured in a structure such as ArrayType, etc) so `coalesce`_
+        is used to merge metrics when overlaps exist. Priority in the coalesce is
+        given to the metrics of the current record, ie it is listed as the first argumnt.
+
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+        .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
+
+        .. todo:
+            should overlap_indicators be defined here or as an attribute for easier reuse across code?
+
         """
         if not (how == "left" or how == "right"):
             raise ValueError
         elif how == "left":
+            # new boundary for interval end will become the start of the next interval
             new_boundary_col = self.end_ts
             new_boundary_val = f"_lead_1_{self.start_ts}"
         else:
+            # new boundary for interval start will become the end of the previous interval
             new_boundary_col = self.start_ts
             new_boundary_val = f"_lead_1_{self.end_ts}"
 
         if not overlap_indicators:
             df, overlap_indicators = self.__identify_overlaps(df)
 
+        # NB: supersets are split here
+        # subsets are filled with the superset metrics in `__merge_adjacent_subset_and_superset`
         superset_interval_when_case = (
             # TODO : can replace with subset_indicator?
             f"WHEN _lead_1_{self.start_ts}_overlaps "
@@ -340,6 +351,7 @@ class IntervalsDF:
             f"WHEN {c} THEN {c.replace('_overlaps', '')} " for c in overlap_indicators
         )
 
+        # this logic will be used to create boundaries of disjoint intervals
         new_interval_boundaries = (
             "CASE "
             + superset_interval_when_case
@@ -356,45 +368,16 @@ class IntervalsDF:
 
             for c in self.metric_cols:
                 df = df.withColumn(
-                    f"{c}",
+                    c,
+                    # needed when intervals have same start but different ends
+                    # in this case, merge metrics since they overlap
                     f.when(
-                        f.col(f"_lead_1_{self.start_ts}_overlaps"),
-                        f.col(c),
-                    )
-                    .when(
-                        f.col(f"_lead_1_{self.end_ts}_overlaps"),
-                        f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
-                    )
-                    .when(
-                        f.col(f"_lag_1_{self.start_ts}_overlaps"),
-                        f.col(c),
-                    )
-                    .when(
                         f.col(f"_lag_1_{self.end_ts}_overlaps"),
                         f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
-                    ),
-                )
-
-        else:
-
-            for c in self.metric_cols:
-                df = df.withColumn(
-                    f"{c}",
-                    f.when(
-                        f.col(f"_lead_1_{self.start_ts}_overlaps")
-                        & f.col(f"_lead_1_{self.end_ts}_overlaps"),
-                        f.col(c),
                     )
-                    .when(
-                        f.col(f"_lead_1_{self.start_ts}_overlaps"),
-                        f.coalesce(f.col(c), f.col(f"_lead_1_{c}")),
-                    )
-                    .when(f.col(f"_lead_1_{self.end_ts}_overlaps"), f.col(c))
-                    .when(
-                        f.col(f"_lag_1_{self.start_ts}_overlaps"),
-                        f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
-                    )
-                    .when(f.col(f"_lag_1_{self.end_ts}_overlaps"), f.col(c)),
+                    # general case when constructing left disjoint interval
+                    # just want new boundary without merging metrics
+                    .otherwise(f.col(c)),
                 )
 
         return df
