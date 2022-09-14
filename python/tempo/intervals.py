@@ -141,7 +141,7 @@ class IntervalsDF:
             [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null),
              Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=null, metric_2=0)]
 
-            # Or without specifiying metric names (less efficient)
+            # Or without specifying metric names (less efficient)
 
             idf = IntervalsDF.fromStackedMetrics(df,"start_ts","end_ts",["series_1"],"metric_name","metric_value")
             idf.df.collect()
@@ -219,8 +219,8 @@ class IntervalsDF:
             & (f.col(f"_lag_1_{self.end_ts}") >= f.col(self.end_ts)),
         )
 
-        # the first record cannot be a subset of the previous
-        # lag will return null for this record with no default set
+        # NB: the first record cannot be a subset of the previous and
+        #     lag will return null for this record with no default set
         df = df.fillna(
             False,
             subset=[subset_indicator],
@@ -230,16 +230,22 @@ class IntervalsDF:
 
     def __identify_overlaps(self, df: DataFrame) -> tuple[DataFrame, list[str]]:
         """
+        Returns a new `Spark DataFrame`_ containing boolean columns if the
+        current interval overlaps with the previous or next interval and a list
+        with the names of these columns for future use
 
-        :type df: DataFrame
-        :rtype: object
-        :param df:
-        :return:
+        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
+
+        .. todo:
+            should overlap_indicators be defined here or as an attribute for easier reuse across code?
+
         """
 
         overlap_indicators: list[str] = []
 
         # identify overlaps for each interval boundary
+        # NB: between is inclusive so not used here and
+        #     we don't care if the intervals match at the boundaries
         for ts in self._interval_boundaries:
             df = df.withColumn(
                 f"_lead_1_{ts}_overlaps",
@@ -258,8 +264,8 @@ class IntervalsDF:
                 )
             )
 
-        # the first and last record cannot be a subset of the previous and next respectively
-        # lag will return null for this record with no default set
+        # NB: the first and last record cannot be a subset of the previous and next respectively.
+        #     lag will return null for this record with no default set.
         df = df.fillna(
             False,
             subset=overlap_indicators,
