@@ -8,10 +8,12 @@ from pyspark.sql.types import NumericType, BooleanType, StructField
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
-def is_metric_col( col: StructField ) -> bool:
-    return (isinstance(col.dataType, NumericType)
-            or
-            isinstance(col.dataType, BooleanType))
+
+def is_metric_col(col: StructField) -> bool:
+    return isinstance(col.dataType, NumericType) or isinstance(
+        col.dataType, BooleanType
+    )
+
 
 class IntervalsDF:
     """
@@ -29,11 +31,7 @@ class IntervalsDF:
     """
 
     def __init__(
-        self,
-        df: DataFrame,
-        start_ts: str,
-        end_ts: str,
-        series_ids: list[str] = None
+        self, df: DataFrame, start_ts: str, end_ts: str, series_ids: list[str] = None
     ) -> None:
         """
          Constructor for :class:`IntervalsDF`.
@@ -81,11 +79,13 @@ class IntervalsDF:
         elif isinstance(series_ids, list):
             self.series_ids = series_ids
         else:
-            raise ValueError(f"series_ids must be a list of column names, instead got {type(series_ids)}")
+            raise ValueError(
+                f"series_ids must be a list of column names, instead got {type(series_ids)}"
+            )
 
     @cached_property
     def interval_boundaries(self) -> list[str]:
-        return [ self.start_ts, self.end_ts ]
+        return [self.start_ts, self.end_ts]
 
     @cached_property
     def structural_columns(self) -> list[str]:
@@ -97,13 +97,7 @@ class IntervalsDF:
 
     @cached_property
     def metric_columns(self) -> list[str]:
-        return [
-            col.name
-            for
-            col in self.df.schema.fields
-            if
-            is_metric_col(col)
-        ]
+        return [col.name for col in self.df.schema.fields if is_metric_col(col)]
 
     @cached_property
     def window(self):
@@ -429,9 +423,7 @@ class IntervalsDF:
 
         merge_expr = tuple(f.max(c).alias(c) for c in self.metric_columns)
 
-        return df.groupBy(*self.interval_boundaries, *self.series_ids).agg(
-            *merge_expr
-        )
+        return df.groupBy(*self.interval_boundaries, *self.series_ids).agg(*merge_expr)
 
     def disjoint(self) -> "IntervalsDF":
         """
@@ -524,12 +516,7 @@ class IntervalsDF:
 
         disjoint_df = self.__merge_equal_intervals(unioned_df)
 
-        return IntervalsDF(
-            disjoint_df,
-            self.start_ts,
-            self.end_ts,
-            self.series_ids
-        )
+        return IntervalsDF(disjoint_df, self.start_ts, self.end_ts, self.series_ids)
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
         """
@@ -558,10 +545,7 @@ class IntervalsDF:
             raise TypeError
 
         return IntervalsDF(
-            self.df.union(other.df),
-            self.start_ts,
-            self.end_ts,
-            self.series_ids
+            self.df.union(other.df), self.start_ts, self.end_ts, self.series_ids
         )
 
     def unionByName(self, other: "IntervalsDF") -> "IntervalsDF":
@@ -589,10 +573,7 @@ class IntervalsDF:
             raise TypeError
 
         return IntervalsDF(
-            self.df.unionByName(other.df),
-            self.start_ts,
-            self.end_ts,
-            self.series_ids
+            self.df.unionByName(other.df), self.start_ts, self.end_ts, self.series_ids
         )
 
     def toDF(self, stack: bool = False) -> DataFrame:
@@ -621,7 +602,7 @@ class IntervalsDF:
 
             n_cols = len(self.metric_columns)
             metric_cols_expr = ",".join(
-                tuple(f"'{col}', {col}" for col in self. metric_columns)
+                tuple(f"'{col}', {col}" for col in self.metric_columns)
             )
 
             stack_expr = (

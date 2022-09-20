@@ -92,7 +92,7 @@ class SparkTest(unittest.TestCase):
             df,
             start_ts=td["start_ts"],
             end_ts=td["end_ts"],
-            series_ids=td.get("series", None)
+            series_ids=td.get("series", None),
         )
         return idf
 

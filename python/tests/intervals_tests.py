@@ -77,9 +77,7 @@ class IntervalsDFTests(SparkTest):
     def test_init_series_list(self):
         df_input = self.get_data_as_sdf("input")
 
-        idf = IntervalsDF(
-            df_input, "start_ts", "end_ts", ["series_1"]
-        )
+        idf = IntervalsDF(df_input, "start_ts", "end_ts", ["series_1"])
 
         self.assertIsInstance(idf, IntervalsDF)
         self.assertIsInstance(idf.df, DataFrame)
@@ -87,16 +85,16 @@ class IntervalsDFTests(SparkTest):
         self.assertEqual(idf.end_ts, "end_ts")
         self.assertEqual(idf.interval_boundaries, ["start_ts", "end_ts"])
         self.assertCountEqual(idf.series_ids, ["series_1"])
-        self.assertCountEqual(idf.structural_columns, ["start_ts", "end_ts", "series_1"])
+        self.assertCountEqual(
+            idf.structural_columns, ["start_ts", "end_ts", "series_1"]
+        )
         self.assertCountEqual(idf.observational_columns, ["metric_1", "metric_2"])
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_init_series_none(self):
         df_input = self.get_data_as_sdf("input")
 
-        idf = IntervalsDF(
-            df_input, "start_ts", "end_ts", None
-        )
+        idf = IntervalsDF(df_input, "start_ts", "end_ts", None)
 
         self.assertIsInstance(idf, IntervalsDF)
         self.assertIsInstance(idf.df, DataFrame)
@@ -105,7 +103,9 @@ class IntervalsDFTests(SparkTest):
         self.assertEqual(idf.interval_boundaries, ["start_ts", "end_ts"])
         self.assertCountEqual(idf.series_ids, [])
         self.assertCountEqual(idf.structural_columns, ["start_ts", "end_ts"])
-        self.assertCountEqual(idf.observational_columns, ["series_1", "metric_1", "metric_2"])
+        self.assertCountEqual(
+            idf.observational_columns, ["series_1", "metric_1", "metric_2"]
+        )
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_fromStackedMetrics_series_str(self):
