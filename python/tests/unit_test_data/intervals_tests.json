@@ -11,10 +11,6 @@
       "series": [
         "series_1"
       ],
-      "metrics": [
-        "metric_1",
-        "metric_2"
-      ],
       "data": [
         [
           "2020-08-01 00:00:09",
@@ -41,17 +37,17 @@
     }
   },
   "IntervalsDFTests": {
-    "test_init_series_metric_str": {
+    "test_init_series_str": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_series_metric_tuple": {
+    "test_init_series_tuple": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_series_metric_list": {
+    "test_init_series_list": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
@@ -124,10 +120,6 @@
         "series": [
           "series_1"
         ],
-        "metrics": [
-          "metric_1",
-          "metric_2"
-        ],
         "data": [
           [
             "2020-08-01 00:00:09",
@@ -178,9 +170,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
-        },
         "data": [
           [
             "2020-08-01 00:00:10",
@@ -213,9 +202,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -259,9 +245,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
-        },
         "data": [
           [
             "2020-08-01 00:00:10",
@@ -301,9 +284,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -354,9 +334,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
-        },
         "data": [
           [
             "2020-08-01 00:00:10",
@@ -403,9 +380,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -456,9 +430,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
-        },
         "data": [
           [
             "2020-08-01 00:00:09",
@@ -491,9 +462,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -530,9 +498,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
-        },
         "data": [
           [
             "2020-08-01 00:00:09",
@@ -565,9 +530,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -603,9 +565,6 @@
           "series_1",
           "series_2"
         ],
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
-        },
         "data": [
           [
             "2020-08-01 00:00:10",
@@ -680,9 +639,6 @@
         },
         "series": {
           "$ref": "#/IntervalsDFTests/test_disjoint_multiple_series/input/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -767,9 +723,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": [
-          "metric_1"
-        ],
         "data": [
           [
             "2020-08-01 00:00:11",
@@ -801,9 +754,6 @@
         "series": {
           "$ref": "#/__SharedData/init/series"
         },
-        "metrics": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_single_metric/input/metrics"
-        },
         "data": {
           "$ref": "#/IntervalsDFTests/test_disjoint_single_metric/input/data"
         }
@@ -825,9 +775,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -861,9 +808,6 @@
         },
         "series": {
           "$ref": "#/__SharedData/init/series"
-        },
-        "metrics": {
-          "$ref": "#/__SharedData/init/metrics"
         },
         "data": [
           [
@@ -934,10 +878,6 @@
         "end_ts": "end_ts",
         "series": [
           "series_1"
-        ],
-        "metrics": [
-          "metric_1",
-          "metric_2"
         ],
         "data": [
           [

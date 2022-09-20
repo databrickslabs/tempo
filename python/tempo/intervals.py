@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from typing import Optional
+from functools import cached_property
 
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.types import NumericType, BooleanType, StructField
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
+def is_metric_col( col: StructField ) -> bool:
+    return (isinstance(col.dataType, NumericType)
+            or
+            isinstance(col.dataType, BooleanType))
 
 class IntervalsDF:
     """
@@ -27,8 +33,7 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        series: list[str],
-        metrics: list[str],
+        series_ids: list[str] = None
     ) -> None:
         """
          Constructor for :class:`IntervalsDF`.
@@ -39,10 +44,8 @@ class IntervalsDF:
         :type start_ts: str
         :param end_ts:
         :type end_ts: str
-        :param series:
-        :type series: list[str]
-        :param metrics:
-        :type metrics: list[str]
+        :param series_ids:
+        :type series_ids: list[str]
         :rtype: None
 
         :Example:
@@ -68,29 +71,43 @@ class IntervalsDF:
 
         """
 
+        self.df = df
+
         self.start_ts = start_ts
         self.end_ts = end_ts
 
-        self._interval_boundaries = [
-            self.start_ts,
-            self.end_ts,
+        if not series_ids:
+            self.series_ids = []
+        elif isinstance(series_ids, list):
+            self.series_ids = series_ids
+        else:
+            raise ValueError(f"series_ids must be a list of column names, instead got {type(series_ids)}")
+
+    @cached_property
+    def interval_boundaries(self) -> list[str]:
+        return [ self.start_ts, self.end_ts ]
+
+    @cached_property
+    def structural_columns(self) -> list[str]:
+        return self.interval_boundaries + self.series_ids
+
+    @cached_property
+    def observational_columns(self) -> list[str]:
+        return list(set(self.df.columns) - set(self.structural_columns))
+
+    @cached_property
+    def metric_columns(self) -> list[str]:
+        return [
+            col.name
+            for
+            col in self.df.schema.fields
+            if
+            is_metric_col(col)
         ]
 
-        if not series or not isinstance(series, list):
-            raise ValueError
-        else:
-            self.series_cols = series
-
-        if not metrics or not isinstance(metrics, list):
-            raise ValueError
-        else:
-            self.metric_cols = metrics
-
-        self._window = Window.partitionBy(*self.series_cols).orderBy(
-            *self._interval_boundaries
-        )
-
-        self.df = df
+    @cached_property
+    def window(self):
+        return Window.partitionBy(*self.series_ids).orderBy(*self.interval_boundaries)
 
     @classmethod
     def fromStackedMetrics(
@@ -174,11 +191,7 @@ class IntervalsDF:
             .max(metrics_value_col)
         )
 
-        metric_cols = list(
-            col for col in df.columns if col not in (start_ts, end_ts, *series)
-        )
-
-        return cls(df, start_ts, end_ts, series, metric_cols)
+        return cls(df, start_ts, end_ts, series)
 
     def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
         """
@@ -195,13 +208,13 @@ class IntervalsDF:
                 this would allow easier reuse throughout code
 
         """
-        for c in self._interval_boundaries + self.metric_cols:
+        for c in self.interval_boundaries + self.metric_columns:
             df = df.withColumn(
                 f"_lead_1_{c}",
-                f.lead(c, 1).over(self._window),
+                f.lead(c, 1).over(self.window),
             ).withColumn(
                 f"_lag_1_{c}",
-                f.lag(c, 1).over(self._window),
+                f.lag(c, 1).over(self.window),
             )
 
         return df
@@ -256,7 +269,7 @@ class IntervalsDF:
         # identify overlaps for each interval boundary
         # NB: between is inclusive so not used here, and
         # matches on boundaries should be ignored
-        for ts in self._interval_boundaries:
+        for ts in self.interval_boundaries:
             df = df.withColumn(
                 f"_lead_1_{ts}_overlaps",
                 (f.col(f"_lead_1_{ts}") > f.col(self.start_ts))
@@ -306,7 +319,7 @@ class IntervalsDF:
 
         """
 
-        for c in self.metric_cols:
+        for c in self.metric_columns:
             df = df.withColumn(
                 c,
                 f.when(
@@ -380,7 +393,7 @@ class IntervalsDF:
 
         if how == "left":
 
-            for c in self.metric_cols:
+            for c in self.metric_columns:
                 df = df.withColumn(
                     c,
                     # needed when intervals have same start but different ends
@@ -414,9 +427,9 @@ class IntervalsDF:
 
         """
 
-        merge_expr = tuple(f.max(c).alias(c) for c in self.metric_cols)
+        merge_expr = tuple(f.max(c).alias(c) for c in self.metric_columns)
 
-        return df.groupBy(*self._interval_boundaries, *self.series_cols).agg(
+        return df.groupBy(*self.interval_boundaries, *self.series_ids).agg(
             *merge_expr
         )
 
@@ -469,7 +482,7 @@ class IntervalsDF:
         )
 
         subset_df = subset_df.select(
-            *self._interval_boundaries, *self.series_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_ids, *self.metric_columns
         )
 
         non_subset_df = df.filter(~f.col(subset_indicator))
@@ -484,7 +497,7 @@ class IntervalsDF:
 
         # filter for intervals that are already disjoint
         disjoint_df = non_subset_df.filter(disjoint_predicate).select(
-            *self._interval_boundaries, *self.series_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_ids, *self.metric_columns
         )
 
         left_overlaps_df = self.__merge_adjacent_overlaps(
@@ -492,7 +505,7 @@ class IntervalsDF:
         )
 
         left_overlaps_df = left_overlaps_df.select(
-            *self._interval_boundaries, *self.series_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_ids, *self.metric_columns
         )
 
         right_overlaps_df = self.__merge_adjacent_overlaps(
@@ -500,7 +513,7 @@ class IntervalsDF:
         )
 
         right_overlaps_df = right_overlaps_df.select(
-            *self._interval_boundaries, *self.series_cols, *self.metric_cols
+            *self.interval_boundaries, *self.series_ids, *self.metric_columns
         )
 
         unioned_df = (
@@ -515,8 +528,7 @@ class IntervalsDF:
             disjoint_df,
             self.start_ts,
             self.end_ts,
-            self.series_cols,
-            self.metric_cols,
+            self.series_ids
         )
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
@@ -549,8 +561,7 @@ class IntervalsDF:
             self.df.union(other.df),
             self.start_ts,
             self.end_ts,
-            self.series_cols,
-            self.metric_cols,
+            self.series_ids
         )
 
     def unionByName(self, other: "IntervalsDF") -> "IntervalsDF":
@@ -581,8 +592,7 @@ class IntervalsDF:
             self.df.unionByName(other.df),
             self.start_ts,
             self.end_ts,
-            self.series_cols,
-            self.metric_cols,
+            self.series_ids
         )
 
     def toDF(self, stack: bool = False) -> DataFrame:
@@ -609,9 +619,9 @@ class IntervalsDF:
 
         if stack:
 
-            n_cols = len(self.metric_cols)
+            n_cols = len(self.metric_columns)
             metric_cols_expr = ",".join(
-                tuple(f"'{col}', {col}" for col in self.metric_cols)
+                tuple(f"'{col}', {col}" for col in self. metric_columns)
             )
 
             stack_expr = (
@@ -619,7 +629,7 @@ class IntervalsDF:
             )
 
             return self.df.select(
-                *self._interval_boundaries, *self.series_cols, f.expr(stack_expr)
+                *self.interval_boundaries, *self.series_ids, f.expr(stack_expr)
             ).dropna(subset="metric_value")
 
         else:
