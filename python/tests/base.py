@@ -9,6 +9,7 @@ import jsonref
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
 from tempo.tsdf import TSDF
+from tempo.intervals import IntervalsDF
 from chispa import assert_df_equality
 from pyspark.sql.dataframe import DataFrame
 
@@ -83,6 +84,17 @@ class SparkTest(unittest.TestCase):
             sequence_col=td.get("sequence_col", None),
         )
         return tsdf
+
+    def get_data_as_idf(self, name: str, convert_ts_col=True):
+        df = self.get_data_as_sdf(name, convert_ts_col)
+        td = self.test_data[name]
+        idf = IntervalsDF(
+            df,
+            start_ts=td["start_ts"],
+            end_ts=td["end_ts"],
+            series_ids=td.get("series", None),
+        )
+        return idf
 
     TEST_DATA_FOLDER = "unit_test_data"
 
@@ -189,9 +201,10 @@ class SparkTest(unittest.TestCase):
 
     @staticmethod
     def assertDataFrameEquality(
-        df1: Union[TSDF, DataFrame],
-        df2: Union[TSDF, DataFrame],
+        df1: Union[IntervalsDF, TSDF, DataFrame],
+        df2: Union[IntervalsDF, TSDF, DataFrame],
         from_tsdf: bool = False,
+        from_idf: bool = False,
         ignore_row_order: bool = False,
         ignore_column_order: bool = True,
         ignore_nullable: bool = True,
@@ -201,7 +214,7 @@ class SparkTest(unittest.TestCase):
         That is, they have equivalent schemas, and both contain the same values
         """
 
-        if from_tsdf:
+        if from_tsdf or from_idf:
             df1 = df1.df
             df2 = df2.df
 
