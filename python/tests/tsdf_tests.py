@@ -70,7 +70,9 @@ class TSDFBaseTests(SparkTest):
         with_double_tscol_df = tsdf.df.withColumn(
             tsdf.ts_col, f.col(tsdf.ts_col).cast("double")
         )
-        return TSDF(with_double_tscol_df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids)
+        return TSDF(
+            with_double_tscol_df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids
+        )
 
     # TODO - replace this with test code for TSDF.fromTimestampString with nano-second precision
     # def test__add_double_ts(self):

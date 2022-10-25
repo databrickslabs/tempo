@@ -77,7 +77,9 @@ class SparkTest(unittest.TestCase):
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
         if "sequence_col" in td:
-            tsdf = TSDF.fromSubsequenceCol(df, td["ts_col"], td["sequence_col"], td.get("series_ids", None))
+            tsdf = TSDF.fromSubsequenceCol(
+                df, td["ts_col"], td["sequence_col"], td.get("series_ids", None)
+            )
         else:
             tsdf = TSDF(df, ts_col=td["ts_col"], series_ids=td.get("series_ids", None))
         return tsdf
@@ -156,10 +158,12 @@ class SparkTest(unittest.TestCase):
         # convert timstamp fields to timestamp type
         for tsc in ts_cols:
             # check if the column is nested in a struct or not
-            if '.' in tsc:
+            if "." in tsc:
                 # we're changing a field nested in a struct
-                (struct, field) = tsc.split('.')
-                df = df.withColumn(struct, F.col(struct).withField(field, F.to_timestamp(tsc)))
+                (struct, field) = tsc.split(".")
+                df = df.withColumn(
+                    struct, F.col(struct).withField(field, F.to_timestamp(tsc))
+                )
             else:
                 # standard column
                 df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))

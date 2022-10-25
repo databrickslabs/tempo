@@ -24,15 +24,17 @@ from tempo.utils import (
     ENV_CAN_RENDER_HTML,
     IS_DATABRICKS,
     calculate_time_horizon,
-    get_display_df
+    get_display_df,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class TSDFStructureChangeError(Exception):
     """
     Error raised when a user attempts an operation that would alter the structure of a TSDF in a destructive manner.
     """
+
     __MSG_TEMPLATE: str = """
     The attempted operation ({op}) is not allowed because it would result in altering the structure of the TSDF.
     If you really want to make this change, perform the operation on the underlying DataFrame, then re-create a new TSDF.
@@ -46,12 +48,14 @@ class IncompatibleTSError(Exception):
     """
     Error raised when an operation is attempted between two incompatible TSDFs.
     """
+
     __MSG_TEMPLATE: str = """
     The attempted operation ({op}) cannot be performed because the given TSDFs have incompatible structure.
     {d}"""
 
     def __init__(self, operation: str, details: str = None) -> None:
         super().__init__(self.__MSG_TEMPLATE.format(op=operation, d=details))
+
 
 class TSDF:
     """
@@ -64,7 +68,7 @@ class TSDF:
         ts_schema: TSSchema = None,
         ts_col: str = None,
         series_ids: Collection[str] = None,
-        validate_schema=True
+        validate_schema=True,
     ) -> None:
         self.df = df
         # construct schema if we don't already have one
@@ -105,12 +109,16 @@ class TSDF:
 
         :return: a :class:`TSDF` with the columns reordered into "standard order" (as described above)
         """
-        std_ordered_cols = list(self.series_ids) + [self.ts_index.name] + list(self.observational_cols)
+        std_ordered_cols = (
+            list(self.series_ids) + [self.ts_index.name] + list(self.observational_cols)
+        )
 
         return self.__withTransformedDF(self.df.select(std_ordered_cols))
 
     @classmethod
-    def __makeStructFromCols(cls, df: DataFrame, struct_col_name: str, cols_to_move: List[str]) -> DataFrame:
+    def __makeStructFromCols(
+        cls, df: DataFrame, struct_col_name: str, cols_to_move: List[str]
+    ) -> DataFrame:
         """
         Transform a :class:`DataFrame` by moving certain columns into a struct
 
@@ -120,29 +128,50 @@ class TSDF:
 
         :return: the transformed :class:`DataFrame`
         """
-        return df.withColumn(struct_col_name, Fn.struct(cols_to_move)).drop(*cols_to_move)
+        return df.withColumn(struct_col_name, Fn.struct(cols_to_move)).drop(
+            *cols_to_move
+        )
 
     # default column name for constructed timeseries index struct columns
     __DEFAULT_TS_IDX_COL = "ts_idx"
 
     @classmethod
-    def fromSubsequenceCol(cls, df: DataFrame, ts_col: str, subsequence_col: str, series_ids: Collection[str] = None) -> "TSDF":
+    def fromSubsequenceCol(
+        cls,
+        df: DataFrame,
+        ts_col: str,
+        subsequence_col: str,
+        series_ids: Collection[str] = None,
+    ) -> "TSDF":
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_subseq_struct_df = cls.__makeStructFromCols(df, struct_col_name, [ts_col, subsequence_col])
+        with_subseq_struct_df = cls.__makeStructFromCols(
+            df, struct_col_name, [ts_col, subsequence_col]
+        )
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
         subseq_idx = SubSequenceTSIndex(subseq_struct, ts_col, subsequence_col)
         # construct & return the TSDF with appropriate schema
         return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
 
-
     @classmethod
-    def fromTimestampString(cls, df: DataFrame, ts_col: str, series_ids: Collection[str] = None, ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]") -> "TSDF":
+    def fromTimestampString(
+        cls,
+        df: DataFrame,
+        ts_col: str,
+        series_ids: Collection[str] = None,
+        ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]",
+    ) -> "TSDF":
         pass
 
     @classmethod
-    def fromDateString(cls, df: DataFrame, ts_col: str, series_ids: Collection[str], date_fmt: str = "YYYY-MM-DD") -> "TSDF ":
+    def fromDateString(
+        cls,
+        df: DataFrame,
+        ts_col: str,
+        series_ids: Collection[str],
+        date_fmt: str = "YYYY-MM-DD",
+    ) -> "TSDF ":
         pass
 
     @property
@@ -424,7 +453,9 @@ class TSDF:
         df = partition_df.union(remainder_df).drop(
             "partition_remainder", "ts_col_double"
         )
-        return TSDF(df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"])
+        return TSDF(
+            df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"]
+        )
 
     #
     # Slicing & Selection
@@ -452,7 +483,9 @@ class TSDF:
         if set(self.structural_cols).issubset(set(cols)):
             return self.__withTransformedDF(self.df.select(*cols))
         else:
-            raise TSDFStructureChangeError("select that does not include all structural columns")
+            raise TSDFStructureChangeError(
+                "select that does not include all structural columns"
+            )
 
     def __slice(self, op: str, target_ts):
         """
@@ -638,7 +671,7 @@ class TSDF:
         if not (IS_DATABRICKS) and ENV_CAN_RENDER_HTML:
             # In Jupyter notebooks, for wide dataframes the below line will enable rendering the output in a scrollable format.
             ipydisplay(HTML("<style>pre { white-space: pre !important; }</style>"))
-        get_display_df(self,k=k).show(n, truncate, vertical)
+        get_display_df(self, k=k).show(n, truncate, vertical)
 
     def describe(self):
         """
@@ -670,12 +703,12 @@ class TSDF:
         desc_stats = this_df.describe().union(missing_vals)
         unique_ts = this_df.select(*self.series_ids).distinct().count()
 
-        max_ts = this_df.select(Fn.max(Fn.col(self.ts_col)).alias("max_ts")).collect()[0][
+        max_ts = this_df.select(Fn.max(Fn.col(self.ts_col)).alias("max_ts")).collect()[
             0
-        ]
-        min_ts = this_df.select(Fn.min(Fn.col(self.ts_col)).alias("max_ts")).collect()[0][
+        ][0]
+        min_ts = this_df.select(Fn.min(Fn.col(self.ts_col)).alias("max_ts")).collect()[
             0
-        ]
+        ][0]
         gran = this_df.selectExpr(
             """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
                   when {0} % 60 != 0 then '2-seconds'
@@ -818,8 +851,12 @@ class TSDF:
             )
 
             new_left_ts_col = left_prefix + self.ts_col
-            new_left_cols = [Fn.col(c).alias(left_prefix + c) for c in left_cols] + partition_cols
-            new_right_cols = [Fn.col(c).alias(right_prefix + c) for c in right_cols] + partition_cols
+            new_left_cols = [
+                Fn.col(c).alias(left_prefix + c) for c in left_cols
+            ] + partition_cols
+            new_right_cols = [
+                Fn.col(c).alias(right_prefix + c) for c in right_cols
+            ] + partition_cols
             quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
                 "lead_" + right_tsdf.ts_col,
                 Fn.lead(right_prefix + right_tsdf.ts_col).over(w),
@@ -942,16 +979,18 @@ class TSDF:
         return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
 
     def __rangeBetweenWindow(self, range_from, range_to, reverse=False):
-        return ( self.__baseWindow(reverse=reverse)
-                     .orderBy(self.ts_index.rangeOrderByExpr(reverse=reverse))
-                     .rangeBetween(range_from, range_to ) )
+        return (
+            self.__baseWindow(reverse=reverse)
+            .orderBy(self.ts_index.rangeOrderByExpr(reverse=reverse))
+            .rangeBetween(range_from, range_to)
+        )
 
     #
     # Core Transformations
     #
 
     def withNaturalOrdering(self, reverse: bool = False) -> "TSDF":
-        order_expr = [ Fn.col(c) for c in self.series_ids]
+        order_expr = [Fn.col(c) for c in self.series_ids]
         ts_idx_expr = self.ts_index.orderByExpr(reverse)
         if isinstance(ts_idx_expr, list):
             order_expr.extend(ts_idx_expr)
@@ -968,7 +1007,9 @@ class TSDF:
         :param col: a :class:`Column` expression for the new column definition
         """
         if colName in self.structural_cols:
-            raise TSDFStructureChangeError(f"withColumn on the structural column {colName}.")
+            raise TSDFStructureChangeError(
+                f"withColumn on the structural column {colName}."
+            )
         new_df = self.df.withColumn(colName, col)
         return self.__withTransformedDF(new_df)
 
@@ -993,7 +1034,7 @@ class TSDF:
             new_series_ids[new_series_ids.index(existing)] = new
 
         # rename the column in the underlying DF
-        new_df = self.df.withColumnRenamed(existing,new)
+        new_df = self.df.withColumnRenamed(existing, new)
 
         # return new TSDF
         new_schema = TSSchema(new_ts_index, new_series_ids)
@@ -1006,7 +1047,9 @@ class TSDF:
 
     def unionByName(self, other: TSDF, allowMissingColumns: bool = False) -> TSDF:
         # union of the underlying DataFrames
-        union_df = self.df.unionByName(other.df, allowMissingColumns=allowMissingColumns)
+        union_df = self.df.unionByName(
+            other.df, allowMissingColumns=allowMissingColumns
+        )
         return self.__withTransformedDF(union_df)
 
     #
@@ -1347,7 +1390,9 @@ class TSDF:
         )
         bars = bars.select(sel_and_sort)
 
-        return TSDF(bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids)
+        return TSDF(
+            bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids
+        )
 
     def fourier_transform(self, timestep, valueCol):
         """
@@ -1508,7 +1553,8 @@ class TSDF:
 
         # Each state comparison should return True if state remained constant
         data = data.withColumn(
-            "state_change", Fn.array_contains(Fn.array(*temp_metric_compare_cols), False)
+            "state_change",
+            Fn.array_contains(Fn.array(*temp_metric_compare_cols), False),
         )
 
         # Count the distinct state changes to get the unique intervals

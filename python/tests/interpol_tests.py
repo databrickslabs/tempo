@@ -1,11 +1,8 @@
 import unittest
 
-from pyspark.sql.types import *
-
 from tempo.interpol import Interpolation
 from tempo.tsdf import TSDF
 from tempo.utils import *
-
 from tests.tsdf_tests import SparkTest
 
 
@@ -200,7 +197,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -401,7 +398,7 @@ class InterpolationIntegrationTest(SparkTest):
         input_tsdf = TSDF(
             simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"),
             ts_col="other_ts_col",
-            series_ids=["partition_a", "partition_b"]
+            series_ids=["partition_a", "partition_b"],
         )
 
         actual_df: DataFrame = input_tsdf.interpolate(
