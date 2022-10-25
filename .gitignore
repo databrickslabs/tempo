@@ -40,3 +40,6 @@ venv
 # other misc ignore
 .DS_Store
 /docs/_build/
+
+# sphinx build folder
+docs/_build
