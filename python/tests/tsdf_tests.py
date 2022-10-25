@@ -19,8 +19,7 @@ class TSDFBaseTests(SparkTest):
 
         self.assertIsInstance(tsdf_init.df, DataFrame)
         self.assertEqual(tsdf_init.ts_col, "event_ts")
-        self.assertEqual(tsdf_init.partitionCols, ["symbol"])
-        self.assertEqual(tsdf_init.sequence_col, "")
+        self.assertEqual(tsdf_init.series_ids, ["symbol"])
 
     def test_describe(self):
         """AS-OF Join without a time-partition test"""
@@ -53,12 +52,13 @@ class TSDFBaseTests(SparkTest):
             == "2020-09-01 00:19:12"
         )
 
-    def test__getBytesFromPlan(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
-
-        self.assertEqual(_bytes, 6.2)
+    # TODO - will be moved to new test suite for asOfJoin
+    # def test__getBytesFromPlan(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+    #
+    #     self.assertEqual(_bytes, 6.2)
 
     @staticmethod
     @mock.patch.dict(os.environ, {"TZ": "UTC"})
@@ -72,180 +72,184 @@ class TSDFBaseTests(SparkTest):
         )
         return TSDF(with_double_tscol_df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids)
 
-    def test__add_double_ts(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        df = init_tsdf._TSDF__add_double_ts()
+    # TODO - replace this with test code for TSDF.fromTimestampString with nano-second precision
+    # def test__add_double_ts(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #     df = init_tsdf._TSDF__add_double_ts()
+    #
+    #     schema_string = df.schema.simpleString()
+    #
+    #     self.assertIn("double_ts:double", schema_string)
 
-        schema_string = df.schema.simpleString()
+    # TODO - replace with tests for TSDF.fromTimestampString
+    # def test__validate_ts_string_valid(self):
+    #     valid_timestamp_string = "2020-09-01 00:02:10"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_alt_format_valid(self):
+    #     valid_timestamp_string = "2020-09-01T00:02:10"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_with_microseconds_valid(self):
+    #     valid_timestamp_string = "2020-09-01 00:02:10.00000000"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_alt_format_with_microseconds_valid(self):
+    #     valid_timestamp_string = "2020-09-01T00:02:10.00000000"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_invalid(self):
+    #     invalid_timestamp_string = "this will not work"
+    #
+    #     self.assertRaises(
+    #         ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
+    #     )
 
-        self.assertIn("double_ts:double", schema_string)
+    # TODO - replace with tests of TSSchema validation
+    # def test__validated_column_not_string(self):
+    #     init_df = self.get_data_as_tsdf("init").df
+    #
+    #     self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
+    #
+    # def test__validated_column_not_found(self):
+    #     init_df = self.get_data_as_tsdf("init").df
+    #
+    #     self.assertRaises(
+    #         ValueError,
+    #         TSDF._TSDF__validated_column,
+    #         init_df,
+    #         "does not exist",
+    #     )
+    #
+    # def test__validated_column(self):
+    #     init_df = self.get_data_as_tsdf("init").df
+    #
+    #     self.assertEqual(
+    #         TSDF._TSDF__validated_column(init_df, "symbol"),
+    #         "symbol",
+    #     )
+    #
+    # def test__validated_columns_string(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertEqual(
+    #         init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
+    #         ["symbol"],
+    #     )
+    #
+    # def test__validated_columns_none(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertEqual(
+    #         init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
+    #         [],
+    #     )
+    #
+    # def test__validated_columns_tuple(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertRaises(
+    #         TypeError,
+    #         init_tsdf._TSDF__validated_columns,
+    #         init_tsdf.df,
+    #         ("symbol",),
+    #     )
+    #
+    # def test__validated_columns_list_multiple_elems(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertEqual(
+    #         init_tsdf._TSDF__validated_columns(
+    #             init_tsdf.df,
+    #             ["symbol", "event_ts", "trade_pr"],
+    #         ),
+    #         ["symbol", "event_ts", "trade_pr"],
+    #     )
 
-    def test__validate_ts_string_valid(self):
-        valid_timestamp_string = "2020-09-01 00:02:10"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_alt_format_valid(self):
-        valid_timestamp_string = "2020-09-01T00:02:10"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_with_microseconds_valid(self):
-        valid_timestamp_string = "2020-09-01 00:02:10.00000000"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_alt_format_with_microseconds_valid(self):
-        valid_timestamp_string = "2020-09-01T00:02:10.00000000"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_invalid(self):
-        invalid_timestamp_string = "this will not work"
-
-        self.assertRaises(
-            ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
-        )
-
-    def test__validated_column_not_string(self):
-        init_df = self.get_data_as_tsdf("init").df
-
-        self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
-
-    def test__validated_column_not_found(self):
-        init_df = self.get_data_as_tsdf("init").df
-
-        self.assertRaises(
-            ValueError,
-            TSDF._TSDF__validated_column,
-            init_df,
-            "does not exist",
-        )
-
-    def test__validated_column(self):
-        init_df = self.get_data_as_tsdf("init").df
-
-        self.assertEqual(
-            TSDF._TSDF__validated_column(init_df, "symbol"),
-            "symbol",
-        )
-
-    def test__validated_columns_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertEqual(
-            init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
-            ["symbol"],
-        )
-
-    def test__validated_columns_none(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertEqual(
-            init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
-            [],
-        )
-
-    def test__validated_columns_tuple(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertRaises(
-            TypeError,
-            init_tsdf._TSDF__validated_columns,
-            init_tsdf.df,
-            ("symbol",),
-        )
-
-    def test__validated_columns_list_multiple_elems(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertEqual(
-            init_tsdf._TSDF__validated_columns(
-                init_tsdf.df,
-                ["symbol", "event_ts", "trade_pr"],
-            ),
-            ["symbol", "event_ts", "trade_pr"],
-        )
-
-    def test__checkPartitionCols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        right_tsdf = self.get_data_as_tsdf("right_tsdf")
-
-        self.assertRaises(ValueError, init_tsdf._TSDF__checkPartitionCols, right_tsdf)
-
-    def test__validateTsColMatch(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        right_tsdf = self.get_data_as_tsdf("right_tsdf")
-
-        self.assertRaises(ValueError, init_tsdf._TSDF__validateTsColMatch, right_tsdf)
-
-    def test__addPrefixToColumns_non_empty_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "prefix").df
-
-        schema_string = df.schema.simpleString()
-
-        self.assertIn("prefix_event_ts", schema_string)
-
-    def test__addPrefixToColumns_empty_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "").df
-
-        schema_string = df.schema.simpleString()
-
-        # comma included (,event_ts) to ensure we don't match if there is a prefix added
-        self.assertIn(",event_ts", schema_string)
-
-    def test__addColumnsFromOtherDF(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        df = init_tsdf._TSDF__addColumnsFromOtherDF(["another_col"]).df
-
-        schema_string = df.schema.simpleString()
-
-        self.assertIn("another_col", schema_string)
-
-    def test__combineTSDF(self):
-        init1_tsdf = self.get_data_as_tsdf("init")
-        init2_tsdf = self.get_data_as_tsdf("init")
-
-        union_tsdf = init1_tsdf._TSDF__combineTSDF(init2_tsdf, "combined_ts_col")
-        df = union_tsdf.df
-
-        schema_string = df.schema.simpleString()
-
-        self.assertEqual(init1_tsdf.df.count() + init2_tsdf.df.count(), df.count())
-        self.assertIn("combined_ts_col", schema_string)
-
-    def test__getLastRightRow(self):
-        # TODO: several errors and hard-coded columns that throw AnalysisException
-        pass
-
-    def test__getTimePartitions(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        actual_tsdf = init_tsdf._TSDF__getTimePartitions(10)
-
-        self.assertDataFrameEquality(
-            actual_tsdf,
-            expected_tsdf,
-            from_tsdf=True,
-        )
-
-    def test__getTimePartitions_with_fraction(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        actual_tsdf = init_tsdf._TSDF__getTimePartitions(10, 0.25)
-
-        self.assertDataFrameEquality(
-            actual_tsdf,
-            expected_tsdf,
-            from_tsdf=True,
-        )
+    # TODO - replace with test code for refactored asOfJoin helpers
+    # def test__checkPartitionCols(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #     right_tsdf = self.get_data_as_tsdf("right_tsdf")
+    #
+    #     self.assertRaises(ValueError, init_tsdf._TSDF__checkPartitionCols, right_tsdf)
+    #
+    # def test__validateTsColMatch(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #     right_tsdf = self.get_data_as_tsdf("right_tsdf")
+    #
+    #     self.assertRaises(ValueError, init_tsdf._TSDF__validateTsColMatch, right_tsdf)
+    #
+    # def test__addPrefixToColumns_non_empty_string(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "prefix").df
+    #
+    #     schema_string = df.schema.simpleString()
+    #
+    #     self.assertIn("prefix_event_ts", schema_string)
+    #
+    # def test__addPrefixToColumns_empty_string(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "").df
+    #
+    #     schema_string = df.schema.simpleString()
+    #
+    #     # comma included (,event_ts) to ensure we don't match if there is a prefix added
+    #     self.assertIn(",event_ts", schema_string)
+    #
+    # def test__addColumnsFromOtherDF(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     df = init_tsdf._TSDF__addColumnsFromOtherDF(["another_col"]).df
+    #
+    #     schema_string = df.schema.simpleString()
+    #
+    #     self.assertIn("another_col", schema_string)
+    #
+    # def test__combineTSDF(self):
+    #     init1_tsdf = self.get_data_as_tsdf("init")
+    #     init2_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     union_tsdf = init1_tsdf._TSDF__combineTSDF(init2_tsdf, "combined_ts_col")
+    #     df = union_tsdf.df
+    #
+    #     schema_string = df.schema.simpleString()
+    #
+    #     self.assertEqual(init1_tsdf.df.count() + init2_tsdf.df.count(), df.count())
+    #     self.assertIn("combined_ts_col", schema_string)
+    #
+    # def test__getLastRightRow(self):
+    #     # TODO: several errors and hard-coded columns that throw AnalysisException
+    #     pass
+    #
+    # def test__getTimePartitions(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #     expected_tsdf = self.get_data_as_tsdf("expected")
+    #
+    #     actual_tsdf = init_tsdf._TSDF__getTimePartitions(10)
+    #
+    #     self.assertDataFrameEquality(
+    #         actual_tsdf,
+    #         expected_tsdf,
+    #         from_tsdf=True,
+    #     )
+    #
+    # def test__getTimePartitions_with_fraction(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #     expected_tsdf = self.get_data_as_tsdf("expected")
+    #
+    #     actual_tsdf = init_tsdf._TSDF__getTimePartitions(10, 0.25)
+    #
+    #     self.assertDataFrameEquality(
+    #         actual_tsdf,
+    #         expected_tsdf,
+    #         from_tsdf=True,
+    #     )
 
     def test_select_empty(self):
         # TODO: Can we narrow down to types of Exception?
@@ -811,13 +815,13 @@ class TSDFBaseTests(SparkTest):
 
         self.assertIsInstance(init_tsdf._TSDF__rowsBetweenWindow(1, 1), WindowSpec)
 
-    def test_withPartitionCols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        actual_tsdf = init_tsdf.withPartitionCols(["symbol"])
-
-        self.assertEqual(init_tsdf.partitionCols, [])
-        self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
+    # def test_withPartitionCols(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     actual_tsdf = init_tsdf.withPartitionCols(["symbol"])
+    #
+    #     self.assertEqual(init_tsdf.partitionCols, [])
+    #     self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
 
 class FourierTransformTest(SparkTest):

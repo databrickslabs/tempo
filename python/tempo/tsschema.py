@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Union, Collection, List
+from typing import Any, Union, Collection, List
 
-from pyspark.sql import Column
 import pyspark.sql.functions as Fn
+from pyspark.sql import Column
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
+
 
 #
 # Timeseries Index Classes
@@ -14,6 +15,25 @@ class TSIndex(ABC):
     """
     Abstract base class for all Timeseries Index types
     """
+
+    def __eq__(self, o: object) -> bool:
+        # must be a SimpleTSIndex
+        if not isinstance(o, TSIndex):
+            return False
+        return self.indexAttributes == o.indexAttributes
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __str__(self) -> str:
+        return f"""{self.__class__.__name__}({self.indexAttributes})"""
+
+    @property
+    @abstractmethod
+    def indexAttributes(self) -> dict[str,Any]:
+        """
+        :return: key attributes of this index
+        """
 
     @property
     @abstractmethod
@@ -27,6 +47,16 @@ class TSIndex(ABC):
     def ts_col(self) -> str:
         """
         :return: the name of the primary timeseries column (may or may not be the same as the name)
+        """
+
+    @abstractmethod
+    def renamed(self, new_name: str) -> "TSIndex":
+        """
+        Renames the index
+
+        :param new_name: new name of the index
+
+        :return: a copy of this :class:`TSIndex` object with the new name
         """
 
     def _reverseOrNot(self, expr: Union[Column, List[Column]], reverse: bool) -> Union[Column, List[Column]]:
@@ -73,12 +103,21 @@ class SimpleTSIndex(TSIndex, ABC):
         self.dataType = ts_col.dataType
 
     @property
+    def indexAttributes(self) -> dict[str, Any]:
+        return { 'name': self.name,
+                 'dataType': self.dataType }
+
+    @property
     def name(self):
         return self.__name
 
     @property
     def ts_col(self) -> str:
         return self.name
+
+    def renamed(self, new_name: str) -> "TSIndex":
+        self.__name = new_name
+        return self
 
     def orderByExpr(self, reverse: bool = False) -> Column:
         expr = Fn.col(self.name)
@@ -137,7 +176,7 @@ class SimpleDateIndex(SimpleTSIndex):
     def rangeOrderByExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
         expr = Fn.datediff(Fn.col(self.name), Fn.lit("1970-01-01").cast("date"))
-        self._reverseOrNot(expr,reverse)
+        return self._reverseOrNot(expr,reverse)
 
 #
 # Compound TS Index Types
@@ -152,14 +191,20 @@ class CompositeTSIndex(TSIndex, ABC):
     def __init__(self, composite_ts_idx: StructField, primary_ts_col: str) -> None:
         if not isinstance(composite_ts_idx.dataType, StructType):
             raise TypeError(f"CompoundTSIndex must be of type StructType, but given compound_ts_idx {composite_ts_idx.name} has type {composite_ts_idx.dataType}")
-        self.ts_idx: str = composite_ts_idx.name
+        self.__name: str = composite_ts_idx.name
         self.struct: StructType = composite_ts_idx.dataType
         # construct a simple TS index object for the primary column
         self.primary_ts_idx: SimpleTSIndex = SimpleTSIndex.fromTSCol(self.struct[primary_ts_col])
 
     @property
+    def indexAttributes(self) -> dict[str, Any]:
+        return { 'name': self.name,
+                 'struct': self.struct,
+                 'primary_ts_col': self.primary_ts_idx }
+
+    @property
     def name(self) -> str:
-        return self.ts_idx
+        return self.__name
 
     @property
     def ts_col(self) -> str:
@@ -168,6 +213,10 @@ class CompositeTSIndex(TSIndex, ABC):
     @property
     def primary_ts_col(self) -> str:
         return self.component(self.primary_ts_idx.name)
+
+    def renamed(self, new_name: str) -> "TSIndex":
+        self.__name = new_name
+        return self
 
     def component(self, component_name):
         """
@@ -197,6 +246,12 @@ class SubSequenceTSIndex(CompositeTSIndex):
         self.sub_sequence_idx = NumericIndex(self.struct[sub_seq_col])
 
     @property
+    def indexAttributes(self) -> dict[str, Any]:
+        attrs = super().indexAttributes
+        attrs['sub_sequence_idx'] = self.sub_sequence_idx
+        return attrs
+
+    @property
     def sub_seq_col(self) -> str:
         return self.component(self.sub_sequence_idx.name)
 
@@ -218,6 +273,12 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(f"Source string column must be of StringType, but given column {src_str_field.name} is of type {src_str_field.dataType}")
         self.__src_str_col = src_str_col
+
+    @property
+    def indexAttributes(self) -> dict[str, Any]:
+        attrs = super().indexAttributes
+        attrs['src_str_col'] = self.src_str_col
+        return attrs
 
     @property
     def src_str_col(self):
@@ -253,7 +314,7 @@ class ParsedDateIndex(ParsedTSIndex):
     def rangeOrderByExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
         expr = Fn.datediff(Fn.col(self.primary_ts_col), Fn.lit("1970-01-01").cast("date"))
-        self._reverseOrNot(expr,reverse)
+        return self._reverseOrNot(expr,reverse)
 
 #
 # Timseries Schema
@@ -264,18 +325,6 @@ class TSSchema:
     Schema type for a :class:`TSDF` class.
     """
 
-    # Valid types for metric columns
-    __metric_types = (
-        BooleanType(),
-        ByteType(),
-        ShortType(),
-        IntegerType(),
-        LongType(),
-        DecimalType(),
-        FloatType(),
-        DoubleType(),
-    )
-
     def __init__(
         self,
         ts_idx: TSIndex,
@@ -285,7 +334,27 @@ class TSSchema:
         if series_ids:
             self.series_ids = list(series_ids)
         else:
-            self.series_ids = None
+            self.series_ids = []
+
+    def __eq__(self, o: object) -> bool:
+        # must be of TSSchema type
+        if not isinstance(o, TSSchema):
+            return False
+        # must have same TSIndex
+        if self.ts_idx != o.ts_idx:
+            return False
+        # must have the same series IDs
+        if self.series_ids != o.series_ids:
+            return False
+        return True
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __str__(self) -> str:
+        return f"""TSSchema({id(self)})
+    TSIndex: {self.ts_idx}
+    Series IDs: {self.series_ids}"""
 
     @classmethod
     def fromDFSchema(
@@ -296,28 +365,32 @@ class TSSchema:
         return cls(ts_idx, series_ids)
 
     @property
-    def structural_columns(self) -> set[str]:
+    def structural_columns(self) -> list[str]:
         """
         Structural columns are those that define the structure of the :class:`TSDF`. This includes the timeseries column,
         a timeseries index (if different), any subsequence column (if present), and the series ID columns.
 
         :return: a set of column names corresponding the structural columns of a :class:`TSDF`
         """
-        struct_cols = {self.ts_idx.name}.union(self.series_ids)
-        struct_cols.discard(None)
-        return struct_cols
+        return list({self.ts_idx.name}.union(self.series_ids))
 
     def validate(self, df_schema: StructType) -> None:
         pass
 
-    def find_observational_columns(self, df_schema: StructType) -> set[str]:
-        return set(df_schema.fieldNames()) - self.structural_columns
+    def find_observational_columns(self, df_schema: StructType) -> list[str]:
+        return list(set(df_schema.fieldNames()) - set(self.structural_columns))
+
+    @classmethod
+    def is_metric_col(cls, col: StructField) -> bool:
+        return (isinstance(col.dataType, NumericType)
+                or
+                isinstance(col.dataType, BooleanType))
 
     def find_metric_columns(self, df_schema: StructType) -> list[str]:
         return [
             col.name
             for col in df_schema.fields
-            if (col.dataType in self.__metric_types)
-                and
+            if self.is_metric_col(col)
+               and
                (col.name in self.find_observational_columns(df_schema))
         ]

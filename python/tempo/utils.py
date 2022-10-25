@@ -1,7 +1,8 @@
-from typing import List
 import logging
 import os
 import warnings
+from typing import List
+
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
@@ -141,12 +142,7 @@ def display_unavailable(df):
 
 
 def get_display_df(tsdf, k):
-    # let's show the n most recent records per series, in order:
-    orderCols = tsdf.partitionCols.copy()
-    orderCols.append(tsdf.ts_col)
-    if tsdf.sequence_col:
-        orderCols.append(tsdf.sequence_col)
-    return tsdf.latest(k).df.orderBy(orderCols)
+    return tsdf.latest(k).withNaturalOrdering().df
 
 
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
