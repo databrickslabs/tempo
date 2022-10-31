@@ -4,7 +4,7 @@ ipython==8.5.0
 numpy==1.23.4
 chispa==0.9.2
 pandas==1.5.1
-pyarrow==9.0.0
+pyarrow==10.0.0
 pyspark==3.2.1
 python-dateutil==2.8.2
 pytz==2022.5
