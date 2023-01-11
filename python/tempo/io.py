@@ -4,7 +4,7 @@ import os
 import logging
 from collections import deque
 import tempo
-import pyspark.sql.functions as f
+import pyspark.sql.functions as Fn
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
 
@@ -35,9 +35,9 @@ def write(
 
     useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
-    view_df = df.withColumn("event_dt", f.to_date(f.col(ts_col))).withColumn(
+    view_df = df.withColumn("event_dt", Fn.to_date(Fn.col(ts_col))).withColumn(
         "event_time",
-        f.translate(f.split(f.col(ts_col).cast("string"), " ")[1], ":", "").cast(
+        Fn.translate(Fn.split(Fn.col(ts_col).cast("string"), " ")[1], ":", "").cast(
             "double"
         ),
     )

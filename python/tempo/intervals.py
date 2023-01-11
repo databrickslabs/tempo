@@ -5,7 +5,7 @@ from functools import cached_property
 
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import NumericType, BooleanType, StructField
-import pyspark.sql.functions as f
+import pyspark.sql.functions as Fn
 from pyspark.sql.window import Window
 
 
@@ -205,10 +205,10 @@ class IntervalsDF:
         for c in self.interval_boundaries + self.metric_columns:
             df = df.withColumn(
                 f"_lead_1_{c}",
-                f.lead(c, 1).over(self.window),
+                Fn.lead(c, 1).over(self.window),
             ).withColumn(
                 f"_lag_1_{c}",
-                f.lag(c, 1).over(self.window),
+                Fn.lag(c, 1).over(self.window),
             )
 
         return df
@@ -231,8 +231,8 @@ class IntervalsDF:
 
         df = df.withColumn(
             subset_indicator,
-            (f.col(f"_lag_1_{self.start_ts}") <= f.col(self.start_ts))
-            & (f.col(f"_lag_1_{self.end_ts}") >= f.col(self.end_ts)),
+            (Fn.col(f"_lag_1_{self.start_ts}") <= Fn.col(self.start_ts))
+            & (Fn.col(f"_lag_1_{self.end_ts}") >= Fn.col(self.end_ts)),
         )
 
         # NB: the first record cannot be a subset of the previous and
@@ -266,12 +266,12 @@ class IntervalsDF:
         for ts in self.interval_boundaries:
             df = df.withColumn(
                 f"_lead_1_{ts}_overlaps",
-                (f.col(f"_lead_1_{ts}") > f.col(self.start_ts))
-                & (f.col(f"_lead_1_{ts}") < f.col(self.end_ts)),
+                (Fn.col(f"_lead_1_{ts}") > Fn.col(self.start_ts))
+                & (Fn.col(f"_lead_1_{ts}") < Fn.col(self.end_ts)),
             ).withColumn(
                 f"_lag_1_{ts}_overlaps",
-                (f.col(f"_lag_1_{ts}") > f.col(self.start_ts))
-                & (f.col(f"_lag_1_{ts}") < f.col(self.end_ts)),
+                (Fn.col(f"_lag_1_{ts}") > Fn.col(self.start_ts))
+                & (Fn.col(f"_lag_1_{ts}") < Fn.col(self.end_ts)),
             )
 
             overlap_indicators.extend(
@@ -316,9 +316,9 @@ class IntervalsDF:
         for c in self.metric_columns:
             df = df.withColumn(
                 c,
-                f.when(
-                    f.col(subset_indicator), f.coalesce(f.col(c), f"_lag_1_{c}")
-                ).otherwise(f.col(c)),
+                Fn.when(
+                    Fn.col(subset_indicator), Fn.coalesce(Fn.col(c), f"_lag_1_{c}")
+                ).otherwise(Fn.col(c)),
             )
 
         return df
@@ -382,7 +382,7 @@ class IntervalsDF:
 
         df = df.withColumn(
             new_boundary_col,
-            f.expr(new_interval_boundaries),
+            Fn.expr(new_interval_boundaries),
         )
 
         if how == "left":
@@ -392,13 +392,13 @@ class IntervalsDF:
                     c,
                     # needed when intervals have same start but different ends
                     # in this case, merge metrics since they overlap
-                    f.when(
-                        f.col(f"_lag_1_{self.end_ts}_overlaps"),
-                        f.coalesce(f.col(c), f.col(f"_lag_1_{c}")),
+                    Fn.when(
+                        Fn.col(f"_lag_1_{self.end_ts}_overlaps"),
+                        Fn.coalesce(Fn.col(c), Fn.col(f"_lag_1_{c}")),
                     )
                     # general case when constructing left disjoint interval
                     # just want new boundary without merging metrics
-                    .otherwise(f.col(c)),
+                    .otherwise(Fn.col(c)),
                 )
 
         return df
@@ -421,7 +421,7 @@ class IntervalsDF:
 
         """
 
-        merge_expr = tuple(f.max(c).alias(c) for c in self.metric_columns)
+        merge_expr = tuple(Fn.max(c).alias(c) for c in self.metric_columns)
 
         return df.groupBy(*self.interval_boundaries, *self.series_ids).agg(*merge_expr)
 
@@ -467,7 +467,7 @@ class IntervalsDF:
 
         (df, subset_indicator) = self.__identify_subset_intervals(df)
 
-        subset_df = df.filter(f.col(subset_indicator))
+        subset_df = df.filter(Fn.col(subset_indicator))
 
         subset_df = self.__merge_adjacent_subset_and_superset(
             subset_df, subset_indicator
@@ -477,7 +477,7 @@ class IntervalsDF:
             *self.interval_boundaries, *self.series_ids, *self.metric_columns
         )
 
-        non_subset_df = df.filter(~f.col(subset_indicator))
+        non_subset_df = df.filter(~Fn.col(subset_indicator))
 
         (non_subset_df, overlap_indicators) = self.__identify_overlaps(non_subset_df)
 
@@ -610,7 +610,7 @@ class IntervalsDF:
             )
 
             return self.df.select(
-                *self.interval_boundaries, *self.series_ids, f.expr(stack_expr)
+                *self.interval_boundaries, *self.series_ids, Fn.expr(stack_expr)
             ).dropna(subset="metric_value")
 
         else:

@@ -4,7 +4,7 @@ from typing import Union, Optional
 
 import tempo
 
-import pyspark.sql.functions as f
+import pyspark.sql.functions as Fn
 from pyspark.sql.window import Window
 from pyspark.sql import DataFrame
 
@@ -45,8 +45,8 @@ def _appendAggKey(tsdf: tempo.TSDF, freq: str = None):
     """
     df = tsdf.df
     parsed_freq = checkAllowableFreq(freq)
-    agg_window = f.window(
-        f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]])
+    agg_window = Fn.window(
+        Fn.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]])
     )
 
     df = df.withColumn("agg_key", agg_window)
@@ -88,16 +88,16 @@ def aggregate(
     else:
         prefix = prefix + "_"
 
-    groupingCols = [f.col(column) for column in groupingCols]
+    groupingCols = [Fn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        metricCol = Fn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(f.min("struct_cols").alias("closest_data")).select(
-            *groupingCols, f.col("closest_data.*")
+        res = res.agg(Fn.min("struct_cols").alias("closest_data")).select(
+            *groupingCols, Fn.col("closest_data.*")
         )
-        new_cols = [f.col(tsdf.ts_col)] + [
-            f.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [Fn.col(tsdf.ts_col)] + [
+            Fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == average:
@@ -107,7 +107,7 @@ def aggregate(
             set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
+            Fn.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -118,7 +118,7 @@ def aggregate(
             set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
+            Fn.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -129,18 +129,18 @@ def aggregate(
             set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
+            Fn.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == ceiling:
-        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        metricCol = Fn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(f.max("struct_cols").alias("ceil_data")).select(
-            *groupingCols, f.col("ceil_data.*")
+        res = res.agg(Fn.max("struct_cols").alias("ceil_data")).select(
+            *groupingCols, Fn.col("ceil_data.*")
         )
-        new_cols = [f.col(tsdf.ts_col)] + [
-            f.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [Fn.col(tsdf.ts_col)] + [
+            Fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
 
@@ -148,7 +148,7 @@ def aggregate(
     res = (
         res.drop(tsdf.ts_col)
         .withColumnRenamed("agg_key", tsdf.ts_col)
-        .withColumn(tsdf.ts_col, f.col(tsdf.ts_col).start)
+        .withColumn(tsdf.ts_col, Fn.col(tsdf.ts_col).start)
     )
 
     # sort columns so they are consistent
@@ -161,14 +161,14 @@ def aggregate(
     imputes = (
         res.select(
             *tsdf.series_ids,
-            f.min(tsdf.ts_col).over(fillW).alias("from"),
-            f.max(tsdf.ts_col).over(fillW).alias("until"),
+            Fn.min(tsdf.ts_col).over(fillW).alias("from"),
+            Fn.max(tsdf.ts_col).over(fillW).alias("until"),
         )
         .distinct()
         .withColumn(
             tsdf.ts_col,
-            f.explode(
-                f.expr("sequence(from, until, interval {} {})".format(period, unit))
+            Fn.explode(
+                Fn.expr("sequence(from, until, interval {} {})".format(period, unit))
             ),
         )
         .drop("from", "until")

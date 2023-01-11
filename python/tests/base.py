@@ -4,7 +4,7 @@ import warnings
 from typing import Union
 
 import jsonref
-import pyspark.sql.functions as F
+import pyspark.sql.functions as Fn
 from chispa import assert_df_equality
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
@@ -162,11 +162,11 @@ class SparkTest(unittest.TestCase):
                 # we're changing a field nested in a struct
                 (struct, field) = tsc.split(".")
                 df = df.withColumn(
-                    struct, F.col(struct).withField(field, F.to_timestamp(tsc))
+                    struct, Fn.col(struct).withField(field, Fn.to_timestamp(tsc))
                 )
             else:
                 # standard column
-                df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
+                df = df.withColumn(tsc, Fn.to_timestamp(Fn.col(tsc)))
         return df
 
     #
