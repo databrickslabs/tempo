@@ -178,8 +178,8 @@ class SparkTest(unittest.TestCase):
         Test that two fields are equivalent
         """
         self.assertEqual(
-            fieldA.name.lower(),
-            fieldB.name.lower(),
+            fieldA.colname.lower(),
+            fieldB.colname.lower(),
             msg=f"Field {fieldA} has different name from {fieldB}",
         )
         self.assertEqual(
@@ -195,9 +195,9 @@ class SparkTest(unittest.TestCase):
         """
         # the schema must contain a field with the right name
         lc_fieldNames = [fc.lower() for fc in schema.fieldNames()]
-        self.assertTrue(field.name.lower() in lc_fieldNames)
+        self.assertTrue(field.colname.lower() in lc_fieldNames)
         # the attributes of the fields must be equal
-        self.assertFieldsEqual(field, schema[field.name])
+        self.assertFieldsEqual(field, schema[field.colname])
 
     @staticmethod
     def assertDataFrameEquality(

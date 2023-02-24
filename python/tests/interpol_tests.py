@@ -395,11 +395,8 @@ class InterpolationIntegrationTest(SparkTest):
         simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
         expected_df: DataFrame = self.get_data_as_sdf("expected")
 
-        input_tsdf = TSDF(
-            simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"),
-            ts_col="other_ts_col",
-            series_ids=["partition_a", "partition_b"],
-        )
+        input_tsdf = TSDF(simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"), ts_col="other_ts_col",
+                          series_ids=["partition_a", "partition_b"])
 
         actual_df: DataFrame = input_tsdf.interpolate(
             ts_col="other_ts_col",

@@ -1,10 +1,25 @@
+from enum import Enum, auto
 from abc import ABC, abstractmethod
-from typing import Any, Union, Collection, List
+from typing import cast, Any, Union, Optional, Collection, List
 
 import pyspark.sql.functions as Fn
 from pyspark.sql import Column
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
+
+#
+# Time Units
+#
+
+class TimeUnits(Enum):
+    YEARS = auto()
+    MONTHS = auto()
+    DAYS = auto()
+    HOURS = auto()
+    MINUTES = auto()
+    SECONDS = auto()
+    MICROSECONDS = auto()
+    NANOSECONDS = auto()
 
 
 #
@@ -21,24 +36,24 @@ class TSIndex(ABC):
         # must be a SimpleTSIndex
         if not isinstance(o, TSIndex):
             return False
-        return self.indexAttributes == o.indexAttributes
+        return self._indexAttributes == o._indexAttributes
 
     def __repr__(self) -> str:
         return self.__str__()
 
     def __str__(self) -> str:
-        return f"""{self.__class__.__name__}({self.indexAttributes})"""
+        return f"""{self.__class__.__name__}({self._indexAttributes})"""
 
     @property
     @abstractmethod
-    def indexAttributes(self) -> dict[str, Any]:
+    def _indexAttributes(self) -> dict[str, Any]:
         """
         :return: key attributes of this index
         """
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def colname(self) -> str:
         """
         :return: the column name of the timeseries index
         """
@@ -48,6 +63,20 @@ class TSIndex(ABC):
     def ts_col(self) -> str:
         """
         :return: the name of the primary timeseries column (may or may not be the same as the name)
+        """
+
+    @property
+    @abstractmethod
+    def unit(self) -> Optional[TimeUnits]:
+        """
+        :return: the unit of this index, that is, the unit that a range value of 1 represents (Days, seconds, etc.)
+        """
+
+    @abstractmethod
+    def validate(self, df_schema: StructType) -> None:
+        """
+        Validate that this TSIndex is correctly represented in the given schema
+        :param df_schema: the schema for a :class:`DataFrame`
         """
 
     @abstractmethod
@@ -69,6 +98,8 @@ class TSIndex(ABC):
             return expr.desc()  # reverse a single-expression
         elif type(expr) == List[Column]:
             return [col.desc() for col in expr]  # reverse all columns in the expression
+        else:
+            raise TypeError(f"Type for expr argument must be either Column or List[Column], instead received: {type(expr)}")
 
     @abstractmethod
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
@@ -80,16 +111,15 @@ class TSIndex(ABC):
         :return: an expression appropriate for ordering the :class:`TSDF` according to this index
         """
 
-    def rangeOrderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
+    @abstractmethod
+    def rangeExpr(self, reverse: bool = False) -> Column:
         """
         Gets an expression appropriate for performing range operations on the :class:`TSDF` records.
-        Defaults to the same expression giving by :method:`TSIndex.orderByExpr`
 
         :param reverse: whether the ordering should be reversed (backwards in time)
 
         :return: an expression appropriate for operforming range operations on the :class:`TSDF` records
         """
-        return self.orderByExpr(reverse=reverse)
 
 
 #
@@ -103,28 +133,38 @@ class SimpleTSIndex(TSIndex, ABC):
     that only reference a single column for maintaining the temporal structure
     """
 
-    def __init__(self, ts_col: StructField) -> None:
-        self.__name = ts_col.name
-        self.dataType = ts_col.dataType
+    def __init__(self, ts_idx: StructField) -> None:
+        self.__name = ts_idx.name
+        self.dataType = ts_idx.dataType
 
     @property
-    def indexAttributes(self) -> dict[str, Any]:
-        return {"name": self.name, "dataType": self.dataType}
+    def _indexAttributes(self) -> dict[str, Any]:
+        return {"name": self.colname, "dataType": self.dataType}
 
     @property
-    def name(self):
+    def colname(self):
         return self.__name
 
     @property
     def ts_col(self) -> str:
-        return self.name
+        return self.colname
+
+    def validate(self, df_schema: StructType) -> None:
+        # the ts column must exist
+        assert(self.colname in df_schema.fieldNames(),
+                f"The TSIndex column {self.colname} does not exist in the given DataFrame")
+        schema_ts_col = df_schema[self.colname]
+        # it must have the right type
+        schema_ts_type = schema_ts_col.dataType
+        assert( isinstance(schema_ts_type, type(self.dataType)),
+                f"The TSIndex column is of type {schema_ts_type}, but the expected type is {self.dataType}" )
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
         return self
 
     def orderByExpr(self, reverse: bool = False) -> Column:
-        expr = Fn.col(self.name)
+        expr = Fn.col(self.colname)
         return self._reverseOrNot(expr, reverse)
 
     @classmethod
@@ -147,12 +187,19 @@ class NumericIndex(SimpleTSIndex):
     Timeseries index based on a single column of a numeric or temporal type.
     """
 
-    def __init__(self, ts_col: StructField) -> None:
-        if not isinstance(ts_col.dataType, NumericType):
+    def __init__(self, ts_idx: StructField) -> None:
+        if not isinstance(ts_idx.dataType, NumericType):
             raise TypeError(
-                f"NumericIndex must be of a numeric type, but ts_col {ts_col.name} has type {ts_col.dataType}"
+                f"NumericIndex must be of a numeric type, but ts_col {ts_idx.name} has type {ts_idx.dataType}"
             )
-        super().__init__(ts_col)
+        super().__init__(ts_idx)
+
+    @property
+    def unit(self) -> Optional[TimeUnits]:
+        return None
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        return self.orderByExpr(reverse)
 
 
 class SimpleTimestampIndex(SimpleTSIndex):
@@ -160,16 +207,20 @@ class SimpleTimestampIndex(SimpleTSIndex):
     Timeseries index based on a single Timestamp column
     """
 
-    def __init__(self, ts_col: StructField) -> None:
-        if not isinstance(ts_col.dataType, TimestampType):
+    def __init__(self, ts_idx: StructField) -> None:
+        if not isinstance(ts_idx.dataType, TimestampType):
             raise TypeError(
-                f"SimpleTimestampIndex must be of TimestampType, but given ts_col {ts_col.name} has type {ts_col.dataType}"
+                f"SimpleTimestampIndex must be of TimestampType, but given ts_col {ts_idx.name} has type {ts_idx.dataType}"
             )
-        super().__init__(ts_col)
+        super().__init__(ts_idx)
 
-    def rangeOrderByExpr(self, reverse: bool = False) -> Column:
+    @property
+    def unit(self) -> Optional[TimeUnits]:
+        return TimeUnits.SECONDS
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
-        expr = Fn.col(self.name).cast("double")
+        expr = Fn.col(self.colname).cast("double")
         return self._reverseOrNot(expr, reverse)
 
 
@@ -178,52 +229,58 @@ class SimpleDateIndex(SimpleTSIndex):
     Timeseries index based on a single Date column
     """
 
-    def __init__(self, ts_col: StructField) -> None:
-        if not isinstance(ts_col.dataType, DateType):
+    def __init__(self, ts_idx: StructField) -> None:
+        if not isinstance(ts_idx.dataType, DateType):
             raise TypeError(
-                f"DateIndex must be of DateType, but given ts_col {ts_col.name} has type {ts_col.dataType}"
+                f"DateIndex must be of DateType, but given ts_col {ts_idx.name} has type {ts_idx.dataType}"
             )
-        super().__init__(ts_col)
+        super().__init__(ts_idx)
 
-    def rangeOrderByExpr(self, reverse: bool = False) -> Column:
+    @property
+    def unit(self) -> Optional[TimeUnits]:
+        return TimeUnits.DAYS
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
-        expr = Fn.datediff(Fn.col(self.name), Fn.lit("1970-01-01").cast("date"))
+        expr = Fn.datediff(Fn.col(self.colname), Fn.lit("1970-01-01").cast("date"))
         return self._reverseOrNot(expr, reverse)
 
 
 #
-# Compound TS Index Types
+# Complex (Multi-Field) TS Index Types
 #
 
 
-class CompositeTSIndex(TSIndex, ABC):
+class CompositeTSIndex(TSIndex):
     """
     Abstract base class for complex Timeseries Index classes
     that involve two or more columns organized into a StructType column
     """
 
-    def __init__(self, composite_ts_idx: StructField, primary_ts_col: str) -> None:
-        if not isinstance(composite_ts_idx.dataType, StructType):
+    def __init__(self, ts_idx: StructField, *ts_fields: str) -> None:
+        if not isinstance(ts_idx.dataType, StructType):
             raise TypeError(
-                f"CompoundTSIndex must be of type StructType, but given compound_ts_idx {composite_ts_idx.name} has type {composite_ts_idx.dataType}"
+                f"CompoundTSIndex must be of type StructType, but given compound_ts_idx {ts_idx.name} has type {ts_idx.dataType}"
             )
-        self.__name: str = composite_ts_idx.name
-        self.struct: StructType = composite_ts_idx.dataType
-        # construct a simple TS index object for the primary column
-        self.primary_ts_idx: SimpleTSIndex = SimpleTSIndex.fromTSCol(
-            self.struct[primary_ts_col]
-        )
+        self.__name: str = ts_idx.name
+        self.struct: StructType = ts_idx.dataType
+        # handle the timestamp fields
+        if ts_fields is None or len(ts_fields) < 1:
+            raise ValueError("A CompoundTSIndex must have at least one ts_field specified!")
+        self.ts_components = [SimpleTSIndex.fromTSCol(self.struct[field]) for field in ts_fields]
+        self.primary_ts_idx = self.ts_components[0]
+
 
     @property
-    def indexAttributes(self) -> dict[str, Any]:
+    def _indexAttributes(self) -> dict[str, Any]:
         return {
-            "name": self.name,
+            "name": self.colname,
             "struct": self.struct,
-            "primary_ts_col": self.primary_ts_idx,
+            "ts_components": self.ts_components
         }
 
     @property
-    def name(self) -> str:
+    def colname(self) -> str:
         return self.__name
 
     @property
@@ -232,55 +289,56 @@ class CompositeTSIndex(TSIndex, ABC):
 
     @property
     def primary_ts_col(self) -> str:
-        return self.component(self.primary_ts_idx.name)
+        return self.ts_component(0)
+
+    @property
+    def unit(self) -> Optional[TimeUnits]:
+        return self.primary_ts_idx.unit
+
+    def validate(self, df_schema: StructType) -> None:
+        # validate that the composite field exists
+        assert(self.colname in df_schema.fieldNames(),
+                f"The TSIndex column {self.colname} does not exist in the given DataFrame")
+        schema_ts_col = df_schema[self.colname]
+        # it must have the right type
+        schema_ts_type = schema_ts_col.dataType
+        assert( isinstance(schema_ts_type, StructType),
+                f"The TSIndex column is of type {schema_ts_type}, but the expected type is {StructType}" )
+        # validate all the TS components
+        for comp in self.ts_components:
+            comp.validate(schema_ts_type)
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
         return self
 
-    def component(self, component_name):
+    def component(self, component_name: str) -> str:
         """
-        Returns the full path to a component column that is within the composite index
+        Returns the full path to a component field that is within the composite index
 
         :param component_name: the name of the component element within the composite index
 
-        :return: a column name that can be used to reference the component column from the :class:`TSDF`
+        :return: a column name that can be used to reference the component field in PySpark expressions
         """
-        return f"{self.name}.{self.struct[component_name].name}"
+        return f"{self.colname}.{self.struct[component_name].name}"
+
+    def ts_component(self, component_index: int) -> str:
+        """
+        Returns the full path to a component field that is a functional part of the timeseries.
+
+        :param component_index: the index giving the ordering of the component field within the timeseries
+
+        :return: a column name that can be used to reference the component field in PySpark expressions
+        """
+        return self.component(self.ts_components[component_index].colname)
 
     def orderByExpr(self, reverse: bool = False) -> Column:
-        # default to using the primary column
-        expr = Fn.col(self.primary_ts_col)
-        return self._reverseOrNot(expr, reverse)
-
-
-class SubSequenceTSIndex(CompositeTSIndex):
-    """
-    Timeseries Index when we have a primary timeseries column and a secondary sequencing
-    column that indicates the
-    """
-
-    def __init__(
-        self, composite_ts_idx: StructField, primary_ts_col: str, sub_seq_col: str
-    ) -> None:
-        super().__init__(composite_ts_idx, primary_ts_col)
-        # construct a simple index for the sub-sequence column
-        self.sub_sequence_idx = NumericIndex(self.struct[sub_seq_col])
-
-    @property
-    def indexAttributes(self) -> dict[str, Any]:
-        attrs = super().indexAttributes
-        attrs["sub_sequence_idx"] = self.sub_sequence_idx
-        return attrs
-
-    @property
-    def sub_seq_col(self) -> str:
-        return self.component(self.sub_sequence_idx.name)
-
-    def orderByExpr(self, reverse: bool = False) -> List[Column]:
-        # build a composite expression of the primary index followed by the sub-sequence index
-        exprs = [Fn.col(self.primary_ts_col), Fn.col(self.sub_seq_col)]
+        # build an expression for each TS component, in order
+        exprs = [Fn.col(self.component(comp.colname)) for comp in self.ts_components]
         return self._reverseOrNot(exprs, reverse)
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        return self.primary_ts_idx.rangeExpr(reverse)
 
 
 class ParsedTSIndex(CompositeTSIndex, ABC):
@@ -290,9 +348,9 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     """
 
     def __init__(
-        self, composite_ts_idx: StructField, src_str_col: str, parsed_col: str
+        self, ts_idx: StructField, src_str_col: str, parsed_col: str
     ) -> None:
-        super().__init__(composite_ts_idx, primary_ts_col=parsed_col)
+        super().__init__(ts_idx, primary_ts_col=parsed_col)
         src_str_field = self.struct[src_str_col]
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(
@@ -301,14 +359,25 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
         self.__src_str_col = src_str_col
 
     @property
-    def indexAttributes(self) -> dict[str, Any]:
-        attrs = super().indexAttributes
+    def _indexAttributes(self) -> dict[str, Any]:
+        attrs = super()._indexAttributes
         attrs["src_str_col"] = self.src_str_col
         return attrs
 
     @property
     def src_str_col(self):
         return self.component(self.__src_str_col)
+
+    def validate(self, df_schema: StructType) -> None:
+        super().validate(df_schema)
+        # make sure the parsed field exists
+        composite_idx_type: StructType = cast(StructType, df_schema[self.colname].dataType)
+        assert( self.__src_str_col in composite_idx_type,
+                f"The src_str_col column {self.src_str_col} does not exist in the composite field {composite_idx_type}")
+        # make sure it's StringType
+        src_str_field_type = composite_idx_type[self.__src_str_col].dataType
+        assert( isinstance(src_str_field_type, StringType),
+                f"The src_str_col column {self.src_str_col} should be of StringType, but found {src_str_field_type} instead" )
 
 
 class ParsedTimestampIndex(ParsedTSIndex):
@@ -317,15 +386,15 @@ class ParsedTimestampIndex(ParsedTSIndex):
     """
 
     def __init__(
-        self, composite_ts_idx: StructField, src_str_col: str, parsed_col: str
+        self, ts_idx: StructField, src_str_col: str, parsed_col: str
     ) -> None:
-        super().__init__(composite_ts_idx, src_str_col, parsed_col)
+        super().__init__(ts_idx, src_str_col, parsed_col)
         if not isinstance(self.primary_ts_idx.dataType, TimestampType):
             raise TypeError(
-                f"ParsedTimestampIndex must be of TimestampType, but given ts_col {self.primary_ts_idx.name} has type {self.primary_ts_idx.dataType}"
+                f"ParsedTimestampIndex must be of TimestampType, but given ts_col {self.primary_ts_idx.colname} has type {self.primary_ts_idx.dataType}"
             )
 
-    def rangeOrderByExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
         expr = Fn.col(self.primary_ts_col).cast("double")
         return self._reverseOrNot(expr, reverse)
@@ -337,15 +406,15 @@ class ParsedDateIndex(ParsedTSIndex):
     """
 
     def __init__(
-        self, composite_ts_idx: StructField, src_str_col: str, parsed_col: str
+        self, ts_idx: StructField, src_str_col: str, parsed_col: str
     ) -> None:
-        super().__init__(composite_ts_idx, src_str_col, parsed_col)
+        super().__init__(ts_idx, src_str_col, parsed_col)
         if not isinstance(self.primary_ts_idx.dataType, DateType):
             raise TypeError(
-                f"ParsedDateIndex must be of DateType, but given ts_col {self.primary_ts_idx.name} has type {self.primary_ts_idx.dataType}"
+                f"ParsedDateIndex must be of DateType, but given ts_col {self.primary_ts_idx.colname} has type {self.primary_ts_idx.dataType}"
             )
 
-    def rangeOrderByExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
         expr = Fn.datediff(
             Fn.col(self.primary_ts_col), Fn.lit("1970-01-01").cast("date")
@@ -364,11 +433,19 @@ class TSSchema:
     """
 
     def __init__(self, ts_idx: TSIndex, series_ids: Collection[str] = None) -> None:
-        self.ts_idx = ts_idx
+        self.__ts_idx = ts_idx
         if series_ids:
-            self.series_ids = list(series_ids)
+            self.__series_ids = list(series_ids)
         else:
-            self.series_ids = []
+            self.__series_ids = []
+
+    @property
+    def ts_idx(self):
+        return self.__ts_idx
+
+    @property
+    def series_ids(self) -> List[str]:
+        return self.__series_ids
 
     def __eq__(self, o: object) -> bool:
         # must be of TSSchema type
@@ -406,10 +483,15 @@ class TSSchema:
 
         :return: a set of column names corresponding the structural columns of a :class:`TSDF`
         """
-        return list({self.ts_idx.name}.union(self.series_ids))
+        return list({self.ts_idx.colname}.union(self.series_ids))
 
     def validate(self, df_schema: StructType) -> None:
-        pass
+        # ensure that the TSIndex is valid
+        self.ts_idx.validate(df_schema)
+        # check series IDs
+        for sid in self.series_ids:
+            assert( sid in df_schema.fieldNames(),
+                    f"Series ID {sid} does not exist in the given DataFrame" )
 
     def find_observational_columns(self, df_schema: StructType) -> list[str]:
         return list(set(df_schema.fieldNames()) - set(self.structural_columns))

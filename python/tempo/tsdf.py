@@ -4,7 +4,7 @@ import logging
 import operator
 from copy import deepcopy
 from functools import reduce, cached_property
-from typing import List, Union, Callable, Collection
+from typing import cast, List, Union, Callable, Collection
 
 import numpy as np
 import pyspark.sql.functions as Fn
@@ -19,7 +19,7 @@ from scipy.fft import fft, fftfreq
 import tempo.io as tio
 import tempo.resample as rs
 from tempo.interpol import Interpolation
-from tempo.tsschema import TSIndex, TSSchema, SubSequenceTSIndex
+from tempo.tsschema import TSIndex, TSSchema, CompositeTSIndex
 from tempo.utils import (
     ENV_CAN_RENDER_HTML,
     IS_DATABRICKS,
@@ -62,14 +62,11 @@ class TSDF:
     This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
     """
 
-    def __init__(
-        self,
-        df: DataFrame,
-        ts_schema: TSSchema = None,
-        ts_col: str = None,
-        series_ids: Collection[str] = None,
-        validate_schema=True,
-    ) -> None:
+    def __init__(self,
+                 df: DataFrame,
+                 ts_schema: TSSchema = None,
+                 ts_col: str = None,
+                 series_ids: Collection[str] = None) -> None:
         self.df = df
         # construct schema if we don't already have one
         if ts_schema:
@@ -77,8 +74,7 @@ class TSDF:
         else:
             self.ts_schema = TSSchema.fromDFSchema(self.df.schema, ts_col, series_ids)
         # validate that this schema works for this DataFrame
-        if validate_schema:
-            self.ts_schema.validate(df.schema)
+        self.ts_schema.validate(df.schema)
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -98,7 +94,7 @@ class TSDF:
 
         :return: a new TSDF object with the transformed DataFrame
         """
-        return TSDF(new_df, ts_schema=deepcopy(self.ts_schema), validate_schema=False)
+        return TSDF(new_df, ts_schema=deepcopy(self.ts_schema))
 
     def __withStandardizedColOrder(self) -> TSDF:
         """
@@ -110,7 +106,7 @@ class TSDF:
         :return: a :class:`TSDF` with the columns reordered into "standard order" (as described above)
         """
         std_ordered_cols = (
-            list(self.series_ids) + [self.ts_index.name] + list(self.observational_cols)
+            list(self.series_ids) + [self.ts_index.colname] + list(self.observational_cols)
         )
 
         return self.__withTransformedDF(self.df.select(std_ordered_cols))
@@ -150,7 +146,7 @@ class TSDF:
         )
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
-        subseq_idx = SubSequenceTSIndex(subseq_struct, ts_col, subsequence_col)
+        subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
         # construct & return the TSDF with appropriate schema
         return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
 
@@ -453,15 +449,13 @@ class TSDF:
         df = partition_df.union(remainder_df).drop(
             "partition_remainder", "ts_col_double"
         )
-        return TSDF(
-            df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"]
-        )
+        return TSDF(df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"])
 
     #
     # Slicing & Selection
     #
 
-    def select(self, *cols):
+    def select(self, *cols: Union[str, Column]) -> TSDF:
         """
         pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
         Parameters
@@ -480,12 +474,8 @@ class TSDF:
 
         """
         # The columns which will be a mandatory requirement while selecting from TSDFs
-        if set(self.structural_cols).issubset(set(cols)):
-            return self.__withTransformedDF(self.df.select(*cols))
-        else:
-            raise TSDFStructureChangeError(
-                "select that does not include all structural columns"
-            )
+        selected_df = self.df.select(*cols)
+        return self.__withTransformedDF(selected_df)
 
     def __slice(self, op: str, target_ts):
         """
@@ -801,7 +791,7 @@ class TSDF:
         Performs an as-of join between two time-series. If a tsPartitionVal is specified, it will do this partitioned by
         time brackets, which can help alleviate skew.
 
-        NOTE: partition cols have to be the same for both Dataframes. We are collecting stats when the WARNING level is
+        NOTE: Series IDs have to be the same for both Dataframes. We are collecting stats when the WARNING level is
         enabled also.
 
         Parameters
@@ -875,7 +865,7 @@ class TSDF:
                 )
                 .drop("lead_" + right_tsdf.ts_col)
             )
-            return TSDF(res, series_ids=self.series_ids, ts_col=new_left_ts_col)
+            return TSDF(res, ts_col=new_left_ts_col, series_ids=self.series_ids)
 
         # end of block checking to see if standard Spark SQL join will work
 
@@ -931,8 +921,8 @@ class TSDF:
         # perform asof join.
         if tsPartitionVal is None:
             seq_col = None
-            if isinstance(combined_df.ts_index, SubSequenceTSIndex):
-                seq_col = combined_df.ts_index.sub_seq_col
+            if isinstance(combined_df.ts_index, CompositeTSIndex):
+                seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -946,8 +936,8 @@ class TSDF:
                 tsPartitionVal, fraction=fraction
             )
             seq_col = None
-            if isinstance(tsPartitionDF.ts_index, SubSequenceTSIndex):
-                seq_col = tsPartitionDF.ts_index.sub_seq_col
+            if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
+                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -981,7 +971,7 @@ class TSDF:
     def __rangeBetweenWindow(self, range_from, range_to, reverse=False):
         return (
             self.__baseWindow(reverse=reverse)
-            .orderBy(self.ts_index.rangeOrderByExpr(reverse=reverse))
+            .orderBy(self.ts_index.rangeExpr(reverse=reverse))
             .rangeBetween(range_from, range_to)
         )
 
@@ -1006,10 +996,6 @@ class TSDF:
         :param colName: the name of the new column (or existing column to be replaced)
         :param col: a :class:`Column` expression for the new column definition
         """
-        if colName in self.structural_cols:
-            raise TSDFStructureChangeError(
-                f"withColumn on the structural column {colName}."
-            )
         new_df = self.df.withColumn(colName, col)
         return self.__withTransformedDF(new_df)
 
@@ -1023,7 +1009,7 @@ class TSDF:
 
         # create new TSIndex
         new_ts_index = deepcopy(self.ts_index)
-        if existing == self.ts_index.name:
+        if existing == self.ts_index.colname:
             new_ts_index = new_ts_index.renamed(new)
 
         # and for series ids
@@ -1390,9 +1376,7 @@ class TSDF:
         )
         bars = bars.select(sel_and_sort)
 
-        return TSDF(
-            bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids
-        )
+        return TSDF(bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids)
 
     def fourier_transform(self, timestep, valueCol):
         """

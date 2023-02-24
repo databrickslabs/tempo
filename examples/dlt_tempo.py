@@ -26,7 +26,7 @@ def ts_bronze():
 @dlt.expect_or_drop("User_check","User in ('a','c','i')")
 def ts_ft():
   phone_accel_df = dlt.read("ts_bronze")
-  phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+  phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts")
   ts_ft_df = phone_accel_tsdf.fourier_transform(timestep=1, valueCol="x").df
   return ts_ft_df
 
