@@ -204,6 +204,7 @@ class TSDF:
         tsPartitionVal,
         ignoreNulls,
         suppress_null_warning,
+        tolerance,
     ):
         """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
 
@@ -701,6 +702,7 @@ class TSDF:
         skipNulls=True,
         sql_join_opt=False,
         suppress_null_warning=False,
+        tolerance=None,
     ):
         """
         Performs an as-of join between two time-series. If a tsPartitionVal is
@@ -718,6 +720,7 @@ class TSDF:
         :param skipNulls - whether to skip nulls when joining in values
         :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
+        :param tolerance - only join values within this tolerance range, expressed in time delta
         """
 
         # first block of logic checks whether a standard range join will suffice
@@ -856,6 +859,7 @@ class TSDF:
                 tsPartitionVal,
                 skipNulls,
                 suppress_null_warning,
+                tolerance,
             )
 
             # Get rid of overlapped data and the extra columns generated from timePartitions
