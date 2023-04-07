@@ -111,15 +111,20 @@ class AsOfJoinTest(SparkTest):
         # fetch test data
         tsdf_left = self.get_data_as_tsdf("left")
         tsdf_right = self.get_data_as_tsdf("right")
-        dfExpected = self.get_data_as_sdf("expected")
+        expected_tolerance_0 = self.get_data_as_sdf("expected_tolerance_0")
+        expected_tolerance_10 = self.get_data_as_sdf("expected_tolerance_10")
 
         # perform join
-        joined_df = tsdf_left.asofJoin(
-            tsdf_right, left_prefix="left", right_prefix="right", tolerance=10 
+        joined_df_0 = tsdf_left.asofJoin(
+            tsdf_right, left_prefix="left", right_prefix="right", tolerance=0
+        ).df
+        joined_df_10 = tsdf_left.asofJoin(
+            tsdf_right, left_prefix="left", right_prefix="right", tolerance=10
         ).df
 
         # compare
-        self.assertDataFrameEquality(joined_df, dfExpected)
+        self.assertDataFrameEquality(joined_df_0, expected_tolerance_0)
+        self.assertDataFrameEquality(joined_df_10, expected_tolerance_10)
 
 
 # MAIN

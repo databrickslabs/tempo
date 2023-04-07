@@ -724,7 +724,7 @@ class TSDF:
         :param skipNulls - whether to skip nulls when joining in values
         :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
-        :param tolerance - only join values within this tolerance range, expressed in time delta
+        :param tolerance - only join values within this tolerance range, expressed in int
         """
 
         # first block of logic checks whether a standard range join will suffice
