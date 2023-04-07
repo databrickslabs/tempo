@@ -179,81 +179,81 @@ class IntervalsDFTests(SparkTest):
 
         self.assertDataFrameEquality(idf, idf_expected, from_idf=True)
 
-    def test_disjoint(self):
+    def test_make_disjoint(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_contains_interval_already_disjoint(self):
+    def test_make_disjoint_contains_interval_already_disjoint(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_contains_intervals_equal(self):
+    def test_make_disjoint_contains_intervals_equal(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_intervals_same_start(self):
+    def test_make_disjoint_intervals_same_start(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_intervals_same_end(self):
+    def test_make_disjoint_intervals_same_end(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_multiple_series(self):
+    def test_make_disjoint_multiple_series(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_single_metric(self):
+    def test_make_disjoint_single_metric(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
         )
 
-    def test_disjoint_interval_is_subset(self):
+    def test_make_disjoint_interval_is_subset(self):
         idf_input = self.get_data_as_idf("input")
         idf_expected = self.get_data_as_idf("expected")
 
-        idf_actual = idf_input.disjoint()
+        idf_actual = idf_input.make_disjoint()
 
         self.assertDataFrameEquality(
             idf_expected, idf_actual, from_idf=True, ignore_row_order=True
@@ -342,3 +342,15 @@ class IntervalsDFTests(SparkTest):
         actual_df = idf_input.toDF(stack=True)
 
         self.assertDataFrameEquality(actual_df, expected_df)
+
+    def test_make_disjoint_issue_268(self):
+        # https://github.com/databrickslabs/tempo/issues/268
+
+        idf_input = self.get_data_as_idf("input")
+        idf_expected = self.get_data_as_idf("expected")
+
+        idf_actual = idf_input.make_disjoint()
+
+        self.assertDataFrameEquality(
+            idf_expected, idf_actual, from_idf=True, ignore_row_order=True
+        )

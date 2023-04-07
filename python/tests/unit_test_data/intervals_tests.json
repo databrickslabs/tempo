@@ -153,7 +153,7 @@
         "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/expected"
       }
     },
-    "test_disjoint": {
+    "test_make_disjoint": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"
@@ -228,7 +228,7 @@
         ]
       }
     },
-    "test_disjoint_contains_interval_already_disjoint": {
+    "test_make_disjoint_contains_interval_already_disjoint": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"
@@ -317,7 +317,7 @@
         ]
       }
     },
-    "test_disjoint_contains_intervals_equal": {
+    "test_make_disjoint_contains_intervals_equal": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"
@@ -413,7 +413,7 @@
         ]
       }
     },
-    "test_disjoint_intervals_same_start": {
+    "test_make_disjoint_intervals_same_start": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"
@@ -481,7 +481,7 @@
         ]
       }
     },
-    "test_disjoint_intervals_same_end": {
+    "test_make_disjoint_intervals_same_end": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"
@@ -549,7 +549,7 @@
         ]
       }
     },
-    "test_disjoint_multiple_series": {
+    "test_make_disjoint_multiple_series": {
       "input": {
         "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
         "other_ts_cols": {
@@ -626,7 +626,7 @@
       },
       "expected": {
         "schema": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_multiple_series/input/schema"
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_multiple_series/input/schema"
         },
         "other_ts_cols": {
           "$ref": "#/__SharedData/init/other_ts_cols"
@@ -638,7 +638,7 @@
           "$ref": "#/__SharedData/init/end_ts"
         },
         "series": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_multiple_series/input/series"
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_multiple_series/input/series"
         },
         "data": [
           [
@@ -708,7 +708,7 @@
         ]
       }
     },
-    "test_disjoint_single_metric": {
+    "test_make_disjoint_single_metric": {
       "input": {
         "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT",
         "other_ts_cols": {
@@ -740,7 +740,7 @@
       },
       "expected": {
         "schema": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_single_metric/input/schema"
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_single_metric/input/schema"
         },
         "other_ts_cols": {
           "$ref": "#/__SharedData/init/other_ts_cols"
@@ -755,11 +755,11 @@
           "$ref": "#/__SharedData/init/series"
         },
         "data": {
-          "$ref": "#/IntervalsDFTests/test_disjoint_single_metric/input/data"
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_single_metric/input/data"
         }
       }
     },
-    "test_disjoint_interval_is_subset": {
+    "test_make_disjoint_interval_is_subset": {
       "input": {
         "schema": {
           "$ref": "#/__SharedData/init/schema"
@@ -824,7 +824,7 @@
             5,
             0
           ],
-                    [
+          [
             "2020-08-01 00:00:11",
             "2020-08-01 00:00:14",
             "v1",
@@ -926,6 +926,122 @@
       },
       "expected": {
         "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/input"
+      }
+    },
+    "test_make_disjoint_issue_268": {
+      "input": {
+        "schema": "start_timestamp STRING NOT NULL, end_timestamp STRING NOT NULL, id STRING NOT NULL, s1 INT, s2 INT, s3 INT, s4 INT",
+        "other_ts_cols": [
+          "start_timestamp",
+          "end_timestamp"
+        ],
+        "start_ts": "start_timestamp",
+        "end_ts": "end_timestamp",
+        "series": [
+          "id"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:14",
+            "2020-08-01 00:00:17",
+            "id123",
+            null,
+            1,
+            null,
+            null
+          ],
+          [
+            "2020-08-01 00:00:14",
+            "2020-08-01 00:00:16",
+            "id123",
+            null,
+            null,
+            null,
+            1
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "id123",
+            1,
+            null,
+            null,
+            null
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:16",
+            "id123",
+            1,
+            null,
+            null,
+            null
+          ],
+          [
+            "2020-08-01 00:00:14",
+            "2020-08-01 00:00:21",
+            "id123",
+            null,
+            null,
+            1,
+            null
+          ]
+        ]
+      },
+      "expected": {
+        "schema": {
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/schema"
+        },
+        "other_ts_cols": {
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/other_ts_cols"
+        },
+        "start_ts": {
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/start_ts"
+        },
+        "end_ts": {
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/end_ts"
+        },
+        "series": {
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/series"
+        },
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "id123",
+            1,
+            null,
+            null,
+            null
+          ],
+          [
+            "2020-08-01 00:00:14",
+            "2020-08-01 00:00:16",
+            "id123",
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            "2020-08-01 00:00:16",
+            "2020-08-01 00:00:17",
+            "id123",
+            null,
+            1,
+            1,
+            null
+          ],
+          [
+            "2020-08-01 00:00:17",
+            "2020-08-01 00:00:21",
+            "id123",
+            null,
+            null,
+            1,
+            null
+          ]
+        ]
       }
     }
   }
