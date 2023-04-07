@@ -217,11 +217,15 @@ class TSDF:
 
         sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
 
-        window_spec = (
-            Window.partitionBy(self.partitionCols)
-            .orderBy(sort_keys)
-            .rowsBetween(Window.unboundedPreceding, Window.currentRow)
-        )
+        if tolerance is not None:
+            window_spec = Window.partitionBy(self.partitionCols).orderBy(f.col("combined_ts").cast("timestamp").cast("long")).rangeBetween(-tolerance, Window.currentRow)
+
+        else:
+            window_spec = (
+                Window.partitionBy(self.partitionCols)
+                .orderBy(sort_keys)
+                .rowsBetween(Window.unboundedPreceding, Window.currentRow)
+            )
 
         if ignoreNulls is False:
             if tsPartitionVal is not None:
@@ -847,6 +851,7 @@ class TSDF:
                 tsPartitionVal,
                 skipNulls,
                 suppress_null_warning,
+                tolerance,
             )
         else:
             tsPartitionDF = combined_df.__getTimePartitions(

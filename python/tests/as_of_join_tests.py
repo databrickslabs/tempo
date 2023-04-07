@@ -105,6 +105,22 @@ class AsOfJoinTest(SparkTest):
         # compare
         self.assertDataFrameEquality(joined_df, dfExpected)
 
+    def test_asof_join_tolerance(self):
+        """As of join with tolerance band"""
+
+        # fetch test data
+        tsdf_left = self.get_data_as_tsdf("left")
+        tsdf_right = self.get_data_as_tsdf("right")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # perform join
+        joined_df = tsdf_left.asofJoin(
+            tsdf_right, left_prefix="left", right_prefix="right", tolerance=10 
+        ).df
+
+        # compare
+        self.assertDataFrameEquality(joined_df, dfExpected)
+
 
 # MAIN
 if __name__ == "__main__":
