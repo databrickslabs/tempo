@@ -259,7 +259,13 @@ If `interpolate` is not chained after a `resample` operation, the method automat
 dataset into a given frequency, then performs interpolation on the sampled time-series dataset.
 
 Possible values for frequency include patterns such as 1 minute, 4 hours, 2 days or simply sec, min, day.
-For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min', 'max', 'mean'.
+For the accepted functions to aggregate data within time buckets, options are ’floor’, ’ceil’, ’min’, ’max’, ’mean’. Descriptions of each of these are indicated below: 
+
+* `floor` - returns the earliest value by timestamp.
+* `ceil` - returns the latest value by timestamp.
+* `min` - returns the lowest value regardless of any timestamp. 
+* `max` - returns the highest value regardless of any timestamp. 
+* `mean` - returns the average value regardless of any timestamp.
 
 `NULL` values after re-sampling are treated the same as missing values. Ability to specify `NULL` as a valid value is
 currently not supported.
