@@ -193,7 +193,10 @@ class Interpolation:
         :param partition_cols: partition column names
         :param ts_col: timestamp column name
         """
-        return df.withColumn("previous_timestamp", col(ts_col),).withColumn(
+        return df.withColumn(
+            "previous_timestamp",
+            col(ts_col),
+        ).withColumn(
             "next_timestamp",
             lead(df[ts_col]).over(Window.partitionBy(*partition_cols).orderBy(ts_col)),
         )
