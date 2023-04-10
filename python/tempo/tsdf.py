@@ -1236,7 +1236,6 @@ class TSDF:
         return TSDF(interpolated_df, ts_col=ts_col, partition_cols=partition_cols)
 
     def calc_bars(tsdf, freq, func=None, metricCols=None, fill=None):
-
         resample_open = tsdf.resample(
             freq=freq, func="floor", metricCols=metricCols, prefix="open", fill=fill
         )
