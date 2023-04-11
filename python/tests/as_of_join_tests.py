@@ -116,7 +116,10 @@ class AsOfJoinTest(SparkTest):
         for tolerance in tolerance_test_values:
             # perform join
             joined_df = tsdf_left.asofJoin(
-                tsdf_right, left_prefix="left", right_prefix="right", tolerance=tolerance
+                tsdf_right,
+                left_prefix="left",
+                right_prefix="right",
+                tolerance=tolerance,
             ).df
 
             # compare
