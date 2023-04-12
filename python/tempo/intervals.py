@@ -543,6 +543,7 @@ class IntervalsDF:
                         child_interval=interval_a,
                         metrics=metrics,
                         metric_merge_method=True,
+
                     )
 
                     resolved_intervals.append(resolved_series)
@@ -837,7 +838,6 @@ class IntervalsDF:
         """
 
         if stack:
-
             n_cols = len(self.metric_columns)
             metric_cols_expr = ",".join(
                 tuple(f"'{col}', {col}" for col in self.metric_columns)
