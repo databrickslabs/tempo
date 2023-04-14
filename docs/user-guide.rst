@@ -11,15 +11,6 @@ tempo can be installed in ``Python`` with `pip <https://pip.pypa.io>`_
 
   $ python -m pip install dbl-tempo
 
-or for ``Scala`` with scala's simple build tool (sbt)
-
-Once the jar is created (via the following instructions), upload the jar to Databricks for use in a notebook or job:
-
-.. code-block:: bash
-
-  $ cd scala/tempo
-  $ sbt package
-
 Starting Point: TSDFs
 ---------------------
 
