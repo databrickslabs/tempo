@@ -217,25 +217,18 @@ class TSDF:
 
         sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
 
-        if tolerance is not None:
-            window_spec = (
-                Window.partitionBy(self.partitionCols)
-                .orderBy(f.col(self.ts_col).cast("long"))
-                .rangeBetween(-tolerance, Window.currentRow)
-            )
-
-        else:
-            window_spec = (
-                Window.partitionBy(self.partitionCols)
-                .orderBy(sort_keys)
-                .rowsBetween(Window.unboundedPreceding, Window.currentRow)
-            )
+        window_spec = (
+            Window.partitionBy(self.partitionCols)
+            .orderBy(sort_keys)
+            .rowsBetween(Window.unboundedPreceding, Window.currentRow)
+        )
 
         if ignoreNulls is False:
             if tsPartitionVal is not None:
                 raise ValueError(
                     "Disabling null skipping with a partition value is not supported yet."
                 )
+
             df = reduce(
                 lambda df, idx: df.withColumn(
                     right_cols[idx],
@@ -877,6 +870,21 @@ class TSDF:
             )
 
             asofDF = TSDF(df, asofDF.ts_col, combined_df.partitionCols)
+
+        if tolerance is not None:
+            df = asofDF.df
+            left_ts_col = left_tsdf.ts_col
+            right_ts_col = right_tsdf.ts_col
+            tolerance_condition = df[left_ts_col].cast("double") - df[right_ts_col].cast("double") > tolerance
+
+            for right_col in right_columns:
+                # First set right non-timestamp columns to null for rows outside of tolerance band
+                if right_col != right_ts_col:
+                    df = df.withColumn(right_col, f.when(tolerance_condition, f.lit(None)).otherwise(df[right_col]))
+
+            # Finally, set right timestamp column to null for rows outside of tolerance band
+            df = df.withColumn(right_ts_col, f.when(tolerance_condition, f.lit(None)).otherwise(df[right_ts_col]))
+            asofDF.df = df
 
         return asofDF
 
