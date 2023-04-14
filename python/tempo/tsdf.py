@@ -871,15 +871,26 @@ class TSDF:
             df = asofDF.df
             left_ts_col = left_tsdf.ts_col
             right_ts_col = right_tsdf.ts_col
-            tolerance_condition = df[left_ts_col].cast("double") - df[right_ts_col].cast("double") > tolerance
+            tolerance_condition = (
+                df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
+                > tolerance
+            )
 
             for right_col in right_columns:
                 # First set right non-timestamp columns to null for rows outside of tolerance band
                 if right_col != right_ts_col:
-                    df = df.withColumn(right_col, f.when(tolerance_condition, f.lit(None)).otherwise(df[right_col]))
+                    df = df.withColumn(
+                        right_col,
+                        f.when(tolerance_condition, f.lit(None)).otherwise(
+                            df[right_col]
+                        ),
+                    )
 
             # Finally, set right timestamp column to null for rows outside of tolerance band
-            df = df.withColumn(right_ts_col, f.when(tolerance_condition, f.lit(None)).otherwise(df[right_ts_col]))
+            df = df.withColumn(
+                right_ts_col,
+                f.when(tolerance_condition, f.lit(None)).otherwise(df[right_ts_col]),
+            )
             asofDF.df = df
 
         return asofDF
