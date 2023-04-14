@@ -227,7 +227,6 @@ class TSDF:
                 raise ValueError(
                     "Disabling null skipping with a partition value is not supported yet."
                 )
-
             df = reduce(
                 lambda df, idx: df.withColumn(
                     right_cols[idx],
