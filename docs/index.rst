@@ -65,6 +65,8 @@ Alternatively, you can grab the latest source code from `GitHub <https://github.
 
   $ pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=dbl-tempo&#subdirectory=python"
 
+**NOTE** that the Scala version of Tempo is now deprecated and no longer in development.
+
 Usage
 -----
 
