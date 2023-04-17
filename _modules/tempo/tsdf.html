@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.09.29"/>
-        <title>tempo.tsdf - Tempo 0.1.22 documentation</title>
+        <title>tempo.tsdf - Tempo 0.1.23 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
@@ -132,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.22 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.23 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -159,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.22 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.23 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -243,7 +243,7 @@
 
 
 <div class="viewcode-block" id="TSDF"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF">[docs]</a><span class="k">class</span> <span class="nc">TSDF</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -254,7 +254,7 @@
         <span class="n">partition_cols</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">sequence_col</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Constructor</span>
 <span class="sd">        :param df:</span>
 <span class="sd">        :param ts_col:</span>
@@ -286,7 +286,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">__validate_ts_string</span><span class="p">(</span><span class="n">sample_ts</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__add_double_ts</span><span class="p">()</span><span class="o">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="s2">&quot;double_ts&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">)</span>
 
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Make sure DF is ordered by its respective ts_col and partition columns.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -295,7 +295,7 @@
     <span class="c1">#</span>
 
     <span class="k">def</span> <span class="nf">__add_double_ts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Add a double (epoch) version of the string timestamp out to nanos&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a double (epoch) version of the string timestamp out to nanos&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
                 <span class="s2">&quot;nanos&quot;</span><span class="p">,</span>
@@ -314,7 +314,7 @@
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">__validate_ts_string</span><span class="p">(</span><span class="n">ts_text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Validate the format for the string using Regex matching for ts_string&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the format for the string using Regex matching for ts_string&quot;&quot;&quot;</span>
         <span class="kn">import</span> <span class="nn">re</span>
 
         <span class="n">ts_pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^(\d</span><span class="si">{4}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">[T| ]\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">:\d</span><span class="si">{2}</span><span class="s2">)(\.\d+)?$&quot;</span>
@@ -365,7 +365,7 @@
             <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__addPrefixToColumns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">col_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add prefix to all specified columns.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">prefix</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
@@ -392,7 +392,7 @@
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">ts_col</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">,</span> <span class="n">sequence_col</span><span class="o">=</span><span class="n">seq_col</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__addColumnsFromOtherDF</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_cols</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add columns from some other DF as lit(None), as pre-step before union.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span>
@@ -419,7 +419,7 @@
         <span class="n">ignoreNulls</span><span class="p">,</span>
         <span class="n">suppress_null_warning</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get last right value of each right column (inc. right timestamp) for each self.ts_col value</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get last right value of each right column (inc. right timestamp) for each self.ts_col value</span>
 
 <span class="sd">        self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end</span>
 <span class="sd">        since it is no longer used in subsequent methods.</span>
@@ -512,7 +512,7 @@
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">left_ts_col</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__getTimePartitions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tsPartitionVal</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create time-partitions for our data-set. We put our time-stamps into brackets of &lt;tsPartitionVal&gt;. Timestamps</span>
 <span class="sd">        are rounded down to the nearest &lt;tsPartitionVal&gt; seconds.</span>
 
@@ -557,7 +557,7 @@
     <span class="c1">#</span>
 
 <div class="viewcode-block" id="TSDF.select"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.select">[docs]</a>    <span class="k">def</span> <span class="nf">select</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">cols</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        pyspark.sql.DataFrame.select() method&#39;s equivalent for TSDF objects</span>
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -590,7 +590,7 @@
             <span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">__slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_ts</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Private method to slice TSDF by time</span>
 
 <span class="sd">        :param op: string symbol of the operation to perform</span>
@@ -611,7 +611,7 @@
         <span class="p">)</span>
 
 <div class="viewcode-block" id="TSDF.at"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.at">[docs]</a>    <span class="k">def</span> <span class="nf">at</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select only records at a given time</span>
 
 <span class="sd">        :param ts: timestamp of the records to select</span>
@@ -621,7 +621,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slice</span><span class="p">(</span><span class="s2">&quot;==&quot;</span><span class="p">,</span> <span class="n">ts</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.before"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.before">[docs]</a>    <span class="k">def</span> <span class="nf">before</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select only records before a given time</span>
 
 <span class="sd">        :param ts: timestamp on which to filter records</span>
@@ -631,7 +631,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slice</span><span class="p">(</span><span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">ts</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.atOrBefore"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.atOrBefore">[docs]</a>    <span class="k">def</span> <span class="nf">atOrBefore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select only records at or before a given time</span>
 
 <span class="sd">        :param ts: timestamp on which to filter records</span>
@@ -641,7 +641,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slice</span><span class="p">(</span><span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="n">ts</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.after"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.after">[docs]</a>    <span class="k">def</span> <span class="nf">after</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select only records after a given time</span>
 
 <span class="sd">        :param ts: timestamp on which to filter records</span>
@@ -651,7 +651,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slice</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">,</span> <span class="n">ts</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.atOrAfter"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.atOrAfter">[docs]</a>    <span class="k">def</span> <span class="nf">atOrAfter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select only records at or after a given time</span>
 
 <span class="sd">        :param ts: timestamp on which to filter records</span>
@@ -661,7 +661,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__slice</span><span class="p">(</span><span class="s2">&quot;&gt;=&quot;</span><span class="p">,</span> <span class="n">ts</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.between"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.between">[docs]</a>    <span class="k">def</span> <span class="nf">between</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_ts</span><span class="p">,</span> <span class="n">end_ts</span><span class="p">,</span> <span class="n">inclusive</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select only records in a given range</span>
 
 <span class="sd">        :param start_ts: starting time of the range to select</span>
@@ -676,7 +676,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span><span class="p">(</span><span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">before</span><span class="p">(</span><span class="n">end_ts</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">__top_rows_per_series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">win</span><span class="p">:</span> <span class="n">WindowSpec</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Private method to select just the top n rows per series (as defined by a window ordering)</span>
 
 <span class="sd">        :param win: the window on which we order the rows in each series</span>
@@ -698,7 +698,7 @@
         <span class="p">)</span>
 
 <div class="viewcode-block" id="TSDF.earliest"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.earliest">[docs]</a>    <span class="k">def</span> <span class="nf">earliest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select the earliest n records for each series</span>
 
 <span class="sd">        :param n: number of records to select (default is 1)</span>
@@ -709,7 +709,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__top_rows_per_series</span><span class="p">(</span><span class="n">prev_window</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.latest"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.latest">[docs]</a>    <span class="k">def</span> <span class="nf">latest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select the latest n records for each series</span>
 
 <span class="sd">        :param n: number of records to select (default is 1)</span>
@@ -720,7 +720,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__top_rows_per_series</span><span class="p">(</span><span class="n">next_window</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.priorTo"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.priorTo">[docs]</a>    <span class="k">def</span> <span class="nf">priorTo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select the n most recent records prior to a given time</span>
 <span class="sd">        You can think of this like an &#39;asOf&#39; select - it selects the records as of a particular time</span>
 
@@ -732,7 +732,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">atOrBefore</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span><span class="o">.</span><span class="n">latest</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.subsequentTo"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.subsequentTo">[docs]</a>    <span class="k">def</span> <span class="nf">subsequentTo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select the n records subsequent to a give time</span>
 
 <span class="sd">        :param ts: timestamp on which to filter records</span>
@@ -747,7 +747,7 @@
     <span class="c1">#</span>
 
 <div class="viewcode-block" id="TSDF.show"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">truncate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">vertical</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        pyspark.sql.DataFrame.show() method&#39;s equivalent for TSDF objects</span>
 
 <span class="sd">        Parameters</span>
@@ -789,7 +789,7 @@
         <span class="n">get_display_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">truncate</span><span class="p">,</span> <span class="n">vertical</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.describe"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.describe">[docs]</a>    <span class="k">def</span> <span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals</span>
 <span class="sd">        Summary</span>
 <span class="sd">        global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column</span>
@@ -825,7 +825,7 @@
             <span class="mi">0</span>
         <span class="p">]</span>
         <span class="n">gran</span> <span class="o">=</span> <span class="n">this_df</span><span class="o">.</span><span class="n">selectExpr</span><span class="p">(</span>
-            <span class="sd">&quot;&quot;&quot;min(case when {0} - cast({0} as integer) &gt; 0 then &#39;1-millis&#39;</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;min(case when {0} - cast({0} as integer) &gt; 0 then &#39;1-millis&#39;</span>
 <span class="sd">                  when {0} % 60 != 0 then &#39;2-seconds&#39;</span>
 <span class="sd">                  when {0} % 3600 != 0 then &#39;3-minutes&#39;</span>
 <span class="sd">                  when {0} % 86400 != 0 then &#39;4-hours&#39;</span>
@@ -870,7 +870,7 @@
             <span class="k">pass</span></div>
 
     <span class="k">def</span> <span class="nf">__getBytesFromPlan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">spark</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Internal helper function to obtain how many bytes in memory the Spark data</span>
 <span class="sd">        frame is likely to take up. This is an upper bound and is obtained from the</span>
 <span class="sd">        plan details in Spark</span>
@@ -915,8 +915,9 @@
         <span class="n">skipNulls</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">sql_join_opt</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">suppress_null_warning</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Performs an as-of join between two time-series. If a tsPartitionVal is</span>
 <span class="sd">        specified, it will do this partitioned by time brackets, which can help alleviate skew.</span>
 
@@ -932,6 +933,7 @@
 <span class="sd">        :param skipNulls - whether to skip nulls when joining in values</span>
 <span class="sd">        :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient</span>
 <span class="sd">        :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid</span>
+<span class="sd">        :param tolerance - only join values within this tolerance range, expressed in number of seconds as an int</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># first block of logic checks whether a standard range join will suffice</span>
@@ -1079,6 +1081,32 @@
 
             <span class="n">asofDF</span> <span class="o">=</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">asofDF</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="n">combined_df</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">tolerance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">asofDF</span><span class="o">.</span><span class="n">df</span>
+            <span class="n">left_ts_col</span> <span class="o">=</span> <span class="n">left_tsdf</span><span class="o">.</span><span class="n">ts_col</span>
+            <span class="n">right_ts_col</span> <span class="o">=</span> <span class="n">right_tsdf</span><span class="o">.</span><span class="n">ts_col</span>
+            <span class="n">tolerance_condition</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">df</span><span class="p">[</span><span class="n">left_ts_col</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="n">right_ts_col</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s2">&quot;double&quot;</span><span class="p">)</span>
+                <span class="o">&gt;</span> <span class="n">tolerance</span>
+            <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">right_col</span> <span class="ow">in</span> <span class="n">right_columns</span><span class="p">:</span>
+                <span class="c1"># First set right non-timestamp columns to null for rows outside of tolerance band</span>
+                <span class="k">if</span> <span class="n">right_col</span> <span class="o">!=</span> <span class="n">right_ts_col</span><span class="p">:</span>
+                    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                        <span class="n">right_col</span><span class="p">,</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">tolerance_condition</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                            <span class="n">df</span><span class="p">[</span><span class="n">right_col</span><span class="p">]</span>
+                        <span class="p">),</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># Finally, set right timestamp column to null for rows outside of tolerance band</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+                <span class="n">right_ts_col</span><span class="p">,</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">tolerance_condition</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">right_ts_col</span><span class="p">]),</span>
+            <span class="p">)</span>
+            <span class="n">asofDF</span><span class="o">.</span><span class="n">df</span> <span class="o">=</span> <span class="n">df</span>
+
         <span class="k">return</span> <span class="n">asofDF</span></div>
 
     <span class="k">def</span> <span class="nf">__baseWindow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort_col</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
@@ -1111,7 +1139,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__baseWindow</span><span class="p">(</span><span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span><span class="o">.</span><span class="n">rowsBetween</span><span class="p">(</span><span class="n">rows_from</span><span class="p">,</span> <span class="n">rows_to</span><span class="p">)</span>
 
 <div class="viewcode-block" id="TSDF.withPartitionCols"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.withPartitionCols">[docs]</a>    <span class="k">def</span> <span class="nf">withPartitionCols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">partitionCols</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets certain columns of the TSDF as partition columns. Partition columns are those that differentiate distinct timeseries</span>
 <span class="sd">        from each other.</span>
 <span class="sd">        :param partitionCols: a list of columns used to partition distinct timeseries</span>
@@ -1157,7 +1185,7 @@
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">vwapped</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">)</span>
 
 <div class="viewcode-block" id="TSDF.EMA"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.EMA">[docs]</a>    <span class="k">def</span> <span class="nf">EMA</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colName</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">exp_factor</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Constructs an approximate EMA in the fashion of:</span>
 <span class="sd">        EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window</span>
 <span class="sd">        TODO: replace case when statement with coalesce</span>
@@ -1186,7 +1214,7 @@
 <div class="viewcode-block" id="TSDF.withLookbackFeatures"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.withLookbackFeatures">[docs]</a>    <span class="k">def</span> <span class="nf">withLookbackFeatures</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">featureCols</span><span class="p">,</span> <span class="n">lookbackWindowSize</span><span class="p">,</span> <span class="n">exactSize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">featureColName</span><span class="o">=</span><span class="s2">&quot;features&quot;</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of</span>
 <span class="sd">        some set of features. This function creates a new column containing, for each observation, a 2-D array of the values</span>
 <span class="sd">        of some number of other columns over a trailing &quot;lookback&quot; window from the previous observation up to some maximum</span>
@@ -1220,7 +1248,7 @@
 <div class="viewcode-block" id="TSDF.withRangeStats"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.withRangeStats">[docs]</a>    <span class="k">def</span> <span class="nf">withRangeStats</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;range&quot;</span><span class="p">,</span> <span class="n">colsToSummarize</span><span class="o">=</span><span class="p">[],</span> <span class="n">rangeBackWindowSecs</span><span class="o">=</span><span class="mi">1000</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a wider set of stats based on all numeric columns by default</span>
 <span class="sd">        Users can choose which columns they want to summarize also. These stats are:</span>
 <span class="sd">        mean/count/min/max/sum/std deviation/zscore</span>
@@ -1289,7 +1317,7 @@
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">summary_df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TSDF.withGroupedStats"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.withGroupedStats">[docs]</a>    <span class="k">def</span> <span class="nf">withGroupedStats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metricCols</span><span class="o">=</span><span class="p">[],</span> <span class="n">freq</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a wider set of stats based on all numeric columns by default</span>
 <span class="sd">        Users can choose which columns they want to summarize also. These stats are:</span>
 <span class="sd">        mean/count/min/max/sum/std deviation</span>
@@ -1361,7 +1389,7 @@
         <span class="n">fill</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">perform_checks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        function to upsample based on frequency and aggregate function similar to pandas</span>
 <span class="sd">        :param freq: frequency for upsample - valid inputs are &quot;hr&quot;, &quot;min&quot;, &quot;sec&quot; corresponding to hour, minute, or second</span>
 <span class="sd">        :param func: function used to aggregate input</span>
@@ -1399,7 +1427,7 @@
         <span class="n">show_interpolated</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">perform_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values</span>
 <span class="sd">        will be filled based on the fill calculation.</span>
 
@@ -1450,7 +1478,6 @@
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">interpolated_df</span><span class="p">,</span> <span class="n">ts_col</span><span class="o">=</span><span class="n">ts_col</span><span class="p">,</span> <span class="n">partition_cols</span><span class="o">=</span><span class="n">partition_cols</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">calc_bars</span><span class="p">(</span><span class="n">tsdf</span><span class="p">,</span> <span class="n">freq</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">metricCols</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-
         <span class="n">resample_open</span> <span class="o">=</span> <span class="n">tsdf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span>
             <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="s2">&quot;floor&quot;</span><span class="p">,</span> <span class="n">metricCols</span><span class="o">=</span><span class="n">metricCols</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;open&quot;</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">fill</span>
         <span class="p">)</span>
@@ -1481,14 +1508,14 @@
         <span class="k">return</span> <span class="n">TSDF</span><span class="p">(</span><span class="n">bars</span><span class="p">,</span> <span class="n">resample_open</span><span class="o">.</span><span class="n">ts_col</span><span class="p">,</span> <span class="n">resample_open</span><span class="o">.</span><span class="n">partitionCols</span><span class="p">)</span>
 
 <div class="viewcode-block" id="TSDF.fourier_transform"><a class="viewcode-back" href="../../reference/tempo.tsdf.html#tempo.tsdf.TSDF.fourier_transform">[docs]</a>    <span class="k">def</span> <span class="nf">fourier_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">valueCol</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to fourier transform the time series to its frequency domain representation.</span>
 <span class="sd">        :param timestep: timestep value to be used for getting the frequency scale</span>
 <span class="sd">        :param valueCol: name of the time domain data column which will be transformed</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">def</span> <span class="nf">tempo_fourier_util</span><span class="p">(</span><span class="n">pdf</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.</span>
 <span class="sd">            This method is meant to be called from Tempo TSDF as a pandas function API on Spark</span>
 <span class="sd">            &quot;&quot;&quot;</span>
@@ -1584,7 +1611,7 @@
         <span class="o">*</span><span class="n">metric_cols</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">state_definition</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Column</span><span class="p">,</span> <span class="n">Column</span><span class="p">],</span> <span class="n">Column</span><span class="p">]]</span> <span class="o">=</span> <span class="s2">&quot;=&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Extracts intervals from a :class:`~tsdf.TSDF` based on some notion of &quot;state&quot;, as defined by the :param</span>
 <span class="sd">        state_definition: parameter. The state definition consists of a comparison operation between the current and</span>
 <span class="sd">        previous values of a metric. If the comparison operation evaluates to true across all metric columns,</span>
@@ -1641,7 +1668,7 @@
             <span class="k">def</span> <span class="nf">state_comparison_fn</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
                 <span class="k">return</span> <span class="n">operator_dict</span><span class="p">[</span><span class="n">state_definition</span><span class="p">](</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
 
-        <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">state_definition</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">state_definition</span><span class="p">):</span>
             <span class="n">state_comparison_fn</span> <span class="o">=</span> <span class="n">state_definition</span>
 
         <span class="k">else</span><span class="p">:</span>
@@ -1720,7 +1747,7 @@
         <span class="n">show_interpolated</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">perform_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.</span>
 
 <span class="sd">        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill</span>
@@ -1776,7 +1803,7 @@
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2022, Databricks Labs
+                Copyright &#169; 2023, Databricks Labs
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             

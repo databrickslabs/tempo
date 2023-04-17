@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <link rel="shortcut icon" href="../../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.09.29"/>
-        <title>tempo.intervals - Tempo 0.1.22 documentation</title>
+        <title>tempo.intervals - Tempo 0.1.23 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
@@ -132,7 +132,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Tempo 0.1.22 documentation</div></a>
+      <a href="../../index.html"><div class="brand">Tempo 0.1.23 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -159,7 +159,7 @@
     <img class="sidebar-logo only-dark" src="../../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.22 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.23 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -230,7 +230,7 @@
 
 
 <div class="viewcode-block" id="IntervalsDF"><a class="viewcode-back" href="../../reference/tempo.intervals.html#tempo.intervals.IntervalsDF">[docs]</a><span class="k">class</span> <span class="nc">IntervalsDF</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This object is the main wrapper over a `Spark DataFrame`_ which allows a</span>
 <span class="sd">    user to parallelize computations over snapshots of metrics for intervals</span>
 <span class="sd">    of time defined by a start and end timestamp and various dimensions.</span>
@@ -247,7 +247,7 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">start_ts</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">end_ts</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">series_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">         Constructor for :class:`IntervalsDF`.</span>
 
 <span class="sd">        :param df:</span>
@@ -328,7 +328,7 @@
         <span class="n">metrics_value_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">metric_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IntervalsDF&quot;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new :class:`IntervalsDF` with metrics of the current DataFrame</span>
 <span class="sd">        pivoted by start and end timestamp and series.</span>
 
@@ -402,7 +402,7 @@
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">start_ts</span><span class="p">,</span> <span class="n">end_ts</span><span class="p">,</span> <span class="n">series</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">__get_adjacent_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ containing columns from applying the</span>
 <span class="sd">        `lead`_ and `lag`_ window functions.</span>
 
@@ -428,7 +428,7 @@
         <span class="k">return</span> <span class="n">df</span>
 
     <span class="k">def</span> <span class="nf">__identify_subset_intervals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ containing a boolean column if the</span>
 <span class="sd">        current interval is a subset of the previous interval and the name</span>
 <span class="sd">        of this column for future use.</span>
@@ -459,7 +459,7 @@
         <span class="k">return</span> <span class="n">df</span><span class="p">,</span> <span class="n">subset_indicator</span>
 
     <span class="k">def</span> <span class="nf">__identify_overlaps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ containing boolean columns if the</span>
 <span class="sd">        current interval overlaps with the previous or next interval and a list</span>
 <span class="sd">        with the names of these columns for future use.</span>
@@ -508,7 +508,7 @@
     <span class="k">def</span> <span class="nf">__merge_adjacent_subset_and_superset</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">subset_indicator</span><span class="p">:</span> <span class="nb">str</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ where a subset and it&#39;s adjacent</span>
 <span class="sd">        superset, identified by `subset_indicator` are merged together.</span>
 
@@ -540,7 +540,7 @@
     <span class="k">def</span> <span class="nf">__merge_adjacent_overlaps</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">how</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overlap_indicators</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ where adjacent intervals which overlap,</span>
 <span class="sd">        identified by `overlap_indicators` are merged together.</span>
 
@@ -560,14 +560,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="n">how</span> <span class="o">==</span> <span class="s2">&quot;left&quot;</span><span class="p">:</span>
-
             <span class="c1"># new boundary for interval end will become the start of the next</span>
             <span class="c1"># interval</span>
             <span class="n">new_boundary_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_ts</span>
             <span class="n">new_boundary_val</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;_lead_1_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">start_ts</span><span class="si">}</span><span class="s2">&quot;</span>
 
         <span class="k">else</span><span class="p">:</span>
-
             <span class="c1"># new boundary for interval start will become the end of the</span>
             <span class="c1"># previous interval</span>
             <span class="n">new_boundary_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_ts</span>
@@ -583,7 +581,7 @@
         <span class="p">)</span>
 
         <span class="n">overlap_interval_when_cases</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;WHEN </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2"> THEN </span><span class="si">{</span><span class="n">c</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_overlaps&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">overlap_indicators</span>
+            <span class="sa">f</span><span class="s2">&quot;WHEN </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2"> THEN </span><span class="si">{</span><span class="n">c</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_overlaps&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">overlap_indicators</span>
         <span class="p">)</span>
 
         <span class="c1"># this logic will be used to create boundaries of disjoint intervals</span>
@@ -600,7 +598,6 @@
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">how</span> <span class="o">==</span> <span class="s2">&quot;left&quot;</span><span class="p">:</span>
-
             <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric_columns</span><span class="p">:</span>
                 <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
                     <span class="n">c</span><span class="p">,</span>
@@ -618,7 +615,7 @@
         <span class="k">return</span> <span class="n">df</span>
 
     <span class="k">def</span> <span class="nf">__merge_equal_intervals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ where intervals with the same start</span>
 <span class="sd">        and end timestamps are merged together.</span>
 
@@ -640,7 +637,7 @@
         <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">groupBy</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">interval_boundaries</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">series_ids</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="o">*</span><span class="n">merge_expr</span><span class="p">)</span>
 
 <div class="viewcode-block" id="IntervalsDF.disjoint"><a class="viewcode-back" href="../../reference/tempo.intervals.html#tempo.intervals.IntervalsDF.disjoint">[docs]</a>    <span class="k">def</span> <span class="nf">disjoint</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IntervalsDF&quot;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new :class:`IntervalsDF` where metrics of overlapping time intervals</span>
 <span class="sd">        are correlated and merged prior to constructing new time interval boundaries (</span>
 <span class="sd">        start and end timestamp) so that all intervals are disjoint.</span>
@@ -733,7 +730,7 @@
         <span class="k">return</span> <span class="n">IntervalsDF</span><span class="p">(</span><span class="n">disjoint_df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_ts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_ts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">series_ids</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="IntervalsDF.union"><a class="viewcode-back" href="../../reference/tempo.intervals.html#tempo.intervals.IntervalsDF.union">[docs]</a>    <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;IntervalsDF&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IntervalsDF&quot;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new :class:`IntervalsDF` containing union of rows in this and another</span>
 <span class="sd">        :class:`IntervalsDF`.</span>
 
@@ -763,7 +760,7 @@
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="IntervalsDF.unionByName"><a class="viewcode-back" href="../../reference/tempo.intervals.html#tempo.intervals.IntervalsDF.unionByName">[docs]</a>    <span class="k">def</span> <span class="nf">unionByName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s2">&quot;IntervalsDF&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;IntervalsDF&quot;</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new :class:`IntervalsDF` containing union of rows in this</span>
 <span class="sd">        and another :class:`IntervalsDF`.</span>
 
@@ -791,7 +788,7 @@
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="IntervalsDF.toDF"><a class="viewcode-back" href="../../reference/tempo.intervals.html#tempo.intervals.IntervalsDF.toDF">[docs]</a>    <span class="k">def</span> <span class="nf">toDF</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stack</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new `Spark DataFrame`_ converted from :class:`IntervalsDF`.</span>
 
 <span class="sd">        There are two versions of `toDF`. One that will output columns as they exist</span>
@@ -813,7 +810,6 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="n">stack</span><span class="p">:</span>
-
             <span class="n">n_cols</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metric_columns</span><span class="p">)</span>
             <span class="n">metric_cols_expr</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
                 <span class="nb">tuple</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">&#39;, </span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric_columns</span><span class="p">)</span>
@@ -841,7 +837,7 @@
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2022, Databricks Labs
+                Copyright &#169; 2023, Databricks Labs
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             
