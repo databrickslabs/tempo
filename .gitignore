@@ -22,6 +22,10 @@ coverage.xml
 *.pyc
 **/__pycache__
 
+## pyenv files
+.python-version
+python/.python-version
+
 # ignore virtual environments
 python/venv
 python/.venv
