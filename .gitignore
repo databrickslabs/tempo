@@ -26,6 +26,10 @@ coverage.xml
 .python-version
 python/.python-version
 
+## tox files
+.tox
+python/.tox
+
 # ignore virtual environments
 python/venv
 python/.venv
