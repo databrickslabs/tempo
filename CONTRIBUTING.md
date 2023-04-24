@@ -1,5 +1,25 @@
 # Tox Setup instructions
-A brief description of each configured environment can be found by running `tox list` or in the `tox.ini` file.
+
+`tox` is a testing tool that helps you automate and standardize testing in Python across multiple environments.
+
+`pyenv`that allows you to manage multiple versions of Python on your computer and easily switch between them.
+
+Since `tox` supports creating virtual environments using multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
+
+Install both tox and pyenv packages:
+```bash
+pip install -U tox pyenv
+pyenv install 3.7 3.8 3.9
+```
+
+Within `python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
+```bash
+pyenv local 3.7 3.8 3.9
+```
+
+This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
+
+A brief description of each managed `tox` environment can be found by running `tox list` or in the `tox.ini` file.
 
 ## Create a development environment
 Run the following command in your terminal to create a virtual environment in the `.venv` folder:
