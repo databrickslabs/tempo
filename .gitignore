@@ -6,6 +6,7 @@
 
 # coverage files
 .coverage
+.coverage.*
 coverage.xml
 
 # local delta tables
