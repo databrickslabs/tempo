@@ -10,7 +10,7 @@ jobs:
   black-linting:
     runs-on: ubuntu-latest
     name: Black Lint
-   steps:
+    steps:
       - uses: actions/checkout@v2
       - uses: psf/black@stable
         with:
