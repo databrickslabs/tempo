@@ -6,6 +6,7 @@
 
 # coverage files
 .coverage
+.coverage.*
 coverage.xml
 
 # local delta tables
@@ -21,6 +22,14 @@ coverage.xml
 ## Python related files
 *.pyc
 **/__pycache__
+
+## pyenv files
+.python-version
+python/.python-version
+
+## tox files
+.tox
+python/.tox
 
 # ignore virtual environments
 python/venv

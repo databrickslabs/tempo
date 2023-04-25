@@ -54,8 +54,7 @@ jobs:
     - name: Generate coverage report
       working-directory: ./python
       run: |
-        pip install -r requirements.txt
-        pip install coverage
+        python -I -m pip install 'coverage<8,>=7' pyspark==3.2.1 -r requirements.txt
         coverage run -m unittest discover -s tests -p '*_tests.py'
         coverage xml
     - name: Publish test coverage
