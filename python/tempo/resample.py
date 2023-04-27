@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Union, Optional
+from typing import Union, Optional, Tuple, Any
 
 import tempo
 
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 from pyspark.sql import DataFrame
+
+from tempo import TSDF
 
 # define global frequency options
 MUSEC = "microsec"
@@ -37,7 +39,7 @@ allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def _appendAggKey(tsdf: tempo.TSDF, freq: str = None):
+def _appendAggKey(tsdf: tempo.TSDF, freq: Optional[str] = None) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
