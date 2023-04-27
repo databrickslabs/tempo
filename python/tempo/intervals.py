@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from functools import cached_property
 
+import pyspark.sql
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import NumericType, BooleanType, StructField
 import pyspark.sql.functions as f
@@ -31,7 +32,7 @@ class IntervalsDF:
     """
 
     def __init__(
-        self, df: DataFrame, start_ts: str, end_ts: str, series_ids: list[str] = None
+        self, df: DataFrame, start_ts: str, end_ts: str, series_ids: Optional[list[str]] = None
     ) -> None:
         """
          Constructor for :class:`IntervalsDF`.
@@ -100,7 +101,7 @@ class IntervalsDF:
         return [col.name for col in self.df.schema.fields if is_metric_col(col)]
 
     @cached_property
-    def window(self):
+    def window(self) -> pyspark.sql.window:
         return Window.partitionBy(*self.series_ids).orderBy(*self.interval_boundaries)
 
     @classmethod
@@ -181,7 +182,7 @@ class IntervalsDF:
 
         df = (
             df.groupBy(start_ts, end_ts, *series)
-            .pivot(metrics_name_col, values=metric_names)  # type: ignore
+            .pivot(metrics_name_col, values=metric_names)
             .max(metrics_value_col)
         )
 
