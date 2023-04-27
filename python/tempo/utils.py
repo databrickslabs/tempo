@@ -1,4 +1,6 @@
-from typing import List
+from __future__ import annotations
+
+from typing import List, Dict, Union, Optional, overload, Any
 import logging
 import os
 import warnings
@@ -9,6 +11,7 @@ from pandas.core.frame import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
+import tempo
 from tempo.resample import checkAllowableFreq, freq_dict
 
 logger = logging.getLogger(__name__)
@@ -30,7 +33,7 @@ class ResampleWarning(Warning):
     pass
 
 
-def _is_capable_of_html_rendering():
+def _is_capable_of_html_rendering() -> bool:
     """
     This method returns a boolean value signifying whether the environment is a notebook environment
     capable of rendering HTML or not.
@@ -48,11 +51,17 @@ def _is_capable_of_html_rendering():
 
 
 def calculate_time_horizon(
-    df: DataFrame, ts_col: str, freq: str, partition_cols: List[str]
-):
+        df: DataFrame,
+        ts_col: str,
+        freq: str,
+        partition_cols: List[str],
+        local_freq_dict: Optional[Dict[str, str]] = None,
+) -> None:
     # Convert Frequency using resample dictionary
+    if local_freq_dict is None:
+        local_freq_dict = freq_dict
     parsed_freq = checkAllowableFreq(freq)
-    freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
+    freq = f"{parsed_freq[0]} {local_freq_dict[parsed_freq[1]]}"
 
     # Get max and min timestamp per partition
     partitioned_df: DataFrame = df.groupBy(*partition_cols).agg(
@@ -118,7 +127,15 @@ def calculate_time_horizon(
     )
 
 
-def display_html(df):
+@overload
+def display_html(df: pandasDataFrame) -> None: ...
+
+
+@overload
+def display_html(df: DataFrame) -> None: ...
+
+
+def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
     """
     Display method capable of displaying the dataframe in a formatted HTML structured output
     """
@@ -131,7 +148,7 @@ def display_html(df):
         logger.error("'display' method not available for this object")
 
 
-def display_unavailable(df):
+def display_unavailable() -> None:
     """
     This method is called when display method is not available in the environment.
     """
@@ -140,7 +157,7 @@ def display_unavailable(df):
     )
 
 
-def get_display_df(tsdf, k):
+def get_display_df(tsdf: tempo.TSDF, k: int) -> DataFrame:
     # let's show the n most recent records per series, in order:
     orderCols = tsdf.partitionCols.copy()
     orderCols.append(tsdf.ts_col)
@@ -152,29 +169,55 @@ def get_display_df(tsdf, k):
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
-    IS_DATABRICKS
-    and not (get_ipython() is None)
-    and ("display" in get_ipython().user_ns.keys())
+        IS_DATABRICKS
+        and not (get_ipython() is None)
+        and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
+
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
-    def display_improvised(obj):
+
+    @overload
+    def display_improvised(obj: tempo.TSDF) -> None: ...
+
+    @overload
+    def display_improvised(obj: pandasDataFrame) -> None: ...
+
+    @overload
+    def display_improvised(obj: DataFrame) -> None: ...
+
+
+    def display_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
         if type(obj).__name__ == "TSDF":
             method(get_display_df(obj, k=5))
         else:
             method(obj)
 
+
     display = display_improvised
 
 elif ENV_CAN_RENDER_HTML:
 
-    def display_html_improvised(obj):
+    @overload
+    def display_html_improvised(obj: tempo.TSDF) -> None:
+        ...
+
+    @overload
+    def display_html_improvised(obj: pandasDataFrame) -> None:
+        ...
+
+    @overload
+    def display_html_improvised(obj: DataFrame) -> None:
+        ...
+
+    def display_html_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
         if type(obj).__name__ == "TSDF":
             display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
+
 
     display = display_html_improvised
 
