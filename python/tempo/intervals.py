@@ -32,7 +32,11 @@ class IntervalsDF:
     """
 
     def __init__(
-        self, df: DataFrame, start_ts: str, end_ts: str, series_ids: Optional[list[str]] = None
+        self,
+        df: DataFrame,
+        start_ts: str,
+        end_ts: str,
+        series_ids: Optional[list[str]] = None,
     ) -> None:
         """
          Constructor for :class:`IntervalsDF`.

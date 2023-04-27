@@ -39,7 +39,9 @@ allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def _appendAggKey(tsdf: tempo.TSDF, freq: Optional[str] = None) -> Tuple[TSDF, int | str, Any]:
+def _appendAggKey(
+    tsdf: tempo.TSDF, freq: Optional[str] = None
+) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample

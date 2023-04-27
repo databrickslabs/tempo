@@ -51,11 +51,11 @@ def _is_capable_of_html_rendering() -> bool:
 
 
 def calculate_time_horizon(
-        df: DataFrame,
-        ts_col: str,
-        freq: str,
-        partition_cols: List[str],
-        local_freq_dict: Optional[Dict[str, str]] = None,
+    df: DataFrame,
+    ts_col: str,
+    freq: str,
+    partition_cols: List[str],
+    local_freq_dict: Optional[Dict[str, str]] = None,
 ) -> None:
     # Convert Frequency using resample dictionary
     if local_freq_dict is None:
@@ -128,11 +128,13 @@ def calculate_time_horizon(
 
 
 @overload
-def display_html(df: pandasDataFrame) -> None: ...
+def display_html(df: pandasDataFrame) -> None:
+    ...
 
 
 @overload
-def display_html(df: DataFrame) -> None: ...
+def display_html(df: DataFrame) -> None:
+    ...
 
 
 def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
@@ -169,32 +171,32 @@ def get_display_df(tsdf: tempo.TSDF, k: int) -> DataFrame:
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
-        IS_DATABRICKS
-        and not (get_ipython() is None)
-        and ("display" in get_ipython().user_ns.keys())
+    IS_DATABRICKS
+    and not (get_ipython() is None)
+    and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
 
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
+    @overload
+    def display_improvised(obj: tempo.TSDF) -> None:
+        ...
 
     @overload
-    def display_improvised(obj: tempo.TSDF) -> None: ...
+    def display_improvised(obj: pandasDataFrame) -> None:
+        ...
 
     @overload
-    def display_improvised(obj: pandasDataFrame) -> None: ...
-
-    @overload
-    def display_improvised(obj: DataFrame) -> None: ...
-
+    def display_improvised(obj: DataFrame) -> None:
+        ...
 
     def display_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
         if type(obj).__name__ == "TSDF":
             method(get_display_df(obj, k=5))
         else:
             method(obj)
-
 
     display = display_improvised
 
@@ -212,12 +214,13 @@ elif ENV_CAN_RENDER_HTML:
     def display_html_improvised(obj: DataFrame) -> None:
         ...
 
-    def display_html_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
+    def display_html_improvised(
+        obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]
+    ) -> None:
         if type(obj).__name__ == "TSDF":
             display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
-
 
     display = display_html_improvised
 
