@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Optional, Tuple, Any
+from typing import Union, Optional, Tuple, Any, Dict
 
 import tempo
 
@@ -25,7 +25,7 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict = {
+freq_dict: Dict[str, str] = {
     "microsec": "microseconds",
     "ms": "milliseconds",
     "sec": "seconds",
