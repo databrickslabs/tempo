@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import logging
 from collections import deque
+from typing import Optional
+
 import tempo
 import pyspark.sql.functions as f
 from pyspark.sql import SparkSession
@@ -15,8 +17,8 @@ def write(
     tsdf: tempo.TSDF,
     spark: SparkSession,
     tabName: str,
-    optimizationCols: list[str] = None,
-):
+    optimizationCols: Optional[list[str]] = None,
+) -> None:
     """
     param: tsdf: input TSDF object to write
     param: tabName Delta output table name
