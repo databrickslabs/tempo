@@ -42,8 +42,7 @@ jobs:
           python-version: "3.9"
       - name: Type check
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y python-tox
+          pip install tox
           tox -e type-check
   test:
     name: Buid and Test Module
