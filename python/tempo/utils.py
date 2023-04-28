@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Dict, Union, Optional, overload, Any
+from typing import List, Union, Optional, overload
 import logging
 import os
 import warnings
@@ -12,7 +12,13 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
 import tempo
-from tempo.resample import checkAllowableFreq, freq_dict, FreqDict, is_valid_freq_dict_key, ALLOWED_FREQ_KEYS
+from tempo.resample import (
+    checkAllowableFreq,
+    freq_dict,
+    FreqDict,
+    ALLOWED_FREQ_KEYS,
+    is_valid_allowed_freq_keys,
+)
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -62,8 +68,10 @@ def calculate_time_horizon(
         local_freq_dict = freq_dict
     parsed_freq = checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
-    if is_valid_freq_dict_key(unit, ALLOWED_FREQ_KEYS):
-        freq = f"{period} {local_freq_dict[unit]}"
+    if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
+        freq = f"{period} {local_freq_dict[unit]}"  # type: ignore
+    else:
+        raise ValueError(f"Frequency {unit} not supported")
 
     # Get max and min timestamp per partition
     partitioned_df: DataFrame = df.groupBy(*partition_cols).agg(
