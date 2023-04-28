@@ -1371,7 +1371,6 @@ class TSDF:
 
         def tempo_fourier_util(
             pdf: pd.DataFrame,
-            util_timestep: Union[int | float | complex] = timestep,
         ) -> pd.DataFrame:
             """
             This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
@@ -1386,7 +1385,7 @@ class TSDF:
             pdf["ft_real"] = r
             pdf["ft_imag"] = i
             N = tran.shape
-            xf = fftfreq(N[0], util_timestep)
+            xf = fftfreq(N[0], timestep)
             pdf["freq"] = xf
             return pdf[select_cols + ["freq", "ft_real", "ft_imag"]]
 
