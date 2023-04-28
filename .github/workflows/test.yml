@@ -32,6 +32,16 @@ jobs:
         with:
           args: "--config python/.flake8"
           path: "./python"
+  type-checks:
+    runs-on: ubuntu-latest
+    name: Type Checks
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+      - name: Type check
+        run: tox -e type-check
   test:
     name: Buid and Test Module
     runs-on: ${{ matrix.os }}
