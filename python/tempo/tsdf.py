@@ -800,7 +800,9 @@ class TSDF:
 
         if tsPartitionVal is not None:
             logger.warning(
-                "You are using the skew version of the AS OF join. This may result in null values if there are any values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum lookback, trading off performance and potential blank AS OF values for sparse keys"
+                "You are using the skew version of the AS OF join. This may result in null values if there are any "
+                "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
+                "lookback, trading off performance and potential blank AS OF values for sparse keys"
             )
 
         # Check whether partition columns have same name in both dataframes

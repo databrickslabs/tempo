@@ -288,6 +288,20 @@
           ["S1", "2020-09-01 00:19:12", 362.1, null, null, null]
         ]
       }
+    },
+    "test_asof_join_sql_join_opt_and_bytes_threshold": {
+      "left": {
+        "$ref": "#/__SharedData/shared_left"
+      },
+      "right": {
+        "$ref": "#/AsOfJoinTest/test_asof_join/right"
+      },
+      "expected": {
+        "$ref": "#/AsOfJoinTest/test_asof_join/expected"
+      },
+      "expected_no_right_prefix": {
+        "$ref": "#/AsOfJoinTest/test_asof_join/expected_no_right_prefix"
+      }
     }
   }
 }
