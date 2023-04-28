@@ -6,9 +6,9 @@ from typing import (
     Tuple,
     Any,
     TypedDict,
-    get_args,
     List,
     Callable,
+    get_type_hints,
 )
 
 import pyspark.sql.functions as f
@@ -55,7 +55,7 @@ freq_dict: FreqDict = {
     "hour": "hours",
 }
 
-ALLOWED_FREQ_KEYS: List[str] = list(get_args(FreqDict))
+ALLOWED_FREQ_KEYS: List[str] = list(get_type_hints(FreqDict).keys())
 
 
 def is_valid_allowed_freq_keys(val: str, literal_constant: List[str]) -> bool:
@@ -79,15 +79,15 @@ def _appendAggKey(
     period, unit = parsed_freq[0], parsed_freq[1]
     if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
         agg_window = f.window(
-            f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore
+            f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
         )
 
         df = df.withColumn("agg_key", agg_window)
 
         return (
             t_tsdf.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
-            parsed_freq[0],
-            freq_dict[parsed_freq[1]],  # type: ignore
+            period,
+            freq_dict[unit],  # type: ignore[literal-required]
         )
 
     else:
@@ -234,7 +234,7 @@ def aggregate(
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> Tuple[int, str]:
+def checkAllowableFreq(freq: Optional[str]) -> Tuple[str, str]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
@@ -243,10 +243,10 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[int, str]:
     if not isinstance(freq, str):
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
     elif freq in allowableFreqs:
-        return 1, freq
+        return "1", freq
     else:
         try:
-            periods = int(freq.lower().split(" ")[0].strip())
+            periods = freq.lower().split(" ")[0].strip()
             units = freq.lower().split(" ")[1].strip()
         except IndexError:
             raise ValueError(
