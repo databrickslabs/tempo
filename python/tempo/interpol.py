@@ -6,14 +6,9 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import col, expr, last, lead, lit, when
 from pyspark.sql.window import Window
 
-import tempo
-from tempo.utils import calculate_time_horizon
-from tempo.resample import (
-    checkAllowableFreq,
-    freq_dict,
-    is_valid_allowed_freq_keys,
-    ALLOWED_FREQ_KEYS,
-)
+import tempo.utils as t_utils
+import tempo.resample as t_resample
+import tempo.tsdf as t_tsdf
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -277,7 +272,7 @@ class Interpolation:
 
     def interpolate(
         self,
-        tsdf: tempo.TSDF,
+        tsdf: t_tsdf.TSDF,
         ts_col: str,
         partition_cols: List[str],
         target_cols: List[str],
@@ -315,16 +310,19 @@ class Interpolation:
             raise ValueError("func must be a string")
 
         # Convert Frequency using resample dictionary
-        parsed_freq = checkAllowableFreq(freq)
+        parsed_freq = t_resample.checkAllowableFreq(freq)
         period, unit = parsed_freq[0], parsed_freq[1]
-        if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
+        if t_resample.is_valid_allowed_freq_keys(
+                unit,
+                t_resample.ALLOWED_FREQ_KEYS,
+        ):
             freq = f"{period} {freq_dict[unit]}"  # type: ignore
         else:
             raise ValueError(f"Frequency {unit} not supported")
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if perform_checks:
-            calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
+            t_utils.calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
 
         # Only select required columns for interpolation
         input_cols: List[str] = [*partition_cols, ts_col, *target_cols]

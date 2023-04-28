@@ -5,7 +5,7 @@ import logging
 from collections import deque
 from typing import Optional
 
-import tempo
+import tempo.tsdf as t_tsdf
 import pyspark.sql.functions as f
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def write(
-    tsdf: tempo.TSDF,
+    tsdf: t_tsdf.TSDF,
     spark: SparkSession,
     tabName: str,
     optimizationCols: Optional[list[str]] = None,

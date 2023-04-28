@@ -11,14 +11,8 @@ from pandas.core.frame import DataFrame as pandasDataFrame
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
-import tempo
-from tempo.resample import (
-    checkAllowableFreq,
-    freq_dict,
-    FreqDict,
-    ALLOWED_FREQ_KEYS,
-    is_valid_allowed_freq_keys,
-)
+import tempo.tsdf as t_tsdf
+import tempo.resample as t_resample 
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -61,14 +55,17 @@ def calculate_time_horizon(
     ts_col: str,
     freq: str,
     partition_cols: List[str],
-    local_freq_dict: Optional[FreqDict] = None,
+    local_freq_dict: Optional[t_resample.FreqDict] = None,
 ) -> None:
     # Convert Frequency using resample dictionary
     if local_freq_dict is None:
-        local_freq_dict = freq_dict
-    parsed_freq = checkAllowableFreq(freq)
+        local_freq_dict = t_resample.freq_dict
+    parsed_freq = t_resample.checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
-    if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
+    if t_resample.is_valid_allowed_freq_keys(
+            unit,
+            t_resample.ALLOWED_FREQ_KEYS,
+    ):
         freq = f"{period} {local_freq_dict[unit]}"  # type: ignore
     else:
         raise ValueError(f"Frequency {unit} not supported")
@@ -169,7 +166,7 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf: tempo.TSDF, k: int) -> DataFrame:
+def get_display_df(tsdf: t_tsdf.TSDF, k: int) -> DataFrame:
     # let's show the n most recent records per series, in order:
     orderCols = tsdf.partitionCols.copy()
     orderCols.append(tsdf.ts_col)
@@ -191,7 +188,7 @@ if (
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
     @overload
-    def display_improvised(obj: tempo.TSDF) -> None:
+    def display_improvised(obj: t_tsdf.TSDF) -> None:
         ...
 
     @overload
@@ -202,8 +199,8 @@ if (
     def display_improvised(obj: DataFrame) -> None:
         ...
 
-    def display_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
-        if isinstance(obj, tempo.TSDF):
+    def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
+        if isinstance(obj, t_tsdf.TSDF):
             method(get_display_df(obj, k=5))
         else:
             method(obj)
@@ -213,7 +210,7 @@ if (
 elif ENV_CAN_RENDER_HTML:
 
     @overload
-    def display_html_improvised(obj: Optional[tempo.TSDF]) -> None:
+    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
         ...
 
     @overload
@@ -225,9 +222,9 @@ elif ENV_CAN_RENDER_HTML:
         ...
 
     def display_html_improvised(
-        obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]
+        obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
     ) -> None:
-        if isinstance(obj, tempo.TSDF):
+        if isinstance(obj, t_tsdf.TSDF):
             display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
