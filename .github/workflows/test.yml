@@ -41,7 +41,10 @@ jobs:
         with:
           python-version: "3.9"
       - name: Type check
-        run: tox -e type-check
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y python-tox
+          tox -e type-check
   test:
     name: Buid and Test Module
     runs-on: ${{ matrix.os }}
