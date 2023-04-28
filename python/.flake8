@@ -1,18 +1,26 @@
 [flake8]
 max-line-length = 88
 builtins = dbutils
-extend-ignore = 
+extend-ignore =
     # Line too long (88 characters) (E501)
     E501,
     # Name may be undefined, or defined from star imports: module (F405)
     F405,
     # Invalid escape sequence 'x' (W605)
     W605,
-    # 'from module import *' used; unable to detect undefined names (F403)
-    F403
 exclude =
+    .git
     __pycache__
     env
-    .env
-    venv
+    .tox
+    build
     .venv
+    venv
+    .coverage.py
+    .coverage
+    .coveragerc
+    .eggs
+    .mypy_cache
+    .pytest_cache
+    dbl_tempo.egg-info
+    .tox
