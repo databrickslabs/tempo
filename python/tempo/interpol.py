@@ -1,4 +1,6 @@
-from typing import List
+from __future__ import annotations
+
+from typing import List, Optional, Union, Callable
 
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import col, expr, last, lead, lit, when
@@ -270,8 +272,8 @@ class Interpolation:
         ts_col: str,
         partition_cols: List[str],
         target_cols: List[str],
-        freq: str,
-        func: str,
+        freq: Optional[str],
+        func: Optional[Union[Callable | str]],
         method: str,
         show_interpolated: bool,
         perform_checks: bool = True,
@@ -293,6 +295,15 @@ class Interpolation:
         # Validate input parameters
         self.__validate_fill(method)
         self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
+
+        if freq is None:
+            raise ValueError("freq cannot be None")
+
+        if func is None:
+            raise ValueError("func cannot be None")
+
+        if isinstance(func, Callable):
+            raise ValueError("func must be a string")
 
         # Convert Frequency using resample dictionary
         parsed_freq = checkAllowableFreq(freq)
