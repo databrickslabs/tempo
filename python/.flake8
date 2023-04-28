@@ -8,8 +8,6 @@ extend-ignore =
     F405,
     # Invalid escape sequence 'x' (W605)
     W605,
-    # 'from module import *' used; unable to detect undefined names (F403)
-    F403
 exclude =
     .git
     __pycache__
