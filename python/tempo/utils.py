@@ -12,7 +12,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
 import tempo
-from tempo.resample import checkAllowableFreq, freq_dict
+from tempo.resample import checkAllowableFreq, freq_dict, FreqDict, is_valid_freq_dict_key, ALLOWED_FREQ_KEYS
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -55,13 +55,15 @@ def calculate_time_horizon(
     ts_col: str,
     freq: str,
     partition_cols: List[str],
-    local_freq_dict: Optional[Dict[str, str]] = None,
+    local_freq_dict: Optional[FreqDict] = None,
 ) -> None:
     # Convert Frequency using resample dictionary
     if local_freq_dict is None:
         local_freq_dict = freq_dict
     parsed_freq = checkAllowableFreq(freq)
-    freq = f"{parsed_freq[0]} {local_freq_dict[parsed_freq[1]]}"
+    period, unit = parsed_freq[0], parsed_freq[1]
+    if is_valid_freq_dict_key(unit, ALLOWED_FREQ_KEYS):
+        freq = f"{period} {local_freq_dict[unit]}"
 
     # Get max and min timestamp per partition
     partitioned_df: DataFrame = df.groupBy(*partition_cols).agg(
@@ -193,7 +195,7 @@ if (
         ...
 
     def display_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
-        if type(obj).__name__ == "TSDF":
+        if isinstance(obj, tempo.TSDF):
             method(get_display_df(obj, k=5))
         else:
             method(obj)
@@ -203,21 +205,19 @@ if (
 elif ENV_CAN_RENDER_HTML:
 
     @overload
-    def display_html_improvised(obj: tempo.TSDF) -> None:
+    def display_html_improvised(obj: Optional[tempo.TSDF]) -> None:
         ...
 
     @overload
-    def display_html_improvised(obj: pandasDataFrame) -> None:
+    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
         ...
 
     @overload
-    def display_html_improvised(obj: DataFrame) -> None:
+    def display_html_improvised(obj: Optional[DataFrame]) -> None:
         ...
 
-    def display_html_improvised(
-        obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]
-    ) -> None:
-        if type(obj).__name__ == "TSDF":
+    def display_html_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
+        if isinstance(obj, tempo.TSDF):
             display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
@@ -225,7 +225,7 @@ elif ENV_CAN_RENDER_HTML:
     display = display_html_improvised
 
 else:
-    display = display_unavailable
+    display = display_unavailable  # type: ignore
 
 """
 display method's equivalent for TSDF object
