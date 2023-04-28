@@ -1184,7 +1184,10 @@ class TSDF:
         if t_resample.is_valid_allowed_freq_keys(unit, t_resample.ALLOWED_FREQ_KEYS):
             agg_window = f.window(
                 f.col(self.ts_col),
-                "{} {}".format(period, rs.freq_dict[unit]),  # type: ignore
+                "{} {}".format(
+                    period,
+                    t_resample.freq_dict[unit]  # type: ignore[literal-required]
+                ),
             )
         else:
             raise ValueError(
