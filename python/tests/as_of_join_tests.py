@@ -112,7 +112,7 @@ class AsOfJoinTest(SparkTest):
         tsdf_left = self.get_data_as_tsdf("left")
         tsdf_right = self.get_data_as_tsdf("right")
 
-        tolerance_test_values = [None, 0, 7, 10]
+        tolerance_test_values = [None, 0, 5.5, 7, 10]
         for tolerance in tolerance_test_values:
             # perform join
             joined_df = tsdf_left.asofJoin(
