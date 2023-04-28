@@ -108,7 +108,6 @@ class UtilsTest(SparkTest):
         )
 
     def test_display_unavailable(self):
-
         with self.assertLogs(level="ERROR") as error_captured:
             display_unavailable()
 

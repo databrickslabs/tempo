@@ -196,9 +196,7 @@ class TSDF:
 
         return TSDF(new_df, self.ts_col, self.partitionCols)
 
-    def __combineTSDF(
-        self, ts_df_right: "TSDF", combined_ts_col: str
-    ) -> "TSDF":
+    def __combineTSDF(self, ts_df_right: "TSDF", combined_ts_col: str) -> "TSDF":
         combined_df = self.df.unionByName(ts_df_right.df).withColumn(
             combined_ts_col, f.coalesce(self.ts_col, ts_df_right.ts_col)
         )
@@ -306,9 +304,7 @@ class TSDF:
 
         return TSDF(df, left_ts_col, self.partitionCols)
 
-    def __getTimePartitions(
-        self, tsPartitionVal: int, fraction: float = 0.1
-    ) -> "TSDF":
+    def __getTimePartitions(self, tsPartitionVal: int, fraction: float = 0.1) -> "TSDF":
         """
         Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
         are rounded down to the nearest <tsPartitionVal> seconds.
@@ -1004,9 +1000,7 @@ class TSDF:
 
         return TSDF(vwapped, self.ts_col, self.partitionCols)
 
-    def EMA(
-        self, colName: str, window: int = 30, exp_factor: float = 0.2
-    ) -> "TSDF":
+    def EMA(self, colName: str, window: int = 30, exp_factor: float = 0.2) -> "TSDF":
         """
         Constructs an approximate EMA in the fashion of:
         EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
@@ -1185,8 +1179,7 @@ class TSDF:
             agg_window = f.window(
                 f.col(self.ts_col),
                 "{} {}".format(
-                    period,
-                    t_resample.freq_dict[unit]  # type: ignore[literal-required]
+                    period, t_resample.freq_dict[unit]  # type: ignore[literal-required]
                 ),
             )
         else:
@@ -1252,7 +1245,9 @@ class TSDF:
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
-            t_utils.calculate_time_horizon(self.df, self.ts_col, freq, self.partitionCols)
+            t_utils.calculate_time_horizon(
+                self.df, self.ts_col, freq, self.partitionCols
+            )
 
         enriched_df: DataFrame = t_resample.aggregate(
             self, freq, func, metricCols, prefix, fill
@@ -1314,9 +1309,7 @@ class TSDF:
                 )
             ]
 
-        interpolate_service = t_interpolation.Interpolation(
-            is_resampled=False
-        )
+        interpolate_service = t_interpolation.Interpolation(is_resampled=False)
         tsdf_input = TSDF(self.df, ts_col=ts_col, partition_cols=partition_cols)
         interpolated_df: DataFrame = interpolate_service.interpolate(
             tsdf_input,

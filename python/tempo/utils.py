@@ -12,7 +12,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
 import tempo.tsdf as t_tsdf
-import tempo.resample as t_resample 
+import tempo.resample as t_resample
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -63,8 +63,8 @@ def calculate_time_horizon(
     parsed_freq = t_resample.checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
     if t_resample.is_valid_allowed_freq_keys(
-            unit,
-            t_resample.ALLOWED_FREQ_KEYS,
+        unit,
+        t_resample.ALLOWED_FREQ_KEYS,
     ):
         freq = f"{period} {local_freq_dict[unit]}"  # type: ignore[literal-required]
     else:
