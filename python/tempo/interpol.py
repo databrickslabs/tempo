@@ -316,7 +316,7 @@ class Interpolation:
                 unit,
                 t_resample.ALLOWED_FREQ_KEYS,
         ):
-            freq = f"{period} {freq_dict[unit]}"  # type: ignore
+            freq = f"{period} {t_resample.freq_dict[unit]}"  # type: ignore[literal-required]
         else:
             raise ValueError(f"Frequency {unit} not supported")
 
