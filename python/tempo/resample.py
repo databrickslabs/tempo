@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Union, Optional, Tuple, Any, Dict, TypedDict, Sequence, Literal, TypeGuard, get_args, List, Callable
+from typing import (
+    Union, Optional, Tuple, Any, Dict, TypedDict, Sequence, Literal, get_args, List, Callable,)
+from typing_extensions import TypeGuard
 
 import tempo
 
@@ -48,10 +50,10 @@ freq_dict: FreqDict = {
     "hour": "hours",
 }
 
-ALLOWED_FREQ_KEYS: List[FreqDict] = list(get_args(FreqDict))
+ALLOWED_FREQ_KEYS: List[str] = list(get_args(FreqDict))
 
 
-def is_valid_freq_dict_key(val: str, literal_constant: List[Literal]) -> TypeGuard[FreqDict]:
+def is_valid_allowed_freq_keys(val: str, literal_constant: List[str]) -> bool:
     return val in literal_constant
 
 
@@ -69,17 +71,26 @@ def _appendAggKey(
     """
     df = tsdf.df
     parsed_freq = checkAllowableFreq(freq)
-    agg_window = f.window(
-        f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]])
-    )
+    period, unit = parsed_freq[0], parsed_freq[1]
+    if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
+        agg_window = f.window(
+            f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]])  # type: ignore
+        )
 
-    df = df.withColumn("agg_key", agg_window)
+        df = df.withColumn("agg_key", agg_window)
 
-    return (
-        tempo.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
-        parsed_freq[0],
-        freq_dict[parsed_freq[1]],
-    )
+        return (
+            tempo.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
+            parsed_freq[0],
+            freq_dict[parsed_freq[1]],  # type: ignore
+        )
+
+    else:
+        raise ValueError(
+            "Invalid frequency key. Please use one of the following: {}".format(
+                ALLOWED_FREQ_KEYS
+            )
+        )
 
 
 def aggregate(
@@ -218,9 +229,7 @@ def aggregate(
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> Tuple[
-        int, Literal["microsec", "musec", "ms", "sec", "min", "hr", "day"]
-]:
+def checkAllowableFreq(freq: Optional[str]) -> Tuple[int, str]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
@@ -254,7 +263,7 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[
             raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
 
-def validateFuncExists(func: Union[Callable | str]):
+def validateFuncExists(func: Union[Callable | str]) -> None:
     if func is None:
         raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "
