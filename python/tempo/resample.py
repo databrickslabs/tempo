@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Optional, Tuple, Any, Dict
+from typing import Union, Optional, Tuple, Any, Dict, TypedDict, Sequence, Literal, TypeGuard, get_args, List
 
 import tempo
 
@@ -25,7 +25,20 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-freq_dict: Dict[str, str] = {
+
+class FreqDict(TypedDict):
+    musec: str
+    microsec: str
+    ms: str
+    sec: str
+    min: str
+    hr: str
+    day: str
+    hour: str
+
+
+freq_dict: FreqDict = {
+    "musec": "microseconds",
     "microsec": "microseconds",
     "ms": "milliseconds",
     "sec": "seconds",
@@ -35,12 +48,19 @@ freq_dict: Dict[str, str] = {
     "hour": "hours",
 }
 
+ALLOWED_FREQ_KEYS: List[FreqDict] = list(get_args(FreqDict))
+
+
+def is_valid_freq_dict_key(val: str, literal_constant: List[Literal]) -> TypeGuard[FreqDict]:
+    return val in literal_constant
+
+
 allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
 def _appendAggKey(
-    tsdf: tempo.TSDF, freq: Optional[str] = None
+        tsdf: tempo.TSDF, freq: Optional[str] = None
 ) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
@@ -63,12 +83,12 @@ def _appendAggKey(
 
 
 def aggregate(
-    tsdf: tempo.TSDF,
-    freq: str,
-    func: str,
-    metricCols: list[str] = None,
-    prefix: str = None,
-    fill: bool = None,
+        tsdf: tempo.TSDF,
+        freq: str,
+        func: str,
+        metricCols: list[str] = None,
+        prefix: str = None,
+        fill: bool = None,
 ) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
@@ -198,7 +218,9 @@ def aggregate(
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[str]]:
+def checkAllowableFreq(freq: Optional[str]) -> Tuple[
+        int, Literal["microsec", "musec", "ms", "sec", "min", "hr", "day"]
+]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
@@ -210,7 +232,7 @@ def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[
         return 1, freq
     else:
         try:
-            periods = freq.lower().split(" ")[0].strip()
+            periods = int(freq.lower().split(" ")[0].strip())
             units = freq.lower().split(" ")[1].strip()
         except IndexError:
             raise ValueError(
