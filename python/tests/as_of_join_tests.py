@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import patch
 
-import tempo
 from tests.base import SparkTest
 
 
@@ -76,7 +75,6 @@ class AsOfJoinTest(SparkTest):
     def test_partitioned_asof_join(self):
         """AS-OF Join with a time-partition"""
         with self.assertLogs(level="WARNING") as warning_captured:
-
             # fetch test data
             tsdf_left = self.get_data_as_tsdf("left")
             tsdf_right = self.get_data_as_tsdf("right")
@@ -141,7 +139,6 @@ class AsOfJoinTest(SparkTest):
     def test_asof_join_sql_join_opt_and_bytes_threshold(self):
         """AS-OF Join with out a time-partition test"""
         with patch("tempo.tsdf.TSDF._TSDF__getBytesFromPlan", return_value=1000):
-
             # Construct dataframes
             tsdf_left = self.get_data_as_tsdf("left")
             tsdf_right = self.get_data_as_tsdf("right")

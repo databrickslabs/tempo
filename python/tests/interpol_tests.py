@@ -359,7 +359,6 @@ class InterpolationUnitTest(SparkTest):
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_validate_ts_col_data_type_is_not_timestamp(self):
-
         input_df: DataFrame = self.get_data_as_sdf("input_data")
 
         self.assertRaises(
@@ -451,6 +450,7 @@ class InterpolationUnitTest(SparkTest):
             "zero",
             True,
         )
+
 
 class InterpolationIntegrationTest(SparkTest):
     def test_interpolation_using_default_tsdf_params(self):

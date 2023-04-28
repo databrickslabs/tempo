@@ -73,7 +73,7 @@ class Interpolation:
             raise ValueError("Timestamp Column needs to be of timestamp type.")
 
     def __calc_linear_spark(
-            self, df: DataFrame, ts_col: str, target_col: str
+        self, df: DataFrame, ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
@@ -105,11 +105,11 @@ class Interpolation:
         return interpolated.select(*df.columns)
 
     def __interpolate_column(
-            self,
-            series: DataFrame,
-            ts_col: str,
-            target_col: str,
-            method: str,
+        self,
+        series: DataFrame,
+        ts_col: str,
+        target_col: str,
+        method: str,
     ) -> DataFrame:
         """
         Apply interpolation to column.
@@ -169,8 +169,8 @@ class Interpolation:
                 when(
                     (col(f"is_interpolated_{target_col}") == True)  # noqa: E712
                     & (
-                            col(f"next_{target_col}").isNull()
-                            & (col(f"{ts_col}_{target_col}").isNull())
+                        col(f"next_{target_col}").isNull()
+                        & (col(f"{ts_col}_{target_col}").isNull())
                     ),
                     col(f"next_null_{target_col}"),
                 ).otherwise(
@@ -193,7 +193,7 @@ class Interpolation:
         return output_df
 
     def __generate_time_series_fill(
-            self, df: DataFrame, partition_cols: List[str], ts_col: str
+        self, df: DataFrame, partition_cols: List[str], ts_col: str
     ) -> DataFrame:
         """
         Create additional timeseries columns for previous and next timestamps
@@ -211,7 +211,7 @@ class Interpolation:
         )
 
     def __generate_column_time_fill(
-            self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
+        self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
@@ -238,7 +238,7 @@ class Interpolation:
         )
 
     def __generate_target_fill(
-            self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
+        self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Create columns for previous and next value for a specific target column
@@ -274,16 +274,16 @@ class Interpolation:
         )
 
     def interpolate(
-            self,
-            tsdf: t_tsdf.TSDF,
-            ts_col: str,
-            partition_cols: List[str],
-            target_cols: List[str],
-            freq: Optional[str],
-            func: Optional[Union[Callable | str]],
-            method: str,
-            show_interpolated: bool,
-            perform_checks: bool = True,
+        self,
+        tsdf: t_tsdf.TSDF,
+        ts_col: str,
+        partition_cols: List[str],
+        target_cols: List[str],
+        freq: Optional[str],
+        func: Optional[Union[Callable | str]],
+        method: str,
+        show_interpolated: bool,
+        perform_checks: bool = True,
     ) -> DataFrame:
         """
         Apply interpolation function.
@@ -316,8 +316,8 @@ class Interpolation:
         parsed_freq = t_resample.checkAllowableFreq(freq)
         period, unit = parsed_freq[0], parsed_freq[1]
         if t_resample.is_valid_allowed_freq_keys(
-                unit,
-                t_resample.ALLOWED_FREQ_KEYS,
+            unit,
+            t_resample.ALLOWED_FREQ_KEYS,
         ):
             freq = f"{period} {t_resample.freq_dict[unit]}"  # type: ignore[literal-required]
         else:
