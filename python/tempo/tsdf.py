@@ -4,7 +4,7 @@ import logging
 import operator
 from abc import ABC, abstractmethod, ABCMeta
 from functools import reduce
-from typing import List, Union, Callable, Optional, Sequence, NoReturn, Any, TypeVar
+from typing import (List, Union, Callable, Optional, Sequence, NoReturn, Any, TypeVar,)
 
 import numpy as np
 import pandas as pd
@@ -1144,10 +1144,18 @@ class TSDF:
 
         # build window
         parsed_freq = rs.checkAllowableFreq(freq)
-        agg_window = f.window(
-            f.col(self.ts_col),
-            "{} {}".format(parsed_freq[0], rs.freq_dict[parsed_freq[1]]),
-        )
+        period, unit = parsed_freq[0], parsed_freq[1]
+        if rs.is_valid_allowed_freq_keys(unit, rs.ALLOWED_FREQ_KEYS):
+            agg_window = f.window(
+                f.col(self.ts_col),
+                "{} {}".format(parsed_freq[0], rs.freq_dict[parsed_freq[1]]),  # type: ignore
+            )
+        else:
+            raise ValueError(
+                "Invalid frequency unit. Please use one of the following: {}".format(
+                    rs.ALLOWED_FREQ_KEYS
+                )
+            )
 
         # compute column summaries
         selectedCols = []
