@@ -16,7 +16,7 @@ def run_cmd(cmd):
 
 # fetch the most recent version tag to use as build version
 def get_latest_git_tag():
-    latest_tag = run_cmd("git describe --abbrev=0 --tags")
+    latest_tag = run_cmd("git describe --abbrev=0 --tags $(git rev-list --tags --max-count=1)")
     build_version = re.sub("v\.?\s*", "", latest_tag)
     # validate that this is a valid semantic version - will throw exception if not
     semver.VersionInfo.parse(build_version)
