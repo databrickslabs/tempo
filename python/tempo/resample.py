@@ -234,7 +234,7 @@ def aggregate(
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> Tuple[str, str]:
+def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
@@ -243,7 +243,7 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[str, str]:
     if not isinstance(freq, str):
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
     elif freq in allowableFreqs:
-        return "1", freq
+        return 1, freq
     else:
         try:
             periods = freq.lower().split(" ")[0].strip()
