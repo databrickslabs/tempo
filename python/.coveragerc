@@ -1,7 +1,7 @@
 [run]
 branch = True
 source = tempo
-omit = tests/*_tests.py
+omit = *_tests.py
 
 [report]
 exclude_lines =
