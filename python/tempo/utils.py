@@ -224,7 +224,9 @@ elif ENV_CAN_RENDER_HTML:
     def display_html_improvised(obj: Optional[DataFrame]) -> None:
         ...
 
-    def display_html_improvised(obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]) -> None:
+    def display_html_improvised(
+        obj: Union[tempo.TSDF, pandasDataFrame, DataFrame]
+    ) -> None:
         if isinstance(obj, tempo.TSDF):
             display_html(get_display_df(obj, k=5))
         else:

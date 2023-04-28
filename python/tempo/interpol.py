@@ -8,7 +8,12 @@ from pyspark.sql.window import Window
 
 import tempo
 from tempo.utils import calculate_time_horizon
-from tempo.resample import checkAllowableFreq, freq_dict, is_valid_allowed_freq_keys, ALLOWED_FREQ_KEYS
+from tempo.resample import (
+    checkAllowableFreq,
+    freq_dict,
+    is_valid_allowed_freq_keys,
+    ALLOWED_FREQ_KEYS,
+)
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -69,7 +74,9 @@ class Interpolation:
         if df.select(ts_col).dtypes[0][1] != "timestamp":
             raise ValueError("Timestamp Column needs to be of timestamp type.")
 
-    def __calc_linear_spark(self, df: DataFrame, ts_col: str, target_col: str) -> DataFrame:
+    def __calc_linear_spark(
+        self, df: DataFrame, ts_col: str, target_col: str
+    ) -> DataFrame:
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
 

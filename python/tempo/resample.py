@@ -1,7 +1,18 @@
 from __future__ import annotations
 
 from typing import (
-    Union, Optional, Tuple, Any, Dict, TypedDict, Sequence, Literal, get_args, List, Callable,)
+    Union,
+    Optional,
+    Tuple,
+    Any,
+    Dict,
+    TypedDict,
+    Sequence,
+    Literal,
+    get_args,
+    List,
+    Callable,
+)
 from typing_extensions import TypeGuard
 
 import tempo
@@ -62,7 +73,7 @@ allowableFuncs = [floor, min, max, average, ceiling]
 
 
 def _appendAggKey(
-        tsdf: tempo.TSDF, freq: Optional[str] = None
+    tsdf: tempo.TSDF, freq: Optional[str] = None
 ) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
@@ -94,12 +105,12 @@ def _appendAggKey(
 
 
 def aggregate(
-        tsdf: tempo.TSDF,
-        freq: str,
-        func: Union[Callable, str],
-        metricCols: Optional[List[str]] = None,
-        prefix: Optional[str] = None,
-        fill: Optional[bool] = None,
+    tsdf: tempo.TSDF,
+    freq: str,
+    func: Union[Callable, str],
+    metricCols: Optional[List[str]] = None,
+    prefix: Optional[str] = None,
+    fill: Optional[bool] = None,
 ) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
