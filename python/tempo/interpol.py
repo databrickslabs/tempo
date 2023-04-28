@@ -5,8 +5,10 @@ from typing import List, Optional, Union, Callable
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import col, expr, last, lead, lit, when
 from pyspark.sql.window import Window
+
+import tempo
 from tempo.utils import calculate_time_horizon
-from tempo.resample import checkAllowableFreq, freq_dict
+from tempo.resample import checkAllowableFreq, freq_dict, is_valid_allowed_freq_keys, ALLOWED_FREQ_KEYS
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -17,7 +19,7 @@ class Interpolation:
     def __init__(self, is_resampled: bool):
         self.is_resampled = is_resampled
 
-    def __validate_fill(self, method: str):
+    def __validate_fill(self, method: str) -> None:
         """
         Validate if the fill provided is within the allowed list of values.
 
@@ -34,7 +36,7 @@ class Interpolation:
         partition_cols: List[str],
         target_cols: List[str],
         ts_col: str,
-    ):
+    ) -> None:
         """
         Validate if target column exists and is of numeric type, and validates if partition column exists.
 
@@ -67,7 +69,7 @@ class Interpolation:
         if df.select(ts_col).dtypes[0][1] != "timestamp":
             raise ValueError("Timestamp Column needs to be of timestamp type.")
 
-    def __calc_linear_spark(self, df: DataFrame, ts_col: str, target_col: str):
+    def __calc_linear_spark(self, df: DataFrame, ts_col: str, target_col: str) -> DataFrame:
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
 
@@ -268,7 +270,7 @@ class Interpolation:
 
     def interpolate(
         self,
-        tsdf,
+        tsdf: tempo.TSDF,
         ts_col: str,
         partition_cols: List[str],
         target_cols: List[str],
@@ -302,12 +304,16 @@ class Interpolation:
         if func is None:
             raise ValueError("func cannot be None")
 
-        if isinstance(func, Callable):
+        if callable(func):
             raise ValueError("func must be a string")
 
         # Convert Frequency using resample dictionary
         parsed_freq = checkAllowableFreq(freq)
-        freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
+        period, unit = parsed_freq[0], parsed_freq[1]
+        if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
+            freq = f"{period} {freq_dict[unit]}"  # type: ignore
+        else:
+            raise ValueError(f"Frequency {unit} not supported")
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if perform_checks:
@@ -319,7 +325,7 @@ class Interpolation:
 
         if self.is_resampled is False:
             # Resample and Normalize Input
-            sampled_input: DataFrame = tsdf.resample(
+            sampled_input = tsdf.resample(
                 freq=freq, func=func, metricCols=target_cols
             ).df
 
@@ -378,7 +384,7 @@ class Interpolation:
         interpolated_result: DataFrame = flagged_series
         for target_col in target_cols:
             # Interpolate target columns
-            interpolated_result: DataFrame = self.__interpolate_column(
+            interpolated_result = self.__interpolate_column(
                 interpolated_result, ts_col, target_col, method
             )
 
