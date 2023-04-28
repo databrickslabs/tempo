@@ -108,10 +108,9 @@ class UtilsTest(SparkTest):
         )
 
     def test_display_unavailable(self):
-        init_tsdf = self.get_data_as_tsdf("init")
 
         with self.assertLogs(level="ERROR") as error_captured:
-            display_unavailable(init_tsdf)
+            display_unavailable()
 
         self.assertEqual(len(error_captured.records), 1)
         self.assertEqual(

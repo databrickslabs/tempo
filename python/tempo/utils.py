@@ -66,7 +66,7 @@ def calculate_time_horizon(
             unit,
             t_resample.ALLOWED_FREQ_KEYS,
     ):
-        freq = f"{period} {local_freq_dict[unit]}"  # type: ignore
+        freq = f"{period} {local_freq_dict[unit]}"  # type: ignore[literal-required]
     else:
         raise ValueError(f"Frequency {unit} not supported")
 
