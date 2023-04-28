@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Optional, Tuple, Any, Dict, TypedDict, Sequence, Literal, TypeGuard, get_args, List
+from typing import Union, Optional, Tuple, Any, Dict, TypedDict, Sequence, Literal, TypeGuard, get_args, List, Callable
 
 import tempo
 
@@ -85,10 +85,10 @@ def _appendAggKey(
 def aggregate(
         tsdf: tempo.TSDF,
         freq: str,
-        func: str,
-        metricCols: list[str] = None,
-        prefix: str = None,
-        fill: bool = None,
+        func: Union[Callable, str],
+        metricCols: Optional[List[str]] = None,
+        prefix: Optional[str] = None,
+        fill: Optional[bool] = None,
 ) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
@@ -254,7 +254,7 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[
             raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
 
-def validateFuncExists(func: str):
+def validateFuncExists(func: Union[Callable | str]):
     if func is None:
         raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "
