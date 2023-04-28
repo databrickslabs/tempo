@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import operator
-from abc import ABC, abstractmethod, ABCMeta
+from abc import abstractmethod, ABCMeta
 from functools import reduce
 from typing import (
     List,
@@ -10,7 +10,6 @@ from typing import (
     Callable,
     Optional,
     Sequence,
-    NoReturn,
     Any,
     TypeVar,
 )
@@ -18,7 +17,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyspark.sql.functions as f
-import pyspark.sql.types
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
@@ -1192,7 +1190,7 @@ class TSDF:
         if rs.is_valid_allowed_freq_keys(unit, rs.ALLOWED_FREQ_KEYS):
             agg_window = f.window(
                 f.col(self.ts_col),
-                "{} {}".format(parsed_freq[0], rs.freq_dict[parsed_freq[1]]),  # type: ignore
+                "{} {}".format(period, rs.freq_dict[unit]),  # type: ignore
             )
         else:
             raise ValueError(

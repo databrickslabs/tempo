@@ -5,15 +5,11 @@ from typing import (
     Optional,
     Tuple,
     Any,
-    Dict,
     TypedDict,
-    Sequence,
-    Literal,
     get_args,
     List,
     Callable,
 )
-from typing_extensions import TypeGuard
 
 import tempo
 
@@ -85,7 +81,7 @@ def _appendAggKey(
     period, unit = parsed_freq[0], parsed_freq[1]
     if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
         agg_window = f.window(
-            f.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]])  # type: ignore
+            f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore
         )
 
         df = df.withColumn("agg_key", agg_window)
