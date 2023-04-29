@@ -10,6 +10,7 @@ exclude_lines =
     pragma: no cover
     raise NotImplementedError
     if __name__ == .__main__.:
+    unittest.main()
     import
     from
     if TYPE_CHECKING:
@@ -18,4 +19,5 @@ ignore_errors = True
 
 omit =
     setup.py
+    version.py
     *tests*
