@@ -242,16 +242,21 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
     """
     if not isinstance(freq, str):
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
-    elif freq in allowableFreqs:
+
+    if freq in allowableFreqs:
         return 1, freq
-    else:
-        try:
-            periods = freq.lower().split(" ")[0].strip()
-            units = freq.lower().split(" ")[1].strip()
-        except IndexError:
-            raise ValueError(
-                "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
-            )
+
+    try:
+        periods = freq.lower().split(" ")[0].strip()
+        units = freq.lower().split(" ")[1].strip()
+    except IndexError:
+        raise ValueError(
+            "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
+        )
+    if is_valid_allowed_freq_keys(
+            units,
+            ALLOWED_FREQ_KEYS,
+    ):
         if units.startswith(MUSEC):
             return periods, MUSEC
         elif units.startswith(MS) | units.startswith("millis"):
@@ -264,8 +269,8 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
             return periods, "hour"
         elif units.startswith(DAY):
             return periods, DAY
-        else:
-            raise ValueError(f"Invalid value for `freq` argument: {freq}.")
+    else:
+        raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
 
 def validateFuncExists(func: Union[Callable | str]) -> None:
