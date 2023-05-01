@@ -54,7 +54,7 @@ def calculate_time_horizon(
     df: DataFrame,
     ts_col: str,
     freq: str,
-    partition_cols: List[str],
+    partition_cols: Optional[List[str]],
     local_freq_dict: Optional[t_resample.FreqDict] = None,
 ) -> None:
     # Convert Frequency using resample dictionary

@@ -33,7 +33,7 @@ class Interpolation:
     def __validate_col(
         self,
         df: DataFrame,
-        partition_cols: List[str],
+        partition_cols: Optional[List[str]],
         target_cols: List[str],
         ts_col: str,
         ts_col_dtype: Optional[str] = None,  # NB: added for testing purposes only
@@ -47,11 +47,12 @@ class Interpolation:
         :param ts_col: Timestamp column to be validated
         """
 
-        for column in partition_cols:
-            if column not in str(df.columns):
-                raise ValueError(
-                    f"Partition Column: '{column}' does not exist in DataFrame."
-                )
+        if partition_cols is not None:
+            for column in partition_cols:
+                if column not in str(df.columns):
+                    raise ValueError(
+                        f"Partition Column: '{column}' does not exist in DataFrame."
+                    )
         for column in target_cols:
             if column not in str(df.columns):
                 raise ValueError(
@@ -193,7 +194,7 @@ class Interpolation:
         return output_df
 
     def __generate_time_series_fill(
-        self, df: DataFrame, partition_cols: List[str], ts_col: str
+        self, df: DataFrame, partition_cols: Optional[List[str]], ts_col: str
     ) -> DataFrame:
         """
         Create additional timeseries columns for previous and next timestamps
@@ -211,7 +212,7 @@ class Interpolation:
         )
 
     def __generate_column_time_fill(
-        self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
+        self, df: DataFrame, partition_cols: Optional[List[str]], ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
@@ -221,24 +222,28 @@ class Interpolation:
         :param ts_col: timestamp column name
         :param target_col: target column name
         """
+        window = Window
+        if partition_cols is not None:
+            window = Window.partitionBy(*partition_cols)
+
         return df.withColumn(
             f"previous_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                Window.partitionBy(*partition_cols)
+                window
                 .orderBy(ts_col)
                 .rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                Window.partitionBy(*partition_cols)
+                window
                 .orderBy(col(ts_col).desc())
                 .rowsBetween(Window.unboundedPreceding, 0)
             ),
         )
 
     def __generate_target_fill(
-        self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
+        self, df: DataFrame, partition_cols: Optional[List[str]], ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Create columns for previous and next value for a specific target column
@@ -248,11 +253,15 @@ class Interpolation:
         :param ts_col: timestamp column name
         :param target_col: target column name
         """
+        window = Window
+
+        if partition_cols is not None:
+            window = Window.partitionBy(*partition_cols)
         return (
             df.withColumn(
                 f"previous_{target_col}",
                 last(df[target_col], ignorenulls=True).over(
-                    Window.partitionBy(*partition_cols)
+                    window
                     .orderBy(ts_col)
                     .rowsBetween(Window.unboundedPreceding, 0)
                 ),
@@ -261,14 +270,14 @@ class Interpolation:
             .withColumn(
                 f"next_null_{target_col}",
                 last(df[target_col], ignorenulls=True).over(
-                    Window.partitionBy(*partition_cols)
+                    window
                     .orderBy(col(ts_col).desc())
                     .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             ).withColumn(
                 f"next_{target_col}",
                 lead(df[target_col]).over(
-                    Window.partitionBy(*partition_cols).orderBy(ts_col)
+                    window.orderBy(ts_col)
                 ),
             )
         )
@@ -277,7 +286,7 @@ class Interpolation:
         self,
         tsdf: t_tsdf.TSDF,
         ts_col: str,
-        partition_cols: List[str],
+        partition_cols: Optional[List[str]],
         target_cols: List[str],
         freq: Optional[str],
         func: Optional[Union[Callable | str]],
@@ -322,7 +331,10 @@ class Interpolation:
             t_utils.calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
 
         # Only select required columns for interpolation
-        input_cols: List[str] = [*partition_cols, ts_col, *target_cols]
+        input_cols: List[str] = [ts_col, *target_cols]
+        if partition_cols is not None:
+            input_cols += [*partition_cols]
+
         sampled_input: DataFrame = tsdf.df.select(*input_cols)
 
         if self.is_resampled is False:
