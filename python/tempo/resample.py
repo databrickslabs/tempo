@@ -97,18 +97,18 @@ def _appendAggKey(
     df = tsdf.df
     parsed_freq = checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
-    if is_valid_allowed_freq_keys(unit, ALLOWED_FREQ_KEYS):
-        agg_window = f.window(
-            f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
-        )
 
-        df = df.withColumn("agg_key", agg_window)
+    agg_window = f.window(
+        f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+    )
 
-        return (
-            t_tsdf.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
-            period,
-            freq_dict[unit],  # type: ignore[literal-required]
-        )
+    df = df.withColumn("agg_key", agg_window)
+
+    return (
+        t_tsdf.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
+        period,
+        freq_dict[unit],  # type: ignore[literal-required]
+    )
 
 
 def aggregate(
