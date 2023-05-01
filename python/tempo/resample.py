@@ -258,7 +258,8 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
 
     # TODO - return either int OR str for first argument
     allowable_freq: Tuple[Union[int | str], str] = (
-        0, "will_always_fail_if_not_overwritten"
+        0,
+        "will_always_fail_if_not_overwritten",
     )
 
     if is_valid_allowed_freq_keys(
