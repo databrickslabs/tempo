@@ -263,8 +263,17 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
     if not isinstance(freq, str):
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
 
-    if freq in allowableFreqs:
-        return 1, freq
+    # TODO - return either int OR str for first argument
+    allowable_freq: Tuple[Union[int | str], str] = (
+        0, "will_always_fail_if_not_overwritten"
+    )
+
+    if is_valid_allowed_freq_keys(
+        freq.lower(),
+        ALLOWED_FREQ_KEYS,
+    ):
+        allowable_freq = 1, freq
+        return allowable_freq
 
     try:
         periods = freq.lower().split(" ")[0].strip()
@@ -273,24 +282,27 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
         raise ValueError(
             "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
         )
+
     if is_valid_allowed_freq_keys(
-            units.lower(),
-            ALLOWED_FREQ_KEYS,
+        units.lower(),
+        ALLOWED_FREQ_KEYS,
     ):
         if units.startswith(MUSEC):
-            return periods, MUSEC
+            allowable_freq = periods, MUSEC
         elif units.startswith(MS) | units.startswith("millis"):
-            return periods, MS
+            allowable_freq = periods, MS
         elif units.startswith(SEC):
-            return periods, SEC
+            allowable_freq = periods, SEC
         elif units.startswith(MIN):
-            return periods, MIN
+            allowable_freq = periods, MIN
         elif units.startswith("hour") | units.startswith(HR):
-            return periods, "hour"
+            allowable_freq = periods, "hour"
         elif units.startswith(DAY):
-            return periods, DAY
+            allowable_freq = periods, DAY
     else:
         raise ValueError(f"Invalid value for `freq` argument: {freq}.")
+
+    return allowable_freq
 
 
 def validateFuncExists(func: Union[Callable | str]) -> None:
