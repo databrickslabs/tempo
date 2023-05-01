@@ -212,7 +212,11 @@ class Interpolation:
         )
 
     def __generate_column_time_fill(
-        self, df: DataFrame, partition_cols: Optional[List[str]], ts_col: str, target_col: str
+        self,
+        df: DataFrame,
+        partition_cols: Optional[List[str]],
+        ts_col: str,
+        target_col: str,
     ) -> DataFrame:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
@@ -229,21 +233,23 @@ class Interpolation:
         return df.withColumn(
             f"previous_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                window
-                .orderBy(ts_col)
-                .rowsBetween(Window.unboundedPreceding, 0)
+                window.orderBy(ts_col).rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                window
-                .orderBy(col(ts_col).desc())
-                .rowsBetween(Window.unboundedPreceding, 0)
+                window.orderBy(col(ts_col).desc()).rowsBetween(
+                    Window.unboundedPreceding, 0
+                )
             ),
         )
 
     def __generate_target_fill(
-        self, df: DataFrame, partition_cols: Optional[List[str]], ts_col: str, target_col: str
+        self,
+        df: DataFrame,
+        partition_cols: Optional[List[str]],
+        ts_col: str,
+        target_col: str,
     ) -> DataFrame:
         """
         Create columns for previous and next value for a specific target column
@@ -261,24 +267,20 @@ class Interpolation:
             df.withColumn(
                 f"previous_{target_col}",
                 last(df[target_col], ignorenulls=True).over(
-                    window
-                    .orderBy(ts_col)
-                    .rowsBetween(Window.unboundedPreceding, 0)
+                    window.orderBy(ts_col).rowsBetween(Window.unboundedPreceding, 0)
                 ),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
                 last(df[target_col], ignorenulls=True).over(
-                    window
-                    .orderBy(col(ts_col).desc())
-                    .rowsBetween(Window.unboundedPreceding, 0)
+                    window.orderBy(col(ts_col).desc()).rowsBetween(
+                        Window.unboundedPreceding, 0
+                    )
                 ),
             ).withColumn(
                 f"next_{target_col}",
-                lead(df[target_col]).over(
-                    window.orderBy(ts_col)
-                ),
+                lead(df[target_col]).over(window.orderBy(ts_col)),
             )
         )
 
