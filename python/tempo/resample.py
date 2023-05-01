@@ -40,6 +40,7 @@ class FreqDict(TypedDict):
     sec: str
     seconds: str
     min: str
+    minutes: str
     hr: str
     day: str
     hour: str
@@ -52,6 +53,7 @@ freq_dict: FreqDict = {
     "sec": "seconds",
     "seconds": "seconds",
     "min": "minutes",
+    "minutes": "minutes",
     "hr": "hours",
     "day": "days",
     "hour": "hours",
