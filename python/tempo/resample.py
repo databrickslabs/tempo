@@ -38,6 +38,7 @@ class FreqDict(TypedDict):
     microsec: str
     ms: str
     sec: str
+    seconds: str
     min: str
     hr: str
     day: str
@@ -49,6 +50,7 @@ freq_dict: FreqDict = {
     "microsec": "microseconds",
     "ms": "milliseconds",
     "sec": "seconds",
+    "seconds": "seconds",
     "min": "minutes",
     "hr": "hours",
     "day": "days",
