@@ -110,13 +110,6 @@ def _appendAggKey(
             freq_dict[unit],  # type: ignore[literal-required]
         )
 
-    else:
-        raise ValueError(
-            "Invalid frequency key. Please use one of the following: {}".format(
-                ALLOWED_FREQ_KEYS
-            )
-        )
-
 
 def aggregate(
     tsdf: t_tsdf.TSDF,
