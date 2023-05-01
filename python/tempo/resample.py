@@ -36,29 +36,43 @@ ceiling = "ceil"
 class FreqDict(TypedDict):
     musec: str
     microsec: str
+    microsecond: str
+    microseconds: str
     ms: str
+    millisecond: str
+    milliseconds: str
     sec: str
     second: str
     seconds: str
     min: str
+    minute: str
     minutes: str
     hr: str
-    day: str
     hour: str
+    hours: str
+    day: str
+    days: str
 
 
 freq_dict: FreqDict = {
     "musec": "microseconds",
     "microsec": "microseconds",
+    "microsecond": "microseconds",
+    "microseconds": "microseconds",
     "ms": "milliseconds",
+    "millisecond": "milliseconds",
+    "milliseconds": "milliseconds",
     "sec": "seconds",
     "second": "seconds",
     "seconds": "seconds",
     "min": "minutes",
+    "minute": "minutes",
     "minutes": "minutes",
     "hr": "hours",
-    "day": "days",
     "hour": "hours",
+    "hours": "hours",
+    "day": "days",
+    "days": "days",
 }
 
 ALLOWED_FREQ_KEYS: List[str] = list(get_type_hints(FreqDict).keys())
