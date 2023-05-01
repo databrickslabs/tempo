@@ -11,7 +11,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import WindowSpec
 import pyspark.sql.functions as f
 
-from tempo.tsdf import TSDF, _ResampledTSDF
+from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
 
@@ -37,22 +37,22 @@ class TSDFBaseTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-                res.filter(f.col("unique_time_series_count") != " ")
-                .select(f.max(f.col("unique_time_series_count")))
-                .collect()[0][0]
-                == "1"
+            res.filter(f.col("unique_time_series_count") != " ")
+            .select(f.max(f.col("unique_time_series_count")))
+            .collect()[0][0]
+            == "1"
         )
         assert (
-                res.filter(f.col("min_ts") != " ")
-                .select(f.col("min_ts").cast("string"))
-                .collect()[0][0]
-                == "2020-08-01 00:00:10"
+            res.filter(f.col("min_ts") != " ")
+            .select(f.col("min_ts").cast("string"))
+            .collect()[0][0]
+            == "2020-08-01 00:00:10"
         )
         assert (
-                res.filter(f.col("max_ts") != " ")
-                .select(f.col("max_ts").cast("string"))
-                .collect()[0][0]
-                == "2020-09-01 00:19:12"
+            res.filter(f.col("max_ts") != " ")
+            .select(f.col("max_ts").cast("string"))
+            .collect()[0][0]
+            == "2020-09-01 00:19:12"
         )
 
     def test__getSparkPlan(self):
@@ -874,6 +874,9 @@ class TSDFBaseTests(SparkTest):
 
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
+
+    def test_tsdf_interpolate(self):
+        ...
 
 
 class FourierTransformTest(SparkTest):
