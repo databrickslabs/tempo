@@ -1,7 +1,7 @@
 [run]
 parallel = True
 branch = True
-source = tempo
+source = python/tempo
 omit = *_tests.py
 
 [report]
