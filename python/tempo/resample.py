@@ -38,6 +38,7 @@ class FreqDict(TypedDict):
     microsec: str
     ms: str
     sec: str
+    second: str
     seconds: str
     min: str
     minutes: str
@@ -51,6 +52,7 @@ freq_dict: FreqDict = {
     "microsec": "microseconds",
     "ms": "milliseconds",
     "sec": "seconds",
+    "second": "seconds",
     "seconds": "seconds",
     "min": "minutes",
     "minutes": "minutes",
@@ -258,7 +260,7 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
             "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
         )
     if is_valid_allowed_freq_keys(
-            units,
+            units.lower(),
             ALLOWED_FREQ_KEYS,
     ):
         if units.startswith(MUSEC):
