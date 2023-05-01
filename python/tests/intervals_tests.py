@@ -1,4 +1,6 @@
-from tempo.intervals import *
+from pyspark.sql.dataframe import DataFrame
+
+from tempo.intervals import IntervalsDF
 from tests.tsdf_tests import SparkTest
 from pyspark.sql.utils import AnalysisException
 import pyspark.sql.functions as f
