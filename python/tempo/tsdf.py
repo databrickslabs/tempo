@@ -1189,19 +1189,12 @@ class TSDF:
         # build window
         parsed_freq = t_resample.checkAllowableFreq(freq)
         period, unit = parsed_freq[0], parsed_freq[1]
-        if t_resample.is_valid_allowed_freq_keys(unit, t_resample.ALLOWED_FREQ_KEYS):
-            agg_window = f.window(
-                f.col(self.ts_col),
-                "{} {}".format(
-                    period, t_resample.freq_dict[unit]  # type: ignore[literal-required]
-                ),
-            )
-        else:
-            raise ValueError(
-                "Invalid frequency unit. Please use one of the following: {}".format(
-                    t_resample.ALLOWED_FREQ_KEYS
-                )
-            )
+        agg_window = f.window(
+            f.col(self.ts_col),
+            "{} {}".format(
+                period, t_resample.freq_dict[unit]  # type: ignore[literal-required]
+            ),
+        )
 
         # compute column summaries
         selectedCols = []
