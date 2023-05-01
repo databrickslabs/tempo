@@ -1,5 +1,4 @@
 [run]
-parallel = True
 branch = True
 source = tempo
 omit = *_tests.py
@@ -14,11 +13,4 @@ exclude_lines =
     import
     from
     if TYPE_CHECKING:
-    ...
-
-ignore_errors = True
-
-omit =
-    setup.py
-    version.py
-    *tests*
+    pass
