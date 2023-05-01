@@ -664,7 +664,7 @@ class TSDF:
         #  perhaps refactor to check for IS_DATABRICKS
         except Exception:
             return full_smry
-            pass
+
 
     def __getBytesFromPlan(self, df: DataFrame, spark: SparkSession) -> float:
         """
