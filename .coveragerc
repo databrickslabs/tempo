@@ -1,8 +1,11 @@
 [run]
 parallel = True
 branch = True
-source = tempo
-omit = *_tests.py
+source = python/tempo
+omit =
+    python/tests/*_tests.py
+    python/setup.py
+    python/version.py
 
 [report]
 exclude_lines =
