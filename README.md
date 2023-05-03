@@ -22,14 +22,6 @@ a suite of abstractions and functions that make operations on timeseries data ea
 See our full documentation here: https://databrickslabs.github.io/tempo/
 
 ## Contributing
-We happily welcome contributions to Tempo. 
-We use [GitHub Issues](https://github.com/databrickslabs/tempo/issues) to track community reported issues 
-and [GitHub Pull Requests](https://github.com/databrickslabs/tempo/pulls) for reviewing and accepting code changes.
-
-If you have found a bug or other issue with the library, please [open an new issue](https://github.com/databrickslabs/tempo/issues/new) to report it.
-If you have written a patch for a bug or new feature, please [submit a pull request](https://github.com/databrickslabs/tempo/compare) and we will be happy to review it for inclusion in a future release.
-
-You can [create a fork of the code](https://github.com/databrickslabs/tempo/fork) to begin your own modifications. 
-More comprehensive instructions on setting up and building the project can be found in [BUILDING.md](BUILDING.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+We happily welcome contributions to Tempo, please see [CONTRIBUTING.md](CONTRIBUTING.md) for full details.
 
 
