@@ -1,4 +1,12 @@
-# Tox Setup instructions
+# Contributing to Tempo
+We happily welcome contributions to Tempo. 
+We use [GitHub Issues](https://github.com/databrickslabs/tempo/issues) to track community reported issues 
+and [GitHub Pull Requests](https://github.com/databrickslabs/tempo/pulls) for reviewing and accepting code changes.
+If you have found a bug or other issue with the library, please [open an new issue](https://github.com/databrickslabs/tempo/issues/new) to report it.
+You can [create a fork of the code](https://github.com/databrickslabs/tempo/fork) to begin your own modifications. 
+If you have written a patch for a bug or new feature, please [submit a pull request](https://github.com/databrickslabs/tempo/compare) and we will be happy to review it for inclusion in a future release.
+
+## Tox Setup instructions
 
 `tox` is a testing tool that helps you automate and standardize testing in Python across multiple environments.
 
