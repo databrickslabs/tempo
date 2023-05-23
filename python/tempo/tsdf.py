@@ -701,6 +701,7 @@ class TSDF:
         skipNulls=True,
         sql_join_opt=False,
         suppress_null_warning=False,
+        tolerance=None,
     ):
         """
         Performs an as-of join between two time-series. If a tsPartitionVal is
@@ -718,6 +719,7 @@ class TSDF:
         :param skipNulls - whether to skip nulls when joining in values
         :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
+        :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
         """
 
         # first block of logic checks whether a standard range join will suffice
@@ -864,6 +866,32 @@ class TSDF:
             )
 
             asofDF = TSDF(df, asofDF.ts_col, combined_df.partitionCols)
+
+        if tolerance is not None:
+            df = asofDF.df
+            left_ts_col = left_tsdf.ts_col
+            right_ts_col = right_tsdf.ts_col
+            tolerance_condition = (
+                df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
+                > tolerance
+            )
+
+            for right_col in right_columns:
+                # First set right non-timestamp columns to null for rows outside of tolerance band
+                if right_col != right_ts_col:
+                    df = df.withColumn(
+                        right_col,
+                        f.when(tolerance_condition, f.lit(None)).otherwise(
+                            df[right_col]
+                        ),
+                    )
+
+            # Finally, set right timestamp column to null for rows outside of tolerance band
+            df = df.withColumn(
+                right_ts_col,
+                f.when(tolerance_condition, f.lit(None)).otherwise(df[right_ts_col]),
+            )
+            asofDF.df = df
 
         return asofDF
 
