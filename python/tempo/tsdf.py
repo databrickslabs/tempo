@@ -727,8 +727,13 @@ class TSDF:
         right_df = right_tsdf.df
 
         spark = SparkSession.builder.getOrCreate()
-        left_bytes = self.__getBytesFromPlan(left_df, spark)
-        right_bytes = self.__getBytesFromPlan(right_df, spark)
+        
+        left_bytes = 0 
+        right_bytes = 0 
+        
+        if sql_join_opt:
+          left_bytes = self.__getBytesFromPlan(left_df, spark)
+          right_bytes = self.__getBytesFromPlan(right_df, spark)
 
         # choose 30MB as the cutoff for the broadcast
         bytes_threshold = 30 * 1024 * 1024
