@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contributing" href="../contributing.html" /><link rel="prev" title="tempo.tsdf" href="tempo.tsdf.html" />
 
     <link rel="shortcut icon" href="../_static/favicon.svg"/><meta name="generator" content="sphinx-4.5.0, furo 2022.09.29"/>
-        <title>tempo.intervals - Tempo 0.1.23 documentation</title>
+        <title>tempo.intervals - Tempo 0.1.24 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
@@ -133,7 +133,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Tempo 0.1.23 documentation</div></a>
+      <a href="../index.html"><div class="brand">Tempo 0.1.24 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -160,7 +160,7 @@
     <img class="sidebar-logo only-dark" src="../_static/tempo - dark background.svg" alt="Dark Logo"/>
   </div>
   
-  <span class="sidebar-brand-text">Tempo 0.1.23 documentation</span>
+  <span class="sidebar-brand-text">Tempo 0.1.24 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
@@ -215,168 +215,6 @@
         <article role="main">
           <section id="tempo-intervals">
 <h1>tempo.intervals<a class="headerlink" href="#tempo-intervals" title="Permalink to this headline">#</a></h1>
-<dl class="py class">
-<dt class="sig sig-object py" id="tempo.intervals.IntervalsDF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tempo.intervals.</span></span><span class="sig-name descname"><span class="pre">IntervalsDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pyspark.sql.dataframe.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_ts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_ts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tempo/intervals.html#IntervalsDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.intervals.IntervalsDF" title="Permalink to this definition">#</a></dt>
-<dd><p>This object is the main wrapper over a <a class="reference external" href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html">Spark DataFrame</a> which allows a
-user to parallelize computations over snapshots of metrics for intervals
-of time defined by a start and end timestamp and various dimensions.</p>
-<p>The required dimensions are <cite>series</cite> (list of columns by which to
-summarize), <cite>metrics</cite> (list of columns to analyze), <cite>start_ts</cite> (timestamp
-column), and <cite>end_ts</cite> (timestamp column). <cite>start_ts</cite> and <cite>end_ts</cite> can be
-epoch or TimestampType.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="tempo.intervals.IntervalsDF.disjoint">
-<span class="sig-name descname"><span class="pre">disjoint</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><span class="pre">tempo.intervals.IntervalsDF</span></a></span></span><a class="reference internal" href="../_modules/tempo/intervals.html#IntervalsDF.disjoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.intervals.IntervalsDF.disjoint" title="Permalink to this definition">#</a></dt>
-<dd><p>Returns a new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> where metrics of overlapping time intervals
-are correlated and merged prior to constructing new time interval boundaries (
-start and end timestamp) so that all intervals are disjoint.</p>
-<p>The merge process assumes that two overlapping intervals cannot simultaneously
-report two different values for the same metric unless recorded in a data type
-which supports multiple elements (such as ArrayType, etc.).</p>
-<p>This is often used after <a class="reference internal" href="#tempo.intervals.IntervalsDF.fromStackedMetrics" title="tempo.intervals.IntervalsDF.fromStackedMetrics"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fromStackedMetrics()</span></code></a> to reduce the number of
-metrics with <cite>null</cite> values and helps when constructing filter predicates to
-to retrieve specific metric values across all instances.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>A new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> containing disjoint time intervals</p>
-</dd>
-<dt class="field-even">Example</dt>
-<dd class="field-even"><p></p></dd>
-</dl>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span>
-    <span class="p">[[</span><span class="s2">&quot;2020-08-01 00:00:10&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-08-01 00:00:14&quot;</span><span class="p">,</span> <span class="s2">&quot;v1&quot;</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">null</span><span class="p">],</span>
-     <span class="p">[</span><span class="s2">&quot;2020-08-01 00:00:09&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-08-01 00:00:11&quot;</span><span class="p">,</span> <span class="s2">&quot;v1&quot;</span><span class="p">,</span> <span class="n">null</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span>
-    <span class="s2">&quot;start_ts STRING, end_ts STRING, series_1 STRING, metric_1 STRING, metric_2 INT&quot;</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">idf</span> <span class="o">=</span> <span class="n">IntervalsDF</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s2">&quot;start_ts&quot;</span><span class="p">,</span> <span class="s2">&quot;end_ts&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;series_1&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;metric_1&quot;</span><span class="p">,</span> <span class="s2">&quot;metric_2&quot;</span><span class="p">])</span>
-<span class="n">idf</span><span class="o">.</span><span class="n">disjoint</span><span class="p">()</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
-<span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:09&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:10&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="n">null</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
- <span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:10&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:11&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
- <span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:11&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:14&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="n">null</span><span class="p">)]</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="tempo.intervals.IntervalsDF.fromStackedMetrics">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fromStackedMetrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pyspark.sql.dataframe.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_ts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_ts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics_name_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics_value_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><span class="pre">tempo.intervals.IntervalsDF</span></a></span></span><a class="reference internal" href="../_modules/tempo/intervals.html#IntervalsDF.fromStackedMetrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.intervals.IntervalsDF.fromStackedMetrics" title="Permalink to this definition">#</a></dt>
-<dd><p>Returns a new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> with metrics of the current DataFrame
-pivoted by start and end timestamp and series.</p>
-<p>There are two versions of <cite>fromStackedMetrics</cite>. One that requires the caller
-to specify the list of distinct metric names to pivot on, and one that does
-not. The latter is more concise but less efficient, because Spark needs to
-first compute the list of distinct metric names internally.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>df</strong> (<a class="reference external" href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html">DataFrame</a>) – <code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code> to wrap with <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a></p></li>
-<li><p><strong>start_ts</strong> (<em>str</em>) – Name of the column which denotes interval start</p></li>
-<li><p><strong>end_ts</strong> (<em>str</em>) – Name of the column which denotes interval end</p></li>
-<li><p><strong>series</strong> (<em>list</em><em>[</em><em>str</em><em>]</em>) – column names</p></li>
-<li><p><strong>metrics_name_col</strong> (<em>str</em>) – column name</p></li>
-<li><p><strong>metrics_value_col</strong> (<em>str</em>) – column name</p></li>
-<li><p><strong>metric_names</strong> (<em>list</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – List of metric names that will be translated to
-columns in the output <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a>.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>A new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> with a column and respective
-values per distinct metric in <cite>metrics_name_col</cite>.</p>
-</dd>
-<dt class="field-odd">Example</dt>
-<dd class="field-odd"><p></p></dd>
-</dl>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span>
-    <span class="p">[[</span><span class="s2">&quot;2020-08-01 00:00:09&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-08-01 00:00:14&quot;</span><span class="p">,</span> <span class="s2">&quot;v1&quot;</span><span class="p">,</span> <span class="s2">&quot;metric_1&quot;</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
-     <span class="p">[</span><span class="s2">&quot;2020-08-01 00:00:09&quot;</span><span class="p">,</span> <span class="s2">&quot;2020-08-01 00:00:11&quot;</span><span class="p">,</span> <span class="s2">&quot;v1&quot;</span><span class="p">,</span> <span class="s2">&quot;metric_2&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span>
-    <span class="s2">&quot;start_ts STRING, end_ts STRING, series_1 STRING, metric_name STRING, metric_value INT&quot;</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="c1"># With distinct metric names specified</span>
-
-<span class="n">idf</span> <span class="o">=</span> <span class="n">IntervalsDF</span><span class="o">.</span><span class="n">fromStackedMetrics</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="s2">&quot;start_ts&quot;</span><span class="p">,</span> <span class="s2">&quot;end_ts&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;series_1&quot;</span><span class="p">],</span> <span class="s2">&quot;metric_name&quot;</span><span class="p">,</span> <span class="s2">&quot;metric_value&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;metric_1&quot;</span><span class="p">,</span> <span class="s2">&quot;metric_2&quot;</span><span class="p">],</span>
-<span class="p">)</span>
-<span class="n">idf</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
-<span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:09&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:14&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="n">null</span><span class="p">),</span>
- <span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:09&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:11&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="n">null</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="mi">0</span><span class="p">)]</span>
-
-<span class="c1"># Or without specifying metric names (less efficient)</span>
-
-<span class="n">idf</span> <span class="o">=</span> <span class="n">IntervalsDF</span><span class="o">.</span><span class="n">fromStackedMetrics</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s2">&quot;start_ts&quot;</span><span class="p">,</span> <span class="s2">&quot;end_ts&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;series_1&quot;</span><span class="p">],</span> <span class="s2">&quot;metric_name&quot;</span><span class="p">,</span> <span class="s2">&quot;metric_value&quot;</span><span class="p">)</span>
-<span class="n">idf</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
-<span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:09&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:14&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="n">null</span><span class="p">),</span>
- <span class="n">Row</span><span class="p">(</span><span class="n">start_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:09&#39;</span><span class="p">,</span> <span class="n">end_ts</span><span class="o">=</span><span class="s1">&#39;2020-08-01 00:00:11&#39;</span><span class="p">,</span> <span class="n">series_1</span><span class="o">=</span><span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="n">metric_1</span><span class="o">=</span><span class="n">null</span><span class="p">,</span> <span class="n">metric_2</span><span class="o">=</span><span class="mi">0</span><span class="p">)]</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="tempo.intervals.IntervalsDF.toDF">
-<span class="sig-name descname"><span class="pre">toDF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pyspark.sql.dataframe.DataFrame</span></span></span><a class="reference internal" href="../_modules/tempo/intervals.html#IntervalsDF.toDF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.intervals.IntervalsDF.toDF" title="Permalink to this definition">#</a></dt>
-<dd><p>Returns a new <a class="reference external" href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html">Spark DataFrame</a> converted from <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a>.</p>
-<p>There are two versions of <cite>toDF</cite>. One that will output columns as they exist
-in <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> and, one that will stack metric columns into
-<cite>metric_names</cite> and <cite>metric_values</cite> columns populated with their respective
-values. The latter can be thought of as the inverse of
-<a class="reference internal" href="#tempo.intervals.IntervalsDF.fromStackedMetrics" title="tempo.intervals.IntervalsDF.fromStackedMetrics"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fromStackedMetrics()</span></code></a>.</p>
-<p>Based on <a class="reference external" href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.toDF.html">pyspark.sql.DataFrame.toDF</a>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>stack</strong> (<em>bool</em><em>, </em><em>optional</em>) – How to handle metric columns in the conversion to a <cite>DataFrame</cite></p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="tempo.intervals.IntervalsDF.union">
-<span class="sig-name descname"><span class="pre">union</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><span class="pre">tempo.intervals.IntervalsDF</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><span class="pre">tempo.intervals.IntervalsDF</span></a></span></span><a class="reference internal" href="../_modules/tempo/intervals.html#IntervalsDF.union"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.intervals.IntervalsDF.union" title="Permalink to this definition">#</a></dt>
-<dd><p>Returns a new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> containing union of rows in this and another
-<a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a>.</p>
-<p>This is equivalent to UNION ALL in SQL. To do a SQL-style set union
-(that does deduplication of elements), use this function followed by
-distinct().</p>
-<p>Also, as standard in SQL, this function resolves columns by position
-(not by name).</p>
-<p>Based on <a class="reference external" href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.union.html">pyspark.sql.DataFrame.union</a>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>other</strong> (<a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a>) – <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> to <cite>union</cite></p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>A new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> containing union of rows in this
-and <cite>other</cite></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="tempo.intervals.IntervalsDF.unionByName">
-<span class="sig-name descname"><span class="pre">unionByName</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><span class="pre">tempo.intervals.IntervalsDF</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><span class="pre">tempo.intervals.IntervalsDF</span></a></span></span><a class="reference internal" href="../_modules/tempo/intervals.html#IntervalsDF.unionByName"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tempo.intervals.IntervalsDF.unionByName" title="Permalink to this definition">#</a></dt>
-<dd><p>Returns a new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> containing union of rows in this
-and another <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a>.</p>
-<p>This is different from both UNION ALL and UNION DISTINCT in SQL. To do
-a SQL-style set union (that does deduplication of elements), use this
-function followed by distinct().</p>
-<p>Based on <a class="reference external" href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.unionByName.html">pyspark.sql.DataFrame.unionByName</a>; however,
-<cite>allowMissingColumns</cite> is not supported.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>other</strong> (<a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a>) – <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> to <cite>unionByName</cite></p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>A new <a class="reference internal" href="#tempo.intervals.IntervalsDF" title="tempo.intervals.IntervalsDF"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalsDF</span></code></a> containing union of rows in this
-and <cite>other</cite></p>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
 </section>
 
         </article>
