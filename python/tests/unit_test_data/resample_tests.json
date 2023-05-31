@@ -70,7 +70,7 @@
         "$ref": "#/__SharedData/input_data"
       }
     },
-    "test_appendAggKey_freq_day": {
+    "test_appendAggKey_freq_is_invalid": {
       "input_data": {
         "$ref": "#/__SharedData/input_data"
       }

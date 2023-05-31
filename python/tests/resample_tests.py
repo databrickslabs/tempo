@@ -27,6 +27,16 @@ class ResampleUnitTests(SparkTest):
         self.assertEqual(appendAggKey_tuple[1], "1")
         self.assertEqual(appendAggKey_tuple[2], "microseconds")
 
+    def test_appendAggKey_freq_is_invalid(self):
+        input_tsdf = self.get_data_as_tsdf("input_data")
+
+        self.assertRaises(
+            ValueError,
+            _appendAggKey,
+            input_tsdf,
+            "1 invalid",
+        )
+
     def test_aggregate_floor(self):
         input_tsdf = self.get_data_as_tsdf("input_data")
         expected_data = self.get_data_as_sdf("expected_data")

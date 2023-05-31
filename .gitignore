@@ -45,3 +45,7 @@ venv
 
 # sphinx build folder
 docs/_build
+
+# ignore mypy cache
+.mypy_cache
+python/.mypy_cache

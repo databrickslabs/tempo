@@ -2,6 +2,8 @@ from io import StringIO
 import sys
 import unittest
 import os
+from unittest.mock import patch
+
 from dateutil import parser as dt_parser
 from unittest import mock
 from pyspark.sql.column import Column
@@ -53,12 +55,66 @@ class TSDFBaseTests(SparkTest):
             == "2020-09-01 00:19:12"
         )
 
+    def test__getSparkPlan(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        plan = init_tsdf._TSDF__getSparkPlan(init_tsdf.df, self.spark)
+
+        self.assertIsInstance(plan, str)
+        self.assertIn("Optimized Logical Plan", plan)
+        self.assertIn("Physical Plan", plan)
+        self.assertIn("sizeInBytes", plan)
+
     def test__getBytesFromPlan(self):
         init_tsdf = self.get_data_as_tsdf("init")
 
         _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
 
         self.assertEqual(_bytes, 6.2)
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_search_result_is_None(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "will not match search value"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertRaises(
+            ValueError,
+            init_tsdf._TSDF__getBytesFromPlan,
+            init_tsdf.df,
+            self.spark,
+        )
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_size_in_MiB(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 MiB) '"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+        expected = 1 * 1024 * 1024
+
+        self.assertEqual(_bytes, expected)
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_size_in_KiB(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 KiB) '"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+
+        self.assertEqual(_bytes, 1 * 1024)
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_size_in_GiB(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 GiB) '"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+
+        self.assertEqual(_bytes, 1 * 1024 * 1024 * 1024)
 
     @staticmethod
     @mock.patch.dict(os.environ, {"TZ": "UTC"})
@@ -819,9 +875,51 @@ class TSDFBaseTests(SparkTest):
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
+    def test_tsdf_interpolate(self):
+        ...
+
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):
+        """Test of fourier transform functionality in TSDF objects"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # convert to TSDF
+        result_tsdf = tsdf_init.fourier_transform(1, "val")
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+
+    def test_fourier_transform_valid_sequence_col_empty_partition_cols(self):
+        """Test of fourier transform functionality in TSDF objects"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # convert to TSDF
+        result_tsdf = tsdf_init.fourier_transform(1, "val")
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+
+    def test_fourier_transform_valid_sequence_col_valid_partition_cols(self):
+        """Test of fourier transform functionality in TSDF objects"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # convert to TSDF
+        result_tsdf = tsdf_init.fourier_transform(1, "val")
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+
+    def test_fourier_transform_no_sequence_col_empty_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
