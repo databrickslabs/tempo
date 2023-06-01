@@ -1,23 +1,39 @@
-# Tox Setup instructions
+# Setup instructions
 
+We use `tox` and `pyenv` to manage developing and testing `tempo` across multiple Python versions and PySpark versions.
 `tox` is a testing tool that helps you automate and standardize testing in Python across multiple environments.
+`pyenv` allows you to manage multiple versions of Python on your computer and easily switch between them.
 
-`pyenv`that allows you to manage multiple versions of Python on your computer and easily switch between them.
+## Pyenv setup
 
 Since `tox` supports creating virtual environments using multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
+`pyenv` does not install via `pip` on all platforms, so see the [pyenv documentation](https://github.com/pyenv/pyenv#installation) for installation instructions. 
+Be sure to carefully follow the instructions to configure your shell environment to use `pyenv`, otherwise subsequent commands will not work as intended.
 
-Install both tox and pyenv packages:
+Use `pyenv` to install the following Python versions for testing.
 ```bash
-pip install -U tox pyenv
 pyenv install 3.7 3.8 3.9
 ```
 
-Within `python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
+You will probably want to set one of these versions as your global Python version. This will be the version of Python that is used when you run `python` commands in your terminal.
+For example, to set Python 3.9 as your global Python version, run the following command:
+```bash
+pyenv global 3.9
+```
+
+Within the `tempo/python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
 ```bash
 pyenv local 3.7 3.8 3.9
 ```
 
 This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
+
+## Tox setup
+
+Install tox:
+```bash
+pip install -U tox
+```
 
 A brief description of each managed `tox` environment can be found by running `tox list` or in the `tox.ini` file.
 
