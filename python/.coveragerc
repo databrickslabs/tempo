@@ -1,6 +1,8 @@
 [run]
+parallel = True
 branch = True
 source = tempo
+omit = *_tests.py
 
 [report]
 exclude_lines =
@@ -8,12 +10,8 @@ exclude_lines =
     pragma: no cover
     raise NotImplementedError
     if __name__ == .__main__.:
+    unittest.main()
     import
     from
     if TYPE_CHECKING:
-
-ignore_errors = True
-
-omit =
-    setup.py
-    *tests*
+    pass

@@ -6,14 +6,8 @@
 
 # coverage files
 .coverage
+.coverage.*
 coverage.xml
-
-# Scala related files
-scala/tempo/target
-scala/tempo/project/target/
-scala/tempo/project/project/target/
-scala/target/stream/*
-.bsp
 
 # local delta tables
 **/spark-warehouse
@@ -29,6 +23,14 @@ scala/target/stream/*
 *.pyc
 **/__pycache__
 
+## pyenv files
+.python-version
+python/.python-version
+
+## tox files
+.tox
+python/.tox
+
 # ignore virtual environments
 python/venv
 python/.venv
@@ -43,3 +45,7 @@ venv
 
 # sphinx build folder
 docs/_build
+
+# ignore mypy cache
+.mypy_cache
+python/.mypy_cache
