@@ -1,21 +1,12 @@
 from __future__ import annotations
 
-from typing import (
-    Union,
-    Optional,
-    Tuple,
-    Any,
-    TypedDict,
-    List,
-    Callable,
-    get_type_hints,
-)
+from typing import Union, Optional
 
-import pyspark.sql.functions as f
+import tempo
+
+import pyspark.sql.functions as Fn
 from pyspark.sql.window import Window
 from pyspark.sql import DataFrame
-
-import tempo.tsdf as t_tsdf
 
 # define global frequency options
 MUSEC = "microsec"
@@ -32,63 +23,21 @@ max = "max"
 average = "mean"
 ceiling = "ceil"
 
-
-class FreqDict(TypedDict):
-    musec: str
-    microsec: str
-    microsecond: str
-    microseconds: str
-    ms: str
-    millisecond: str
-    milliseconds: str
-    sec: str
-    second: str
-    seconds: str
-    min: str
-    minute: str
-    minutes: str
-    hr: str
-    hour: str
-    hours: str
-    day: str
-    days: str
-
-
-freq_dict: FreqDict = {
-    "musec": "microseconds",
+freq_dict = {
     "microsec": "microseconds",
-    "microsecond": "microseconds",
-    "microseconds": "microseconds",
     "ms": "milliseconds",
-    "millisecond": "milliseconds",
-    "milliseconds": "milliseconds",
     "sec": "seconds",
-    "second": "seconds",
-    "seconds": "seconds",
     "min": "minutes",
-    "minute": "minutes",
-    "minutes": "minutes",
     "hr": "hours",
-    "hour": "hours",
-    "hours": "hours",
     "day": "days",
-    "days": "days",
+    "hour": "hours",
 }
-
-ALLOWED_FREQ_KEYS: List[str] = list(get_type_hints(FreqDict).keys())
-
-
-def is_valid_allowed_freq_keys(val: str, literal_constant: List[str]) -> bool:
-    return val in literal_constant
-
 
 allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def _appendAggKey(
-    tsdf: t_tsdf.TSDF, freq: Optional[str] = None
-) -> Tuple[t_tsdf.TSDF, int | str, Any]:
+def _appendAggKey(tsdf: tempo.TSDF, freq: str = None):
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -96,28 +45,26 @@ def _appendAggKey(
     """
     df = tsdf.df
     parsed_freq = checkAllowableFreq(freq)
-    period, unit = parsed_freq[0], parsed_freq[1]
-
-    agg_window = f.window(
-        f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+    agg_window = Fn.window(
+        Fn.col(tsdf.ts_col), "{} {}".format(parsed_freq[0], freq_dict[parsed_freq[1]])
     )
 
     df = df.withColumn("agg_key", agg_window)
 
     return (
-        t_tsdf.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
-        period,
-        freq_dict[unit],  # type: ignore[literal-required]
+        tempo.TSDF(df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids),
+        parsed_freq[0],
+        freq_dict[parsed_freq[1]],
     )
 
 
 def aggregate(
-    tsdf: t_tsdf.TSDF,
+    tsdf: tempo.TSDF,
     freq: str,
-    func: Union[Callable, str],
-    metricCols: Optional[List[str]] = None,
-    prefix: Optional[str] = None,
-    fill: Optional[bool] = None,
+    func: str,
+    metricCols: list[str] = None,
+    prefix: str = None,
+    fill: bool = None,
 ) -> DataFrame:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
@@ -132,8 +79,7 @@ def aggregate(
 
     df = tsdf.df
 
-    groupingCols = tsdf.partitionCols + ["agg_key"]
-
+    groupingCols = tsdf.series_ids + ["agg_key"]
     if metricCols is None:
         metricCols = list(set(df.columns).difference(set(groupingCols + [tsdf.ts_col])))
 
@@ -142,28 +88,26 @@ def aggregate(
     else:
         prefix = prefix + "_"
 
-    groupingCols = [f.col(column) for column in groupingCols]
+    groupingCols = [Fn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        metricCol = Fn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(f.min("struct_cols").alias("closest_data")).select(
-            *groupingCols, f.col("closest_data.*")
+        res = res.agg(Fn.min("struct_cols").alias("closest_data")).select(
+            *groupingCols, Fn.col("closest_data.*")
         )
-        new_cols = [f.col(tsdf.ts_col)] + [
-            f.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [Fn.col(tsdf.ts_col)] + [
+            Fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == average:
         exprs = {x: "avg" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(
-                set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
-            )
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
+            Fn.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -171,12 +115,10 @@ def aggregate(
         exprs = {x: "min" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(
-                set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
-            )
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
+            Fn.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -184,23 +126,21 @@ def aggregate(
         exprs = {x: "max" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(
-                set(tsdf.partitionCols + [tsdf.ts_col, "agg_key"])
-            )
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
+            Fn.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == ceiling:
-        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        metricCol = Fn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(f.max("struct_cols").alias("ceil_data")).select(
-            *groupingCols, f.col("ceil_data.*")
+        res = res.agg(Fn.max("struct_cols").alias("ceil_data")).select(
+            *groupingCols, Fn.col("ceil_data.*")
         )
-        new_cols = [f.col(tsdf.ts_col)] + [
-            f.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [Fn.col(tsdf.ts_col)] + [
+            Fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
 
@@ -208,27 +148,27 @@ def aggregate(
     res = (
         res.drop(tsdf.ts_col)
         .withColumnRenamed("agg_key", tsdf.ts_col)
-        .withColumn(tsdf.ts_col, f.col(tsdf.ts_col).start)
+        .withColumn(tsdf.ts_col, Fn.col(tsdf.ts_col).start)
     )
 
     # sort columns so they are consistent
-    non_part_cols = set(set(res.columns) - set(tsdf.partitionCols)) - set([tsdf.ts_col])
-    sel_and_sort = tsdf.partitionCols + [tsdf.ts_col] + sorted(non_part_cols)
+    non_part_cols = set(set(res.columns) - set(tsdf.series_ids)) - {tsdf.ts_col}
+    sel_and_sort = tsdf.series_ids + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
-    fillW = Window.partitionBy(tsdf.partitionCols)
+    fillW = Window.partitionBy(tsdf.series_ids)
 
     imputes = (
         res.select(
-            *tsdf.partitionCols,
-            f.min(tsdf.ts_col).over(fillW).alias("from"),
-            f.max(tsdf.ts_col).over(fillW).alias("until"),
+            *tsdf.series_ids,
+            Fn.min(tsdf.ts_col).over(fillW).alias("from"),
+            Fn.max(tsdf.ts_col).over(fillW).alias("until"),
         )
         .distinct()
         .withColumn(
             tsdf.ts_col,
-            f.explode(
-                f.expr("sequence(from, until, interval {} {})".format(period, unit))
+            Fn.explode(
+                Fn.expr("sequence(from, until, interval {} {})".format(period, unit))
             ),
         )
         .drop("from", "until")
@@ -240,14 +180,14 @@ def aggregate(
             metrics.append(col[0])
 
     if fill:
-        res = imputes.join(
-            res, tsdf.partitionCols + [tsdf.ts_col], "leftouter"
-        ).na.fill(0, metrics)
+        res = imputes.join(res, tsdf.series_ids + [tsdf.ts_col], "leftouter").na.fill(
+            0, metrics
+        )
 
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
+def checkAllowableFreq(freq: Optional[str]) -> tuple[Union[int | str], Optional[str]]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
@@ -255,51 +195,33 @@ def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
     """
     if not isinstance(freq, str):
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
-
-    # TODO - return either int OR str for first argument
-    allowable_freq: Tuple[Union[int | str], str] = (
-        0,
-        "will_always_fail_if_not_overwritten",
-    )
-
-    if is_valid_allowed_freq_keys(
-        freq.lower(),
-        ALLOWED_FREQ_KEYS,
-    ):
-        allowable_freq = 1, freq
-        return allowable_freq
-
-    try:
-        periods = freq.lower().split(" ")[0].strip()
-        units = freq.lower().split(" ")[1].strip()
-    except IndexError:
-        raise ValueError(
-            "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
-        )
-
-    if is_valid_allowed_freq_keys(
-        units.lower(),
-        ALLOWED_FREQ_KEYS,
-    ):
-        if units.startswith(MUSEC):
-            allowable_freq = periods, MUSEC
-        elif units.startswith(MS) | units.startswith("millis"):
-            allowable_freq = periods, MS
-        elif units.startswith(SEC):
-            allowable_freq = periods, SEC
-        elif units.startswith(MIN):
-            allowable_freq = periods, MIN
-        elif units.startswith("hour") | units.startswith(HR):
-            allowable_freq = periods, "hour"
-        elif units.startswith(DAY):
-            allowable_freq = periods, DAY
+    elif freq in allowableFreqs:
+        return 1, freq
     else:
-        raise ValueError(f"Invalid value for `freq` argument: {freq}.")
+        try:
+            periods = freq.lower().split(" ")[0].strip()
+            units = freq.lower().split(" ")[1].strip()
+        except IndexError:
+            raise ValueError(
+                "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
+            )
+        if units.startswith(MUSEC):
+            return periods, MUSEC
+        elif units.startswith(MS) | units.startswith("millis"):
+            return periods, MS
+        elif units.startswith(SEC):
+            return periods, SEC
+        elif units.startswith(MIN):
+            return periods, MIN
+        elif units.startswith("hour") | units.startswith(HR):
+            return periods, "hour"
+        elif units.startswith(DAY):
+            return periods, DAY
+        else:
+            raise ValueError(f"Invalid value for `freq` argument: {freq}.")
 
-    return allowable_freq
 
-
-def validateFuncExists(func: Union[Callable | str]) -> None:
+def validateFuncExists(func: str):
     if func is None:
         raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "

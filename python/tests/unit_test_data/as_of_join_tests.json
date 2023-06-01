@@ -3,7 +3,7 @@
     "shared_left": {
       "schema": "symbol string, event_ts string, trade_pr float",
       "ts_col": "event_ts",
-      "partition_cols": ["symbol"],
+      "series_ids": ["symbol"],
       "data": [
         ["S1", "2020-08-01 00:00:10", 349.21],
         ["S1", "2020-08-01 00:01:12", 351.32],
@@ -26,7 +26,7 @@
       "right": {
         "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
           ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
@@ -37,7 +37,7 @@
       "expected": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
         "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "other_ts_cols": ["right_event_ts"],
         "data": {
           "$ref": "#/__SharedData/test_asof_expected_data"
@@ -46,7 +46,7 @@
       "expected_no_right_prefix": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, event_ts string, bid_pr float, ask_pr float",
         "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "other_ts_cols": ["event_ts"],
         "data": {
           "$ref": "#/__SharedData/test_asof_expected_data"
@@ -60,7 +60,7 @@
       "right": {
         "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
           ["S1", "2020-08-01 00:01:05", null, 353.13],
@@ -71,7 +71,7 @@
       "expected_skip_nulls": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
         "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "other_ts_cols": ["right_event_ts"],
         "data": [
           ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
@@ -83,7 +83,7 @@
       "expected_skip_nulls_disabled": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
         "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "other_ts_cols": ["right_event_ts"],
         "data": [
           ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
@@ -97,7 +97,7 @@
       "left": {
         "schema": "symbol string, event_ts string, trade_pr float, trade_id int",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2020-08-01 00:00:10", 349.21, 1],
           ["S1", "2020-08-01 00:00:10", 350.21, 5],
@@ -109,7 +109,7 @@
       "right": {
         "schema": "symbol string, event_ts string, bid_pr float, ask_pr float, seq_nb long",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "sequence_col": "seq_nb",
         "data": [
           ["S1", "2020-08-01 00:00:01", 345.11, 351.12, 1],
@@ -123,7 +123,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float, trade_id int, right_event_ts string, right_bid_pr float, right_ask_pr float, right_seq_nb long",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "other_ts_cols": ["right_event_ts"],
         "data": [
           ["S1", "2020-08-01 00:00:10", 349.21, 1, "2020-08-01 00:00:10", 19.11, 20.12, 1],
@@ -138,7 +138,7 @@
       "left": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2020-08-01 00:00:02", 349.21],
           ["S1", "2020-08-01 00:00:08", 351.32],
@@ -152,7 +152,7 @@
       "right": {
         "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
           ["S1", "2020-08-01 00:00:09", 348.10, 353.13],
@@ -163,7 +163,7 @@
       "expected": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
         "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "other_ts_cols": ["right_event_ts"],
         "data": [
           ["S1", "2020-08-01 00:00:02", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
@@ -180,7 +180,7 @@
       "left": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2022-01-01 09:59:59.123456789", 349.21],
           ["S1", "2022-01-01 10:00:00.123456788", 351.32],
@@ -191,7 +191,7 @@
       "right": {
         "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
         "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2022-01-01 10:00:00.1234567", 345.11, 351.12],
           ["S1", "2022-01-01 10:00:00.12345671", 348.10, 353.13],
@@ -203,104 +203,14 @@
       "expected": {
         "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_ask_pr float, right_bid_pr float",
         "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
+        "other_ts_cols": ["right_event_ts"],
+        "series_ids": ["symbol"],
         "data": [
           ["S1", "2022-01-01 09:59:59.123456789", 349.21, null, null, null],
           ["S1", "2022-01-01 10:00:00.123456788", 351.32, "2022-01-01 10:00:00.12345677", 365.33, 358.91],
           ["S1", "2022-01-01 10:00:00.123456789", 361.12, "2022-01-01 10:00:00.12345677", 365.33, 358.91],
           ["S1", "2022-01-01 10:00:01.123456789", 364.31, "2022-01-01 10:00:01.10000001", 365.31, 359.21]
         ]
-      }
-    },
-    "test_asof_join_tolerance": {
-      "left": {
-        "$ref": "#/__SharedData/shared_left"
-      },
-      "right": {
-        "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": ["symbol"],
-        "data": [
-          ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
-          ["S1", "2020-08-01 00:00:10", 345.22, 351.33],
-          ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
-          ["S1", "2020-09-01 00:02:01", 358.93, 365.12],
-          ["S1", "2020-09-01 00:15:01", 359.21, 365.31]
-        ]
-      },
-      "expected_tolerance_None": {
-        "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
-        "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
-        "other_ts_cols": ["right_event_ts"],
-        "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:10", 345.22, 351.33],
-          ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
-          ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12],
-          ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31]
-        ]
-      },
-      "expected_tolerance_0": {
-        "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
-        "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
-        "other_ts_cols": ["right_event_ts"],
-        "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:10", 345.22, 351.33],
-          ["S1", "2020-08-01 00:01:12", 351.32, null, null, null],
-          ["S1", "2020-09-01 00:02:10", 361.1, null, null, null],
-          ["S1", "2020-09-01 00:19:12", 362.1, null, null, null]
-        ]
-      },
-      "expected_tolerance_5.5": {
-        "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
-        "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
-        "other_ts_cols": ["right_event_ts"],
-        "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:10", 345.22, 351.33],
-          ["S1", "2020-08-01 00:01:12", 351.32, null, null, null],
-          ["S1", "2020-09-01 00:02:10", 361.1, null, null, null],
-          ["S1", "2020-09-01 00:19:12", 362.1, null, null, null]
-        ]
-      },
-      "expected_tolerance_7": {
-        "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
-        "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
-        "other_ts_cols": ["right_event_ts"],
-        "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:10", 345.22, 351.33],
-          ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
-          ["S1", "2020-09-01 00:02:10", 361.1, null, null, null],
-          ["S1", "2020-09-01 00:19:12", 362.1, null, null, null]
-        ]
-      },
-      "expected_tolerance_10": {
-        "schema": "symbol string, left_event_ts string, left_trade_pr float, right_event_ts string, right_bid_pr float, right_ask_pr float",
-        "ts_col": "left_event_ts",
-        "partition_cols": ["symbol"],
-        "other_ts_cols": ["right_event_ts"],
-        "data": [
-          ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:10", 345.22, 351.33],
-          ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
-          ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12],
-          ["S1", "2020-09-01 00:19:12", 362.1, null, null, null]
-        ]
-      }
-    },
-    "test_asof_join_sql_join_opt_and_bytes_threshold": {
-      "left": {
-        "$ref": "#/__SharedData/shared_left"
-      },
-      "right": {
-        "$ref": "#/AsOfJoinTest/test_asof_join/right"
-      },
-      "expected": {
-        "$ref": "#/AsOfJoinTest/test_asof_join/expected"
-      },
-      "expected_no_right_prefix": {
-        "$ref": "#/AsOfJoinTest/test_asof_join/expected_no_right_prefix"
       }
     }
   }

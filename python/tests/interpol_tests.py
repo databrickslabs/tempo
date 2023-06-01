@@ -1,10 +1,8 @@
 import unittest
 
-from pyspark.sql.dataframe import DataFrame
-
 from tempo.interpol import Interpolation
 from tempo.tsdf import TSDF
-
+from tempo.utils import *
 from tests.tsdf_tests import SparkTest
 
 
@@ -73,18 +71,21 @@ class InterpolationUnitTest(SparkTest):
         input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            "event_ts",
-            "mean",
-            "fill_wrong",
-            True,
-        )
+        try:
+            self.interpolate_helper.interpolate(
+                tsdf=input_tsdf,
+                series_ids=["partition_a", "partition_b"],
+                target_cols=["value_a", "value_b"],
+                freq="30 seconds",
+                ts_col="event_ts",
+                func="mean",
+                method="abcd",
+                show_interpolated=True,
+            )
+        except ValueError as e:
+            self.assertEqual(type(e), ValueError)
+        else:
+            self.fail("ValueError not raised")
 
     def test_target_column_validation(self):
         """Test target columns exist in schema, and are of the right type (numeric)."""
@@ -93,18 +94,21 @@ class InterpolationUnitTest(SparkTest):
         input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_a", "partition_b"],
-            ["target_column_wrong", "value_b"],
-            "30 seconds",
-            "event_ts",
-            "mean",
-            "zero",
-            True,
-        )
+        try:
+            self.interpolate_helper.interpolate(
+                tsdf=input_tsdf,
+                series_ids=["partition_a", "partition_b"],
+                target_cols=["partition_a", "value_b"],
+                freq="30 seconds",
+                ts_col="event_ts",
+                func="mean",
+                method="zero",
+                show_interpolated=True,
+            )
+        except TypeError as e:
+            self.assertEqual(type(e), TypeError)
+        else:
+            self.fail("ValueError not raised")
 
     def test_partition_column_validation(self):
         """Test partition columns exist in schema."""
@@ -113,18 +117,21 @@ class InterpolationUnitTest(SparkTest):
         input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_c", "partition_column_wrong"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            "event_ts",
-            "mean",
-            "zero",
-            True,
-        )
+        try:
+            self.interpolate_helper.interpolate(
+                tsdf=input_tsdf,
+                series_ids=["partition_c", "partition_b"],
+                target_cols=["value_a", "value_b"],
+                freq="30 seconds",
+                ts_col="event_ts",
+                func="mean",
+                method="zero",
+                show_interpolated=True,
+            )
+        except ValueError as e:
+            self.assertEqual(type(e), ValueError)
+        else:
+            self.fail("ValueError not raised")
 
     def test_ts_column_validation(self):
         """Test time series column exist in schema."""
@@ -133,18 +140,21 @@ class InterpolationUnitTest(SparkTest):
         input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
 
         # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            "event_ts_wrong",
-            "mean",
-            "zero",
-            True,
-        )
+        try:
+            self.interpolate_helper.interpolate(
+                tsdf=input_tsdf,
+                series_ids=["partition_a", "partition_b"],
+                target_cols=["value_a", "value_b"],
+                freq="30 seconds",
+                ts_col="value_a",
+                func="mean",
+                method="zero",
+                show_interpolated=True,
+            )
+        except ValueError as e:
+            self.assertEqual(type(e), ValueError)
+        else:
+            self.fail("ValueError not raised")
 
     def test_zero_fill_interpolation(self):
         """Test zero fill interpolation.
@@ -161,7 +171,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -187,7 +197,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -214,7 +224,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -241,7 +251,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -268,7 +278,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -295,7 +305,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -320,7 +330,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 sec",
             ts_col="event_ts",
@@ -347,7 +357,7 @@ class InterpolationUnitTest(SparkTest):
         # interpolate
         actual_df: DataFrame = self.interpolate_helper.interpolate(
             tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a", "value_b"],
             freq="30 seconds",
             ts_col="event_ts",
@@ -357,99 +367,6 @@ class InterpolationUnitTest(SparkTest):
         )
 
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
-
-    def test_validate_ts_col_data_type_is_not_timestamp(self):
-        input_df: DataFrame = self.get_data_as_sdf("input_data")
-
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "event_ts",
-            "not_timestamp",
-        )
-
-    def test_interpolation_freq_is_none(self):
-        """Test a ValueError is raised when freq is None."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            None,
-            "mean",
-            "zero",
-            True,
-        )
-
-    def test_interpolation_func_is_none(self):
-        """Test a ValueError is raised when func is None."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            None,
-            "zero",
-            True,
-        )
-
-    def test_interpolation_func_is_callable(self):
-        """Test ValueError is raised when func is callable."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            sum,
-            "zero",
-            True,
-        )
-
-    def test_interpolation_freq_is_not_supported_type(self):
-        """Test ValueError is raised when func is callable."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 not_supported_type",
-            "mean",
-            "zero",
-            True,
-        )
 
 
 class InterpolationIntegrationTest(SparkTest):
@@ -472,23 +389,19 @@ class InterpolationIntegrationTest(SparkTest):
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_interpolation_using_custom_params(self):
-        """Verify that by specifying optional paramters it will change the result of the interpolation based on those
-        modified params."""
+        """Verify that by specifying optional paramters it will change the result of the interpolation based on those modified params."""
 
         # Modify input DataFrame using different ts_col
         simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
         expected_df: DataFrame = self.get_data_as_sdf("expected")
 
-        input_tsdf = TSDF(
-            simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"),
-            partition_cols=["partition_a", "partition_b"],
-            ts_col="other_ts_col",
-        )
+        input_tsdf = TSDF(simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"), ts_col="other_ts_col",
+                          series_ids=["partition_a", "partition_b"])
 
         actual_df: DataFrame = input_tsdf.interpolate(
             ts_col="other_ts_col",
             show_interpolated=True,
-            partition_cols=["partition_a", "partition_b"],
+            series_ids=["partition_a", "partition_b"],
             target_cols=["value_a"],
             freq="30 seconds",
             func="mean",
@@ -498,8 +411,7 @@ class InterpolationIntegrationTest(SparkTest):
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
 
     def test_tsdf_constructor_params_are_updated(self):
-        """Verify that resulting TSDF class has the correct values for ts_col and partition_col based on the
-        interpolation."""
+        """Verify that resulting TSDF class has the correct values for ts_col and partition_col based on the interpolation."""
 
         # load test data
         simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
@@ -507,7 +419,7 @@ class InterpolationIntegrationTest(SparkTest):
         actual_tsdf: TSDF = simple_input_tsdf.interpolate(
             ts_col="event_ts",
             show_interpolated=True,
-            partition_cols=["partition_b"],
+            series_ids=["partition_b"],
             target_cols=["value_a"],
             freq="30 seconds",
             func="mean",
@@ -515,7 +427,7 @@ class InterpolationIntegrationTest(SparkTest):
         )
 
         self.assertEqual(actual_tsdf.ts_col, "event_ts")
-        self.assertEqual(actual_tsdf.partitionCols, ["partition_b"])
+        self.assertEqual(actual_tsdf.series_ids, ["partition_b"])
 
     def test_interpolation_on_sampled_data(self):
         """Verify interpolation can be chained with resample within the TSDF class"""

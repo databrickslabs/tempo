@@ -1,14 +1,10 @@
-from __future__ import annotations
-
-from typing import List, Optional, Union, Callable
+from typing import List
 
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import col, expr, last, lead, lit, when
 from pyspark.sql.window import Window
-
-import tempo.utils as t_utils
-import tempo.resample as t_resample
-import tempo.tsdf as t_tsdf
+from tempo.utils import calculate_time_horizon
+from tempo.resample import checkAllowableFreq, freq_dict
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -19,7 +15,7 @@ class Interpolation:
     def __init__(self, is_resampled: bool):
         self.is_resampled = is_resampled
 
-    def __validate_fill(self, method: str) -> None:
+    def __validate_fill(self, method: str):
         """
         Validate if the fill provided is within the allowed list of values.
 
@@ -33,11 +29,10 @@ class Interpolation:
     def __validate_col(
         self,
         df: DataFrame,
-        partition_cols: Optional[List[str]],
+        partition_cols: List[str],
         target_cols: List[str],
         ts_col: str,
-        ts_col_dtype: Optional[str] = None,  # NB: added for testing purposes only
-    ) -> None:
+    ):
         """
         Validate if target column exists and is of numeric type, and validates if partition column exists.
 
@@ -47,12 +42,11 @@ class Interpolation:
         :param ts_col: Timestamp column to be validated
         """
 
-        if partition_cols is not None:
-            for column in partition_cols:
-                if column not in str(df.columns):
-                    raise ValueError(
-                        f"Partition Column: '{column}' does not exist in DataFrame."
-                    )
+        for column in partition_cols:
+            if column not in str(df.columns):
+                raise ValueError(
+                    f"Partition Column: '{column}' does not exist in DataFrame."
+                )
         for column in target_cols:
             if column not in str(df.columns):
                 raise ValueError(
@@ -68,14 +62,10 @@ class Interpolation:
                 f"Timestamp Column: '{ts_col}' does not exist in DataFrame."
             )
 
-        if ts_col_dtype is None:
-            ts_col_dtype = df.select(ts_col).dtypes[0][1]
-        if ts_col_dtype != "timestamp":
+        if df.select(ts_col).dtypes[0][1] != "timestamp":
             raise ValueError("Timestamp Column needs to be of timestamp type.")
 
-    def __calc_linear_spark(
-        self, df: DataFrame, ts_col: str, target_col: str
-    ) -> DataFrame:
+    def __calc_linear_spark(self, df: DataFrame, ts_col: str, target_col: str):
         """
         Native Spark function for calculating linear interpolation on a DataFrame.
 
@@ -194,7 +184,7 @@ class Interpolation:
         return output_df
 
     def __generate_time_series_fill(
-        self, df: DataFrame, partition_cols: Optional[List[str]], ts_col: str
+        self, df: DataFrame, partition_cols: List[str], ts_col: str
     ) -> DataFrame:
         """
         Create additional timeseries columns for previous and next timestamps
@@ -203,20 +193,13 @@ class Interpolation:
         :param partition_cols: partition column names
         :param ts_col: timestamp column name
         """
-        return df.withColumn(
-            "previous_timestamp",
-            col(ts_col),
-        ).withColumn(
+        return df.withColumn("previous_timestamp", col(ts_col),).withColumn(
             "next_timestamp",
             lead(df[ts_col]).over(Window.partitionBy(*partition_cols).orderBy(ts_col)),
         )
 
     def __generate_column_time_fill(
-        self,
-        df: DataFrame,
-        partition_cols: Optional[List[str]],
-        ts_col: str,
-        target_col: str,
+        self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
@@ -226,30 +209,24 @@ class Interpolation:
         :param ts_col: timestamp column name
         :param target_col: target column name
         """
-        window = Window
-        if partition_cols is not None:
-            window = Window.partitionBy(*partition_cols)
-
         return df.withColumn(
             f"previous_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                window.orderBy(ts_col).rowsBetween(Window.unboundedPreceding, 0)
+                Window.partitionBy(*partition_cols)
+                .orderBy(ts_col)
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
             last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                window.orderBy(col(ts_col).desc()).rowsBetween(
-                    Window.unboundedPreceding, 0
-                )
+                Window.partitionBy(*partition_cols)
+                .orderBy(col(ts_col).desc())
+                .rowsBetween(Window.unboundedPreceding, 0)
             ),
         )
 
     def __generate_target_fill(
-        self,
-        df: DataFrame,
-        partition_cols: Optional[List[str]],
-        ts_col: str,
-        target_col: str,
+        self, df: DataFrame, partition_cols: List[str], ts_col: str, target_col: str
     ) -> DataFrame:
         """
         Create columns for previous and next value for a specific target column
@@ -259,39 +236,39 @@ class Interpolation:
         :param ts_col: timestamp column name
         :param target_col: target column name
         """
-        window = Window
-
-        if partition_cols is not None:
-            window = Window.partitionBy(*partition_cols)
         return (
             df.withColumn(
                 f"previous_{target_col}",
                 last(df[target_col], ignorenulls=True).over(
-                    window.orderBy(ts_col).rowsBetween(Window.unboundedPreceding, 0)
+                    Window.partitionBy(*partition_cols)
+                    .orderBy(ts_col)
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
                 last(df[target_col], ignorenulls=True).over(
-                    window.orderBy(col(ts_col).desc()).rowsBetween(
-                        Window.unboundedPreceding, 0
-                    )
+                    Window.partitionBy(*partition_cols)
+                    .orderBy(col(ts_col).desc())
+                    .rowsBetween(Window.unboundedPreceding, 0)
                 ),
             ).withColumn(
                 f"next_{target_col}",
-                lead(df[target_col]).over(window.orderBy(ts_col)),
+                lead(df[target_col]).over(
+                    Window.partitionBy(*partition_cols).orderBy(ts_col)
+                ),
             )
         )
 
     def interpolate(
         self,
-        tsdf: t_tsdf.TSDF,
+        tsdf,
         ts_col: str,
-        partition_cols: Optional[List[str]],
+        series_ids: List[str],
         target_cols: List[str],
-        freq: Optional[str],
-        func: Optional[Union[Callable | str]],
+        freq: str,
+        func: str,
         method: str,
         show_interpolated: bool,
         perform_checks: bool = True,
@@ -302,7 +279,7 @@ class Interpolation:
         :param tsdf: input TSDF
         :param ts_col: timestamp column name
         :param target_cols: numeric columns to interpolate
-        :param partition_cols: partition columns names
+        :param series_ids: partition columns names
         :param freq: frequency at which to sample
         :param func: aggregate function used for sampling to the specified interval
         :param method: interpolation function usded to fill missing values
@@ -312,42 +289,29 @@ class Interpolation:
         """
         # Validate input parameters
         self.__validate_fill(method)
-        self.__validate_col(tsdf.df, partition_cols, target_cols, ts_col)
-
-        if freq is None:
-            raise ValueError("freq cannot be None")
-
-        if func is None:
-            raise ValueError("func cannot be None")
-
-        if callable(func):
-            raise ValueError("func must be a string")
+        self.__validate_col(tsdf.df, series_ids, target_cols, ts_col)
 
         # Convert Frequency using resample dictionary
-        parsed_freq = t_resample.checkAllowableFreq(freq)
-        period, unit = parsed_freq[0], parsed_freq[1]
-        freq = f"{period} {t_resample.freq_dict[unit]}"  # type: ignore[literal-required]
+        parsed_freq = checkAllowableFreq(freq)
+        freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if perform_checks:
-            t_utils.calculate_time_horizon(tsdf.df, ts_col, freq, partition_cols)
+            calculate_time_horizon(tsdf.df, ts_col, freq, series_ids)
 
         # Only select required columns for interpolation
-        input_cols: List[str] = [ts_col, *target_cols]
-        if partition_cols is not None:
-            input_cols += [*partition_cols]
-
+        input_cols: List[str] = [*series_ids, ts_col, *target_cols]
         sampled_input: DataFrame = tsdf.df.select(*input_cols)
 
         if self.is_resampled is False:
             # Resample and Normalize Input
-            sampled_input = tsdf.resample(
+            sampled_input: DataFrame = tsdf.resample(
                 freq=freq, func=func, metricCols=target_cols
             ).df
 
         # Fill timeseries for nearest values
         time_series_filled = self.__generate_time_series_fill(
-            sampled_input, partition_cols, ts_col
+            sampled_input, series_ids, ts_col
         )
 
         # Generate surrogate timestamps for each target column
@@ -359,7 +323,7 @@ class Interpolation:
                 when(col(column).isNull(), None).otherwise(col(ts_col)),
             )
             add_column_time = self.__generate_column_time_fill(
-                add_column_time, partition_cols, ts_col, column
+                add_column_time, series_ids, ts_col, column
             )
 
         # Handle edge case if last value (latest) is null
@@ -374,7 +338,7 @@ class Interpolation:
         target_column_filled = edge_filled
         for column in target_cols:
             target_column_filled = self.__generate_target_fill(
-                target_column_filled, partition_cols, ts_col, column
+                target_column_filled, series_ids, ts_col, column
             )
 
         # Generate missing timeseries values
@@ -400,7 +364,7 @@ class Interpolation:
         interpolated_result: DataFrame = flagged_series
         for target_col in target_cols:
             # Interpolate target columns
-            interpolated_result = self.__interpolate_column(
+            interpolated_result: DataFrame = self.__interpolate_column(
                 interpolated_result, ts_col, target_col, method
             )
 

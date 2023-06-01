@@ -3,10 +3,8 @@ from __future__ import annotations
 import os
 import logging
 from collections import deque
-from typing import Optional
-
-import tempo.tsdf as t_tsdf
-import pyspark.sql.functions as f
+import tempo
+import pyspark.sql.functions as Fn
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
 
@@ -14,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 def write(
-    tsdf: t_tsdf.TSDF,
+    tsdf: tempo.TSDF,
     spark: SparkSession,
     tabName: str,
-    optimizationCols: Optional[list[str]] = None,
-) -> None:
+    optimizationCols: list[str] = None,
+):
     """
     param: tsdf: input TSDF object to write
     param: tabName Delta output table name
@@ -29,7 +27,7 @@ def write(
 
     df = tsdf.df
     ts_col = tsdf.ts_col
-    partitionCols = tsdf.partitionCols
+    series_ids = tsdf.series_ids
     if optimizationCols:
         optimizationCols = optimizationCols + ["event_time"]
     else:
@@ -37,9 +35,9 @@ def write(
 
     useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
-    view_df = df.withColumn("event_dt", f.to_date(f.col(ts_col))).withColumn(
+    view_df = df.withColumn("event_dt", Fn.to_date(Fn.col(ts_col))).withColumn(
         "event_time",
-        f.translate(f.split(f.col(ts_col).cast("string"), " ")[1], ":", "").cast(
+        Fn.translate(Fn.split(Fn.col(ts_col).cast("string"), " ")[1], ":", "").cast(
             "double"
         ),
     )
@@ -55,7 +53,7 @@ def write(
         try:
             spark.sql(
                 "optimize {} zorder by {}".format(
-                    tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
+                    tabName, "(" + ",".join(series_ids + optimizationCols) + ")"
                 )
             )
         except ParseException as e:

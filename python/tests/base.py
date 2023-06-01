@@ -1,17 +1,16 @@
-import re
 import os
 import unittest
 import warnings
 from typing import Union
 
 import jsonref
-
-import pyspark.sql.functions as F
-from pyspark.sql import SparkSession
-from tempo.tsdf import TSDF
-from tempo.intervals import IntervalsDF
+import pyspark.sql.functions as Fn
 from chispa import assert_df_equality
+from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
+
+from tempo.intervals import IntervalsDF
+from tempo.tsdf import TSDF
 
 
 class SparkTest(unittest.TestCase):
@@ -77,12 +76,12 @@ class SparkTest(unittest.TestCase):
     def get_data_as_tsdf(self, name: str, convert_ts_col=True):
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
-        tsdf = TSDF(
-            df,
-            ts_col=td["ts_col"],
-            partition_cols=td.get("partition_cols", None),
-            sequence_col=td.get("sequence_col", None),
-        )
+        if "sequence_col" in td:
+            tsdf = TSDF.fromSubsequenceCol(
+                df, td["ts_col"], td["sequence_col"], td.get("series_ids", None)
+            )
+        else:
+            tsdf = TSDF(df, ts_col=td["ts_col"], series_ids=td.get("series_ids", None))
         return tsdf
 
     def get_data_as_idf(self, name: str, convert_ts_col=True):
@@ -156,17 +155,18 @@ class SparkTest(unittest.TestCase):
         # build dataframe
         df = self.spark.createDataFrame(data, schema)
 
-        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
+        # convert timstamp fields to timestamp type
         for tsc in ts_cols:
-            ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
-            ts_pattern = r"^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
-            decimal_pattern = r"[.]\d+"
-            if re.match(ts_pattern, str(ts_value)) is not None:
-                if (
-                    re.search(decimal_pattern, ts_value) is None
-                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
-                ):
-                    df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
+            # check if the column is nested in a struct or not
+            if "." in tsc:
+                # we're changing a field nested in a struct
+                (struct, field) = tsc.split(".")
+                df = df.withColumn(
+                    struct, Fn.col(struct).withField(field, Fn.to_timestamp(tsc))
+                )
+            else:
+                # standard column
+                df = df.withColumn(tsc, Fn.to_timestamp(Fn.col(tsc)))
         return df
 
     #
@@ -178,8 +178,8 @@ class SparkTest(unittest.TestCase):
         Test that two fields are equivalent
         """
         self.assertEqual(
-            fieldA.name.lower(),
-            fieldB.name.lower(),
+            fieldA.colname.lower(),
+            fieldB.colname.lower(),
             msg=f"Field {fieldA} has different name from {fieldB}",
         )
         self.assertEqual(
@@ -195,9 +195,9 @@ class SparkTest(unittest.TestCase):
         """
         # the schema must contain a field with the right name
         lc_fieldNames = [fc.lower() for fc in schema.fieldNames()]
-        self.assertTrue(field.name.lower() in lc_fieldNames)
+        self.assertTrue(field.colname.lower() in lc_fieldNames)
         # the attributes of the fields must be equal
-        self.assertFieldsEqual(field, schema[field.name])
+        self.assertFieldsEqual(field, schema[field.colname])
 
     @staticmethod
     def assertDataFrameEquality(

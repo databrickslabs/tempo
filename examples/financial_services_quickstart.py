@@ -92,8 +92,8 @@ quotes_df = spark.table("tempo.quotes")
 # DBTITLE 1,Define TSDF Time Series Data Structure
 from tempo import *
 
-trades_tsdf = TSDF(trades_df, partition_cols = ['date', 'symbol'], ts_col = 'event_ts')
-quotes_tsdf = TSDF(quotes_df, partition_cols = ['date', 'symbol'], ts_col = 'event_ts')
+trades_tsdf = TSDF(trades_df, ts_col='event_ts')
+quotes_tsdf = TSDF(quotes_df, ts_col='event_ts')
 
 # COMMAND ----------
 
@@ -178,7 +178,7 @@ display(moving_avg.withColumn("low", col("min_trade_pr")).withColumn("high", col
 from tempo import *
 from pyspark.sql.functions import *
 
-minute_bars = TSDF(spark.table("time_test"), partition_cols=['ticker'], ts_col="ts").calc_bars(freq = '1 minute', func= 'ceil')
+minute_bars = TSDF(spark.table("time_test"), ts_col="ts").calc_bars(freq ='1 minute', func='ceil')
 
 display(minute_bars)
 
