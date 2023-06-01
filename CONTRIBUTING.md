@@ -67,7 +67,7 @@ This will run tests for all listed environments.
 ### Run additional checks locally
 `tox` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
 These environments are also defined in the `tox.ini`file and skip installing dependencies listed in the `requirements.txt` file and building the distribution when those are not required . They can be specified using the `-e` flag:
-	●	format
-	●	lint
-	●	type-check
-	●	coverage-report
+* format
+* lint
+* type-check
+* coverage-report
