@@ -750,63 +750,63 @@ class TSDF:
         left_df = self.df
         right_df = right_tsdf.df
 
-        spark = SparkSession.builder.getOrCreate()
-        left_bytes = self.__getBytesFromPlan(left_df, spark)
-        right_bytes = self.__getBytesFromPlan(right_df, spark)
+        # test if the broadcast join will be efficient
+        if sql_join_opt:
+            spark = SparkSession.builder.getOrCreate()
+            left_bytes = self.__getBytesFromPlan(left_df, spark)
+            right_bytes = self.__getBytesFromPlan(right_df, spark)
 
-        # choose 30MB as the cutoff for the broadcast
-        bytes_threshold = 30 * 1024 * 1024
-        if sql_join_opt & (
-            (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)
-        ):
-            spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
-            partition_cols = right_tsdf.partitionCols
-            left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
-            right_cols = list(
-                set(right_df.columns).difference(set(right_tsdf.partitionCols))
-            )
-
-            left_prefix = (
-                ""
-                if not left_prefix  # use truthiness of None and ""
-                else left_prefix + "_"
-            )
-            right_prefix = (
-                ""
-                if not right_prefix  # use truthiness of None and ""
-                else right_prefix + "_"
-            )
-
-            w = Window.partitionBy(*partition_cols).orderBy(
-                right_prefix + right_tsdf.ts_col
-            )
-
-            new_left_ts_col = left_prefix + self.ts_col
-            new_left_cols = [
-                f.col(c).alias(left_prefix + c) for c in left_cols
-            ] + partition_cols
-            new_right_cols = [
-                f.col(c).alias(right_prefix + c) for c in right_cols
-            ] + partition_cols
-            quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
-                "lead_" + right_tsdf.ts_col,
-                f.lead(right_prefix + right_tsdf.ts_col).over(w),
-            )
-            left_df = left_df.select(*new_left_cols)
-            res = (
-                left_df.join(quotes_df_w_lag, partition_cols)
-                .where(
-                    left_df[new_left_ts_col].between(
-                        f.col(right_prefix + right_tsdf.ts_col),
-                        f.coalesce(
-                            f.col("lead_" + right_tsdf.ts_col),
-                            f.lit("2099-01-01").cast("timestamp"),
-                        ),
-                    )
+            # choose 30MB as the cutoff for the broadcast
+            bytes_threshold = 30 * 1024 * 1024
+            if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
+                spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
+                partition_cols = right_tsdf.partitionCols
+                left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
+                right_cols = list(
+                    set(right_df.columns).difference(set(right_tsdf.partitionCols))
                 )
-                .drop("lead_" + right_tsdf.ts_col)
-            )
-            return TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col)
+
+                left_prefix = (
+                    ""
+                    if ((left_prefix is None) | (left_prefix == ""))
+                    else left_prefix + "_"
+                )
+                right_prefix = (
+                    ""
+                    if ((right_prefix is None) | (right_prefix == ""))
+                    else right_prefix + "_"
+                )
+
+                w = Window.partitionBy(*partition_cols).orderBy(
+                    right_prefix + right_tsdf.ts_col
+                )
+
+                new_left_ts_col = left_prefix + self.ts_col
+                new_left_cols = [
+                    f.col(c).alias(left_prefix + c) for c in left_cols
+                ] + partition_cols
+                new_right_cols = [
+                    f.col(c).alias(right_prefix + c) for c in right_cols
+                ] + partition_cols
+                quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
+                    "lead_" + right_tsdf.ts_col,
+                    f.lead(right_prefix + right_tsdf.ts_col).over(w),
+                )
+                left_df = left_df.select(*new_left_cols)
+                res = (
+                    left_df.join(quotes_df_w_lag, partition_cols)
+                    .where(
+                        left_df[new_left_ts_col].between(
+                            f.col(right_prefix + right_tsdf.ts_col),
+                            f.coalesce(
+                                f.col("lead_" + right_tsdf.ts_col),
+                                f.lit("2099-01-01").cast("timestamp"),
+                            ),
+                        )
+                    )
+                    .drop("lead_" + right_tsdf.ts_col)
+                )
+                return TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col)
 
         # end of block checking to see if standard Spark SQL join will work
 
