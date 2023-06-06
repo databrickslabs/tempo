@@ -7,7 +7,7 @@ import pyspark.sql.functions as sql_fn
 from pyspark.sql.window import Window
 
 import tempo.resample as t_resample
-import tempo.tsdf as t_tsdf
+from tempo.tsdf import TSDF
 import tempo.utils as t_utils
 
 # Interpolation fill options
@@ -289,7 +289,7 @@ class Interpolation:
 
     def interpolate(
         self,
-        tsdf: t_tsdf.TSDF,
+        tsdf: TSDF,
         ts_col: str,
         partition_cols: Optional[List[str]],
         target_cols: List[str],

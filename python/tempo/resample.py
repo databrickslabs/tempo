@@ -15,7 +15,7 @@ import pyspark.sql.functions as sql_fn
 from pyspark.sql import DataFrame
 from pyspark.sql.window import Window
 
-import tempo.tsdf as t_tsdf
+from tempo.tsdf import TSDF
 
 # define global frequency options
 MUSEC = "microsec"
@@ -87,8 +87,8 @@ allowableFuncs = [floor, min, max, average, ceiling]
 
 
 def _appendAggKey(
-    tsdf: t_tsdf.TSDF, freq: Optional[str] = None
-) -> Tuple[t_tsdf.TSDF, int | str, Any]:
+    tsdf: TSDF, freq: Optional[str] = None
+) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -105,14 +105,14 @@ def _appendAggKey(
     df = df.withColumn("agg_key", agg_window)
 
     return (
-        t_tsdf.TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
+        TSDF(df, tsdf.ts_col, partition_cols=tsdf.partitionCols),
         period,
         freq_dict[unit],  # type: ignore[literal-required]
     )
 
 
 def aggregate(
-    tsdf: t_tsdf.TSDF,
+    tsdf: TSDF,
     freq: str,
     func: Union[Callable, str],
     metricCols: Optional[List[str]] = None,

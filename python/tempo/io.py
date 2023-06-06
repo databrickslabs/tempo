@@ -9,13 +9,13 @@ import pyspark.sql.functions as sql_fn
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
 
-import tempo.tsdf as t_tsdf
+from tempo.tsdf import TSDF
 
 logger = logging.getLogger(__name__)
 
 
 def write(
-    tsdf: t_tsdf.TSDF,
+    tsdf: TSDF,
     spark: SparkSession,
     tabName: str,
     optimizationCols: Optional[list[str]] = None,
