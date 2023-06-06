@@ -1,4 +1,4 @@
-import pyspark.sql.functions as sql_fn
+import pyspark.sql.functions as sfn
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.utils import AnalysisException
 
