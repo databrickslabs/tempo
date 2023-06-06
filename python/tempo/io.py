@@ -40,9 +40,9 @@ def write(
 
     view_df = df.withColumn("event_dt", sql_fn.to_date(sql_fn.col(ts_col))).withColumn(
         "event_time",
-        sql_fn.translate(sql_fn.split(sql_fn.col(ts_col).cast("string"), " ")[1], ":", "").cast(
-            "double"
-        ),
+        sql_fn.translate(
+            sql_fn.split(sql_fn.col(ts_col).cast("string"), " ")[1], ":", ""
+        ).cast("double"),
     )
     view_cols = deque(view_df.columns)
     view_cols.rotate(1)

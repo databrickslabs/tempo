@@ -4,7 +4,7 @@ import logging
 import operator
 from abc import ABCMeta, abstractmethod
 from functools import reduce
-from typing import (Any, Callable, List, Optional, Sequence, TypeVar, Union)
+from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -86,11 +86,16 @@ class TSDF:
                 (
                     sql_fn.when(
                         sql_fn.col(self.ts_col).contains("."),
-                        sql_fn.concat(sql_fn.lit("0."), sql_fn.split(sql_fn.col(self.ts_col), r"\.")[1]),
+                        sql_fn.concat(
+                            sql_fn.lit("0."),
+                            sql_fn.split(sql_fn.col(self.ts_col), r"\.")[1],
+                        ),
                     ).otherwise(0)
                 ).cast("double"),
             )
-            .withColumn("long_ts", sql_fn.col(self.ts_col).cast("timestamp").cast("long"))
+            .withColumn(
+                "long_ts", sql_fn.col(self.ts_col).cast("timestamp").cast("long")
+            )
             .withColumn("double_ts", sql_fn.col("long_ts") + sql_fn.col("nanos"))
             .drop("nanos")
             .drop("long_ts")
@@ -214,7 +219,9 @@ class TSDF:
         if sequence_col:
             ptntl_sort_keys.append(sequence_col)
 
-        sort_keys = [sql_fn.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
+        sort_keys = [
+            sql_fn.col(col_name) for col_name in ptntl_sort_keys if col_name != ""
+        ]
 
         window_spec = (
             Window.partitionBy(self.partitionCols)
@@ -316,7 +323,9 @@ class TSDF:
             .withColumn(
                 "ts_partition",
                 sql_fn.lit(tsPartitionVal)
-                * (sql_fn.col("ts_col_double") / sql_fn.lit(tsPartitionVal)).cast("integer"),
+                * (sql_fn.col("ts_col_double") / sql_fn.lit(tsPartitionVal)).cast(
+                    "integer"
+                ),
             )
             .withColumn(
                 "partition_remainder",
@@ -328,8 +337,12 @@ class TSDF:
 
         # add [1 - fraction] of previous time partition to the next partition.
         remainder_df = (
-            partition_df.filter(sql_fn.col("partition_remainder") >= sql_fn.lit(1 - fraction))
-            .withColumn("ts_partition", sql_fn.col("ts_partition") + sql_fn.lit(tsPartitionVal))
+            partition_df.filter(
+                sql_fn.col("partition_remainder") >= sql_fn.lit(1 - fraction)
+            )
+            .withColumn(
+                "ts_partition", sql_fn.col("ts_partition") + sql_fn.lit(tsPartitionVal)
+            )
             .withColumn("is_original", sql_fn.lit(0))
         )
 
@@ -589,7 +602,9 @@ class TSDF:
         # extract the double version of the timestamp column to summarize
         double_ts_col = self.ts_col + "_dbl"
 
-        this_df = self.df.withColumn(double_ts_col, sql_fn.col(self.ts_col).cast("double"))
+        this_df = self.df.withColumn(
+            double_ts_col, sql_fn.col(self.ts_col).cast("double")
+        )
 
         # summary missing value percentages
         missing_vals = this_df.select(
@@ -608,12 +623,12 @@ class TSDF:
         desc_stats = this_df.describe().union(missing_vals)
         unique_ts = this_df.select(*self.partitionCols).distinct().count()
 
-        max_ts = this_df.select(sql_fn.max(sql_fn.col(self.ts_col)).alias("max_ts")).collect()[0][
-            0
-        ]
-        min_ts = this_df.select(sql_fn.min(sql_fn.col(self.ts_col)).alias("max_ts")).collect()[0][
-            0
-        ]
+        max_ts = this_df.select(
+            sql_fn.max(sql_fn.col(self.ts_col)).alias("max_ts")
+        ).collect()[0][0]
+        min_ts = this_df.select(
+            sql_fn.min(sql_fn.col(self.ts_col)).alias("max_ts")
+        ).collect()[0][0]
         gran = this_df.selectExpr(
             """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
                   when {0} % 60 != 0 then '2-seconds'
@@ -853,7 +868,8 @@ class TSDF:
             right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
         )
         combined_df.df = combined_df.df.withColumn(
-            "rec_ind", sql_fn.when(sql_fn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1)
+            "rec_ind",
+            sql_fn.when(sql_fn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
         )
 
         # perform asof join.
@@ -908,7 +924,9 @@ class TSDF:
             # Finally, set right timestamp column to null for rows outside of tolerance band
             df = df.withColumn(
                 right_ts_col,
-                sql_fn.when(tolerance_condition, sql_fn.lit(None)).otherwise(df[right_ts_col]),
+                sql_fn.when(tolerance_condition, sql_fn.lit(None)).otherwise(
+                    df[right_ts_col]
+                ),
             )
             asofDF.df = df
 
@@ -984,18 +1002,24 @@ class TSDF:
             )
         elif frequency == "H":
             pre_vwap = self.df.withColumn(
-                "time_group", sql_fn.concat(sql_fn.lpad(sql_fn.hour(sql_fn.col(self.ts_col)), 2, "0"))
+                "time_group",
+                sql_fn.concat(
+                    sql_fn.lpad(sql_fn.hour(sql_fn.col(self.ts_col)), 2, "0")
+                ),
             )
         elif frequency == "D":
             pre_vwap = self.df.withColumn(
-                "time_group", sql_fn.concat(sql_fn.lpad(sql_fn.day(sql_fn.col(self.ts_col)), 2, "0"))
+                "time_group",
+                sql_fn.concat(sql_fn.lpad(sql_fn.day(sql_fn.col(self.ts_col)), 2, "0")),
             )
 
         group_cols = ["time_group"]
         if self.partitionCols:
             group_cols.extend(self.partitionCols)
         vwapped = (
-            pre_vwap.withColumn("dllr_value", sql_fn.col(price_col) * sql_fn.col(volume_col))
+            pre_vwap.withColumn(
+                "dllr_value", sql_fn.col(price_col) * sql_fn.col(volume_col)
+            )
             .groupby(group_cols)
             .agg(
                 sql_fn.sum("dllr_value").alias("dllr_value"),
@@ -1022,7 +1046,9 @@ class TSDF:
         for i in range(window):
             lagColName = "_".join(["lag", colName, str(i)])
             weight = exp_factor * (1 - exp_factor) ** i
-            df = df.withColumn(lagColName, weight * sql_fn.lag(sql_fn.col(colName), i).over(w))
+            df = df.withColumn(
+                lagColName, weight * sql_fn.lag(sql_fn.col(colName), i).over(w)
+            )
             df = df.withColumn(
                 emaColName,
                 sql_fn.col(emaColName)
@@ -1058,17 +1084,22 @@ class TSDF:
         """
         # first, join all featureCols into a single array column
         tempArrayColName = "__TempArrayCol"
-        feat_array_tsdf = self.df.withColumn(tempArrayColName, sql_fn.array(featureCols))
+        feat_array_tsdf = self.df.withColumn(
+            tempArrayColName, sql_fn.array(featureCols)
+        )
 
         # construct a lookback array
         lookback_win = self.__rowsBetweenWindow(-lookbackWindowSize, -1)
         lookback_tsdf = feat_array_tsdf.withColumn(
-            featureColName, sql_fn.collect_list(sql_fn.col(tempArrayColName)).over(lookback_win)
+            featureColName,
+            sql_fn.collect_list(sql_fn.col(tempArrayColName)).over(lookback_win),
         ).drop(tempArrayColName)
 
         # make sure only windows of exact size are allowed
         if exactSize:
-            return lookback_tsdf.where(sql_fn.size(featureColName) == lookbackWindowSize)
+            return lookback_tsdf.where(
+                sql_fn.size(featureColName) == lookbackWindowSize
+            )
 
         return TSDF(lookback_tsdf, self.ts_col, self.partitionCols)
 
@@ -1416,7 +1447,10 @@ class TSDF:
                 group_cols = self.partitionCols
                 data = (
                     data.select(
-                        *group_cols, self.ts_col, self.sequence_col, sql_fn.col(valueCol)
+                        *group_cols,
+                        self.ts_col,
+                        self.sequence_col,
+                        sql_fn.col(valueCol),
                     )
                     .withColumn("tdval", sql_fn.col(valueCol))
                     .withColumn("tpoints", sql_fn.col(self.ts_col))
@@ -1433,7 +1467,9 @@ class TSDF:
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", sql_fn.lit("dummy_val"))
                 data = (
-                    data.select(sql_fn.col("dummy_group"), self.ts_col, sql_fn.col(valueCol))
+                    data.select(
+                        sql_fn.col("dummy_group"), self.ts_col, sql_fn.col(valueCol)
+                    )
                     .withColumn("tdval", sql_fn.col(valueCol))
                     .withColumn("tpoints", sql_fn.col(self.ts_col))
                 )
@@ -1551,7 +1587,9 @@ class TSDF:
             temp_metric_compare_col = f"__{mc}_compare"
             data = data.withColumn(
                 temp_metric_compare_col,
-                state_comparison_fn(sql_fn.col(mc), sql_fn.lag(sql_fn.col(mc), 1).over(w)),
+                state_comparison_fn(
+                    sql_fn.col(mc), sql_fn.lag(sql_fn.col(mc), 1).over(w)
+                ),
             )
             temp_metric_compare_cols.append(temp_metric_compare_col)
 
@@ -1561,7 +1599,8 @@ class TSDF:
 
         # Each state comparison should return True if state remained constant
         data = data.withColumn(
-            "state_change", sql_fn.array_contains(sql_fn.array(*temp_metric_compare_cols), False)
+            "state_change",
+            sql_fn.array_contains(sql_fn.array(*temp_metric_compare_cols), False),
         )
 
         # Count the distinct state changes to get the unique intervals

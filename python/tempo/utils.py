@@ -89,10 +89,12 @@ def calculate_time_horizon(
             ),
         )
         .withColumn(
-            "rounded_min_epoch", sql_fn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)")
+            "rounded_min_epoch",
+            sql_fn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)"),
         )
         .withColumn(
-            "rounded_max_epoch", sql_fn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)")
+            "rounded_max_epoch",
+            sql_fn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)"),
         )
         .withColumn("diff_ms", sql_fn.expr("rounded_max_epoch - rounded_min_epoch"))
         .withColumn("num_values", sql_fn.expr("(diff_ms/interval_ms) +1"))

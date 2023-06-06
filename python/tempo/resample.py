@@ -1,7 +1,15 @@
 from __future__ import annotations
 
-from typing import (Any, Callable, List, Optional, Tuple, TypedDict, Union,
-                    get_type_hints)
+from typing import (
+    Any,
+    Callable,
+    List,
+    Optional,
+    Tuple,
+    TypedDict,
+    Union,
+    get_type_hints,
+)
 
 import pyspark.sql.functions as sql_fn
 from pyspark.sql import DataFrame
@@ -155,7 +163,9 @@ def aggregate(
             )
         )
         new_cols = [
-            sql_fn.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
+            sql_fn.col(c).alias(
+                "{}".format(prefix) + (c.split("avg(")[1]).replace(")", "")
+            )
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -168,7 +178,9 @@ def aggregate(
             )
         )
         new_cols = [
-            sql_fn.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
+            sql_fn.col(c).alias(
+                "{}".format(prefix) + (c.split("min(")[1]).replace(")", "")
+            )
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -181,7 +193,9 @@ def aggregate(
             )
         )
         new_cols = [
-            sql_fn.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
+            sql_fn.col(c).alias(
+                "{}".format(prefix) + (c.split("max(")[1]).replace(")", "")
+            )
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -220,7 +234,9 @@ def aggregate(
         .withColumn(
             tsdf.ts_col,
             sql_fn.explode(
-                sql_fn.expr("sequence(from, until, interval {} {})".format(period, unit))
+                sql_fn.expr(
+                    "sequence(from, until, interval {} {})".format(period, unit)
+                )
             ),
         )
         .drop("from", "until")

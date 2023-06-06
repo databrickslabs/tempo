@@ -321,7 +321,8 @@ class IntervalsDF:
             df = df.withColumn(
                 c,
                 sql_fn.when(
-                    sql_fn.col(subset_indicator), sql_fn.coalesce(sql_fn.col(c), f"_lag_1_{c}")
+                    sql_fn.col(subset_indicator),
+                    sql_fn.coalesce(sql_fn.col(c), f"_lag_1_{c}"),
                 ).otherwise(sql_fn.col(c)),
             )
 

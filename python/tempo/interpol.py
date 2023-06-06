@@ -177,7 +177,8 @@ class Interpolation:
                 ).otherwise(
                     # Handle standard backwards fill
                     sql_fn.when(
-                        sql_fn.col(f"is_interpolated_{target_col}") == True,  # noqa: E712
+                        sql_fn.col(f"is_interpolated_{target_col}")
+                        == True,  # noqa: E712
                         sql_fn.col(f"next_{target_col}"),
                     ).otherwise(sql_fn.col(f"{target_col}"))
                 ),
@@ -208,7 +209,9 @@ class Interpolation:
             sql_fn.col(ts_col),
         ).withColumn(
             "next_timestamp",
-            sql_fn.lead(df[ts_col]).over(Window.partitionBy(*partition_cols).orderBy(ts_col)),
+            sql_fn.lead(df[ts_col]).over(
+                Window.partitionBy(*partition_cols).orderBy(ts_col)
+            ),
         )
 
     def __generate_column_time_fill(
@@ -356,7 +359,9 @@ class Interpolation:
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"{ts_col}_{column}",
-                sql_fn.when(sql_fn.col(column).isNull(), None).otherwise(sql_fn.col(ts_col)),
+                sql_fn.when(sql_fn.col(column).isNull(), None).otherwise(
+                    sql_fn.col(ts_col)
+                ),
             )
             add_column_time = self.__generate_column_time_fill(
                 add_column_time, partition_cols, ts_col, column
@@ -366,7 +371,8 @@ class Interpolation:
         edge_filled = add_column_time.withColumn(
             "next_timestamp",
             sql_fn.when(
-                sql_fn.col("next_timestamp").isNull(), sql_fn.expr(f"{ts_col}+ interval {freq}")
+                sql_fn.col("next_timestamp").isNull(),
+                sql_fn.expr(f"{ts_col}+ interval {freq}"),
             ).otherwise(sql_fn.col("next_timestamp")),
         )
 
@@ -390,7 +396,9 @@ class Interpolation:
         flagged_series = (
             exploded_series.withColumn(
                 "is_ts_interpolated",
-                sql_fn.when(sql_fn.col(f"new_{ts_col}") != sql_fn.col(ts_col), True).otherwise(False),
+                sql_fn.when(
+                    sql_fn.col(f"new_{ts_col}") != sql_fn.col(ts_col), True
+                ).otherwise(False),
             )
             .withColumn(ts_col, sql_fn.col(f"new_{ts_col}"))
             .drop(sql_fn.col(f"new_{ts_col}"))
