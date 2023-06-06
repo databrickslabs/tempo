@@ -10,7 +10,7 @@ from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas.core.frame import DataFrame as pandasDataFrame
 
-import pyspark.sql.functions as sql_fn
+import pyspark.sql.functions as sfn
 from pyspark.sql.dataframe import DataFrame
 
 import tempo.resample as t_resample
@@ -74,30 +74,30 @@ def calculate_time_horizon(
 
     # Get max and min timestamp per partition
     partitioned_df: DataFrame = df.groupBy(*partition_cols).agg(
-        sql_fn.max(ts_col).alias("max_ts"),
-        sql_fn.min(ts_col).alias("min_ts"),
+        sfn.max(ts_col).alias("max_ts"),
+        sfn.min(ts_col).alias("min_ts"),
     )
 
     # Generate upscale metrics
     normalized_time_df: DataFrame = (
-        partitioned_df.withColumn("min_epoch_ms", sql_fn.expr("unix_millis(min_ts)"))
-        .withColumn("max_epoch_ms", sql_fn.expr("unix_millis(max_ts)"))
+        partitioned_df.withColumn("min_epoch_ms", sfn.expr("unix_millis(min_ts)"))
+        .withColumn("max_epoch_ms", sfn.expr("unix_millis(max_ts)"))
         .withColumn(
             "interval_ms",
-            sql_fn.expr(
+            sfn.expr(
                 f"unix_millis(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"
             ),
         )
         .withColumn(
             "rounded_min_epoch",
-            sql_fn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)"),
+            sfn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)"),
         )
         .withColumn(
             "rounded_max_epoch",
-            sql_fn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)"),
+            sfn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)"),
         )
-        .withColumn("diff_ms", sql_fn.expr("rounded_max_epoch - rounded_min_epoch"))
-        .withColumn("num_values", sql_fn.expr("(diff_ms/interval_ms) +1"))
+        .withColumn("diff_ms", sfn.expr("rounded_max_epoch - rounded_min_epoch"))
+        .withColumn("num_values", sfn.expr("(diff_ms/interval_ms) +1"))
     )
 
     (
@@ -110,14 +110,14 @@ def calculate_time_horizon(
         p75_value_partition,
         total_values,
     ) = normalized_time_df.select(
-        sql_fn.min("min_ts"),
-        sql_fn.max("max_ts"),
-        sql_fn.min("num_values"),
-        sql_fn.max("num_values"),
-        sql_fn.percentile_approx("num_values", 0.25),
-        sql_fn.percentile_approx("num_values", 0.5),
-        sql_fn.percentile_approx("num_values", 0.75),
-        sql_fn.sum("num_values"),
+        sfn.min("min_ts"),
+        sfn.max("max_ts"),
+        sfn.min("num_values"),
+        sfn.max("num_values"),
+        sfn.percentile_approx("num_values", 0.25),
+        sfn.percentile_approx("num_values", 0.5),
+        sfn.percentile_approx("num_values", 0.75),
+        sfn.sum("num_values"),
     ).first()
 
     warnings.simplefilter("always", ResampleWarning)

@@ -1,8 +1,12 @@
 import unittest
 
 from tempo import TSDF
-from tempo.resample import (_appendAggKey, aggregate, checkAllowableFreq,
-                            validateFuncExists)
+from tempo.resample import (
+    _appendAggKey,
+    aggregate,
+    checkAllowableFreq,
+    validateFuncExists,
+)
 from tests.base import SparkTest
 
 

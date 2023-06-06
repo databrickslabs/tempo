@@ -11,7 +11,7 @@ from typing import (
     get_type_hints,
 )
 
-import pyspark.sql.functions as sql_fn
+import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
 from pyspark.sql.window import Window
 
@@ -98,8 +98,8 @@ def _appendAggKey(
     parsed_freq = checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
 
-    agg_window = sql_fn.window(
-        sql_fn.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+    agg_window = sfn.window(
+        sfn.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
     )
 
     df = df.withColumn("agg_key", agg_window)
@@ -142,16 +142,16 @@ def aggregate(
     else:
         prefix = prefix + "_"
 
-    groupingCols = [sql_fn.col(column) for column in groupingCols]
+    groupingCols = [sfn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = sql_fn.struct([tsdf.ts_col] + metricCols)
+        metricCol = sfn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(sql_fn.min("struct_cols").alias("closest_data")).select(
-            *groupingCols, sql_fn.col("closest_data.*")
+        res = res.agg(sfn.min("struct_cols").alias("closest_data")).select(
+            *groupingCols, sfn.col("closest_data.*")
         )
-        new_cols = [sql_fn.col(tsdf.ts_col)] + [
-            sql_fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [sfn.col(tsdf.ts_col)] + [
+            sfn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == average:
@@ -163,7 +163,7 @@ def aggregate(
             )
         )
         new_cols = [
-            sql_fn.col(c).alias(
+            sfn.col(c).alias(
                 "{}".format(prefix) + (c.split("avg(")[1]).replace(")", "")
             )
             for c in agg_metric_cls
@@ -178,7 +178,7 @@ def aggregate(
             )
         )
         new_cols = [
-            sql_fn.col(c).alias(
+            sfn.col(c).alias(
                 "{}".format(prefix) + (c.split("min(")[1]).replace(")", "")
             )
             for c in agg_metric_cls
@@ -193,20 +193,20 @@ def aggregate(
             )
         )
         new_cols = [
-            sql_fn.col(c).alias(
+            sfn.col(c).alias(
                 "{}".format(prefix) + (c.split("max(")[1]).replace(")", "")
             )
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == ceiling:
-        metricCol = sql_fn.struct([tsdf.ts_col] + metricCols)
+        metricCol = sfn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(sql_fn.max("struct_cols").alias("ceil_data")).select(
-            *groupingCols, sql_fn.col("ceil_data.*")
+        res = res.agg(sfn.max("struct_cols").alias("ceil_data")).select(
+            *groupingCols, sfn.col("ceil_data.*")
         )
-        new_cols = [sql_fn.col(tsdf.ts_col)] + [
-            sql_fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [sfn.col(tsdf.ts_col)] + [
+            sfn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
 
@@ -214,7 +214,7 @@ def aggregate(
     res = (
         res.drop(tsdf.ts_col)
         .withColumnRenamed("agg_key", tsdf.ts_col)
-        .withColumn(tsdf.ts_col, sql_fn.col(tsdf.ts_col).start)
+        .withColumn(tsdf.ts_col, sfn.col(tsdf.ts_col).start)
     )
 
     # sort columns so they are consistent
@@ -227,14 +227,14 @@ def aggregate(
     imputes = (
         res.select(
             *tsdf.partitionCols,
-            sql_fn.min(tsdf.ts_col).over(fillW).alias("from"),
-            sql_fn.max(tsdf.ts_col).over(fillW).alias("until"),
+            sfn.min(tsdf.ts_col).over(fillW).alias("from"),
+            sfn.max(tsdf.ts_col).over(fillW).alias("until"),
         )
         .distinct()
         .withColumn(
             tsdf.ts_col,
-            sql_fn.explode(
-                sql_fn.expr(
+            sfn.explode(
+                sfn.expr(
                     "sequence(from, until, interval {} {})".format(period, unit)
                 )
             ),

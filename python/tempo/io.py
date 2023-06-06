@@ -5,7 +5,7 @@ import os
 from collections import deque
 from typing import Optional
 
-import pyspark.sql.functions as sql_fn
+import pyspark.sql.functions as sfn
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
 
@@ -38,10 +38,10 @@ def write(
 
     useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
-    view_df = df.withColumn("event_dt", sql_fn.to_date(sql_fn.col(ts_col))).withColumn(
+    view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(
         "event_time",
-        sql_fn.translate(
-            sql_fn.split(sql_fn.col(ts_col).cast("string"), " ")[1], ":", ""
+        sfn.translate(
+            sfn.split(sfn.col(ts_col).cast("string"), " ")[1], ":", ""
         ).cast("double"),
     )
     view_cols = deque(view_df.columns)

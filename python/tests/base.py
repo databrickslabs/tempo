@@ -5,9 +5,9 @@ import warnings
 from typing import Union
 
 import jsonref
-
-import pyspark.sql.functions as sql_fn
 from chispa import assert_df_equality
+
+import pyspark.sql.functions as sfn
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 
@@ -167,7 +167,7 @@ class SparkTest(unittest.TestCase):
                     re.search(decimal_pattern, ts_value) is None
                     or len(re.search(decimal_pattern, ts_value)[0]) <= 4
                 ):
-                    df = df.withColumn(tsc, sql_fn.to_timestamp(sql_fn.col(tsc)))
+                    df = df.withColumn(tsc, sfn.to_timestamp(sfn.col(tsc)))
         return df
 
     #
