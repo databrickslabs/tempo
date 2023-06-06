@@ -164,8 +164,8 @@ class IntervalsDFTests(SparkTest):
         idf_expected = self.get_data_as_idf("expected")
 
         df_input = df_input.withColumn(
-            "start_ts", sql_fn.to_timestamp("start_ts")
-        ).withColumn("end_ts", sql_fn.to_timestamp("end_ts"))
+            "start_ts", sfn.to_timestamp("start_ts")
+        ).withColumn("end_ts", sfn.to_timestamp("end_ts"))
 
         idf = IntervalsDF.fromStackedMetrics(
             df_input,
