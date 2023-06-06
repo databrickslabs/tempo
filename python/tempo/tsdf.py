@@ -761,12 +761,8 @@ class TSDF:
             if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
                 spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
                 partition_cols = right_tsdf.partitionCols
-                left_cols = list(
-                    set(left_df.columns).difference(set(self.partitionCols))
-                )
-                right_cols = list(
-                    set(right_df.columns).difference(set(right_tsdf.partitionCols))
-                )
+                left_cols = list({left_df.columns} - {self.partitionCols})
+                right_cols = list({right_df.columns} - {right_tsdf.partitionCols})
 
                 left_prefix = (
                     ""
