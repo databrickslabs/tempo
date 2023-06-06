@@ -71,3 +71,33 @@ These environments are also defined in the `tox.ini`file and skip installing dep
 * lint
 * type-check
 * coverage-report
+
+# Code style & Standards
+
+The tempo project abides by [`black`](https://black.readthedocs.io/en/stable/index.html) formatting standards, 
+as well as using [`flake8`](https://flake8.pycqa.org/en/latest/) and [`mypy`](https://mypy.readthedocs.io/en/stable/) 
+to check for effective code style, type-checking and common bad practices.
+To test your code against these standards, run the following command:
+```bash
+tox -e lint, type-check
+```
+To have `black` automatically format your code, run the following command:
+```bash
+tox -e format
+```
+
+In addition, we apply some project-specific standards:
+
+## Module imports
+
+We organize import statements at the top of each module in the following order, each section being separated by a blank line:
+1. Standard Python library imports
+2. Third-party library imports
+3. PySpark library imports
+4. Tempo library imports
+
+Within each section, imports are sorted alphabetically. While it is acceptable to directly import classes and some functions that are
+going to be commonly used, for the sake of readability, it is generally preferred to import a package with an alias and then use the alias
+to reference the package's classes and functions. 
+
+When importing `pyspark.sql.functions`, we use the convention to alias this package as `sfn`, which is both distinctive and short.
