@@ -761,7 +761,9 @@ class TSDF:
             if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
                 spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
                 partition_cols = right_tsdf.partitionCols
-                left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
+                left_cols = list(
+                    set(left_df.columns).difference(set(self.partitionCols))
+                )
                 right_cols = list(
                     set(right_df.columns).difference(set(right_tsdf.partitionCols))
                 )
@@ -806,7 +808,9 @@ class TSDF:
                     )
                     .drop("lead_" + right_tsdf.ts_col)
                 )
-                return TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col)
+                return TSDF(
+                    res, partition_cols=self.partitionCols, ts_col=new_left_ts_col
+                )
 
         # end of block checking to see if standard Spark SQL join will work
 
