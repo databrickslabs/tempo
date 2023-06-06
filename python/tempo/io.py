@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-import os
 import logging
+import os
 from collections import deque
 from typing import Optional
 
-import tempo.tsdf as t_tsdf
-import pyspark.sql.functions as f
+import pyspark.sql.functions as sql_fn
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
+
+import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,9 @@ def write(
 
     useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
-    view_df = df.withColumn("event_dt", f.to_date(f.col(ts_col))).withColumn(
+    view_df = df.withColumn("event_dt", sql_fn.to_date(sql_fn.col(ts_col))).withColumn(
         "event_time",
-        f.translate(f.split(f.col(ts_col).cast("string"), " ")[1], ":", "").cast(
+        sql_fn.translate(sql_fn.split(sql_fn.col(ts_col).cast("string"), " ")[1], ":", "").cast(
             "double"
         ),
     )

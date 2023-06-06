@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import List, Optional, Union, Callable
+from typing import Callable, List, Optional, Union
 
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import col, expr, last, lead, lit, when
+import pyspark.sql.functions as sql_fn
 from pyspark.sql.window import Window
 
-import tempo.utils as t_utils
 import tempo.resample as t_resample
 import tempo.tsdf as t_tsdf
+import tempo.utils as t_utils
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
@@ -130,26 +130,26 @@ class Interpolation:
         END AS is_interpolated_{target_col}
         """
         output_df = output_df.withColumn(
-            f"is_interpolated_{target_col}", expr(flag_expr)
+            f"is_interpolated_{target_col}", sql_fn.expr(flag_expr)
         )
 
         # Handle zero fill
         if method == "zero":
             output_df = output_df.withColumn(
                 target_col,
-                when(
-                    col(f"is_interpolated_{target_col}") == False,  # noqa: E712
-                    col(target_col),
-                ).otherwise(lit(0)),
+                sql_fn.when(
+                    sql_fn.col(f"is_interpolated_{target_col}") == False,  # noqa: E712
+                    sql_fn.col(target_col),
+                ).otherwise(sql_fn.lit(0)),
             )
 
         # Handle null fill
         if method == "null":
             output_df = output_df.withColumn(
                 target_col,
-                when(
-                    col(f"is_interpolated_{target_col}") == False,  # noqa: E712
-                    col(target_col),
+                sql_fn.when(
+                    sql_fn.col(f"is_interpolated_{target_col}") == False,  # noqa: E712
+                    sql_fn.col(target_col),
                 ).otherwise(None),
             )
 
@@ -157,29 +157,29 @@ class Interpolation:
         if method == "ffill":
             output_df = output_df.withColumn(
                 target_col,
-                when(
-                    col(f"is_interpolated_{target_col}") == True,  # noqa: E712
-                    col(f"previous_{target_col}"),
-                ).otherwise(col(target_col)),
+                sql_fn.when(
+                    sql_fn.col(f"is_interpolated_{target_col}") == True,  # noqa: E712
+                    sql_fn.col(f"previous_{target_col}"),
+                ).otherwise(sql_fn.col(target_col)),
             )
         # Handle backwards fill
         if method == "bfill":
             output_df = output_df.withColumn(
                 target_col,
                 # Handle case when subsequent value is null
-                when(
-                    (col(f"is_interpolated_{target_col}") == True)  # noqa: E712
+                sql_fn.when(
+                    (sql_fn.col(f"is_interpolated_{target_col}") == True)  # noqa: E712
                     & (
-                        col(f"next_{target_col}").isNull()
-                        & (col(f"{ts_col}_{target_col}").isNull())
+                        sql_fn.col(f"next_{target_col}").isNull()
+                        & (sql_fn.col(f"{ts_col}_{target_col}").isNull())
                     ),
-                    col(f"next_null_{target_col}"),
+                    sql_fn.col(f"next_null_{target_col}"),
                 ).otherwise(
                     # Handle standard backwards fill
-                    when(
-                        col(f"is_interpolated_{target_col}") == True,  # noqa: E712
-                        col(f"next_{target_col}"),
-                    ).otherwise(col(f"{target_col}"))
+                    sql_fn.when(
+                        sql_fn.col(f"is_interpolated_{target_col}") == True,  # noqa: E712
+                        sql_fn.col(f"next_{target_col}"),
+                    ).otherwise(sql_fn.col(f"{target_col}"))
                 ),
             )
 
@@ -205,10 +205,10 @@ class Interpolation:
         """
         return df.withColumn(
             "previous_timestamp",
-            col(ts_col),
+            sql_fn.col(ts_col),
         ).withColumn(
             "next_timestamp",
-            lead(df[ts_col]).over(Window.partitionBy(*partition_cols).orderBy(ts_col)),
+            sql_fn.lead(df[ts_col]).over(Window.partitionBy(*partition_cols).orderBy(ts_col)),
         )
 
     def __generate_column_time_fill(
@@ -232,13 +232,13 @@ class Interpolation:
 
         return df.withColumn(
             f"previous_timestamp_{target_col}",
-            last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
+            sql_fn.last(sql_fn.col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
                 window.orderBy(ts_col).rowsBetween(Window.unboundedPreceding, 0)
             ),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            last(col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
-                window.orderBy(col(ts_col).desc()).rowsBetween(
+            sql_fn.last(sql_fn.col(f"{ts_col}_{target_col}"), ignorenulls=True).over(
+                window.orderBy(sql_fn.col(ts_col).desc()).rowsBetween(
                     Window.unboundedPreceding, 0
                 )
             ),
@@ -266,21 +266,21 @@ class Interpolation:
         return (
             df.withColumn(
                 f"previous_{target_col}",
-                last(df[target_col], ignorenulls=True).over(
+                sql_fn.last(df[target_col], ignorenulls=True).over(
                     window.orderBy(ts_col).rowsBetween(Window.unboundedPreceding, 0)
                 ),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
-                last(df[target_col], ignorenulls=True).over(
-                    window.orderBy(col(ts_col).desc()).rowsBetween(
+                sql_fn.last(df[target_col], ignorenulls=True).over(
+                    window.orderBy(sql_fn.col(ts_col).desc()).rowsBetween(
                         Window.unboundedPreceding, 0
                     )
                 ),
             ).withColumn(
                 f"next_{target_col}",
-                lead(df[target_col]).over(window.orderBy(ts_col)),
+                sql_fn.lead(df[target_col]).over(window.orderBy(ts_col)),
             )
         )
 
@@ -356,7 +356,7 @@ class Interpolation:
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"{ts_col}_{column}",
-                when(col(column).isNull(), None).otherwise(col(ts_col)),
+                sql_fn.when(sql_fn.col(column).isNull(), None).otherwise(sql_fn.col(ts_col)),
             )
             add_column_time = self.__generate_column_time_fill(
                 add_column_time, partition_cols, ts_col, column
@@ -365,9 +365,9 @@ class Interpolation:
         # Handle edge case if last value (latest) is null
         edge_filled = add_column_time.withColumn(
             "next_timestamp",
-            when(
-                col("next_timestamp").isNull(), expr(f"{ts_col}+ interval {freq}")
-            ).otherwise(col("next_timestamp")),
+            sql_fn.when(
+                sql_fn.col("next_timestamp").isNull(), sql_fn.expr(f"{ts_col}+ interval {freq}")
+            ).otherwise(sql_fn.col("next_timestamp")),
         )
 
         # Fill target column for nearest values
@@ -380,7 +380,7 @@ class Interpolation:
         # Generate missing timeseries values
         exploded_series = target_column_filled.withColumn(
             f"new_{ts_col}",
-            expr(
+            sql_fn.expr(
                 f"explode(sequence({ts_col}, next_timestamp - interval {freq}, interval {freq} )) as timestamp"
             ),
         )
@@ -390,10 +390,10 @@ class Interpolation:
         flagged_series = (
             exploded_series.withColumn(
                 "is_ts_interpolated",
-                when(col(f"new_{ts_col}") != col(ts_col), True).otherwise(False),
+                sql_fn.when(sql_fn.col(f"new_{ts_col}") != sql_fn.col(ts_col), True).otherwise(False),
             )
-            .withColumn(ts_col, col(f"new_{ts_col}"))
-            .drop(col(f"new_{ts_col}"))
+            .withColumn(ts_col, sql_fn.col(f"new_{ts_col}"))
+            .drop(sql_fn.col(f"new_{ts_col}"))
         )
 
         # # Perform interpolation on each target column

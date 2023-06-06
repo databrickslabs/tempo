@@ -2,32 +2,25 @@ from __future__ import annotations
 
 import logging
 import operator
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 from functools import reduce
-from typing import (
-    List,
-    Union,
-    Callable,
-    Optional,
-    Sequence,
-    Any,
-    TypeVar,
-)
+from typing import (Any, Callable, List, Optional, Sequence, TypeVar, Union)
 
 import numpy as np
 import pandas as pd
-import pyspark.sql.functions as f
+from scipy.fft import fft, fftfreq  # type: ignore
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
+
+import pyspark.sql.functions as sql_fn
 from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window, WindowSpec
-from scipy.fft import fft, fftfreq  # type: ignore
 
-import tempo.io as tio
-import tempo.resample as t_resample
 import tempo.interpol as t_interpolation
+import tempo.io as t_io
+import tempo.resample as t_resample
 import tempo.utils as t_utils
 
 logger = logging.getLogger(__name__)
@@ -91,14 +84,14 @@ class TSDF:
             self.df.withColumn(
                 "nanos",
                 (
-                    f.when(
-                        f.col(self.ts_col).contains("."),
-                        f.concat(f.lit("0."), f.split(f.col(self.ts_col), r"\.")[1]),
+                    sql_fn.when(
+                        sql_fn.col(self.ts_col).contains("."),
+                        sql_fn.concat(sql_fn.lit("0."), sql_fn.split(sql_fn.col(self.ts_col), r"\.")[1]),
                     ).otherwise(0)
                 ).cast("double"),
             )
-            .withColumn("long_ts", f.col(self.ts_col).cast("timestamp").cast("long"))
-            .withColumn("double_ts", f.col("long_ts") + f.col("nanos"))
+            .withColumn("long_ts", sql_fn.col(self.ts_col).cast("timestamp").cast("long"))
+            .withColumn("double_ts", sql_fn.col("long_ts") + sql_fn.col("nanos"))
             .drop("nanos")
             .drop("long_ts")
         )
@@ -189,7 +182,7 @@ class TSDF:
         Add columns from some other DF as lit(None), as pre-step before union.
         """
         new_df = reduce(
-            lambda df, idx: df.withColumn(other_cols[idx], f.lit(None)),
+            lambda df, idx: df.withColumn(other_cols[idx], sql_fn.lit(None)),
             range(len(other_cols)),
             self.df,
         )
@@ -198,7 +191,7 @@ class TSDF:
 
     def __combineTSDF(self, ts_df_right: "TSDF", combined_ts_col: str) -> "TSDF":
         combined_df = self.df.unionByName(ts_df_right.df).withColumn(
-            combined_ts_col, f.coalesce(self.ts_col, ts_df_right.ts_col)
+            combined_ts_col, sql_fn.coalesce(self.ts_col, ts_df_right.ts_col)
         )
 
         return TSDF(combined_df, combined_ts_col, self.partitionCols)
@@ -221,7 +214,7 @@ class TSDF:
         if sequence_col:
             ptntl_sort_keys.append(sequence_col)
 
-        sort_keys = [f.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
+        sort_keys = [sql_fn.col(col_name) for col_name in ptntl_sort_keys if col_name != ""]
 
         window_spec = (
             Window.partitionBy(self.partitionCols)
@@ -237,9 +230,9 @@ class TSDF:
             df = reduce(
                 lambda df, idx: df.withColumn(
                     right_cols[idx],
-                    f.last(
-                        f.when(
-                            f.col("rec_ind") == -1, f.struct(right_cols[idx])
+                    sql_fn.last(
+                        sql_fn.when(
+                            sql_fn.col("rec_ind") == -1, sql_fn.struct(right_cols[idx])
                         ).otherwise(None),
                         True,  # ignore nulls because it indicates rows from the left side
                     ).over(window_spec),
@@ -249,7 +242,7 @@ class TSDF:
             )
             df = reduce(
                 lambda df, idx: df.withColumn(
-                    right_cols[idx], f.col(right_cols[idx])[right_cols[idx]]
+                    right_cols[idx], sql_fn.col(right_cols[idx])[right_cols[idx]]
                 ),
                 range(len(right_cols)),
                 df,
@@ -259,7 +252,7 @@ class TSDF:
             df = reduce(
                 lambda df, idx: df.withColumn(
                     right_cols[idx],
-                    f.last(right_cols[idx], ignoreNulls).over(window_spec),
+                    sql_fn.last(right_cols[idx], ignoreNulls).over(window_spec),
                 ),
                 range(len(right_cols)),
                 self.df,
@@ -268,16 +261,16 @@ class TSDF:
             df = reduce(
                 lambda df, idx: df.withColumn(
                     right_cols[idx],
-                    f.last(right_cols[idx], ignoreNulls).over(window_spec),
+                    sql_fn.last(right_cols[idx], ignoreNulls).over(window_spec),
                 ).withColumn(
                     "non_null_ct" + right_cols[idx],
-                    f.count(right_cols[idx]).over(window_spec),
+                    sql_fn.count(right_cols[idx]).over(window_spec),
                 ),
                 range(len(right_cols)),
                 self.df,
             )
 
-        df = (df.filter(f.col(left_ts_col).isNotNull()).drop(self.ts_col)).drop(
+        df = (df.filter(sql_fn.col(left_ts_col).isNotNull()).drop(self.ts_col)).drop(
             "rec_ind"
         )
 
@@ -318,26 +311,26 @@ class TSDF:
         """
         partition_df = (
             self.df.withColumn(
-                "ts_col_double", f.col(self.ts_col).cast("double")
+                "ts_col_double", sql_fn.col(self.ts_col).cast("double")
             )  # double is preferred over unix_timestamp
             .withColumn(
                 "ts_partition",
-                f.lit(tsPartitionVal)
-                * (f.col("ts_col_double") / f.lit(tsPartitionVal)).cast("integer"),
+                sql_fn.lit(tsPartitionVal)
+                * (sql_fn.col("ts_col_double") / sql_fn.lit(tsPartitionVal)).cast("integer"),
             )
             .withColumn(
                 "partition_remainder",
-                (f.col("ts_col_double") - f.col("ts_partition"))
-                / f.lit(tsPartitionVal),
+                (sql_fn.col("ts_col_double") - sql_fn.col("ts_partition"))
+                / sql_fn.lit(tsPartitionVal),
             )
-            .withColumn("is_original", f.lit(1))
+            .withColumn("is_original", sql_fn.lit(1))
         ).cache()  # cache it because it's used twice.
 
         # add [1 - fraction] of previous time partition to the next partition.
         remainder_df = (
-            partition_df.filter(f.col("partition_remainder") >= f.lit(1 - fraction))
-            .withColumn("ts_partition", f.col("ts_partition") + f.lit(tsPartitionVal))
-            .withColumn("is_original", f.lit(0))
+            partition_df.filter(sql_fn.col("partition_remainder") >= sql_fn.lit(1 - fraction))
+            .withColumn("ts_partition", sql_fn.col("ts_partition") + sql_fn.lit(tsPartitionVal))
+            .withColumn("is_original", sql_fn.lit(0))
         )
 
         df = partition_df.union(remainder_df).drop(
@@ -394,7 +387,7 @@ class TSDF:
         """
         # quote our timestamp if its a string
         target_expr = f"'{target_ts}'" if isinstance(target_ts, str) else target_ts
-        slice_expr = f.expr(f"{self.ts_col} {op} {target_expr}")
+        slice_expr = sql_fn.expr(f"{self.ts_col} {op} {target_expr}")
         sliced_df = self.df.where(slice_expr)
         return TSDF(
             sliced_df,
@@ -481,8 +474,8 @@ class TSDF:
         """
         row_num_col = "__row_num"
         prev_records_df = (
-            self.df.withColumn(row_num_col, f.row_number().over(win))
-            .where(f.col(row_num_col) <= f.lit(n))
+            self.df.withColumn(row_num_col, sql_fn.row_number().over(win))
+            .where(sql_fn.col(row_num_col) <= sql_fn.lit(n))
             .drop(row_num_col)
         )
         return TSDF(
@@ -596,29 +589,29 @@ class TSDF:
         # extract the double version of the timestamp column to summarize
         double_ts_col = self.ts_col + "_dbl"
 
-        this_df = self.df.withColumn(double_ts_col, f.col(self.ts_col).cast("double"))
+        this_df = self.df.withColumn(double_ts_col, sql_fn.col(self.ts_col).cast("double"))
 
         # summary missing value percentages
         missing_vals = this_df.select(
             [
                 (
                     100
-                    * f.count(f.when(f.col(c[0]).isNull(), c[0]))
-                    / f.count(f.lit(1))
+                    * sql_fn.count(sql_fn.when(sql_fn.col(c[0]).isNull(), c[0]))
+                    / sql_fn.count(sql_fn.lit(1))
                 ).alias(c[0])
                 for c in this_df.dtypes
                 if c[1] != "timestamp"
             ]
-        ).select(f.lit("missing_vals_pct").alias("summary"), "*")
+        ).select(sql_fn.lit("missing_vals_pct").alias("summary"), "*")
 
         # describe stats
         desc_stats = this_df.describe().union(missing_vals)
         unique_ts = this_df.select(*self.partitionCols).distinct().count()
 
-        max_ts = this_df.select(f.max(f.col(self.ts_col)).alias("max_ts")).collect()[0][
+        max_ts = this_df.select(sql_fn.max(sql_fn.col(self.ts_col)).alias("max_ts")).collect()[0][
             0
         ]
-        min_ts = this_df.select(f.min(f.col(self.ts_col)).alias("max_ts")).collect()[0][
+        min_ts = this_df.select(sql_fn.min(sql_fn.col(self.ts_col)).alias("max_ts")).collect()[0][
             0
         ]
         gran = this_df.selectExpr(
@@ -634,22 +627,22 @@ class TSDF:
         non_summary_cols = [c for c in desc_stats.columns if c != "summary"]
 
         desc_stats = desc_stats.select(
-            f.col("summary"),
-            f.lit(" ").alias("unique_ts_count"),
-            f.lit(" ").alias("min_ts"),
-            f.lit(" ").alias("max_ts"),
-            f.lit(" ").alias("granularity"),
+            sql_fn.col("summary"),
+            sql_fn.lit(" ").alias("unique_ts_count"),
+            sql_fn.lit(" ").alias("min_ts"),
+            sql_fn.lit(" ").alias("max_ts"),
+            sql_fn.lit(" ").alias("granularity"),
             *non_summary_cols,
         )
 
         # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
         global_smry_rec = desc_stats.limit(1).select(
-            f.lit("global").alias("summary"),
-            f.lit(unique_ts).alias("unique_ts_count"),
-            f.lit(min_ts).alias("min_ts"),
-            f.lit(max_ts).alias("max_ts"),
-            f.lit(gran).alias("granularity"),
-            *[f.lit(" ").alias(c) for c in non_summary_cols],
+            sql_fn.lit("global").alias("summary"),
+            sql_fn.lit(unique_ts).alias("unique_ts_count"),
+            sql_fn.lit(min_ts).alias("min_ts"),
+            sql_fn.lit(max_ts).alias("max_ts"),
+            sql_fn.lit(gran).alias("granularity"),
+            *[sql_fn.lit(" ").alias(c) for c in non_summary_cols],
         )
 
         full_smry = global_smry_rec.union(desc_stats)
@@ -750,63 +743,63 @@ class TSDF:
         left_df = self.df
         right_df = right_tsdf.df
 
-        # test if the broadcast join will be efficient
-        if sql_join_opt:
-            spark = SparkSession.builder.getOrCreate()
-            left_bytes = self.__getBytesFromPlan(left_df, spark)
-            right_bytes = self.__getBytesFromPlan(right_df, spark)
+        spark = SparkSession.builder.getOrCreate()
+        left_bytes = self.__getBytesFromPlan(left_df, spark)
+        right_bytes = self.__getBytesFromPlan(right_df, spark)
 
-            # choose 30MB as the cutoff for the broadcast
-            bytes_threshold = 30 * 1024 * 1024
-            if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-                spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
-                partition_cols = right_tsdf.partitionCols
-                left_cols = list(set(left_df.columns) - set(self.partitionCols))
-                right_cols = list(set(right_df.columns) - set(right_tsdf.partitionCols))
+        # choose 30MB as the cutoff for the broadcast
+        bytes_threshold = 30 * 1024 * 1024
+        if sql_join_opt & (
+            (left_bytes < bytes_threshold) | (right_bytes < bytes_threshold)
+        ):
+            spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
+            partition_cols = right_tsdf.partitionCols
+            left_cols = list(set(left_df.columns).difference(set(self.partitionCols)))
+            right_cols = list(
+                set(right_df.columns).difference(set(right_tsdf.partitionCols))
+            )
 
-                left_prefix = (
-                    ""
-                    if ((left_prefix is None) | (left_prefix == ""))
-                    else left_prefix + "_"
-                )
-                right_prefix = (
-                    ""
-                    if ((right_prefix is None) | (right_prefix == ""))
-                    else right_prefix + "_"
-                )
+            left_prefix = (
+                ""
+                if not left_prefix  # use truthiness of None and ""
+                else left_prefix + "_"
+            )
+            right_prefix = (
+                ""
+                if not right_prefix  # use truthiness of None and ""
+                else right_prefix + "_"
+            )
 
-                w = Window.partitionBy(*partition_cols).orderBy(
-                    right_prefix + right_tsdf.ts_col
-                )
+            w = Window.partitionBy(*partition_cols).orderBy(
+                right_prefix + right_tsdf.ts_col
+            )
 
-                new_left_ts_col = left_prefix + self.ts_col
-                new_left_cols = [
-                    f.col(c).alias(left_prefix + c) for c in left_cols
-                ] + partition_cols
-                new_right_cols = [
-                    f.col(c).alias(right_prefix + c) for c in right_cols
-                ] + partition_cols
-                quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
-                    "lead_" + right_tsdf.ts_col,
-                    f.lead(right_prefix + right_tsdf.ts_col).over(w),
-                )
-                left_df = left_df.select(*new_left_cols)
-                res = (
-                    left_df.join(quotes_df_w_lag, partition_cols)
-                    .where(
-                        left_df[new_left_ts_col].between(
-                            f.col(right_prefix + right_tsdf.ts_col),
-                            f.coalesce(
-                                f.col("lead_" + right_tsdf.ts_col),
-                                f.lit("2099-01-01").cast("timestamp"),
-                            ),
-                        )
+            new_left_ts_col = left_prefix + self.ts_col
+            new_left_cols = [
+                sql_fn.col(c).alias(left_prefix + c) for c in left_cols
+            ] + partition_cols
+            new_right_cols = [
+                sql_fn.col(c).alias(right_prefix + c) for c in right_cols
+            ] + partition_cols
+            quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
+                "lead_" + right_tsdf.ts_col,
+                sql_fn.lead(right_prefix + right_tsdf.ts_col).over(w),
+            )
+            left_df = left_df.select(*new_left_cols)
+            res = (
+                left_df.join(quotes_df_w_lag, partition_cols)
+                .where(
+                    left_df[new_left_ts_col].between(
+                        sql_fn.col(right_prefix + right_tsdf.ts_col),
+                        sql_fn.coalesce(
+                            sql_fn.col("lead_" + right_tsdf.ts_col),
+                            sql_fn.lit("2099-01-01").cast("timestamp"),
+                        ),
                     )
-                    .drop("lead_" + right_tsdf.ts_col)
                 )
-                return TSDF(
-                    res, partition_cols=self.partitionCols, ts_col=new_left_ts_col
-                )
+                .drop("lead_" + right_tsdf.ts_col)
+            )
+            return TSDF(res, partition_cols=self.partitionCols, ts_col=new_left_ts_col)
 
         # end of block checking to see if standard Spark SQL join will work
 
@@ -860,7 +853,7 @@ class TSDF:
             right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
         )
         combined_df.df = combined_df.df.withColumn(
-            "rec_ind", f.when(f.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1)
+            "rec_ind", sql_fn.when(sql_fn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1)
         )
 
         # perform asof join.
@@ -887,7 +880,7 @@ class TSDF:
             )
 
             # Get rid of overlapped data and the extra columns generated from timePartitions
-            df = asofDF.df.filter(f.col("is_original") == 1).drop(
+            df = asofDF.df.filter(sql_fn.col("is_original") == 1).drop(
                 "ts_partition", "is_original"
             )
 
@@ -907,7 +900,7 @@ class TSDF:
                 if right_col != right_ts_col:
                     df = df.withColumn(
                         right_col,
-                        f.when(tolerance_condition, f.lit(None)).otherwise(
+                        sql_fn.when(tolerance_condition, sql_fn.lit(None)).otherwise(
                             df[right_col]
                         ),
                     )
@@ -915,7 +908,7 @@ class TSDF:
             # Finally, set right timestamp column to null for rows outside of tolerance band
             df = df.withColumn(
                 right_ts_col,
-                f.when(tolerance_condition, f.lit(None)).otherwise(df[right_ts_col]),
+                sql_fn.when(tolerance_condition, sql_fn.lit(None)).otherwise(df[right_ts_col]),
             )
             asofDF.df = df
 
@@ -933,15 +926,15 @@ class TSDF:
         )
 
         # are we ordering forwards (default) or reveresed?
-        col_fn = f.col
+        col_fn = sql_fn.col
         if reverse:
-            col_fn = lambda colname: f.col(colname).desc()  # noqa E731
+            col_fn = lambda colname: sql_fn.col(colname).desc()  # noqa E731
 
         # our window will be sorted on our sort_cols in the appropriate direction
         w = Window().orderBy([col_fn(col) for col in sort_cols])
         # and partitioned by any series IDs
         if self.partitionCols:
-            w = w.partitionBy([f.col(elem) for elem in self.partitionCols])
+            w = w.partitionBy([sql_fn.col(elem) for elem in self.partitionCols])
         return w
 
     def __rangeBetweenWindow(
@@ -983,33 +976,33 @@ class TSDF:
         if frequency == "m":
             pre_vwap = self.df.withColumn(
                 "time_group",
-                f.concat(
-                    f.lpad(f.hour(f.col(self.ts_col)), 2, "0"),
-                    f.lit(":"),
-                    f.lpad(f.minute(f.col(self.ts_col)), 2, "0"),
+                sql_fn.concat(
+                    sql_fn.lpad(sql_fn.hour(sql_fn.col(self.ts_col)), 2, "0"),
+                    sql_fn.lit(":"),
+                    sql_fn.lpad(sql_fn.minute(sql_fn.col(self.ts_col)), 2, "0"),
                 ),
             )
         elif frequency == "H":
             pre_vwap = self.df.withColumn(
-                "time_group", f.concat(f.lpad(f.hour(f.col(self.ts_col)), 2, "0"))
+                "time_group", sql_fn.concat(sql_fn.lpad(sql_fn.hour(sql_fn.col(self.ts_col)), 2, "0"))
             )
         elif frequency == "D":
             pre_vwap = self.df.withColumn(
-                "time_group", f.concat(f.lpad(f.day(f.col(self.ts_col)), 2, "0"))
+                "time_group", sql_fn.concat(sql_fn.lpad(sql_fn.day(sql_fn.col(self.ts_col)), 2, "0"))
             )
 
         group_cols = ["time_group"]
         if self.partitionCols:
             group_cols.extend(self.partitionCols)
         vwapped = (
-            pre_vwap.withColumn("dllr_value", f.col(price_col) * f.col(volume_col))
+            pre_vwap.withColumn("dllr_value", sql_fn.col(price_col) * sql_fn.col(volume_col))
             .groupby(group_cols)
             .agg(
-                f.sum("dllr_value").alias("dllr_value"),
-                f.sum(volume_col).alias(volume_col),
-                f.max(price_col).alias("_".join(["max", price_col])),
+                sql_fn.sum("dllr_value").alias("dllr_value"),
+                sql_fn.sum(volume_col).alias(volume_col),
+                sql_fn.max(price_col).alias("_".join(["max", price_col])),
             )
-            .withColumn("vwap", f.col("dllr_value") / f.col(volume_col))
+            .withColumn("vwap", sql_fn.col("dllr_value") / sql_fn.col(volume_col))
         )
 
         return TSDF(vwapped, self.ts_col, self.partitionCols)
@@ -1023,18 +1016,18 @@ class TSDF:
         """
 
         emaColName = "_".join(["EMA", colName])
-        df = self.df.withColumn(emaColName, f.lit(0)).orderBy(self.ts_col)
+        df = self.df.withColumn(emaColName, sql_fn.lit(0)).orderBy(self.ts_col)
         w = self.__baseWindow()
         # Generate all the lag columns:
         for i in range(window):
             lagColName = "_".join(["lag", colName, str(i)])
             weight = exp_factor * (1 - exp_factor) ** i
-            df = df.withColumn(lagColName, weight * f.lag(f.col(colName), i).over(w))
+            df = df.withColumn(lagColName, weight * sql_fn.lag(sql_fn.col(colName), i).over(w))
             df = df.withColumn(
                 emaColName,
-                f.col(emaColName)
-                + f.when(f.col(lagColName).isNull(), f.lit(0)).otherwise(
-                    f.col(lagColName)
+                sql_fn.col(emaColName)
+                + sql_fn.when(sql_fn.col(lagColName).isNull(), sql_fn.lit(0)).otherwise(
+                    sql_fn.col(lagColName)
                 ),
             ).drop(lagColName)
             # Nulls are currently removed
@@ -1065,17 +1058,17 @@ class TSDF:
         """
         # first, join all featureCols into a single array column
         tempArrayColName = "__TempArrayCol"
-        feat_array_tsdf = self.df.withColumn(tempArrayColName, f.array(featureCols))
+        feat_array_tsdf = self.df.withColumn(tempArrayColName, sql_fn.array(featureCols))
 
         # construct a lookback array
         lookback_win = self.__rowsBetweenWindow(-lookbackWindowSize, -1)
         lookback_tsdf = feat_array_tsdf.withColumn(
-            featureColName, f.collect_list(f.col(tempArrayColName)).over(lookback_win)
+            featureColName, sql_fn.collect_list(sql_fn.col(tempArrayColName)).over(lookback_win)
         ).drop(tempArrayColName)
 
         # make sure only windows of exact size are allowed
         if exactSize:
-            return lookback_tsdf.where(f.size(featureColName) == lookbackWindowSize)
+            return lookback_tsdf.where(sql_fn.size(featureColName) == lookbackWindowSize)
 
         return TSDF(lookback_tsdf, self.ts_col, self.partitionCols)
 
@@ -1134,16 +1127,16 @@ class TSDF:
         selectedCols = self.df.columns
         derivedCols = []
         for metric in colsToSummarize:
-            selectedCols.append(f.mean(metric).over(w).alias("mean_" + metric))
-            selectedCols.append(f.count(metric).over(w).alias("count_" + metric))
-            selectedCols.append(f.min(metric).over(w).alias("min_" + metric))
-            selectedCols.append(f.max(metric).over(w).alias("max_" + metric))
-            selectedCols.append(f.sum(metric).over(w).alias("sum_" + metric))
-            selectedCols.append(f.stddev(metric).over(w).alias("stddev_" + metric))
+            selectedCols.append(sql_fn.mean(metric).over(w).alias("mean_" + metric))
+            selectedCols.append(sql_fn.count(metric).over(w).alias("count_" + metric))
+            selectedCols.append(sql_fn.min(metric).over(w).alias("min_" + metric))
+            selectedCols.append(sql_fn.max(metric).over(w).alias("max_" + metric))
+            selectedCols.append(sql_fn.sum(metric).over(w).alias("sum_" + metric))
+            selectedCols.append(sql_fn.stddev(metric).over(w).alias("stddev_" + metric))
             derivedCols.append(
                 (
-                    (f.col(metric) - f.col("mean_" + metric))
-                    / f.col("stddev_" + metric)
+                    (sql_fn.col(metric) - sql_fn.col("mean_" + metric))
+                    / sql_fn.col("stddev_" + metric)
                 ).alias("zscore_" + metric)
             )
         selected_df = self.df.select(*selectedCols)
@@ -1189,8 +1182,8 @@ class TSDF:
         # build window
         parsed_freq = t_resample.checkAllowableFreq(freq)
         period, unit = parsed_freq[0], parsed_freq[1]
-        agg_window = f.window(
-            f.col(self.ts_col),
+        agg_window = sql_fn.window(
+            sql_fn.col(self.ts_col),
             "{} {}".format(
                 period, t_resample.freq_dict[unit]  # type: ignore[literal-required]
             ),
@@ -1201,12 +1194,12 @@ class TSDF:
         for metric in metricCols:
             selectedCols.extend(
                 [
-                    f.mean(f.col(metric)).alias("mean_" + metric),
-                    f.count(f.col(metric)).alias("count_" + metric),
-                    f.min(f.col(metric)).alias("min_" + metric),
-                    f.max(f.col(metric)).alias("max_" + metric),
-                    f.sum(f.col(metric)).alias("sum_" + metric),
-                    f.stddev(f.col(metric)).alias("stddev_" + metric),
+                    sql_fn.mean(sql_fn.col(metric)).alias("mean_" + metric),
+                    sql_fn.count(sql_fn.col(metric)).alias("count_" + metric),
+                    sql_fn.min(sql_fn.col(metric)).alias("min_" + metric),
+                    sql_fn.max(sql_fn.col(metric)).alias("max_" + metric),
+                    sql_fn.sum(sql_fn.col(metric)).alias("sum_" + metric),
+                    sql_fn.stddev(sql_fn.col(metric)).alias("stddev_" + metric),
                 ]
             )
 
@@ -1215,7 +1208,7 @@ class TSDF:
         )
         summary_df = (
             selected_df.select(*selected_df.columns)
-            .withColumn(self.ts_col, f.col("window").start)
+            .withColumn(self.ts_col, sql_fn.col("window").start)
             .drop("window")
         )
 
@@ -1227,7 +1220,7 @@ class TSDF:
         tabName: str,
         optimizationCols: Optional[List[str]] = None,
     ) -> None:
-        tio.write(self, spark, tabName, optimizationCols)
+        t_io.write(self, spark, tabName, optimizationCols)
 
     def resample(
         self,
@@ -1400,16 +1393,16 @@ class TSDF:
         data = self.df
         if self.sequence_col:
             if self.partitionCols == []:
-                data = data.withColumn("dummy_group", f.lit("dummy_val"))
+                data = data.withColumn("dummy_group", sql_fn.lit("dummy_val"))
                 data = (
                     data.select(
-                        f.col("dummy_group"),
+                        sql_fn.col("dummy_group"),
                         self.ts_col,
                         self.sequence_col,
-                        f.col(valueCol),
+                        sql_fn.col(valueCol),
                     )
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
+                    .withColumn("tdval", sql_fn.col(valueCol))
+                    .withColumn("tpoints", sql_fn.col(self.ts_col))
                 )
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
@@ -1423,10 +1416,10 @@ class TSDF:
                 group_cols = self.partitionCols
                 data = (
                     data.select(
-                        *group_cols, self.ts_col, self.sequence_col, f.col(valueCol)
+                        *group_cols, self.ts_col, self.sequence_col, sql_fn.col(valueCol)
                     )
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
+                    .withColumn("tdval", sql_fn.col(valueCol))
+                    .withColumn("tpoints", sql_fn.col(self.ts_col))
                 )
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
@@ -1438,11 +1431,11 @@ class TSDF:
                 result = result.drop("tdval", "tpoints")
         else:
             if self.partitionCols == []:
-                data = data.withColumn("dummy_group", f.lit("dummy_val"))
+                data = data.withColumn("dummy_group", sql_fn.lit("dummy_val"))
                 data = (
-                    data.select(f.col("dummy_group"), self.ts_col, f.col(valueCol))
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
+                    data.select(sql_fn.col("dummy_group"), self.ts_col, sql_fn.col(valueCol))
+                    .withColumn("tdval", sql_fn.col(valueCol))
+                    .withColumn("tpoints", sql_fn.col(self.ts_col))
                 )
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
@@ -1455,9 +1448,9 @@ class TSDF:
             else:
                 group_cols = self.partitionCols
                 data = (
-                    data.select(*group_cols, self.ts_col, f.col(valueCol))
-                    .withColumn("tdval", f.col(valueCol))
-                    .withColumn("tpoints", f.col(self.ts_col))
+                    data.select(*group_cols, self.ts_col, sql_fn.col(valueCol))
+                    .withColumn("tdval", sql_fn.col(valueCol))
+                    .withColumn("tpoints", sql_fn.col(self.ts_col))
                 )
                 return_schema = ",".join(
                     [f"{i[0]} {i[1]}" for i in data.dtypes]
@@ -1496,7 +1489,7 @@ class TSDF:
         # https://spark.apache.org/docs/latest/sql-ref-null-semantics.html#comparison-operators-
         def null_safe_equals(col1: Column, col2: Column) -> Column:
             return (
-                f.when(col1.isNull() & col2.isNull(), True)
+                sql_fn.when(col1.isNull() & col2.isNull(), True)
                 .when(col1.isNull() | col2.isNull(), False)
                 .otherwise(operator.eq(col1, col2))
             )
@@ -1548,7 +1541,7 @@ class TSDF:
         # Get previous timestamp to identify start time of the interval
         data = data.withColumn(
             "previous_ts",
-            f.lag(f.col(self.ts_col), offset=1).over(w),
+            sql_fn.lag(sql_fn.col(self.ts_col), offset=1).over(w),
         )
 
         # Determine state intervals using user-provided the state comparison function
@@ -1558,31 +1551,31 @@ class TSDF:
             temp_metric_compare_col = f"__{mc}_compare"
             data = data.withColumn(
                 temp_metric_compare_col,
-                state_comparison_fn(f.col(mc), f.lag(f.col(mc), 1).over(w)),
+                state_comparison_fn(sql_fn.col(mc), sql_fn.lag(sql_fn.col(mc), 1).over(w)),
             )
             temp_metric_compare_cols.append(temp_metric_compare_col)
 
         # Remove first record which will have no state change
         # and produces `null` for all state comparisons
-        data = data.filter(f.col("previous_ts").isNotNull())
+        data = data.filter(sql_fn.col("previous_ts").isNotNull())
 
         # Each state comparison should return True if state remained constant
         data = data.withColumn(
-            "state_change", f.array_contains(f.array(*temp_metric_compare_cols), False)
+            "state_change", sql_fn.array_contains(sql_fn.array(*temp_metric_compare_cols), False)
         )
 
         # Count the distinct state changes to get the unique intervals
         data = data.withColumn(
             "state_incrementer",
-            f.sum(f.col("state_change").cast("int")).over(w),
-        ).filter(~f.col("state_change"))
+            sql_fn.sum(sql_fn.col("state_change").cast("int")).over(w),
+        ).filter(~sql_fn.col("state_change"))
 
         # Find the start and end timestamp of the interval
         result = (
             data.groupBy(*self.partitionCols, "state_incrementer")
             .agg(
-                f.min("previous_ts").alias("start_ts"),
-                f.max(self.ts_col).alias("end_ts"),
+                sql_fn.min("previous_ts").alias("start_ts"),
+                sql_fn.max(self.ts_col).alias("end_ts"),
             )
             .drop("state_incrementer")
         )

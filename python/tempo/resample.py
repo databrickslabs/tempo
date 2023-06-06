@@ -1,19 +1,11 @@
 from __future__ import annotations
 
-from typing import (
-    Union,
-    Optional,
-    Tuple,
-    Any,
-    TypedDict,
-    List,
-    Callable,
-    get_type_hints,
-)
+from typing import (Any, Callable, List, Optional, Tuple, TypedDict, Union,
+                    get_type_hints)
 
-import pyspark.sql.functions as f
-from pyspark.sql.window import Window
+import pyspark.sql.functions as sql_fn
 from pyspark.sql import DataFrame
+from pyspark.sql.window import Window
 
 import tempo.tsdf as t_tsdf
 
@@ -98,8 +90,8 @@ def _appendAggKey(
     parsed_freq = checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
 
-    agg_window = f.window(
-        f.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+    agg_window = sql_fn.window(
+        sql_fn.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
     )
 
     df = df.withColumn("agg_key", agg_window)
@@ -142,16 +134,16 @@ def aggregate(
     else:
         prefix = prefix + "_"
 
-    groupingCols = [f.col(column) for column in groupingCols]
+    groupingCols = [sql_fn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        metricCol = sql_fn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(f.min("struct_cols").alias("closest_data")).select(
-            *groupingCols, f.col("closest_data.*")
+        res = res.agg(sql_fn.min("struct_cols").alias("closest_data")).select(
+            *groupingCols, sql_fn.col("closest_data.*")
         )
-        new_cols = [f.col(tsdf.ts_col)] + [
-            f.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [sql_fn.col(tsdf.ts_col)] + [
+            sql_fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == average:
@@ -163,7 +155,7 @@ def aggregate(
             )
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
+            sql_fn.col(c).alias("{}".format(prefix) + (c.split("avg(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -176,7 +168,7 @@ def aggregate(
             )
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
+            sql_fn.col(c).alias("{}".format(prefix) + (c.split("min(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
@@ -189,18 +181,18 @@ def aggregate(
             )
         )
         new_cols = [
-            f.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
+            sql_fn.col(c).alias("{}".format(prefix) + (c.split("max(")[1]).replace(")", ""))
             for c in agg_metric_cls
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == ceiling:
-        metricCol = f.struct([tsdf.ts_col] + metricCols)
+        metricCol = sql_fn.struct([tsdf.ts_col] + metricCols)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
-        res = res.agg(f.max("struct_cols").alias("ceil_data")).select(
-            *groupingCols, f.col("ceil_data.*")
+        res = res.agg(sql_fn.max("struct_cols").alias("ceil_data")).select(
+            *groupingCols, sql_fn.col("ceil_data.*")
         )
-        new_cols = [f.col(tsdf.ts_col)] + [
-            f.col(c).alias("{}".format(prefix) + c) for c in metricCols
+        new_cols = [sql_fn.col(tsdf.ts_col)] + [
+            sql_fn.col(c).alias("{}".format(prefix) + c) for c in metricCols
         ]
         res = res.select(*groupingCols, *new_cols)
 
@@ -208,7 +200,7 @@ def aggregate(
     res = (
         res.drop(tsdf.ts_col)
         .withColumnRenamed("agg_key", tsdf.ts_col)
-        .withColumn(tsdf.ts_col, f.col(tsdf.ts_col).start)
+        .withColumn(tsdf.ts_col, sql_fn.col(tsdf.ts_col).start)
     )
 
     # sort columns so they are consistent
@@ -221,14 +213,14 @@ def aggregate(
     imputes = (
         res.select(
             *tsdf.partitionCols,
-            f.min(tsdf.ts_col).over(fillW).alias("from"),
-            f.max(tsdf.ts_col).over(fillW).alias("until"),
+            sql_fn.min(tsdf.ts_col).over(fillW).alias("from"),
+            sql_fn.max(tsdf.ts_col).over(fillW).alias("until"),
         )
         .distinct()
         .withColumn(
             tsdf.ts_col,
-            f.explode(
-                f.expr("sequence(from, until, interval {} {})".format(period, unit))
+            sql_fn.explode(
+                sql_fn.expr("sequence(from, until, interval {} {})".format(period, unit))
             ),
         )
         .drop("from", "until")
