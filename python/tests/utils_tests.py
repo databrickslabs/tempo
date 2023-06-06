@@ -1,11 +1,10 @@
-from io import StringIO
 import sys
 import unittest
+from io import StringIO
+from unittest import mock
 
 from tempo.utils import *  # noqa: F403
-
 from tests.tsdf_tests import SparkTest
-from unittest import mock
 
 
 class UtilsTest(SparkTest):

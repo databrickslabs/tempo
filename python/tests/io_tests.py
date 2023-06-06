@@ -2,6 +2,7 @@ import logging
 import os
 import unittest
 from unittest import mock
+
 from tests.base import SparkTest
 
 

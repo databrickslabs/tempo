@@ -4,7 +4,6 @@ from pyspark.sql.dataframe import DataFrame
 
 from tempo.interpol import Interpolation
 from tempo.tsdf import TSDF
-
 from tests.tsdf_tests import SparkTest
 
 

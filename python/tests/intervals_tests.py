@@ -1,9 +1,9 @@
+import pyspark.sql.functions as sql_fn
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.utils import AnalysisException
 
 from tempo.intervals import IntervalsDF
 from tests.tsdf_tests import SparkTest
-from pyspark.sql.utils import AnalysisException
-import pyspark.sql.functions as f
 
 
 class IntervalsDFTests(SparkTest):
@@ -143,8 +143,8 @@ class IntervalsDFTests(SparkTest):
         idf_expected = self.get_data_as_idf("expected")
 
         df_input = df_input.withColumn(
-            "start_ts", f.to_timestamp("start_ts")
-        ).withColumn("end_ts", f.to_timestamp("end_ts"))
+            "start_ts", sql_fn.to_timestamp("start_ts")
+        ).withColumn("end_ts", sql_fn.to_timestamp("end_ts"))
 
         idf = IntervalsDF.fromStackedMetrics(
             df_input,
@@ -164,8 +164,8 @@ class IntervalsDFTests(SparkTest):
         idf_expected = self.get_data_as_idf("expected")
 
         df_input = df_input.withColumn(
-            "start_ts", f.to_timestamp("start_ts")
-        ).withColumn("end_ts", f.to_timestamp("end_ts"))
+            "start_ts", sql_fn.to_timestamp("start_ts")
+        ).withColumn("end_ts", sql_fn.to_timestamp("end_ts"))
 
         idf = IntervalsDF.fromStackedMetrics(
             df_input,
@@ -338,8 +338,8 @@ class IntervalsDFTests(SparkTest):
         expected_df = self.get_data_as_sdf("expected")
 
         expected_df = expected_df.withColumn(
-            "start_ts", f.to_timestamp("start_ts")
-        ).withColumn("end_ts", f.to_timestamp("end_ts"))
+            "start_ts", sql_fn.to_timestamp("start_ts")
+        ).withColumn("end_ts", sql_fn.to_timestamp("end_ts"))
 
         actual_df = idf_input.toDF(stack=True)
 
