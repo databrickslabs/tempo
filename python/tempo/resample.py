@@ -234,9 +234,7 @@ def aggregate(
         .withColumn(
             tsdf.ts_col,
             sfn.explode(
-                sfn.expr(
-                    "sequence(from, until, interval {} {})".format(period, unit)
-                )
+                sfn.expr("sequence(from, until, interval {} {})".format(period, unit))
             ),
         )
         .drop("from", "until")

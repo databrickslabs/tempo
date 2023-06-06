@@ -177,8 +177,7 @@ class Interpolation:
                 ).otherwise(
                     # Handle standard backwards fill
                     sfn.when(
-                        sfn.col(f"is_interpolated_{target_col}")
-                        == True,  # noqa: E712
+                        sfn.col(f"is_interpolated_{target_col}") == True,  # noqa: E712
                         sfn.col(f"next_{target_col}"),
                     ).otherwise(sfn.col(f"{target_col}"))
                 ),
@@ -359,9 +358,7 @@ class Interpolation:
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"{ts_col}_{column}",
-                sfn.when(sfn.col(column).isNull(), None).otherwise(
-                    sfn.col(ts_col)
-                ),
+                sfn.when(sfn.col(column).isNull(), None).otherwise(sfn.col(ts_col)),
             )
             add_column_time = self.__generate_column_time_fill(
                 add_column_time, partition_cols, ts_col, column
@@ -396,9 +393,9 @@ class Interpolation:
         flagged_series = (
             exploded_series.withColumn(
                 "is_ts_interpolated",
-                sfn.when(
-                    sfn.col(f"new_{ts_col}") != sfn.col(ts_col), True
-                ).otherwise(False),
+                sfn.when(sfn.col(f"new_{ts_col}") != sfn.col(ts_col), True).otherwise(
+                    False
+                ),
             )
             .withColumn(ts_col, sfn.col(f"new_{ts_col}"))
             .drop(sfn.col(f"new_{ts_col}"))

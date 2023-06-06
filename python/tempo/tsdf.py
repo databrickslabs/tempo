@@ -93,9 +93,7 @@ class TSDF:
                     ).otherwise(0)
                 ).cast("double"),
             )
-            .withColumn(
-                "long_ts", sfn.col(self.ts_col).cast("timestamp").cast("long")
-            )
+            .withColumn("long_ts", sfn.col(self.ts_col).cast("timestamp").cast("long"))
             .withColumn("double_ts", sfn.col("long_ts") + sfn.col("nanos"))
             .drop("nanos")
             .drop("long_ts")
@@ -323,9 +321,7 @@ class TSDF:
             .withColumn(
                 "ts_partition",
                 sfn.lit(tsPartitionVal)
-                * (sfn.col("ts_col_double") / sfn.lit(tsPartitionVal)).cast(
-                    "integer"
-                ),
+                * (sfn.col("ts_col_double") / sfn.lit(tsPartitionVal)).cast("integer"),
             )
             .withColumn(
                 "partition_remainder",
@@ -337,9 +333,7 @@ class TSDF:
 
         # add [1 - fraction] of previous time partition to the next partition.
         remainder_df = (
-            partition_df.filter(
-                sfn.col("partition_remainder") >= sfn.lit(1 - fraction)
-            )
+            partition_df.filter(sfn.col("partition_remainder") >= sfn.lit(1 - fraction))
             .withColumn(
                 "ts_partition", sfn.col("ts_partition") + sfn.lit(tsPartitionVal)
             )
@@ -602,9 +596,7 @@ class TSDF:
         # extract the double version of the timestamp column to summarize
         double_ts_col = self.ts_col + "_dbl"
 
-        this_df = self.df.withColumn(
-            double_ts_col, sfn.col(self.ts_col).cast("double")
-        )
+        this_df = self.df.withColumn(double_ts_col, sfn.col(self.ts_col).cast("double"))
 
         # summary missing value percentages
         missing_vals = this_df.select(
@@ -1003,9 +995,7 @@ class TSDF:
         elif frequency == "H":
             pre_vwap = self.df.withColumn(
                 "time_group",
-                sfn.concat(
-                    sfn.lpad(sfn.hour(sfn.col(self.ts_col)), 2, "0")
-                ),
+                sfn.concat(sfn.lpad(sfn.hour(sfn.col(self.ts_col)), 2, "0")),
             )
         elif frequency == "D":
             pre_vwap = self.df.withColumn(
@@ -1017,9 +1007,7 @@ class TSDF:
         if self.partitionCols:
             group_cols.extend(self.partitionCols)
         vwapped = (
-            pre_vwap.withColumn(
-                "dllr_value", sfn.col(price_col) * sfn.col(volume_col)
-            )
+            pre_vwap.withColumn("dllr_value", sfn.col(price_col) * sfn.col(volume_col))
             .groupby(group_cols)
             .agg(
                 sfn.sum("dllr_value").alias("dllr_value"),
@@ -1084,9 +1072,7 @@ class TSDF:
         """
         # first, join all featureCols into a single array column
         tempArrayColName = "__TempArrayCol"
-        feat_array_tsdf = self.df.withColumn(
-            tempArrayColName, sfn.array(featureCols)
-        )
+        feat_array_tsdf = self.df.withColumn(tempArrayColName, sfn.array(featureCols))
 
         # construct a lookback array
         lookback_win = self.__rowsBetweenWindow(-lookbackWindowSize, -1)
@@ -1097,9 +1083,7 @@ class TSDF:
 
         # make sure only windows of exact size are allowed
         if exactSize:
-            return lookback_tsdf.where(
-                sfn.size(featureColName) == lookbackWindowSize
-            )
+            return lookback_tsdf.where(sfn.size(featureColName) == lookbackWindowSize)
 
         return TSDF(lookback_tsdf, self.ts_col, self.partitionCols)
 
@@ -1467,9 +1451,7 @@ class TSDF:
             if self.partitionCols == []:
                 data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
                 data = (
-                    data.select(
-                        sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol)
-                    )
+                    data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
                     .withColumn("tdval", sfn.col(valueCol))
                     .withColumn("tpoints", sfn.col(self.ts_col))
                 )
@@ -1587,9 +1569,7 @@ class TSDF:
             temp_metric_compare_col = f"__{mc}_compare"
             data = data.withColumn(
                 temp_metric_compare_col,
-                state_comparison_fn(
-                    sfn.col(mc), sfn.lag(sfn.col(mc), 1).over(w)
-                ),
+                state_comparison_fn(sfn.col(mc), sfn.lag(sfn.col(mc), 1).over(w)),
             )
             temp_metric_compare_cols.append(temp_metric_compare_col)
 
