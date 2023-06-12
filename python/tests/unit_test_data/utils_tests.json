@@ -3,7 +3,7 @@
     "init_data": {
       "schema": "symbol string, event_ts string, trade_pr float",
       "ts_col": "event_ts",
-      "partition_cols": [
+      "series_ids": [
         "symbol"
       ],
       "data": [
@@ -55,7 +55,7 @@
       "simple_input": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -216,7 +216,7 @@
       "expected": {
         "schema": "symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -247,7 +247,7 @@
       "init": {
         "schema": "symbol string, secondary_symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "sequence_col": "secondary_symbol",
@@ -305,7 +305,7 @@
       "expected": {
         "schema": "symbol string, secondary_symbol string, event_ts string, trade_pr float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "sequence_col": "secondary_symbol",

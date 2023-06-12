@@ -3,7 +3,7 @@
     "input_data": {
       "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
       "ts_col": "event_ts",
-      "partition_cols": [
+      "series_ids": [
         "symbol"
       ],
       "data": [

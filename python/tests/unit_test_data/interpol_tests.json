@@ -3,7 +3,7 @@
     "input_data": {
       "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
       "ts_col": "event_ts",
-      "partition_cols": [
+      "series_ids": [
         "partition_a",
         "partition_b"
       ],
@@ -69,7 +69,7 @@
     "simple_input_data": {
       "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
       "ts_col": "event_ts",
-      "partition_cols": [
+      "series_ids": [
         "partition_a",
         "partition_b"
       ],
@@ -136,7 +136,7 @@
       "input_data": {
         "schema": "partition_a string, partition_b string, event_ts string, string_target string, float_target float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -227,7 +227,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -370,7 +370,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -505,7 +505,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -640,7 +640,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -775,7 +775,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -910,7 +910,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -1045,7 +1045,7 @@
       "expected_data": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -1174,7 +1174,7 @@
       "expected": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -1276,7 +1276,7 @@
       "expected": {
         "schema": "partition_a string, partition_b string, other_ts_col string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
         "ts_col": "other_ts_col",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -1390,7 +1390,7 @@
       "expected": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],
@@ -1504,7 +1504,7 @@
       "expected": {
         "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "partition_a",
           "partition_b"
         ],

@@ -3,7 +3,7 @@
     "input_data": {
       "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
       "ts_col": "event_ts",
-      "partition_cols": [
+      "series_ids": [
         "symbol"
       ],
       "data": [
@@ -82,7 +82,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -110,7 +110,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, trade_pr double, trade_pr_2 double",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -136,7 +136,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -164,7 +164,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, min_date string, min_trade_pr float, min_trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": {
@@ -179,7 +179,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -417,7 +417,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -445,7 +445,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
@@ -473,7 +473,7 @@
       "expected_data": {
         "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
         "ts_col": "event_ts",
-        "partition_cols": [
+        "series_ids": [
           "symbol"
         ],
         "data": [
