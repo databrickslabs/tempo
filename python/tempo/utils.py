@@ -35,28 +35,9 @@ class ResampleWarning(Warning):
     pass
 
 
-def _is_capable_of_html_rendering() -> bool:
-    """
-    This method returns a boolean value signifying whether the environment is a notebook environment
-    capable of rendering HTML or not.
-    """
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == "ZMQInteractiveShell":
-            return True  # Jupyter notebook or qtconsole
-        elif shell == "TerminalInteractiveShell":
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False
-
-
 def calculate_time_horizon(
-    df: DataFrame,
-    ts_col: str,
+    tsdf: t_tsdf.TSDF,
     freq: str,
-    partition_cols: Optional[List[str]],
     local_freq_dict: Optional[t_resample.FreqDict] = None,
 ) -> None:
     # Convert Frequency using resample dictionary
@@ -73,14 +54,18 @@ def calculate_time_horizon(
         raise ValueError(f"Frequency {unit} not supported")
 
     # Get max and min timestamp per partition
-    partitioned_df: DataFrame = df.groupBy(*partition_cols).agg(
-        sfn.max(ts_col).alias("max_ts"),
-        sfn.min(ts_col).alias("min_ts"),
+    if tsdf.series_ids:
+        grouped_df = tsdf.df.groupBy(*tsdf.series_ids)
+    else:
+        grouped_df = tsdf.df.groupBy()
+    ts_range_per_series: DataFrame = grouped_df.agg(
+        sfn.max(tsdf.ts_col).alias("max_ts"),
+        sfn.min(tsdf.ts_col).alias("min_ts"),
     )
 
     # Generate upscale metrics
     normalized_time_df: DataFrame = (
-        partitioned_df.withColumn("min_epoch_ms", sfn.expr("unix_millis(min_ts)"))
+        ts_range_per_series.withColumn("min_epoch_ms", sfn.expr("unix_millis(min_ts)"))
         .withColumn("max_epoch_ms", sfn.expr("unix_millis(max_ts)"))
         .withColumn(
             "interval_ms",
@@ -136,6 +121,23 @@ def calculate_time_horizon(
         """,
         ResampleWarning,
     )
+
+
+def _is_capable_of_html_rendering() -> bool:
+    """
+    This method returns a boolean value signifying whether the environment is a notebook environment
+    capable of rendering HTML or not.
+    """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == "ZMQInteractiveShell":
+            return True  # Jupyter notebook or qtconsole
+        elif shell == "TerminalInteractiveShell":
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False
 
 
 @overload
