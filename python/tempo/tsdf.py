@@ -1346,9 +1346,7 @@ class TSDF:
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
-            t_utils.calculate_time_horizon(
-                self.df, self.ts_col, freq, self.series_ids
-            )
+            t_utils.calculate_time_horizon(self, freq)
 
         enriched_df: DataFrame = t_resample.aggregate(
             self, freq, func, metricCols, prefix, fill
