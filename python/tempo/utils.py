@@ -172,13 +172,8 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf: t_tsdf.TSDF, k: int) -> DataFrame:
-    # let's show the n most recent records per series, in order:
-    orderCols = tsdf.partitionCols.copy()
-    orderCols.append(tsdf.ts_col)
-    if tsdf.sequence_col:
-        orderCols.append(tsdf.sequence_col)
-    return tsdf.latest(k).df.orderBy(orderCols)
+def get_display_df(tsdf, k):
+    return tsdf.latest(k).withNaturalOrdering().df
 
 
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()

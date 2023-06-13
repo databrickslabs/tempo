@@ -95,9 +95,8 @@ class TSDF:
 
         :return: the transformed :class:`DataFrame`
         """
-        return df.withColumn(struct_col_name, sfn.struct(cols_to_move)).drop(
-            *cols_to_move
-        )
+        return (df.withColumn(struct_col_name, sfn.struct(*cols_to_move))
+                  .drop(*cols_to_move))
 
     # default column name for constructed timeseries index struct columns
     __DEFAULT_TS_IDX_COL = "ts_idx"

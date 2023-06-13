@@ -245,95 +245,40 @@
     },
     "test_get_display_df_sequence_col": {
       "init": {
-        "schema": "symbol string, secondary_symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
+        "schema": "year int, quarter int, symbol string, revenue float",
+        "ts_col": "year",
         "series_ids": [
           "symbol"
         ],
-        "sequence_col": "secondary_symbol",
+        "sequence_col": "quarter",
         "data": [
-          [
-            "S1",
-            "t1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "t1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "t2",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "t3",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "t1",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "t2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "t2",
-            "2020-09-01 00:02:10",
-            761.10
-          ],
-          [
-            "S2",
-            "t2",
-            "2020-09-01 00:20:42",
-            762.33
-          ]
+          [2000,1,"XXX",114.3196],
+          [2000,2,"XXX",127.6025],
+          [2000,3,"XXX",140.3175],
+          [2000,4,"XXX",151.6989],
+          [2001,1,"XXX",164.4064],
+          [2001,2,"XXX",177.2123],
+          [2001,3,"XXX",190.0815],
+          [2001,4,"XXX",202.6134],
+          [2000,1,"YYY",145.3694],
+          [2000,2,"YYY",240.3823],
+          [2000,3,"YYY",333.2715],
+          [2000,4,"YYY",425.2974],
+          [2001,1,"YYY",521.4599],
+          [2001,2,"YYY",616.8575],
+          [2001,3,"YYY",711.7215],
+          [2001,4,"YYY",805.5553]
         ]
       },
       "expected": {
-        "schema": "symbol string, secondary_symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "sequence_col": "secondary_symbol",
+        "schema": "symbol string, revenue float, ts_idx struct<year:int, quarter:int>",
+        "ts_col": "ts_idx",
+        "series_ids": ["symbol"],
         "data": [
-          [
-            "S1",
-            "t2",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "t3",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "t2",
-            "2020-09-01 00:02:10",
-            761.1
-          ],
-          [
-            "S2",
-            "t2",
-            "2020-09-01 00:20:42",
-            762.33
-          ]
+          ["XXX", 190.0815, [2001, 3]],
+          ["XXX", 202.6134, [2001, 4]],
+          ["YYY", 711.7215, [2001, 3]],
+          ["YYY", 805.5553, [2001, 4]]
         ]
       }
     }

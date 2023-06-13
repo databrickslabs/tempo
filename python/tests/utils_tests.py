@@ -28,12 +28,7 @@ class UtilsTest(SparkTest):
         simple_input_tsdf = self.get_data_as_tsdf("simple_input")
 
         with warnings.catch_warnings(record=True) as w:
-            calculate_time_horizon(
-                simple_input_tsdf.df,
-                simple_input_tsdf.ts_col,
-                "30 seconds",
-                ["partition_a", "partition_b"],
-            )
+            calculate_time_horizon(simple_input_tsdf, "30 seconds")
             warning_message = """
             Resample Metrics Warning:
                 Earliest Timestamp: 2020-01-01 00:00:10

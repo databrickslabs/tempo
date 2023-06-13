@@ -94,9 +94,9 @@ class TSIndex(ABC):
     ) -> Union[Column, List[Column]]:
         if not reverse:
             return expr  # just return the expression as-is if we're not reversing
-        elif type(expr) == Column:
+        elif isinstance(expr, Column):
             return expr.desc()  # reverse a single-expression
-        elif type(expr) == List[Column]:
+        elif isinstance(expr, list):
             return [col.desc() for col in expr]  # reverse all columns in the expression
         else:
             raise TypeError(f"Type for expr argument must be either Column or List[Column], instead received: {type(expr)}")
