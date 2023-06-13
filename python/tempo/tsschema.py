@@ -2,8 +2,8 @@ from enum import Enum, auto
 from abc import ABC, abstractmethod
 from typing import cast, Any, Union, Optional, Collection, List
 
-import pyspark.sql.functions as Fn
-from pyspark.sql import Column
+import pyspark.sql.functions as sfn
+from pyspark.sql import Column, WindowSpec, Window
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
 
@@ -164,7 +164,7 @@ class SimpleTSIndex(TSIndex, ABC):
         return self
 
     def orderByExpr(self, reverse: bool = False) -> Column:
-        expr = Fn.col(self.colname)
+        expr = sfn.col(self.colname)
         return self._reverseOrNot(expr, reverse)
 
     @classmethod
@@ -220,7 +220,7 @@ class SimpleTimestampIndex(SimpleTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
-        expr = Fn.col(self.colname).cast("double")
+        expr = sfn.col(self.colname).cast("double")
         return self._reverseOrNot(expr, reverse)
 
 
@@ -242,7 +242,7 @@ class SimpleDateIndex(SimpleTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
-        expr = Fn.datediff(Fn.col(self.colname), Fn.lit("1970-01-01").cast("date"))
+        expr = sfn.datediff(sfn.col(self.colname), sfn.lit("1970-01-01").cast("date"))
         return self._reverseOrNot(expr, reverse)
 
 
@@ -334,7 +334,7 @@ class CompositeTSIndex(TSIndex):
 
     def orderByExpr(self, reverse: bool = False) -> Column:
         # build an expression for each TS component, in order
-        exprs = [Fn.col(self.component(comp.colname)) for comp in self.ts_components]
+        exprs = [sfn.col(self.component(comp.colname)) for comp in self.ts_components]
         return self._reverseOrNot(exprs, reverse)
 
     def rangeExpr(self, reverse: bool = False) -> Column:
@@ -396,7 +396,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
-        expr = Fn.col(self.primary_ts_col).cast("double")
+        expr = sfn.col(self.primary_ts_col).cast("double")
         return self._reverseOrNot(expr, reverse)
 
 
@@ -416,10 +416,57 @@ class ParsedDateIndex(ParsedTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
-        expr = Fn.datediff(
-            Fn.col(self.primary_ts_col), Fn.lit("1970-01-01").cast("date")
+        expr = sfn.datediff(
+            sfn.col(self.primary_ts_col), sfn.lit("1970-01-01").cast("date")
         )
         return self._reverseOrNot(expr, reverse)
+
+
+#
+# Window Builder Interface
+#
+
+class WindowBuilder(ABC):
+    """
+    Abstract base class for window builders.
+    """
+
+    @abstractmethod
+    def baseWindow(self, reverse: bool = False) -> WindowSpec:
+        """
+        build a basic window for sorting the Timeseries
+
+        :param reverse: if True, sort in reverse order
+
+        :return: a WindowSpec object
+        """
+        pass
+
+    @abstractmethod
+    def rowsBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+        """
+        build a row-based window with the given start and end offsets
+
+        :param start: the start offset
+        :param end: the end offset
+        :param reverse: if True, sort in reverse order
+
+        :return: a WindowSpec object
+        """
+        pass
+
+    @abstractmethod
+    def rangeBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+        """
+        build a range-based window with the given start and end offsets
+
+        :param start: the start offset
+        :param end: the end offset
+        :param reverse: if True, sort in reverse order
+
+        :return: a WindowSpec object
+        """
+        pass
 
 
 #
@@ -427,7 +474,7 @@ class ParsedDateIndex(ParsedTSIndex):
 #
 
 
-class TSSchema:
+class TSSchema(WindowBuilder):
     """
     Schema type for a :class:`TSDF` class.
     """
@@ -509,3 +556,24 @@ class TSSchema:
             if self.is_metric_col(col)
             and (col.name in self.find_observational_columns(df_schema))
         ]
+
+    def baseWindow(self, reverse: bool = False) -> WindowSpec:
+        # The index will determine the appropriate sort order
+        w = Window().orderBy(self.ts_idx.orderByExpr(reverse))
+
+        # and partitioned by any series IDs
+        if self.series_ids:
+            w = w.partitionBy([sfn.col(sid) for sid in self.series_ids])
+        return w
+
+    def rowsBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+        return self.baseWindow(reverse=reverse).rowsBetween(start, end)
+
+    def rangeBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+        return (
+            self.baseWindow(reverse=reverse)
+            .orderBy(self.ts_idx.rangeExpr(reverse=reverse))
+            .rangeBetween(start, end)
+        )
+
+

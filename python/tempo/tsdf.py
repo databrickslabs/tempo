@@ -19,7 +19,7 @@ from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window, WindowSpec
 
-from tempo.tsschema import TSSchema, TSIndex, CompositeTSIndex
+from tempo.tsschema import TSSchema, TSIndex, CompositeTSIndex, WindowBuilder
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
 import tempo.resample as t_resample
@@ -28,7 +28,7 @@ import tempo.utils as t_utils
 logger = logging.getLogger(__name__)
 
 
-class TSDF:
+class TSDF(WindowBuilder):
     """
     This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
     """
@@ -504,7 +504,7 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing the earliest n records for each series
         """
-        prev_window = self.__baseWindow(reverse=False)
+        prev_window = self.baseWindow(reverse=False)
         return self.__top_rows_per_series(prev_window, n)
 
     def latest(self, n: int = 1) -> "TSDF":
@@ -515,7 +515,7 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing the latest n records for each series
         """
-        next_window = self.__baseWindow(reverse=True)
+        next_window = self.baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
     def priorTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
@@ -933,37 +933,15 @@ class TSDF:
 
         return asofDF
 
-    # TODO: move to TSSchema
-    def __baseWindow(self, reverse: bool = False) -> WindowSpec:
-        # The index will determine the appropriate sort order
-        w = Window().orderBy(self.ts_index.orderByExpr(reverse))
+    def baseWindow(self, reverse: bool = False) -> WindowSpec:
+        return self.ts_schema.baseWindow(reverse=reverse)
 
-        # and partitioned by any series IDs
-        if self.series_ids:
-            w = w.partitionBy([sfn.col(sid) for sid in self.series_ids])
-        return w
+    def rowsBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+        return self.ts_schema.rowsBetweenWindow(start, end, reverse=reverse)
 
-    # TODO: move to TSSchema
-    def __rangeBetweenWindow(
-        self,
-        range_from: int,
-        range_to: int,
-        reverse: bool = False,
-    ) -> WindowSpec:
-        return (
-            self.__baseWindow(reverse=reverse)
-            .orderBy(self.ts_index.rangeExpr(reverse=reverse))
-            .rangeBetween(range_from, range_to)
-        )
+    def rangeBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+        return self.ts_schema.rangeBetweenWindow(start, end, reverse=reverse)
 
-    # TODO: move to TSSchema
-    def __rowsBetweenWindow(
-        self,
-        rows_from: int,
-        rows_to: int,
-        reverse: bool = False,
-    ) -> WindowSpec:
-        return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
 
     #
     # Core Transformations
@@ -1086,7 +1064,7 @@ class TSDF:
 
         emaColName = "_".join(["EMA", colName])
         df = self.df.withColumn(emaColName, sfn.lit(0)).orderBy(self.ts_col)
-        w = self.__baseWindow()
+        w = self.baseWindow()
         # Generate all the lag columns:
         for i in range(window):
             lagColName = "_".join(["lag", colName, str(i)])
@@ -1132,7 +1110,7 @@ class TSDF:
         feat_array_tsdf = self.df.withColumn(tempArrayColName, sfn.array(featureCols))
 
         # construct a lookback array
-        lookback_win = self.__rowsBetweenWindow(-lookbackWindowSize, -1)
+        lookback_win = self.rowsBetweenWindow(-lookbackWindowSize, -1)
         lookback_tsdf = feat_array_tsdf.withColumn(
             featureColName,
             sfn.collect_list(sfn.col(tempArrayColName)).over(lookback_win),
@@ -1170,7 +1148,7 @@ class TSDF:
             colsToSummarize = self.metric_cols
 
         # build window
-        w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
+        w = self.rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
 
         # compute column summaries
         selectedCols = self.df.columns
@@ -1541,7 +1519,7 @@ class TSDF:
                 f"but received value of type {type(state_definition)}"
             )
 
-        w = self.__baseWindow()
+        w = self.baseWindow()
 
         data = self.df
 

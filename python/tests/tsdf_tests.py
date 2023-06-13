@@ -866,7 +866,7 @@ class TSDFBaseTests(SparkTest):
     def test__rowsBetweenWindow(self):
         init_tsdf = self.get_data_as_tsdf("init")
 
-        self.assertIsInstance(init_tsdf._TSDF__rowsBetweenWindow(1, 1), WindowSpec)
+        self.assertIsInstance(init_tsdf.rowsBetweenWindow(1, 1), WindowSpec)
 
     def test_tsdf_interpolate(self):
         ...
