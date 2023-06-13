@@ -22,8 +22,7 @@ class TSDFBaseTests(SparkTest):
 
         self.assertIsInstance(tsdf_init.df, DataFrame)
         self.assertEqual(tsdf_init.ts_col, "event_ts")
-        self.assertEqual(tsdf_init.partitionCols, ["symbol"])
-        self.assertEqual(tsdf_init.sequence_col, "")
+        self.assertEqual(tsdf_init.series_ids, ["symbol"])
 
     def test_describe(self):
         """AS-OF Join without a time-partition test"""
@@ -124,105 +123,106 @@ class TSDFBaseTests(SparkTest):
 
     @staticmethod
     def __tsdf_with_double_tscol(tsdf: TSDF) -> TSDF:
-        with_double_tscol_df = tsdf.df.withColumn(
-            tsdf.ts_col, sfn.col(tsdf.ts_col).cast("double")
-        )
-        return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
+        return tsdf.withColumn(tsdf.ts_col,
+                               sfn.col(tsdf.ts_col).cast("double"))
 
-    def test__add_double_ts(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        df = init_tsdf._TSDF__add_double_ts()
+    # TODO: write equivalent test for a double ts column
+    # def test__add_double_ts(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #     df = init_tsdf._TSDF__add_double_ts()
+    #
+    #     schema_string = df.schema.simpleString()
+    #
+    #     self.assertIn("double_ts:double", schema_string)
 
-        schema_string = df.schema.simpleString()
+    # TODO: write equivalent test for TSDFs with string timestamps
+    # def test__validate_ts_string_valid(self):
+    #     valid_timestamp_string = "2020-09-01 00:02:10"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_alt_format_valid(self):
+    #     valid_timestamp_string = "2020-09-01T00:02:10"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_with_microseconds_valid(self):
+    #     valid_timestamp_string = "2020-09-01 00:02:10.00000000"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_alt_format_with_microseconds_valid(self):
+    #     valid_timestamp_string = "2020-09-01T00:02:10.00000000"
+    #
+    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
+    #
+    # def test__validate_ts_string_invalid(self):
+    #     invalid_timestamp_string = "this will not work"
+    #
+    #     self.assertRaises(
+    #         ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
+    #     )
 
-        self.assertIn("double_ts:double", schema_string)
-
-    def test__validate_ts_string_valid(self):
-        valid_timestamp_string = "2020-09-01 00:02:10"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_alt_format_valid(self):
-        valid_timestamp_string = "2020-09-01T00:02:10"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_with_microseconds_valid(self):
-        valid_timestamp_string = "2020-09-01 00:02:10.00000000"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_alt_format_with_microseconds_valid(self):
-        valid_timestamp_string = "2020-09-01T00:02:10.00000000"
-
-        self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-
-    def test__validate_ts_string_invalid(self):
-        invalid_timestamp_string = "this will not work"
-
-        self.assertRaises(
-            ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
-        )
-
-    def test__validated_column_not_string(self):
-        init_df = self.get_data_as_tsdf("init").df
-
-        self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
-
-    def test__validated_column_not_found(self):
-        init_df = self.get_data_as_tsdf("init").df
-
-        self.assertRaises(
-            ValueError,
-            TSDF._TSDF__validated_column,
-            init_df,
-            "does not exist",
-        )
-
-    def test__validated_column(self):
-        init_df = self.get_data_as_tsdf("init").df
-
-        self.assertEqual(
-            TSDF._TSDF__validated_column(init_df, "symbol"),
-            "symbol",
-        )
-
-    def test__validated_columns_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertEqual(
-            init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
-            ["symbol"],
-        )
-
-    def test__validated_columns_none(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertEqual(
-            init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
-            [],
-        )
-
-    def test__validated_columns_tuple(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertRaises(
-            TypeError,
-            init_tsdf._TSDF__validated_columns,
-            init_tsdf.df,
-            ("symbol",),
-        )
-
-    def test__validated_columns_list_multiple_elems(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertEqual(
-            init_tsdf._TSDF__validated_columns(
-                init_tsdf.df,
-                ["symbol", "event_ts", "trade_pr"],
-            ),
-            ["symbol", "event_ts", "trade_pr"],
-        )
+    # TODO: write equivalent test for testing TSDF initialization
+    # def test__validated_column_not_string(self):
+    #     init_df = self.get_data_as_tsdf("init").df
+    #
+    #     self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
+    #
+    # def test__validated_column_not_found(self):
+    #     init_df = self.get_data_as_tsdf("init").df
+    #
+    #     self.assertRaises(
+    #         ValueError,
+    #         TSDF._TSDF__validated_column,
+    #         init_df,
+    #         "does not exist",
+    #     )
+    #
+    # def test__validated_column(self):
+    #     init_df = self.get_data_as_tsdf("init").df
+    #
+    #     self.assertEqual(
+    #         TSDF._TSDF__validated_column(init_df, "symbol"),
+    #         "symbol",
+    #     )
+    #
+    # def test__validated_columns_string(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertEqual(
+    #         init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
+    #         ["symbol"],
+    #     )
+    #
+    # def test__validated_columns_none(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertEqual(
+    #         init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
+    #         [],
+    #     )
+    #
+    # def test__validated_columns_tuple(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertRaises(
+    #         TypeError,
+    #         init_tsdf._TSDF__validated_columns,
+    #         init_tsdf.df,
+    #         ("symbol",),
+    #     )
+    #
+    # def test__validated_columns_list_multiple_elems(self):
+    #     init_tsdf = self.get_data_as_tsdf("init")
+    #
+    #     self.assertEqual(
+    #         init_tsdf._TSDF__validated_columns(
+    #             init_tsdf.df,
+    #             ["symbol", "event_ts", "trade_pr"],
+    #         ),
+    #         ["symbol", "event_ts", "trade_pr"],
+    #     )
 
     def test__checkPartitionCols(self):
         init_tsdf = self.get_data_as_tsdf("init")
@@ -867,14 +867,6 @@ class TSDFBaseTests(SparkTest):
         init_tsdf = self.get_data_as_tsdf("init")
 
         self.assertIsInstance(init_tsdf._TSDF__rowsBetweenWindow(1, 1), WindowSpec)
-
-    def test_withPartitionCols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        actual_tsdf = init_tsdf.withPartitionCols(["symbol"])
-
-        self.assertEqual(init_tsdf.partitionCols, [])
-        self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
     def test_tsdf_interpolate(self):
         ...

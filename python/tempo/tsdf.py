@@ -172,59 +172,6 @@ class TSDF:
     # Helper functions
     #
 
-    # def __add_double_ts(self):
-    #     """Add a double (epoch) version of the string timestamp out to nanos"""
-    #     self.df = (
-    #         self.df.withColumn(
-    #             "nanos",
-    #             (
-    #                 Fn.when(
-    #                     Fn.col(self.ts_col).contains("."),
-    #                     Fn.concat(Fn.lit("0."), Fn.split(Fn.col(self.ts_col), "\.")[1]),
-    #                 ).otherwise(0)
-    #             ).cast("double"),
-    #         )
-    #         .withColumn("long_ts", Fn.col(self.ts_col).cast("timestamp").cast("long"))
-    #         .withColumn("double_ts", Fn.col("long_ts") + Fn.col("nanos"))
-    #         .drop("nanos")
-    #         .drop("long_ts")
-    #     )
-
-    # def __validate_ts_string(self, ts_text):
-    #     """Validate the format for the string using Regex matching for ts_string"""
-    #     import re
-    #
-    #     ts_pattern = "^\d{4}-\d{2}-\d{2}T| \d{2}:\d{2}:\d{2}\.\d*$"
-    #     if re.match(ts_pattern, ts_text) is None:
-    #         raise ValueError(
-    #             "Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]"
-    #         )
-
-    # def __validated_column(self, df, colname):
-    #     if type(colname) != str:
-    #         raise TypeError(
-    #             f"Column names must be of type str; found {type(colname)} instead!"
-    #         )
-    #     if colname.lower() not in [col.lower() for col in df.columns]:
-    #         raise ValueError(f"Column {colname} not found in Dataframe")
-    #     return colname
-
-    # def __validated_columns(self, df, colnames):
-    #     # if provided a string, treat it as a single column
-    #     if type(colnames) == str:
-    #         colnames = [colnames]
-    #     # otherwise we really should have a list or None
-    #     if colnames is None:
-    #         colnames = []
-    #     elif type(colnames) != list:
-    #         raise TypeError(
-    #             f"Columns must be of type list, str, or None; found {type(colnames)} instead!"
-    #         )
-    #     # validate each column
-    #     for col in colnames:
-    #         self.__validated_column(df, col)
-    #     return colnames
-
     def __checkPartitionCols(self, tsdf_right):
         for left_col, right_col in zip(self.series_ids, tsdf_right.series_ids):
             if left_col != right_col:
