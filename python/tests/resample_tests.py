@@ -10,6 +10,80 @@ from tempo.resample import (
 from tests.base import SparkTest
 
 
+class ResampleTest(SparkTest):
+    def test_resample(self):
+        """Test of range stats for 20 minute rolling window"""
+
+        # construct dataframes
+        tsdf_input = self.get_data_as_tsdf("input")
+        dfExpected = self.get_data_as_sdf("expected")
+        expected_30s_df = self.get_data_as_sdf("expected30m")
+        barsExpected = self.get_data_as_sdf("expectedbars")
+
+        # 1 minute aggregation
+        featured_df = tsdf_input.resample(freq="min", func="floor", prefix="floor").df
+        # 30 minute aggregation
+        resample_30m = tsdf_input.resample(freq="5 minutes", func="mean").df.withColumn(
+            "trade_pr", sfn.round(sfn.col("trade_pr"), 2)
+        )
+
+        bars = tsdf_input.calc_bars(
+            freq="min", metric_cols=["trade_pr", "trade_pr_2"]
+        ).df
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(featured_df, dfExpected)
+        self.assertDataFrameEquality(resample_30m, expected_30s_df)
+
+        # test bars summary
+        self.assertDataFrameEquality(bars, barsExpected)
+
+    def test_resample_millis(self):
+        """Test of resampling for millisecond windows"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expectedms")
+
+        # 30 minute aggregation
+        resample_ms = tsdf_init.resample(freq="ms", func="mean").df.withColumn(
+            "trade_pr", sfn.round(sfn.col("trade_pr"), 2)
+        )
+
+        self.assertDataFrameEquality(resample_ms, dfExpected)
+
+    def test_upsample(self):
+        """Test of range stats for 20 minute rolling window"""
+
+        # construct dataframes
+        tsdf_input = self.get_data_as_tsdf("input")
+        expected_30s_df = self.get_data_as_sdf("expected30m")
+        barsExpected = self.get_data_as_sdf("expectedbars")
+
+        resample_30m = tsdf_input.resample(
+            freq="5 minutes", func="mean", fill=True
+        ).df.withColumn("trade_pr", sfn.round(sfn.col("trade_pr"), 2))
+
+        bars = tsdf_input.calc_bars(
+            freq="min", metric_cols=["trade_pr", "trade_pr_2"]
+        ).df
+
+        upsampled = resample_30m.filter(
+            sfn.col("event_ts").isin(
+                "2020-08-01 00:00:00",
+                "2020-08-01 00:05:00",
+                "2020-09-01 00:00:00",
+                "2020-09-01 00:15:00",
+            )
+        )
+
+        # test upsample summary
+        self.assertDataFrameEquality(upsampled, expected_30s_df)
+
+        # test bars summary
+        self.assertDataFrameEquality(bars, barsExpected)
+
+
 class ResampleUnitTests(SparkTest):
     def test_appendAggKey_freq_is_none(self):
         input_tsdf = self.get_data_as_tsdf("input_data")
