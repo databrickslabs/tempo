@@ -443,7 +443,10 @@ class WindowBuilder(ABC):
         pass
 
     @abstractmethod
-    def rowsBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+    def rowsBetweenWindow(self,
+                          start: int,
+                          end: int,
+                          reverse: bool = False) -> WindowSpec:
         """
         build a row-based window with the given start and end offsets
 
@@ -455,8 +458,35 @@ class WindowBuilder(ABC):
         """
         pass
 
+    def allBeforeWindow(self, inclusive: bool = True) -> WindowSpec:
+        """
+        build a window that includes all rows before the current row
+
+        :param inclusive: if True, include the current row,
+        otherwise end with the last row before the current row
+
+        :return: a WindowSpec object
+        """
+        return self.rowsBetweenWindow(Window.unboundedPreceding,
+                                      0 if inclusive else -1)
+
+    def allAfterWindow(self, inclusive: bool = True) -> WindowSpec:
+        """
+        build a window that includes all rows after the current row
+
+        :param inclusive: if True, include the current row,
+        otherwise begin with the first row after the current row
+
+        :return: a WindowSpec object
+        """
+        return self.rowsBetweenWindow(0 if inclusive else 1,
+                                      Window.unboundedFollowing)
+
     @abstractmethod
-    def rangeBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+    def rangeBetweenWindow(self,
+                           start: int,
+                           end: int,
+                           reverse: bool = False) -> WindowSpec:
         """
         build a range-based window with the given start and end offsets
 

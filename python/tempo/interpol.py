@@ -4,7 +4,6 @@ from typing import Callable, List, Optional, Union
 
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as sfn
-from pyspark.sql.window import Window
 
 import tempo.resample as t_resample
 import tempo.tsdf as t_tsdf
@@ -150,7 +149,7 @@ class Interpolation:
 
         return output_df
 
-    def __generate_time_series_fill(self, tsdf: t_tsdf.TSDF) -> DataFrame:
+    def __generate_time_series_fill(self, tsdf: t_tsdf.TSDF) -> t_tsdf.TSDF:
         """
         Create additional timeseries columns for previous and next timestamps
 
@@ -158,21 +157,18 @@ class Interpolation:
         :param partition_cols: partition column names
         :param ts_col: timestamp column name
         """
-        return tsdf.df.withColumn(
+        return tsdf.withColumn(
             "previous_timestamp",
             sfn.col(tsdf.ts_col),
         ).withColumn(
             "next_timestamp",
-            sfn.lead(sfn.col(tsdf.ts_col)).over(
-                Window.partitionBy(*tsdf.series_ids).orderBy(tsdf.ts_col)
-            ),
-        )
+            sfn.lead(sfn.col(tsdf.ts_col)).over(tsdf.baseWindow()))
 
     def __generate_column_time_fill(
         self,
         tsdf: t_tsdf.TSDF,
         target_col: str,
-    ) -> DataFrame:
+    ) -> t_tsdf.TSDF:
         """
         Create timeseries columns for previous and next timestamps for a specific target column
 
@@ -181,29 +177,26 @@ class Interpolation:
         :param ts_col: timestamp column name
         :param target_col: target column name
         """
-        window = Window
-        if tsdf.series_ids is not None:
-            window = Window.partitionBy(*tsdf.series_ids)
 
-        return tsdf.df.withColumn(
+        # define forward & backward windows
+        fwd_win = tsdf.allBeforeWindow()
+        bkwd_win = tsdf.allAfterWindow()
+
+        return tsdf.withColumn(
             f"previous_timestamp_{target_col}",
-            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"), ignorenulls=True).over(
-                window.orderBy(tsdf.ts_col).rowsBetween(Window.unboundedPreceding, 0)
-            ),
+            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"),
+                     ignorenulls=True).over(fwd_win),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"), ignorenulls=True).over(
-                window.orderBy(sfn.col(tsdf.ts_col).desc()).rowsBetween(
-                    Window.unboundedPreceding, 0
-                )
-            ),
+            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"),
+                     ignorenulls=True).over(bkwd_win)
         )
 
     def __generate_target_fill(
         self,
         tsdf: t_tsdf.TSDF,
         target_col: str,
-    ) -> DataFrame:
+    ) -> t_tsdf.TSDF:
         """
         Create columns for previous and next value for a specific target column
 
@@ -212,28 +205,23 @@ class Interpolation:
         :param ts_col: timestamp column name
         :param target_col: target column name
         """
-        window = Window
 
-        if tsdf.series_ids is not None:
-            window = Window.partitionBy(*tsdf.series_ids)
+        # define forward & backward windows
+        fwd_win = tsdf.allBeforeWindow()
+        bkwd_win = tsdf.allAfterWindow()
+
         return (
-            tsdf.df.withColumn(
+            tsdf.withColumn(
                 f"previous_{target_col}",
-                sfn.last(sfn.col(target_col), ignorenulls=True).over(
-                    window.orderBy(tsdf.ts_col).rowsBetween(Window.unboundedPreceding, 0)
-                ),
+                sfn.last(sfn.col(target_col), ignorenulls=True).over(fwd_win)
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
-                sfn.last(sfn.col(target_col), ignorenulls=True).over(
-                    window.orderBy(sfn.col(tsdf.ts_col).desc()).rowsBetween(
-                        Window.unboundedPreceding, 0
-                    )
-                ),
+                sfn.last(sfn.col(target_col), ignorenulls=True).over(bkwd_win)
             ).withColumn(
                 f"next_{target_col}",
-                sfn.lead(sfn.col(target_col)).over(window.orderBy(tsdf.ts_col)),
+                sfn.lead(sfn.col(target_col)).over(fwd_win)
             )
         )
 
@@ -298,7 +286,7 @@ class Interpolation:
 
         # Generate surrogate timestamps for each target column
         # This is required if multuple columns are being interpolated and may contain nulls
-        add_column_time: DataFrame = time_series_filled
+        add_column_time: t_tsdf.TSDF = time_series_filled
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"{tsdf.ts_col}_{column}",

@@ -13,7 +13,6 @@ from typing import (
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
-from pyspark.sql.window import Window
 
 import tempo.tsdf as t_tsdf
 
@@ -222,7 +221,7 @@ def aggregate(
     sel_and_sort = tsdf.series_ids + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
-    fillW = Window.partitionBy(tsdf.series_ids)
+    fillW = tsdf.baseWindow()
 
     imputes = (
         res.select(
