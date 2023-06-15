@@ -11,6 +11,7 @@ from pyspark.sql import Column
 from tempo.tsdf import TSDF
 import tempo.resample as t_resample
 
+
 def vwap(
 		tsdf: TSDF,
 		frequency: str = "m",
@@ -125,7 +126,7 @@ def withLookbackFeatures(
 	if exact_size:
 		return lookback_tsdf.where(sfn.size(feature_col_name) == lookback_window_size)
 
-	return TSDF(lookback_tsdf, ts_schema=copy.deepcopy(tsdf.ts_schema))
+	return lookback_tsdf
 
 
 def withRangeStats(

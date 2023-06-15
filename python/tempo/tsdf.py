@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 from functools import cached_property, reduce
 from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, TypeVar, \
     Union, \
-    cast
+    cast, overload
 
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
@@ -15,7 +15,6 @@ from IPython.display import display as ipydisplay
 from pyspark.sql import GroupedData, SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.pandas._typing import PandasGroupedMapFunction
 from pyspark.sql.types import DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
@@ -396,6 +395,18 @@ class TSDF(WindowBuilder):
         # The columns which will be a mandatory requirement while selecting from TSDFs
         selected_df = self.df.select(*cols)
         return self.__withTransformedDF(selected_df)
+
+    def where(self, condition: Union[Column, str]) -> "TSDF":
+        """
+        Selects rows using the given condition.
+
+        :param condition: a :class:`Column` of :class:`types.BooleanType` or a string of SQL expression.
+
+        :return: a new :class:`TSDF` object
+        :rtype: :class:`TSDF`
+        """
+        where_df = self.df.where(condition)
+        return self.__withTransformedDF(where_df)
 
     def __slice(self, op: str, target_ts: Union[str, int]) -> "TSDF":
         """
@@ -1010,6 +1021,27 @@ class TSDF(WindowBuilder):
         """
         new_df = self.df.withColumn(colName, sfn.col(colName).cast(newType))
         return self.__withTransformedDF(new_df)
+
+    @overload
+    def drop(self, cols: "ColumnOrName") -> "TSDF":
+        ...
+
+    @overload
+    def drop(self, *cols: str) -> "TSDF":
+        ...
+
+    def drop(self, *cols: "ColumnOrName") -> "TSDF":
+
+        """
+        Returns a new :class:`TSDF` that drops the specified column.
+
+        :param cols: name of the column to drop
+
+        :return: new :class:`TSDF` with the column dropped
+        :rtype: TSDF
+        """
+        dropped_df = self.df.drop(*cols)
+        return self.__withTransformedDF(dropped_df)
 
     def mapInPandas(self,
                     func: "PandasMapIterFunction",
