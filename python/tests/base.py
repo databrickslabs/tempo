@@ -67,7 +67,9 @@ class SparkTest(unittest.TestCase):
     # Utility Functions
     #
 
-    def get_data_as_sdf(self, name: str, convert_ts_col=True):
+    def get_data_as_sdf(self,
+                        name: str,
+                        convert_ts_col: bool = True) -> DataFrame:
         td = self.test_data[name]
         ts_cols = []
         if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
@@ -75,7 +77,9 @@ class SparkTest(unittest.TestCase):
             ts_cols.extend(td.get("other_ts_cols", []))
         return self.buildTestDF(td["schema"], td["data"], ts_cols)
 
-    def get_data_as_tsdf(self, name: str, convert_ts_col=True):
+    def get_data_as_tsdf(self,
+                         name: str,
+                         convert_ts_col: bool = True) -> TSDF:
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
         if "sequence_col" in td:
@@ -87,7 +91,9 @@ class SparkTest(unittest.TestCase):
             tsdf = TSDF(df, ts_col=td["ts_col"], series_ids=td.get("series_ids", None))
         return tsdf
 
-    def get_data_as_idf(self, name: str, convert_ts_col=True):
+    def get_data_as_idf(self,
+                        name: str,
+                        convert_ts_col: bool = True) -> IntervalsDF:
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
         idf = IntervalsDF(

@@ -260,17 +260,17 @@ def calc_bars(
 		metric_cols: Optional[List[str]] = None,
 		fill: Optional[bool] = None,
 ) -> TSDF:
-	resample_open = tsdf.resample(
-		freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
+	resample_open = t_resample.resample(
+		tsdf, freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
 	)
-	resample_low = tsdf.resample(
-		freq=freq, func="min", metricCols=metric_cols, prefix="low", fill=fill
+	resample_low = t_resample.resample(
+		tsdf, freq=freq, func="min", metricCols=metric_cols, prefix="low", fill=fill
 	)
-	resample_high = tsdf.resample(
-		freq=freq, func="max", metricCols=metric_cols, prefix="high", fill=fill
+	resample_high = t_resample.resample(
+		tsdf, freq=freq, func="max", metricCols=metric_cols, prefix="high", fill=fill
 	)
-	resample_close = tsdf.resample(
-		freq=freq, func="ceil", metricCols=metric_cols, prefix="close", fill=fill
+	resample_close = t_resample.resample(
+		tsdf, freq=freq, func="ceil", metricCols=metric_cols, prefix="close", fill=fill
 	)
 
 	join_cols = resample_open.series_ids + [resample_open.ts_col]

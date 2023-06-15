@@ -17,7 +17,6 @@ from pyspark.sql import DataFrame
 
 import tempo.tsdf as t_tsdf
 import tempo.interpol as t_interpol
-import tempo.utils as t_utils
 
 # define global frequency options
 MUSEC = "microsec"
@@ -241,7 +240,7 @@ def aggregate(
     groupingCols = [sfn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = sfn.struct([tsdf.ts_col] + metricCols)
+        metricCol = sfn.struct(*([tsdf.ts_col] + metricCols))
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(sfn.min("struct_cols").alias("closest_data")).select(
             *groupingCols, sfn.col("closest_data.*")
@@ -314,7 +313,7 @@ def aggregate(
     )
 
     # sort columns so they are consistent
-    non_part_cols = set(set(res.columns) - set(tsdf.series_ids)) - set([tsdf.ts_col])
+    non_part_cols = set(set(res.columns) - set(tsdf.series_ids)) - {tsdf.ts_col}
     sel_and_sort = tsdf.series_ids + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
@@ -436,7 +435,7 @@ def resample(
 
     # Throw warning for user to validate that the expected number of output rows is valid.
     if fill is True and perform_checks is True:
-        t_utils.calculate_time_horizon(tsdf, freq)
+        calculate_time_horizon(tsdf, freq)
 
     enriched_df: DataFrame = aggregate(
         tsdf, freq, func, metricCols, prefix, fill
@@ -473,7 +472,7 @@ class _ResampledTSDF(t_tsdf.TSDF):
         series_ids: Optional[List[str]] = None,
         show_interpolated: bool = False,
         perform_checks: bool = True,
-    ) -> "TSDF":
+    ) -> t_tsdf.TSDF:
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
 
