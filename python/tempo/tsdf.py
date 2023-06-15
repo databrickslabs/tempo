@@ -5,21 +5,25 @@ import logging
 import operator
 from abc import ABCMeta, abstractmethod
 from functools import cached_property, reduce
-from typing import Any, Callable, Collection, List, Optional, Sequence, TypeVar, Union, \
+from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, TypeVar, \
+    Union, \
     cast
 
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-from pyspark.sql import SparkSession
+from pyspark.sql import GroupedData, SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.pandas._typing import PandasGroupedMapFunction
+from pyspark.sql.types import DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
 import tempo.resample as t_resample
 import tempo.utils as t_utils
+from tempo.intervals import IntervalsDF
 from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
 
 logger = logging.getLogger(__name__)
@@ -933,12 +937,17 @@ class TSDF(WindowBuilder):
     def baseWindow(self, reverse: bool = False) -> WindowSpec:
         return self.ts_schema.baseWindow(reverse=reverse)
 
-    def rowsBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+    def rowsBetweenWindow(self,
+                          start: int,
+                          end: int,
+                          reverse: bool = False) -> WindowSpec:
         return self.ts_schema.rowsBetweenWindow(start, end, reverse=reverse)
 
-    def rangeBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+    def rangeBetweenWindow(self,
+                           start: int,
+                           end: int,
+                           reverse: bool = False) -> WindowSpec:
         return self.ts_schema.rangeBetweenWindow(start, end, reverse=reverse)
-
 
     #
     # Core Transformations
@@ -956,7 +965,8 @@ class TSDF(WindowBuilder):
 
     def withColumn(self, colName: str, col: Column) -> "TSDF":
         """
-        Returns a new :class:`TSDF` by adding a column or replacing the existing column that has the same name.
+        Returns a new :class:`TSDF` by adding a column or replacing the
+        existing column that has the same name.
 
         :param colName: the name of the new column (or existing column to be replaced)
         :param col: a :class:`Column` expression for the new column definition
@@ -991,6 +1001,28 @@ class TSDF(WindowBuilder):
         new_schema = TSSchema(new_ts_index, new_series_ids)
         return TSDF(new_df, ts_schema=new_schema)
 
+    def withColumnTypeChanged(self, colName: str, newType: Union[DataType, str]):
+        """
+
+        :param colName:
+        :param newType:
+        :return:
+        """
+        new_df = self.df.withColumn(colName, sfn.col(colName).cast(newType))
+        return self.__withTransformedDF(new_df)
+
+    def mapInPandas(self,
+                    func: "PandasMapIterFunction",
+                    schema: Union[StructType, str]) -> TSDF:
+        """
+
+        :param func:
+        :param schema:
+        :return:
+        """
+        mapped_df = self.df.mapInPandas(func,schema)
+        return self.__withTransformedDF(mapped_df)
+
     def union(self, other: TSDF) -> TSDF:
         # union of the underlying DataFrames
         union_df = self.df.union(other.df)
@@ -1002,6 +1034,244 @@ class TSDF(WindowBuilder):
             other.df, allowMissingColumns=allowMissingColumns
         )
         return self.__withTransformedDF(union_df)
+
+    #
+    # Rolling (Windowed) Transformations
+    #
+
+    def rollingAgg(self,
+                   window: WindowSpec,
+                   *exprs: Union[Column, Dict[str, str]]) -> TSDF:
+        """
+
+        :param window:
+        :param exprs:
+        :return:
+        """
+        roll_agg_tsdf = self
+        if len(exprs) == 1 and isinstance(exprs[0], dict):
+            # dict
+            for input_col in exprs.keys():
+                expr_str = exprs[input_col]
+                new_col_name = f"{expr_str}({input_col})"
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(new_col_name,
+                                                         sfn.expr(expr_str).over(window))
+        else:
+            # Columns
+            assert all(isinstance(c, Column) for c in exprs), \
+                "all exprs should be Column"
+            for expr in exprs:
+                new_col_name = f"{expr}"
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(new_col_name,
+                                                         expr.over(window))
+
+        return roll_agg_tsdf
+
+    def rollingApply(self,
+                     outputCol: str,
+                     window: WindowSpec,
+                     func: "PandasGroupedMapFunction",
+                     schema: Union[StructType, str],
+                     *inputCols: Union[str, Column]) -> TSDF:
+        """
+
+        :param outputCol:
+        :param window:
+        :param func:
+        :param schema:
+        :param inputCols:
+        :return:
+        """
+        inputCols = [sfn.col(col) for col in inputCols if not isinstance(col, Column)]
+        pd_udf = sfn.pandas_udf(func, schema)
+        return self.withColumn(outputCol, pd_udf(*inputCols).over(window))
+
+    #
+    # Aggregations
+    #
+
+    ## Aggregations across series and time
+
+    def summarize(self, *cols: Optional[Union[str, List[str]]]) -> GroupedData:
+        """
+        Groups the underlying :class:`DataFrame` such that the user can compute
+        aggregations over the given columns.
+        If no columns are specified, all metric columns will be assumed.
+
+        :param cols: columns to summarize. If none are given,
+        then all the `metric_cols` will be used
+        :type cols: str or List[str]
+        :return: a :class:`GroupedData` object that can be used for
+        summarizing columns/metrics across all observations from all series
+        :rtype: :class:`GroupedData`
+        """
+        if cols is None or len(cols) < 1:
+            cols = self.metric_cols
+        return self.df.select(cols).groupBy()
+
+    def agg(self, *exprs: Union[Column, Dict[str, str]]) -> DataFrame:
+        """
+
+        :param exprs:
+        :return:
+        """
+        return self.df.agg(exprs)
+
+    def describe(self, *cols: Optional[Union[str, List[str]]]) -> DataFrame:
+        """
+
+        :param cols:
+        :return:
+        """
+        if cols is None or len(cols) < 1:
+            cols = self.metric_cols
+        return self.df.describe(cols)
+
+    def metricSummary(self, *statistics: str) -> DataFrame:
+        """
+
+        :param statistics:
+        :return:
+        """
+        return self.df.select(self.metric_cols).summary(statistics)
+
+    ## Aggregations by series
+
+    def groupBySeries(self) -> GroupedData:
+        """
+        Groups the underlying :class:`DataFrame` by the series IDs
+
+        :return: a :class:`GroupedData` object that can be used for
+        aggregating within Series
+        :rtype: :class:`GroupedData`
+        """
+        return self.df.groupBy(self.series_ids)
+
+    def aggBySeries(self, *exprs: Union[Column, Dict[str, str]]) -> DataFrame:
+        """
+        Compute aggregates of each series.
+
+        :param exprs: a dict mapping from column name (string) to aggregate functions (string),
+        or a list of :class:`Column`.
+        :return: a :class:`DataFrame` of the resulting aggregates
+        :rtype: :class:`DataFrame`
+        """
+        return self.groupBySeries().agg(exprs)
+
+    def applyToSeries(self,
+                      func: "PandasGroupedMapFunction",
+                      schema: Union[StructType, str]) -> DataFrame:
+        """
+        Maps each series using a pandas udf and returns the result as a `DataFrame`.
+
+        The function should take a `pandas.DataFrame` and return another
+        `pandas.DataFrame`. Alternatively, the user can pass a function that takes
+        a tuple of the grouping key(s) and a `pandas.DataFrame`.
+        For each group, all columns are passed together as a `pandas.DataFrame`
+        to the user-function and the returned `pandas.DataFrame` are combined as a
+        :class:`DataFrame`.
+
+        The `schema` should be a :class:`StructType` describing the schema of the returned
+        `pandas.DataFrame`. The column labels of the returned `pandas.DataFrame` must either match
+        the field names in the defined schema if specified as strings, or match the
+        field data types by position if not strings, e.g. integer indices.
+        The length of the returned `pandas.DataFrame` can be arbitrary.
+
+        :param func: a Python native function that takes a `pandas.DataFrame` and outputs a
+        `pandas.DataFrame`, or that takes one tuple (grouping keys) and a
+        `pandas.DataFrame` and outputs a `pandas.DataFrame`.
+        :type func: function
+        :param schema: the return type of the `func` in PySpark. The value can be either a
+        :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
+        :type schema: :class:`pyspark.sql.types.DataType` or str
+        :return: a :class:`pyspark.sql.DataFrame` (of the given schema)
+        containing the results of applying the given function per series
+        :rtype: :class:`pyspark.sql.DataFrame`
+        """
+        return self.groupBySeries().applyInPandas(func, schema)
+
+    ### Cyclical Aggregtion
+
+    def groupByCycles(self,
+                      length: str,
+                      period: Optional[str] = None,
+                      offset: Optional[str] = None,
+                      bySeries: bool = True) -> GroupedData:
+        """
+
+        :param length:
+        :param period:
+        :param offset:
+        :param bySeries:
+        :return:
+        """
+        # build our set of grouping columns
+        if bySeries:
+            grouping_cols = [sfn.col(series_col) for series_col in self.series_ids]
+        else:
+            grouping_cols = []
+        grouping_cols.append(sfn.window(timeColumn=self.ts_col,
+                                        windowDuration=length,
+                                        slideDuration=period,
+                                        startTime=offset))
+
+        # return the DataFrame grouped accordingly
+        return self.df.groupBy(grouping_cols)
+
+    def aggByCycles(self,
+                    length: str,
+                    *exprs: Union[Column, Dict[str, str]],
+                    period: Optional[str] = None,
+                    offset: Optional[str] = None,
+                    bySeries: bool = True) -> IntervalsDF:
+        """
+
+        :param length:
+        :param exprs:
+        :param period:
+        :param offset:
+        :param bySeries:
+        :return:
+        """
+        # build aggregated DataFrame
+        agged_df = self.groupByCycles(length, period, offset, bySeries).agg(exprs)
+
+        # if we have aggregated over series, we return a TSDF without series
+        if bySeries:
+            return IntervalsDF.fromNestedBoundariesDF(agged_df,
+                                                      "window",
+                                                      self.series_ids)
+        else:
+            return IntervalsDF.fromNestedBoundariesDF(agged_df, "window")
+
+    def applyToCycles(self,
+                      length: str,
+                      func: "PandasGroupedMapFunction",
+                      schema: Union[StructType, str],
+                      period: Optional[str] = None,
+                      offset: Optional[str] = None,
+                      bySeries: bool = True) -> IntervalsDF:
+        """
+
+        :param length:
+        :param func:
+        :param schema:
+        :param period:
+        :param offset:
+        :param bySeries:
+        :return:
+        """
+        # apply function to get DataFrame of results
+        applied_df = self.groupByCycles(length, period, offset, bySeries)\
+            .applyInPandas(func, schema)
+
+        # if we have applied over series, we return a TSDF without series
+        if bySeries:
+            return IntervalsDF.fromNestedBoundariesDF(applied_df,
+                                                      "window",
+                                                      self.series_ids)
+        else:
+            return IntervalsDF.fromNestedBoundariesDF(applied_df, "window")
 
     #
     # utility functions
