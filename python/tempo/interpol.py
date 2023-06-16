@@ -19,8 +19,6 @@ def interpolate(
     freq: Optional[str] = None,
     func: Optional[Union[Callable | str]] = None,
     target_cols: Optional[List[str]] = None,
-    ts_col: Optional[str] = None,
-    series_ids: Optional[List[str]] = None,
     show_interpolated: bool = False,
     perform_checks: bool = True,
 ) -> t_tsdf.TSDF:
@@ -44,30 +42,12 @@ def interpolate(
         raise ValueError("freq must be provided")
     if func is None:
         raise ValueError("func must be provided")
-    if ts_col is None:
-        ts_col = tsdf.ts_col
-    if series_ids is None:
-        series_ids = tsdf.series_ids
     if target_cols is None:
-        prohibited_cols: List[str] = series_ids + [ts_col]
-        summarizable_types = ["int", "bigint", "float", "double"]
-
-        # get summarizable find summarizable columns
-        target_cols = [
-            datatype[0]
-            for datatype in tsdf.df.dtypes
-            if (
-                (datatype[1] in summarizable_types)
-                and (datatype[0].lower() not in prohibited_cols)
-            )
-        ]
+        target_cols = tsdf.metric_cols
 
     interpolate_service = Interpolation(is_resampled=False)
-    tsdf_input = t_tsdf.TSDF(tsdf.df, ts_col=ts_col, series_ids=series_ids)
     interpolated_df: DataFrame = interpolate_service.interpolate(
-        tsdf_input,
-        ts_col,
-        series_ids,
+        tsdf,
         target_cols,
         freq,
         func,

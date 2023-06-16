@@ -14,8 +14,10 @@ from typing import (
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
+from pyspark.sql.column import Column
 
 import tempo.tsdf as t_tsdf
+import tempo.intervals as t_int
 import tempo.interpol as t_interpol
 
 # define global frequency options
@@ -100,7 +102,8 @@ def _appendAggKey(
     period, unit = parsed_freq[0], parsed_freq[1]
 
     agg_window = sfn.window(
-        sfn.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+        sfn.col(tsdf.ts_col),
+        "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
     )
 
     df = df.withColumn("agg_key", agg_window)
@@ -206,6 +209,30 @@ def calculate_time_horizon(
         ResampleWarning,
     )
 
+def downsample(
+    tsdf: t_tsdf.TSDF,
+    freq: str,
+    func: Union[Callable, str],
+    metricCols: Optional[List[str]] = None,
+) -> t_int.IntervalsDF:
+    """
+    Downsample a TSDF object to a lower frequency
+
+    :param tsdf: input TSDF object
+    :param freq: downsample to this frequency
+    :param func: aggregate function
+    :param metricCols: columns used for aggregates
+
+    :return: IntervalsDF object with the aggregated values
+    """
+    if metricCols is None:
+        metricCols = tsdf.metric_cols
+    if isinstance(func, Callable):
+        agg_exprs = [func(col).alias(col) for col in metricCols]
+    else:
+        agg_exprs = {col: func for col in metricCols}
+    return tsdf.aggByCycles(freq, *agg_exprs)
+
 def aggregate(
     tsdf: t_tsdf.TSDF,
     freq: str,
@@ -213,7 +240,7 @@ def aggregate(
     metricCols: Optional[List[str]] = None,
     prefix: Optional[str] = None,
     fill: Optional[bool] = None,
-) -> DataFrame:
+) -> t_tsdf.TSDF:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
@@ -348,7 +375,7 @@ def aggregate(
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
+def checkAllowableFreq(freq: str) -> Tuple[Union[int | str], str]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
