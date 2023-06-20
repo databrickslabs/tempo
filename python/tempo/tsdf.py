@@ -883,7 +883,7 @@ class TSDF(WindowBuilder):
         if tsPartitionVal is None:
             seq_col = None
             if isinstance(combined_df.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
+                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(1)
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -898,7 +898,7 @@ class TSDF(WindowBuilder):
             )
             seq_col = None
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
+                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).get_ts_component(1)
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
