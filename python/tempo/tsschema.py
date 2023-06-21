@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from abc import ABC, abstractmethod
 from typing import cast, Any, Union, Optional, Collection, List
+import re
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, WindowSpec, Window
@@ -21,6 +22,24 @@ class TimeUnits(Enum):
     MICROSECONDS = auto()
     NANOSECONDS = auto()
 
+
+#
+# Timestamp parsing helpers
+#
+
+DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
+__time_pattern_components = "hHkKmsS"
+
+def is_time_format(format: str) -> bool:
+    """
+    Checcks whether the given format string contains time elements,
+    or if it is just a date format
+
+    :param format: the format string to check
+
+    :return: whether the given format string contains time elements
+    """
+    return any(c in format for c in __time_pattern_components)
 
 #
 # Abstract Timeseries Index Classes
@@ -182,8 +201,6 @@ class SimpleTSIndex(TSIndex, ABC):
             raise TypeError(
                 f"A SimpleTSIndex must be a Numeric, Timestamp or Date type, but column {ts_col.name} is of type {ts_col.dataType}"
             )
-
-
 
 
 #
@@ -365,6 +382,21 @@ class ParsedTSIndex(MultiPartTSIndex, ABC):
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         expr = sfn.col(self.parsed_ts_col)
         return self._reverseOrNot(expr, reverse)
+
+    @classmethod
+    def fromParsedTimestamp(cls,
+                            str_ts_col: str,
+                            ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT) -> "ParsedTimestampIndex":
+        """
+        Create a ParsedTimestampIndex from a string column containing timestamps or dates
+
+        :param str_ts_col: The name of the string column containing timestamps or dates
+        :param ts_fmt: The format of the timestamps or dates in the string column
+
+        :return: A ParsedTimestampIndex
+        """
+        # TODO fill this in
+        pass
 
 
 class ParsedTimestampIndex(ParsedTSIndex):
