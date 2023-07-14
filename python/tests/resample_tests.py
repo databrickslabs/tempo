@@ -2,9 +2,9 @@ import unittest
 
 from tempo import TSDF
 from tempo.resample import (
-    checkAllowableFreq,
     _appendAggKey,
     aggregate,
+    checkAllowableFreq,
     validateFuncExists,
 )
 from tests.base import SparkTest
@@ -26,6 +26,16 @@ class ResampleUnitTests(SparkTest):
         self.assertIn("agg_key", appendAggKey_tsdf.df.columns)
         self.assertEqual(appendAggKey_tuple[1], "1")
         self.assertEqual(appendAggKey_tuple[2], "microseconds")
+
+    def test_appendAggKey_freq_is_invalid(self):
+        input_tsdf = self.get_data_as_tsdf("input_data")
+
+        self.assertRaises(
+            ValueError,
+            _appendAggKey,
+            input_tsdf,
+            "1 invalid",
+        )
 
     def test_aggregate_floor(self):
         input_tsdf = self.get_data_as_tsdf("input_data")

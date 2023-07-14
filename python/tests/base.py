@@ -1,17 +1,18 @@
-import re
 import os
+import re
 import unittest
 import warnings
 from typing import Union
 
 import jsonref
-
-import pyspark.sql.functions as F
-from pyspark.sql import SparkSession
-from tempo.tsdf import TSDF
-from tempo.intervals import IntervalsDF
 from chispa import assert_df_equality
+
+import pyspark.sql.functions as sfn
+from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
+
+from tempo.intervals import IntervalsDF
+from tempo.tsdf import TSDF
 
 
 class SparkTest(unittest.TestCase):
@@ -166,7 +167,7 @@ class SparkTest(unittest.TestCase):
                     re.search(decimal_pattern, ts_value) is None
                     or len(re.search(decimal_pattern, ts_value)[0]) <= 4
                 ):
-                    df = df.withColumn(tsc, F.to_timestamp(F.col(tsc)))
+                    df = df.withColumn(tsc, sfn.to_timestamp(sfn.col(tsc)))
         return df
 
     #

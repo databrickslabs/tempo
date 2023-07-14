@@ -1,13 +1,16 @@
-from io import StringIO
+import os
 import sys
 import unittest
-import os
-from dateutil import parser as dt_parser
+from io import StringIO
 from unittest import mock
+from unittest.mock import patch
+
+from dateutil import parser as dt_parser
+
+import pyspark.sql.functions as sfn
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import WindowSpec
-import pyspark.sql.functions as f
 
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
@@ -35,23 +38,33 @@ class TSDFBaseTests(SparkTest):
         # self.assertDataFrameEquality(res, dfExpected)
         assert res.count() == 7
         assert (
-            res.filter(f.col("unique_time_series_count") != " ")
-            .select(f.max(f.col("unique_time_series_count")))
+            res.filter(sfn.col("unique_time_series_count") != " ")
+            .select(sfn.max(sfn.col("unique_time_series_count")))
             .collect()[0][0]
             == "1"
         )
         assert (
-            res.filter(f.col("min_ts") != " ")
-            .select(f.col("min_ts").cast("string"))
+            res.filter(sfn.col("min_ts") != " ")
+            .select(sfn.col("min_ts").cast("string"))
             .collect()[0][0]
             == "2020-08-01 00:00:10"
         )
         assert (
-            res.filter(f.col("max_ts") != " ")
-            .select(f.col("max_ts").cast("string"))
+            res.filter(sfn.col("max_ts") != " ")
+            .select(sfn.col("max_ts").cast("string"))
             .collect()[0][0]
             == "2020-09-01 00:19:12"
         )
+
+    def test__getSparkPlan(self):
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        plan = init_tsdf._TSDF__getSparkPlan(init_tsdf.df, self.spark)
+
+        self.assertIsInstance(plan, str)
+        self.assertIn("Optimized Logical Plan", plan)
+        self.assertIn("Physical Plan", plan)
+        self.assertIn("sizeInBytes", plan)
 
     def test__getBytesFromPlan(self):
         init_tsdf = self.get_data_as_tsdf("init")
@@ -59,6 +72,50 @@ class TSDFBaseTests(SparkTest):
         _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
 
         self.assertEqual(_bytes, 6.2)
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_search_result_is_None(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "will not match search value"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        self.assertRaises(
+            ValueError,
+            init_tsdf._TSDF__getBytesFromPlan,
+            init_tsdf.df,
+            self.spark,
+        )
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_size_in_MiB(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 MiB) '"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+        expected = 1 * 1024 * 1024
+
+        self.assertEqual(_bytes, expected)
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_size_in_KiB(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 KiB) '"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+
+        self.assertEqual(_bytes, 1 * 1024)
+
+    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
+    def test__getBytesFromPlan_size_in_GiB(self, mock__getSparkPlan):
+        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 GiB) '"
+
+        init_tsdf = self.get_data_as_tsdf("init")
+
+        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
+
+        self.assertEqual(_bytes, 1 * 1024 * 1024 * 1024)
 
     @staticmethod
     @mock.patch.dict(os.environ, {"TZ": "UTC"})
@@ -68,7 +125,7 @@ class TSDFBaseTests(SparkTest):
     @staticmethod
     def __tsdf_with_double_tscol(tsdf: TSDF) -> TSDF:
         with_double_tscol_df = tsdf.df.withColumn(
-            tsdf.ts_col, f.col(tsdf.ts_col).cast("double")
+            tsdf.ts_col, sfn.col(tsdf.ts_col).cast("double")
         )
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
@@ -819,9 +876,51 @@ class TSDFBaseTests(SparkTest):
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
+    def test_tsdf_interpolate(self):
+        ...
+
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):
+        """Test of fourier transform functionality in TSDF objects"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # convert to TSDF
+        result_tsdf = tsdf_init.fourier_transform(1, "val")
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+
+    def test_fourier_transform_valid_sequence_col_empty_partition_cols(self):
+        """Test of fourier transform functionality in TSDF objects"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # convert to TSDF
+        result_tsdf = tsdf_init.fourier_transform(1, "val")
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+
+    def test_fourier_transform_valid_sequence_col_valid_partition_cols(self):
+        """Test of fourier transform functionality in TSDF objects"""
+
+        # construct dataframes
+        tsdf_init = self.get_data_as_tsdf("init")
+        dfExpected = self.get_data_as_sdf("expected")
+
+        # convert to TSDF
+        result_tsdf = tsdf_init.fourier_transform(1, "val")
+
+        # should be equal to the expected dataframe
+        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+
+    def test_fourier_transform_no_sequence_col_empty_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
@@ -850,28 +949,28 @@ class RangeStatsTest(SparkTest):
 
         # cast to decimal with precision in cents for simplicity
         featured_df = featured_df.select(
-            f.col("symbol"),
-            f.col("event_ts"),
-            f.col("mean_trade_pr").cast("decimal(5, 2)"),
-            f.col("count_trade_pr"),
-            f.col("min_trade_pr").cast("decimal(5,2)"),
-            f.col("max_trade_pr").cast("decimal(5,2)"),
-            f.col("sum_trade_pr").cast("decimal(5,2)"),
-            f.col("stddev_trade_pr").cast("decimal(5,2)"),
-            f.col("zscore_trade_pr").cast("decimal(5,2)"),
+            sfn.col("symbol"),
+            sfn.col("event_ts"),
+            sfn.col("mean_trade_pr").cast("decimal(5, 2)"),
+            sfn.col("count_trade_pr"),
+            sfn.col("min_trade_pr").cast("decimal(5,2)"),
+            sfn.col("max_trade_pr").cast("decimal(5,2)"),
+            sfn.col("sum_trade_pr").cast("decimal(5,2)"),
+            sfn.col("stddev_trade_pr").cast("decimal(5,2)"),
+            sfn.col("zscore_trade_pr").cast("decimal(5,2)"),
         )
 
         # cast to decimal with precision in cents for simplicity
         dfExpected = dfExpected.select(
-            f.col("symbol"),
-            f.col("event_ts"),
-            f.col("mean_trade_pr").cast("decimal(5, 2)"),
-            f.col("count_trade_pr"),
-            f.col("min_trade_pr").cast("decimal(5,2)"),
-            f.col("max_trade_pr").cast("decimal(5,2)"),
-            f.col("sum_trade_pr").cast("decimal(5,2)"),
-            f.col("stddev_trade_pr").cast("decimal(5,2)"),
-            f.col("zscore_trade_pr").cast("decimal(5,2)"),
+            sfn.col("symbol"),
+            sfn.col("event_ts"),
+            sfn.col("mean_trade_pr").cast("decimal(5, 2)"),
+            sfn.col("count_trade_pr"),
+            sfn.col("min_trade_pr").cast("decimal(5,2)"),
+            sfn.col("max_trade_pr").cast("decimal(5,2)"),
+            sfn.col("sum_trade_pr").cast("decimal(5,2)"),
+            sfn.col("stddev_trade_pr").cast("decimal(5,2)"),
+            sfn.col("zscore_trade_pr").cast("decimal(5,2)"),
         )
 
         # should be equal to the expected dataframe
@@ -889,26 +988,26 @@ class RangeStatsTest(SparkTest):
 
         # cast to decimal with precision in cents for simplicity
         featured_df = featured_df.select(
-            f.col("symbol"),
-            f.col("event_ts"),
-            f.col("mean_trade_pr").cast("decimal(5, 2)"),
-            f.col("count_trade_pr"),
-            f.col("min_trade_pr").cast("decimal(5,2)"),
-            f.col("max_trade_pr").cast("decimal(5,2)"),
-            f.col("sum_trade_pr").cast("decimal(5,2)"),
-            f.col("stddev_trade_pr").cast("decimal(5,2)"),
+            sfn.col("symbol"),
+            sfn.col("event_ts"),
+            sfn.col("mean_trade_pr").cast("decimal(5, 2)"),
+            sfn.col("count_trade_pr"),
+            sfn.col("min_trade_pr").cast("decimal(5,2)"),
+            sfn.col("max_trade_pr").cast("decimal(5,2)"),
+            sfn.col("sum_trade_pr").cast("decimal(5,2)"),
+            sfn.col("stddev_trade_pr").cast("decimal(5,2)"),
         )
 
         # cast to decimal with precision in cents for simplicity
         dfExpected = dfExpected.select(
-            f.col("symbol"),
-            f.col("event_ts"),
-            f.col("mean_trade_pr").cast("decimal(5, 2)"),
-            f.col("count_trade_pr"),
-            f.col("min_trade_pr").cast("decimal(5,2)"),
-            f.col("max_trade_pr").cast("decimal(5,2)"),
-            f.col("sum_trade_pr").cast("decimal(5,2)"),
-            f.col("stddev_trade_pr").cast("decimal(5,2)"),
+            sfn.col("symbol"),
+            sfn.col("event_ts"),
+            sfn.col("mean_trade_pr").cast("decimal(5, 2)"),
+            sfn.col("count_trade_pr"),
+            sfn.col("min_trade_pr").cast("decimal(5,2)"),
+            sfn.col("max_trade_pr").cast("decimal(5,2)"),
+            sfn.col("sum_trade_pr").cast("decimal(5,2)"),
+            sfn.col("stddev_trade_pr").cast("decimal(5,2)"),
         )
 
         # should be equal to the expected dataframe
@@ -929,7 +1028,7 @@ class ResampleTest(SparkTest):
         featured_df = tsdf_input.resample(freq="min", func="floor", prefix="floor").df
         # 30 minute aggregation
         resample_30m = tsdf_input.resample(freq="5 minutes", func="mean").df.withColumn(
-            "trade_pr", f.round(f.col("trade_pr"), 2)
+            "trade_pr", sfn.round(sfn.col("trade_pr"), 2)
         )
 
         bars = tsdf_input.calc_bars(
@@ -952,7 +1051,7 @@ class ResampleTest(SparkTest):
 
         # 30 minute aggregation
         resample_ms = tsdf_init.resample(freq="ms", func="mean").df.withColumn(
-            "trade_pr", f.round(f.col("trade_pr"), 2)
+            "trade_pr", sfn.round(sfn.col("trade_pr"), 2)
         )
 
         self.assertDataFrameEquality(resample_ms, dfExpected)
@@ -967,14 +1066,14 @@ class ResampleTest(SparkTest):
 
         resample_30m = tsdf_input.resample(
             freq="5 minutes", func="mean", fill=True
-        ).df.withColumn("trade_pr", f.round(f.col("trade_pr"), 2))
+        ).df.withColumn("trade_pr", sfn.round(sfn.col("trade_pr"), 2))
 
         bars = tsdf_input.calc_bars(
             freq="min", metricCols=["trade_pr", "trade_pr_2"]
         ).df
 
         upsampled = resample_30m.filter(
-            f.col("event_ts").isin(
+            sfn.col("event_ts").isin(
                 "2020-08-01 00:00:00",
                 "2020-08-01 00:05:00",
                 "2020-09-01 00:00:00",
@@ -1167,7 +1266,7 @@ class ExtractStateIntervalsTest(SparkTest):
 
         # threshold state function
         def threshold_fn(a: Column, b: Column) -> Column:
-            return f.abs(a - b) < f.lit(0.5)
+            return sfn.abs(a - b) < sfn.lit(0.5)
 
         # call extractStateIntervals method
         extracted_intervals_df: DataFrame = input_tsdf.extractStateIntervals(

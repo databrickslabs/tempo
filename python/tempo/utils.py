@@ -1,15 +1,20 @@
-from typing import List
+from __future__ import annotations
+
 import logging
 import os
 import warnings
+from typing import List, Optional, Union, overload
+
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas.core.frame import DataFrame as pandasDataFrame
-from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import expr, max, min, sum, percentile_approx
 
-from tempo.resample import checkAllowableFreq, freq_dict
+import pyspark.sql.functions as sfn
+from pyspark.sql.dataframe import DataFrame
+
+import tempo.resample as t_resample
+import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -30,7 +35,7 @@ class ResampleWarning(Warning):
     pass
 
 
-def _is_capable_of_html_rendering():
+def _is_capable_of_html_rendering() -> bool:
     """
     This method returns a boolean value signifying whether the environment is a notebook environment
     capable of rendering HTML or not.
@@ -48,36 +53,51 @@ def _is_capable_of_html_rendering():
 
 
 def calculate_time_horizon(
-    df: DataFrame, ts_col: str, freq: str, partition_cols: List[str]
-):
+    df: DataFrame,
+    ts_col: str,
+    freq: str,
+    partition_cols: Optional[List[str]],
+    local_freq_dict: Optional[t_resample.FreqDict] = None,
+) -> None:
     # Convert Frequency using resample dictionary
-    parsed_freq = checkAllowableFreq(freq)
-    freq = f"{parsed_freq[0]} {freq_dict[parsed_freq[1]]}"
+    if local_freq_dict is None:
+        local_freq_dict = t_resample.freq_dict
+    parsed_freq = t_resample.checkAllowableFreq(freq)
+    period, unit = parsed_freq[0], parsed_freq[1]
+    if t_resample.is_valid_allowed_freq_keys(
+        unit,
+        t_resample.ALLOWED_FREQ_KEYS,
+    ):
+        freq = f"{period} {local_freq_dict[unit]}"  # type: ignore[literal-required]
+    else:
+        raise ValueError(f"Frequency {unit} not supported")
 
     # Get max and min timestamp per partition
     partitioned_df: DataFrame = df.groupBy(*partition_cols).agg(
-        max(ts_col).alias("max_ts"),
-        min(ts_col).alias("min_ts"),
+        sfn.max(ts_col).alias("max_ts"),
+        sfn.min(ts_col).alias("min_ts"),
     )
 
     # Generate upscale metrics
     normalized_time_df: DataFrame = (
-        partitioned_df.withColumn("min_epoch_ms", expr("unix_millis(min_ts)"))
-        .withColumn("max_epoch_ms", expr("unix_millis(max_ts)"))
+        partitioned_df.withColumn("min_epoch_ms", sfn.expr("unix_millis(min_ts)"))
+        .withColumn("max_epoch_ms", sfn.expr("unix_millis(max_ts)"))
         .withColumn(
             "interval_ms",
-            expr(
+            sfn.expr(
                 f"unix_millis(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"
             ),
         )
         .withColumn(
-            "rounded_min_epoch", expr("min_epoch_ms - (min_epoch_ms % interval_ms)")
+            "rounded_min_epoch",
+            sfn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)"),
         )
         .withColumn(
-            "rounded_max_epoch", expr("max_epoch_ms - (max_epoch_ms % interval_ms)")
+            "rounded_max_epoch",
+            sfn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)"),
         )
-        .withColumn("diff_ms", expr("rounded_max_epoch - rounded_min_epoch"))
-        .withColumn("num_values", expr("(diff_ms/interval_ms) +1"))
+        .withColumn("diff_ms", sfn.expr("rounded_max_epoch - rounded_min_epoch"))
+        .withColumn("num_values", sfn.expr("(diff_ms/interval_ms) +1"))
     )
 
     (
@@ -90,14 +110,14 @@ def calculate_time_horizon(
         p75_value_partition,
         total_values,
     ) = normalized_time_df.select(
-        min("min_ts"),
-        max("max_ts"),
-        min("num_values"),
-        max("num_values"),
-        percentile_approx("num_values", 0.25),
-        percentile_approx("num_values", 0.5),
-        percentile_approx("num_values", 0.75),
-        sum("num_values"),
+        sfn.min("min_ts"),
+        sfn.max("max_ts"),
+        sfn.min("num_values"),
+        sfn.max("num_values"),
+        sfn.percentile_approx("num_values", 0.25),
+        sfn.percentile_approx("num_values", 0.5),
+        sfn.percentile_approx("num_values", 0.75),
+        sfn.sum("num_values"),
     ).first()
 
     warnings.simplefilter("always", ResampleWarning)
@@ -118,7 +138,17 @@ def calculate_time_horizon(
     )
 
 
-def display_html(df):
+@overload
+def display_html(df: pandasDataFrame) -> None:
+    ...
+
+
+@overload
+def display_html(df: DataFrame) -> None:
+    ...
+
+
+def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
     """
     Display method capable of displaying the dataframe in a formatted HTML structured output
     """
@@ -131,7 +161,7 @@ def display_html(df):
         logger.error("'display' method not available for this object")
 
 
-def display_unavailable(df):
+def display_unavailable() -> None:
     """
     This method is called when display method is not available in the environment.
     """
@@ -140,7 +170,7 @@ def display_unavailable(df):
     )
 
 
-def get_display_df(tsdf, k):
+def get_display_df(tsdf: t_tsdf.TSDF, k: int) -> DataFrame:
     # let's show the n most recent records per series, in order:
     orderCols = tsdf.partitionCols.copy()
     orderCols.append(tsdf.ts_col)
@@ -157,11 +187,24 @@ if (
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
+
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
-    def display_improvised(obj):
-        if type(obj).__name__ == "TSDF":
+    @overload
+    def display_improvised(obj: t_tsdf.TSDF) -> None:
+        ...
+
+    @overload
+    def display_improvised(obj: pandasDataFrame) -> None:
+        ...
+
+    @overload
+    def display_improvised(obj: DataFrame) -> None:
+        ...
+
+    def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
+        if isinstance(obj, t_tsdf.TSDF):
             method(get_display_df(obj, k=5))
         else:
             method(obj)
@@ -170,8 +213,22 @@ if (
 
 elif ENV_CAN_RENDER_HTML:
 
-    def display_html_improvised(obj):
-        if type(obj).__name__ == "TSDF":
+    @overload
+    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
+        ...
+
+    @overload
+    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
+        ...
+
+    @overload
+    def display_html_improvised(obj: Optional[DataFrame]) -> None:
+        ...
+
+    def display_html_improvised(
+        obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+    ) -> None:
+        if isinstance(obj, t_tsdf.TSDF):
             display_html(get_display_df(obj, k=5))
         else:
             display_html(obj)
@@ -179,7 +236,7 @@ elif ENV_CAN_RENDER_HTML:
     display = display_html_improvised
 
 else:
-    display = display_unavailable
+    display = display_unavailable  # type: ignore
 
 """
 display method's equivalent for TSDF object

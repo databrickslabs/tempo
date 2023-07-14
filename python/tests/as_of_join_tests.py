@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from tests.base import SparkTest
 
@@ -73,21 +74,30 @@ class AsOfJoinTest(SparkTest):
 
     def test_partitioned_asof_join(self):
         """AS-OF Join with a time-partition"""
+        with self.assertLogs(level="WARNING") as warning_captured:
+            # fetch test data
+            tsdf_left = self.get_data_as_tsdf("left")
+            tsdf_right = self.get_data_as_tsdf("right")
+            dfExpected = self.get_data_as_sdf("expected")
 
-        # fetch test data
-        tsdf_left = self.get_data_as_tsdf("left")
-        tsdf_right = self.get_data_as_tsdf("right")
-        dfExpected = self.get_data_as_sdf("expected")
+            joined_df = tsdf_left.asofJoin(
+                tsdf_right,
+                left_prefix="left",
+                right_prefix="right",
+                tsPartitionVal=10,
+                fraction=0.1,
+            ).df
 
-        joined_df = tsdf_left.asofJoin(
-            tsdf_right,
-            left_prefix="left",
-            right_prefix="right",
-            tsPartitionVal=10,
-            fraction=0.1,
-        ).df
-
-        self.assertDataFrameEquality(joined_df, dfExpected)
+            self.assertDataFrameEquality(joined_df, dfExpected)
+            self.assertEqual(
+                warning_captured.output,
+                [
+                    "WARNING:tempo.tsdf:You are using the skew version of the AS OF join. This "
+                    "may result in null values if there are any values outside of the maximum "
+                    "lookback. For maximum efficiency, choose smaller values of maximum lookback, "
+                    "trading off performance and potential blank AS OF values for sparse keys"
+                ],
+            )
 
     def test_asof_join_nanos(self):
         """As of join with nanosecond timestamps"""
@@ -125,6 +135,32 @@ class AsOfJoinTest(SparkTest):
             # compare
             expected_tolerance = self.get_data_as_sdf(f"expected_tolerance_{tolerance}")
             self.assertDataFrameEquality(joined_df, expected_tolerance)
+
+    def test_asof_join_sql_join_opt_and_bytes_threshold(self):
+        """AS-OF Join with out a time-partition test"""
+        with patch("tempo.tsdf.TSDF._TSDF__getBytesFromPlan", return_value=1000):
+            # Construct dataframes
+            tsdf_left = self.get_data_as_tsdf("left")
+            tsdf_right = self.get_data_as_tsdf("right")
+            dfExpected = self.get_data_as_sdf("expected")
+            noRightPrefixdfExpected = self.get_data_as_sdf("expected_no_right_prefix")
+
+            # perform the join
+            joined_df = tsdf_left.asofJoin(
+                tsdf_right, left_prefix="left", right_prefix="right", sql_join_opt=True
+            ).df
+            non_prefix_joined_df = tsdf_left.asofJoin(
+                tsdf_right, left_prefix="left", right_prefix="", sql_join_opt=True
+            ).df
+
+            # joined dataframe should equal the expected dataframe
+            self.assertDataFrameEquality(joined_df, dfExpected)
+            self.assertDataFrameEquality(non_prefix_joined_df, noRightPrefixdfExpected)
+
+            spark_sql_joined_df = tsdf_left.asofJoin(
+                tsdf_right, left_prefix="left", right_prefix="right"
+            ).df
+            self.assertDataFrameEquality(spark_sql_joined_df, dfExpected)
 
 
 # MAIN
