@@ -689,6 +689,7 @@ class IntervalsDF:
             """
             returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
             """
+            print("interval", "-----", interval, sep="\n")
             if interval_boundaries is None:
                 interval_boundaries = [local_start_ts, local_end_ts]
 
@@ -704,20 +705,27 @@ class IntervalsDF:
                 in_pdf=disjoint_set,
                 with_row=interval,
             )
+            print("overlapping_subset_df", "-----", overlapping_subset_df, sep="\n")
 
             non_overlapping_subset_df = disjoint_set[
                 ~disjoint_set.set_index(interval_boundaries).index.isin(
                     overlapping_subset_df.set_index(interval_boundaries).index
                 )
             ]  # TODO: PULL INTO A FUNCTION
-            print(non_overlapping_subset_df)
+            print("non_overlapping_subset_df", "-----", non_overlapping_subset_df, sep="\n")
 
             # if overlapping_subset_df.empty and not non_overlapping_subset_df.empty:
             #     return pd.concat((disjoint_set, non_overlapping_subset_df))
 
             if overlapping_subset_df.empty:
-
-                return disjoint_set
+                element_wise_comparison = disjoint_set == interval.values[:, None]
+                print("elementwise_comparison", "-----", element_wise_comparison, sep="\n")
+                row_wise_comparison = element_wise_comparison.all(axis=1)
+                print("rowwise_comparison", "-----", row_wise_comparison, sep="\n")
+                if row_wise_comparison.any():
+                    return pd.concat((disjoint_set, pd.DataFrame([interval])))
+                else:
+                    return disjoint_set
 
             multiple_to_resolve = len(overlapping_subset_df.index) > 1
             only_overlaps_present = len(disjoint_set.index) == len(
@@ -734,11 +742,6 @@ class IntervalsDF:
                 return resolve_all_overlaps(interval, overlapping_subset_df)
 
             if not multiple_to_resolve and not only_overlaps_present:
-                non_overlapping_subset_df = disjoint_set[
-                    ~disjoint_set.set_index(interval_boundaries).index.isin(
-                        overlapping_subset_df.set_index(interval_boundaries).index
-                    )
-                ]  # TODO: PULL INTO A FUNCTION
                 return pd.concat(
                     (
                         pd.DataFrame(
@@ -749,11 +752,6 @@ class IntervalsDF:
                 )
 
             if multiple_to_resolve and not only_overlaps_present:
-                non_overlapping_subset_df = disjoint_set[
-                    ~disjoint_set.set_index(interval_boundaries).index.isin(
-                        overlapping_subset_df.set_index(interval_boundaries).index
-                    )
-                ]  # TODO: PULL INTO A FUNCTION
                 return pd.concat(
                     (
                         resolve_all_overlaps(interval, overlapping_subset_df),
