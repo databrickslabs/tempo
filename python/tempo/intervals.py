@@ -718,14 +718,14 @@ class IntervalsDF:
             #     return pd.concat((disjoint_set, non_overlapping_subset_df))
 
             if overlapping_subset_df.empty:
-                element_wise_comparison = disjoint_set == interval.values[:, None]
+                element_wise_comparison = disjoint_set.fillna("¯\\_(ツ)_/¯") == interval.fillna("¯\\_(ツ)_/¯").values
                 print("elementwise_comparison", "-----", element_wise_comparison, sep="\n")
                 row_wise_comparison = element_wise_comparison.all(axis=1)
                 print("rowwise_comparison", "-----", row_wise_comparison, sep="\n")
                 if row_wise_comparison.any():
-                    return pd.concat((disjoint_set, pd.DataFrame([interval])))
-                else:
                     return disjoint_set
+                else:
+                    return pd.concat((disjoint_set, pd.DataFrame([interval])))
 
             multiple_to_resolve = len(overlapping_subset_df.index) > 1
             only_overlaps_present = len(disjoint_set.index) == len(
