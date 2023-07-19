@@ -33,10 +33,12 @@ class IntervalsDF:
 
     """
 
-    # TODO: https://docs.python.org/3/library/pickle.html#handling-stateful-objects
-    # TODO: try this one too: https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.pandas_udf.html
     def __init__(
-            self, df: DataFrame, start_ts: str, end_ts: str, series_ids: list[str] = None
+            self,
+            df: DataFrame,
+            start_ts: str,
+            end_ts: str,
+            series_ids: list[str] = None,
     ) -> None:
         """
          Constructor for :class:`IntervalsDF`.
@@ -59,7 +61,7 @@ class IntervalsDF:
                 [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", 5, 0]],
                 "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 INT, metric_2 INT",
             )
-            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
+            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"])
             idf.df.collect()
             [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=0)]
 
@@ -204,7 +206,7 @@ class IntervalsDF:
 
         This is often used after :meth:`fromStackedMetrics` to reduce the number of
         metrics with `null` values and helps when constructing filter predicates to
-        to retrieve specific metric values across all instances.
+        retrieve specific metric values across all instances.
 
         :return: A new :class:`IntervalsDF` containing disjoint time intervals
 
@@ -245,7 +247,7 @@ class IntervalsDF:
             if in_pdf.empty or with_row.empty:
                 return in_pdf
 
-            local_in_pdf = in_pdf.copy()  # TODO: do we need to make a copy?
+            local_in_pdf = in_pdf.copy()
 
             # https://stackoverflow.com/questions/19913659/pandas-conditional-creation-of-a-series-dataframe-column
             local_in_pdf["max_start_timestamp"] = [
@@ -560,26 +562,6 @@ class IntervalsDF:
 
                     resolved_intervals.append(resolved_series)
 
-                else:  # TODO: THINK WE CAN REMOVE THIS BECAUSE WE CHECK FOR ORDERING AT BEGINNING OF FUNCTION
-                    # 1)
-                    resolved_series = update_interval_boundary(
-                        interval=interval_b,
-                        boundary_to_update=local_end_ts,
-                        update_value=interval_a[local_start_ts],
-                    )
-
-                    resolved_intervals.append(resolved_series)
-
-                    # 2)
-                    resolved_series = merge_metric_columns_of_intervals(
-                        main_interval=interval_a,
-                        child_interval=interval_b,
-                        metric_columns=metric_columns,
-                        metric_merge_method=True,
-                    )
-
-                    resolved_intervals.append(resolved_series)
-
                 return resolved_intervals
 
             # A and B share a common start and end boundary, making them equivalent.
@@ -689,7 +671,6 @@ class IntervalsDF:
             """
             returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
             """
-            print("interval", "-----", interval, sep="\n")
             if interval_boundaries is None:
                 interval_boundaries = [local_start_ts, local_end_ts]
 
@@ -699,40 +680,45 @@ class IntervalsDF:
             if disjoint_set.empty:
                 return pd.DataFrame([interval])
 
-            # if there are values in disjoint_set, resolve the interval against all the values present in disjoint_set
-            # and replace disjoint_set with the result
             overlapping_subset_df = identify_overlaps(
                 in_pdf=disjoint_set,
                 with_row=interval,
             )
-            print("overlapping_subset_df", "-----", overlapping_subset_df, sep="\n")
 
-            non_overlapping_subset_df = disjoint_set[
-                ~disjoint_set.set_index(interval_boundaries).index.isin(
-                    overlapping_subset_df.set_index(interval_boundaries).index
-                )
-            ]  # TODO: PULL INTO A FUNCTION
-            print("non_overlapping_subset_df", "-----", non_overlapping_subset_df, sep="\n")
-
-            # if overlapping_subset_df.empty and not non_overlapping_subset_df.empty:
-            #     return pd.concat((disjoint_set, non_overlapping_subset_df))
-
+            # if there are no overlaps, add the interval to disjoint_set
             if overlapping_subset_df.empty:
-                element_wise_comparison = disjoint_set.fillna("¯\\_(ツ)_/¯") == interval.fillna("¯\\_(ツ)_/¯").values
-                print("elementwise_comparison", "-----", element_wise_comparison, sep="\n")
+                element_wise_comparison = (
+                        disjoint_set.fillna("¯\\_(ツ)_/¯")
+                        ==
+                        interval.fillna("¯\\_(ツ)_/¯").values
+                )
                 row_wise_comparison = element_wise_comparison.all(axis=1)
-                print("rowwise_comparison", "-----", row_wise_comparison, sep="\n")
+                # NB: because of the nested iterations, we need to check that the
+                # record hasn't already been added to `global_disjoint_df` by another loop
                 if row_wise_comparison.any():
                     return disjoint_set
                 else:
                     return pd.concat((disjoint_set, pd.DataFrame([interval])))
 
+            # identify all intervals which do not overlap with the given interval to
+            # concatenate them to the disjoint set after resolving overlaps
+            non_overlapping_subset_df = disjoint_set[
+                ~disjoint_set.set_index(interval_boundaries).index.isin(
+                    overlapping_subset_df.set_index(interval_boundaries).index
+                )
+            ]
+
+            # Avoid a call to `resolve_all_overlaps` if there is only one to resolve
             multiple_to_resolve = len(overlapping_subset_df.index) > 1
+
+            # If every record overlaps, no need to handle non-overlaps
             only_overlaps_present = len(disjoint_set.index) == len(
                 overlapping_subset_df.index
             )
 
-            # If every record overlaps, no need to check and handle non-overlaps
+            # Resolve the interval against all the existing, overlapping intervals
+            # `multiple_to_resolve` is used to avoid unnecessary calls to `resolve_all_overlaps`
+            # `only_overlaps_present` is used to avoid unnecessary calls to `pd.concat`
             if not multiple_to_resolve and only_overlaps_present:
                 return pd.DataFrame(
                     resolve_overlap(interval, overlapping_subset_df.iloc[0])
@@ -779,12 +765,6 @@ class IntervalsDF:
         disjoint_df = local_df.groupby(self.series_ids).applyInPandas(
                 func=make_disjoint_inner, schema=self.df.schema
             )
-        # https://issues.apache.org/jira/browse/SPARK-34544
-        # pdf = local_df.toPandas()
-        # pd_df = cast(pd.DataFrame, pdf)
-        # final_result = make_disjoint_inner(pd_df)
-
-        # return final_result
 
         return IntervalsDF(
             disjoint_df,
