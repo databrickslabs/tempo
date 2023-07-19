@@ -5,6 +5,7 @@ from functools import cached_property
 
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (
+    # NB: NumericType is a non-public object, so we shouldn't import it directly
     ByteType,
     ShortType,
     IntegerType,
@@ -23,7 +24,8 @@ import pandas as pd
 
 
 def is_metric_col(col: StructField) -> bool:
-    return isinstance(col.dataType, (ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType,)) or isinstance(
+    return isinstance(col.dataType,
+                      (ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType,)) or isinstance(
         col.dataType, BooleanType
     )
 
@@ -404,10 +406,10 @@ class IntervalsDF:
             resolve overlaps between the two given intervals,
             splitting them as necessary into some set of disjoint intervals
             """
-            
+
             if series_ids is None:
                 series_ids = local_series_ids
-                
+
             if metric_columns is None:
                 metric_columns = local_metric_columns
 
@@ -778,8 +780,8 @@ class IntervalsDF:
             return global_disjoint_df
 
         disjoint_df = local_df.groupby(self.series_ids).applyInPandas(
-                func=make_disjoint_inner, schema=self.df.schema
-            )
+            func=make_disjoint_inner, schema=self.df.schema
+        )
 
         return IntervalsDF(
             disjoint_df,
@@ -886,4 +888,3 @@ class IntervalsDF:
 
         else:
             return self.df
-
