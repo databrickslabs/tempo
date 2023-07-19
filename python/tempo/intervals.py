@@ -4,7 +4,17 @@ from typing import Optional, Iterable, cast
 from functools import cached_property
 
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import NumericType, BooleanType, StructField
+from pyspark.sql.types import (
+    ByteType,
+    ShortType,
+    IntegerType,
+    LongType,
+    FloatType,
+    DoubleType,
+    DecimalType,
+    BooleanType,
+    StructField,
+)
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
 
@@ -13,7 +23,7 @@ import pandas as pd
 
 
 def is_metric_col(col: StructField) -> bool:
-    return isinstance(col.dataType, NumericType) or isinstance(
+    return isinstance(col.dataType, (ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType,)) or isinstance(
         col.dataType, BooleanType
     )
 
@@ -401,7 +411,12 @@ class IntervalsDF:
             if metric_columns is None:
                 metric_columns = local_metric_columns
 
-            if not (interval_a.index == interval_b.index).all():
+            index_comparison = interval_a.index == interval_b.index
+
+            # NB: `typing.cast` is a noop to satisfy attribute reference for `all()`
+            index_comparison = cast(pd.Series, index_comparison)
+
+            if not index_comparison.all():
                 raise ValueError(
                     "Expected indices of pd.Series elements to be equivalent."
                 )
