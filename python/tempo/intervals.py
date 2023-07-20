@@ -701,7 +701,7 @@ class IntervalsDF:
                 interval: pd.Series,
                 disjoint_set: pd.DataFrame,
                 interval_boundaries: Optional[list[str]] = None,
-        ) -> Union[pd.DataFrame | NoReturn]:
+        ) -> pd.DataFrame:
             """
             returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
             """
