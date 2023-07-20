@@ -718,7 +718,7 @@ class TSDF:
     def asofJoin(
         self,
         right_tsdf: "TSDF",
-        left_prefix: Optional[str] = None,
+        left_prefix: str = "",
         right_prefix: str = "right",
         tsPartitionVal: Optional[int] = None,
         fraction: float = 0.5,
@@ -764,16 +764,13 @@ class TSDF:
                 left_cols = list(set(left_df.columns) - set(self.partitionCols))
                 right_cols = list(set(right_df.columns) - set(right_tsdf.partitionCols))
 
-                left_prefix = (
-                    ""
-                    if ((left_prefix is None) | (left_prefix == ""))
-                    else left_prefix + "_"
-                )
-                right_prefix = (
-                    ""
-                    if ((right_prefix is None) | (right_prefix == ""))
-                    else right_prefix + "_"
-                )
+                # NB: using truthiness of string to check if left_prefix is ""
+                if left_prefix:
+                    left_prefix = left_prefix + "_"
+
+                # NB: using truthiness of string to check if right_prefix is ""
+                if right_prefix:
+                    right_prefix = right_prefix + "_"
 
                 w = Window.partitionBy(*partition_cols).orderBy(
                     right_prefix + right_tsdf.ts_col
@@ -1541,7 +1538,7 @@ class TSDF:
                 )
 
             def state_comparison_fn(a: CT, b: CT) -> Callable[[Column, Column], Column]:
-                return operator_dict[state_definition](a, b)  # type: ignore
+                return operator_dict[state_definition](a, b)
 
         elif callable(state_definition):
             state_comparison_fn = state_definition  # type: ignore
