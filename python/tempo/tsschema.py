@@ -1,27 +1,13 @@
-from enum import Enum, auto
+import warnings
 from abc import ABC, abstractmethod
-from typing import cast, Any, Union, Optional, Collection, List
-import re
+from typing import Any, Collection, List, Optional, Union
 
 import pyspark.sql.functions as sfn
-from pyspark.sql import Column, WindowSpec, Window
+from pyspark.sql import Column, Window, WindowSpec
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
 
-#
-# Time Units
-#
-
-class TimeUnits(Enum):
-    YEARS = auto()
-    MONTHS = auto()
-    DAYS = auto()
-    HOURS = auto()
-    MINUTES = auto()
-    SECONDS = auto()
-    MICROSECONDS = auto()
-    NANOSECONDS = auto()
-
+from tempo.timeunit import TimeUnit, StandardTimeUnits
 
 #
 # Timestamp parsing helpers
@@ -30,16 +16,17 @@ class TimeUnits(Enum):
 DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
 __time_pattern_components = "hHkKmsS"
 
-def is_time_format(format: str) -> bool:
+
+def is_time_format(ts_fmt: str) -> bool:
     """
     Checcks whether the given format string contains time elements,
     or if it is just a date format
 
-    :param format: the format string to check
+    :param ts_fmt: the format string to check
 
     :return: whether the given format string contains time elements
     """
-    return any(c in format for c in __time_pattern_components)
+    return any(c in ts_fmt for c in __time_pattern_components)
 
 #
 # Abstract Timeseries Index Classes
@@ -86,7 +73,7 @@ class TSIndex(ABC):
 
     @property
     @abstractmethod
-    def unit(self) -> Optional[TimeUnits]:
+    def unit(self) -> Optional[TimeUnit]:
         """
         :return: the unit of this index, that is, the unit that a range value of 1 represents (Days, seconds, etc.)
         """
@@ -172,13 +159,13 @@ class SimpleTSIndex(TSIndex, ABC):
 
     def validate(self, df_schema: StructType) -> None:
         # the ts column must exist
-        assert(self.colname in df_schema.fieldNames(),
-                f"The TSIndex column {self.colname} does not exist in the given DataFrame")
+        assert self.colname in df_schema.fieldNames(), \
+            f"The TSIndex column {self.colname} does not exist in the given DataFrame"
         schema_ts_col = df_schema[self.colname]
         # it must have the right type
         schema_ts_type = schema_ts_col.dataType
-        assert( isinstance(schema_ts_type, type(self.dataType)),
-                f"The TSIndex column is of type {schema_ts_type}, but the expected type is {self.dataType}" )
+        assert isinstance(schema_ts_type, type(self.dataType)), \
+            f"The TSIndex column is of type {schema_ts_type}, but the expected type is {self.dataType}"
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
@@ -224,7 +211,7 @@ class OrdinalTSIndex(SimpleTSIndex):
         super().__init__(ts_col)
 
     @property
-    def unit(self) -> Optional[TimeUnits]:
+    def unit(self) -> Optional[TimeUnit]:
         return None
 
     def rangeExpr(self, reverse: bool = False) -> Column:
@@ -245,8 +232,8 @@ class SimpleTimestampIndex(SimpleTSIndex):
         super().__init__(ts_col)
 
     @property
-    def unit(self) -> Optional[TimeUnits]:
-        return TimeUnits.SECONDS
+    def unit(self) -> Optional[TimeUnit]:
+        return StandardTimeUnits.SECONDS
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
@@ -268,8 +255,8 @@ class SimpleDateIndex(SimpleTSIndex):
         super().__init__(ts_col)
 
     @property
-    def unit(self) -> Optional[TimeUnits]:
-        return TimeUnits.DAYS
+    def unit(self) -> Optional[TimeUnit]:
+        return StandardTimeUnits.DAYS
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
@@ -408,6 +395,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
         self, ts_struct: StructField, parsed_ts_col: str, src_str_col: str
     ) -> None:
         super().__init__(ts_struct, parsed_ts_col, src_str_col)
+        # validate the parsed column as a timestamp column
         parsed_ts_field = self.schema[self.__parsed_ts_col]
         if not isinstance(parsed_ts_field.dataType, TimestampType):
             raise TypeError(
@@ -422,8 +410,70 @@ class ParsedTimestampIndex(ParsedTSIndex):
         return self._reverseOrNot(expr, reverse)
 
     @property
-    def unit(self) -> Optional[TimeUnits]:
-        return TimeUnits.SECONDS
+    def unit(self) -> Optional[TimeUnit]:
+        return StandardTimeUnits.SECONDS
+
+
+class SubMicrosecondPrecisionTimestampIndex(ParsedTimestampIndex):
+    """
+    Timeseries index class for timestamps with sub-microsecond precision
+    parsed from a string column. Internally, the timestamps are stored as
+    doubles (fractional seconds since epoch), as well as the original string
+    and a micro-second precision (standard) timestamp field.
+    """
+
+    def __init__(self,
+                 ts_struct: StructField,
+                 double_ts_col: str,
+                 parsed_ts_col: str,
+                 src_str_col: str,
+                 num_precision_digits: int = 9) -> None:
+        """
+        :param ts_struct: The StructField for the TSIndex column
+        :param double_ts_col: The name of the double-precision timestamp column
+        :param parsed_ts_col: The name of the parsed timestamp column
+        :param src_str_col: The name of the source string column
+        :param num_precision_digits: The number of digits that make up the precision of
+        the timestamp. Ie. 9 for nanoseconds (default), 12 for picoseconds, etc.
+        You will receive a warning if this value is 6 or less, as this is the precision
+        of the standard timestamp type.
+        """
+        super().__init__(ts_struct, parsed_ts_col, src_str_col)
+        # set & validate the double timestamp column
+        self.double_ts_col = double_ts_col
+        # validate the double timestamp column
+        double_ts_field = self.schema[self.double_ts_col]
+        if not isinstance(double_ts_field.dataType, DoubleType):
+            raise TypeError(
+                f"The double_ts_col must be of DoubleType, "
+                f"but the given double_ts_col {self.double_ts_col} "
+                f"has type {double_ts_field.dataType}"
+            )
+        # validate the number of precision digits
+        if num_precision_digits <= 6:
+            warnings.warn(
+                f"SubMicrosecondPrecisionTimestampIndex has a num_precision_digits "
+                f"of {num_precision_digits} which is within the range of the "
+                f"standard timestamp precision of 6 digits (microseconds). "
+                f"Consider using a ParsedTimestampIndex instead."
+            )
+        self.__unit = TimeUnit(
+            f"custom_subsecond_unit (precision: {num_precision_digits})",
+            10 ** (-num_precision_digits),
+            num_precision_digits,
+        )
+
+    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
+        expr = sfn.col(self.double_ts_col)
+        return self._reverseOrNot(expr, reverse)
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        # just use the order by expression, since this is the same
+        return self.orderByExpr(reverse)
+
+    @property
+    def unit(self) -> Optional[TimeUnit]:
+        return self.__unit
 
 
 class ParsedDateIndex(ParsedTSIndex):
@@ -435,6 +485,7 @@ class ParsedDateIndex(ParsedTSIndex):
         self, ts_struct: StructField, parsed_ts_col: str, src_str_col: str
     ) -> None:
         super().__init__(ts_struct, parsed_ts_col, src_str_col)
+        # validate the parsed column as a date column
         parsed_ts_field = self.schema[self.__parsed_ts_col]
         if not isinstance(parsed_ts_field.dataType, DateType):
             raise TypeError(
@@ -444,8 +495,8 @@ class ParsedDateIndex(ParsedTSIndex):
             )
 
     @property
-    def unit(self) -> Optional[TimeUnits]:
-        return TimeUnits.DAYS
+    def unit(self) -> Optional[TimeUnit]:
+        return StandardTimeUnits.DAYS
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
@@ -472,7 +523,8 @@ class CompositeTSIndex(MultiPartTSIndex, ABC):
         assert len(ts_fields) > 1,\
             f"CompositeTSIndex must have at least two timestamp fields, " \
             f"but only {len(ts_fields)} were given"
-        self.ts_components = [SimpleTSIndex.fromTSCol(self.schema[field]) for field in ts_fields]
+        self.ts_components = \
+            [SimpleTSIndex.fromTSCol(self.schema[field]) for field in ts_fields]
 
     @property
     def _indexAttributes(self) -> dict[str, Any]:
@@ -488,7 +540,7 @@ class CompositeTSIndex(MultiPartTSIndex, ABC):
         return self.ts_components[0]
 
     @property
-    def unit(self) -> Optional[TimeUnits]:
+    def unit(self) -> Optional[TimeUnit]:
         return self.primary_ts_idx.unit
 
     def validate(self, df_schema: StructType) -> None:
@@ -666,8 +718,8 @@ class TSSchema(WindowBuilder):
         self.ts_idx.validate(df_schema)
         # check series IDs
         for sid in self.series_ids:
-            assert( sid in df_schema.fieldNames(),
-                    f"Series ID {sid} does not exist in the given DataFrame" )
+            assert sid in df_schema.fieldNames(), \
+                f"Series ID {sid} does not exist in the given DataFrame"
 
     def find_observational_columns(self, df_schema: StructType) -> list[str]:
         return list(set(df_schema.fieldNames()) - set(self.structural_columns))
