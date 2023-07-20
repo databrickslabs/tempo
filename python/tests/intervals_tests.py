@@ -368,4 +368,3 @@ class IntervalsDFTests(SparkTest):
 
         # assert idf_expected.df.toPandas().sort_values(["start_timestamp", "end_timestamp"]).sort_index(axis=1).reset_index(drop=True).equals(
         #     idf_actual.sort_values(["start_timestamp", "end_timestamp"]).sort_index(axis=1).reset_index(drop=True))
-
