@@ -42,6 +42,47 @@
         "$ref": "#/__SharedData/init"
       }
     },
+    "test_init_series_comma_seperated_str": {
+      "input": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
+        "other_ts_cols": [
+          "start_ts",
+          "end_ts"
+        ],
+        "start_ts": "start_ts",
+        "end_ts": "end_ts",
+        "series": [
+          "series_1",
+          "series_2"
+        ],
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "v1",
+            "v2",
+            5,
+            null
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "v1",
+            "v2",
+            null,
+            0
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "2020-08-01 00:00:12",
+            "v1",
+            "v2",
+            null,
+            4
+          ]
+        ]
+      }
+    },
     "test_init_series_tuple": {
       "input": {
         "$ref": "#/__SharedData/init"
