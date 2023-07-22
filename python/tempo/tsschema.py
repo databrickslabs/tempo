@@ -1,4 +1,5 @@
 import warnings
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Collection, List, Optional, Union
 
@@ -27,6 +28,20 @@ def is_time_format(ts_fmt: str) -> bool:
     :return: whether the given format string contains time elements
     """
     return any(c in ts_fmt for c in __time_pattern_components)
+
+
+def sub_seconds_precision_digits(ts_fmt: str) -> int:
+    """
+    Returns the number of digits of precision for a timestamp format string
+    """
+    # pattern for matching the sub-second precision digits
+    sub_seconds_ptrn = r"\.(\S+)"
+    # find the sub-second precision digits
+    match = re.search(sub_seconds_ptrn, ts_fmt)
+    if match is None:
+        return 0
+    else:
+        return len(match.group(1))
 
 #
 # Abstract Timeseries Index Classes
@@ -340,20 +355,20 @@ class ParsedTSIndex(MultiPartTSIndex, ABC):
                 f"but given column {src_str_field.name} "
                 f"is of type {src_str_field.dataType}"
             )
-        self.__src_str_col = src_str_col
+        self._src_str_col = src_str_col
         # validate the parsed column
         assert parsed_ts_col in self.schema.fieldNames(),\
             f"The parsed timestamp index field {parsed_ts_col} does not exist in the " \
             f"MultiPart TSIndex schema {self.schema}"
-        self.__parsed_ts_col = parsed_ts_col
+        self._parsed_ts_col = parsed_ts_col
 
     @property
     def src_str_col(self):
-        return self.fieldPath(self.__src_str_col)
+        return self.fieldPath(self._src_str_col)
 
     @property
     def parsed_ts_col(self):
-        return self.fieldPath(self.__parsed_ts_col)
+        return self.fieldPath(self._parsed_ts_col)
 
     @property
     def ts_col(self) -> str:
@@ -372,18 +387,52 @@ class ParsedTSIndex(MultiPartTSIndex, ABC):
 
     @classmethod
     def fromParsedTimestamp(cls,
-                            str_ts_col: str,
-                            ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT) -> "ParsedTimestampIndex":
+                            ts_struct: StructField,
+                            parsed_ts_col: str,
+                            src_str_col: str,
+                            double_ts_col: Optional[str] = None,
+                            num_precision_digits: int = 6) -> "ParsedTSIndex":
         """
         Create a ParsedTimestampIndex from a string column containing timestamps or dates
 
-        :param str_ts_col: The name of the string column containing timestamps or dates
-        :param ts_fmt: The format of the timestamps or dates in the string column
+        :param ts_struct: The StructField for the TSIndex column
+        :param parsed_ts_col: The name of the parsed timestamp column
+        :param src_str_col: The name of the source string column
+        :param double_ts_col: The name of the double-precision timestamp column
+        :param num_precision_digits: The number of digits that make up the precision of
 
-        :return: A ParsedTimestampIndex
+        :return: A ParsedTSIndex object
         """
-        # TODO fill this in
-        pass
+
+        # if a double timestamp column is given
+        # then we are building a SubMicrosecondPrecisionTimestampIndex
+        if double_ts_col is not None:
+            return SubMicrosecondPrecisionTimestampIndex(ts_struct,
+                                                         double_ts_col,
+                                                         parsed_ts_col,
+                                                         src_str_col,
+                                                         num_precision_digits)
+        # otherwise, we base it on the standard timestamp type
+        # find the schema of the ts_struct column
+        ts_schema = ts_struct.dataType
+        if not isinstance(ts_schema, StructType):
+            raise TypeError(
+                f"A ParsedTSIndex must be of type StructType, but given "
+                f"ts_struct {ts_struct.name} has type {ts_struct.dataType}"
+            )
+        # get the type of the parsed timestamp column
+        parsed_ts_type = ts_schema[parsed_ts_col].dataType
+        if isinstance(parsed_ts_type, TimestampType):
+            return ParsedTimestampIndex(ts_struct, parsed_ts_col, src_str_col)
+        elif isinstance(parsed_ts_type, DateType):
+            return ParsedDateIndex(ts_struct, parsed_ts_col, src_str_col)
+        else:
+            raise TypeError(
+                f"ParsedTimestampIndex must be of TimestampType or DateType, "
+                f"but given ts_col {parsed_ts_col} "
+                f"has type {parsed_ts_type}"
+            )
+
 
 
 class ParsedTimestampIndex(ParsedTSIndex):
@@ -396,7 +445,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
     ) -> None:
         super().__init__(ts_struct, parsed_ts_col, src_str_col)
         # validate the parsed column as a timestamp column
-        parsed_ts_field = self.schema[self.__parsed_ts_col]
+        parsed_ts_field = self.schema[self._parsed_ts_col]
         if not isinstance(parsed_ts_field.dataType, TimestampType):
             raise TypeError(
                 f"ParsedTimestampIndex must be of TimestampType, "
@@ -486,7 +535,7 @@ class ParsedDateIndex(ParsedTSIndex):
     ) -> None:
         super().__init__(ts_struct, parsed_ts_col, src_str_col)
         # validate the parsed column as a date column
-        parsed_ts_field = self.schema[self.__parsed_ts_col]
+        parsed_ts_field = self.schema[self._parsed_ts_col]
         if not isinstance(parsed_ts_field.dataType, DateType):
             raise TypeError(
                 f"ParsedTimestampIndex must be of DateType, "
