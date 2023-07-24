@@ -98,17 +98,17 @@
         "$ref": "#/__SharedData/init"
       }
     },
-    "test_init_series_truthiness": {
+    "test_init_series_int": {
+      "input": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_window_property": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_init_metric_none": {
-      "input": {
-        "$ref": "#/__SharedData/init"
-      }
-    },
-    "test_init_metric_truthiness": {
       "input": {
         "$ref": "#/__SharedData/init"
       }
