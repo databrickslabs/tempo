@@ -110,9 +110,9 @@ class TSDF(WindowBuilder):
     ) -> "TSDF":
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_subseq_struct_df = cls.__makeStructFromCols(
-            df, struct_col_name, [ts_col, subsequence_col]
-        )
+        with_subseq_struct_df = cls.__makeStructFromCols(df,
+                                                         struct_col_name,
+                                                         [ts_col, subsequence_col])
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
         subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
@@ -407,7 +407,7 @@ class TSDF(WindowBuilder):
         where_df = self.df.where(condition)
         return self.__withTransformedDF(where_df)
 
-    def __slice(self, op: str, target_ts: Union[str, int]) -> "TSDF":
+    def __slice(self, op: str, target_ts: Any) -> "TSDF":
         """
         Private method to slice TSDF by time
 
@@ -423,7 +423,7 @@ class TSDF(WindowBuilder):
         sliced_df = self.df.where(slice_expr)
         return self.__withTransformedDF(sliced_df)
 
-    def at(self, ts: Union[str, int]) -> "TSDF":
+    def at(self, ts: Any) -> "TSDF":
         """
         Select only records at a given time
 
@@ -433,7 +433,7 @@ class TSDF(WindowBuilder):
         """
         return self.__slice("==", ts)
 
-    def before(self, ts: Union[str, int]) -> "TSDF":
+    def before(self, ts: Any) -> "TSDF":
         """
         Select only records before a given time
 
@@ -443,7 +443,7 @@ class TSDF(WindowBuilder):
         """
         return self.__slice("<", ts)
 
-    def atOrBefore(self, ts: Union[str, int]) -> "TSDF":
+    def atOrBefore(self, ts: Any) -> "TSDF":
         """
         Select only records at or before a given time
 
@@ -453,7 +453,7 @@ class TSDF(WindowBuilder):
         """
         return self.__slice("<=", ts)
 
-    def after(self, ts: Union[str, int]) -> "TSDF":
+    def after(self, ts: Any) -> "TSDF":
         """
         Select only records after a given time
 
@@ -463,7 +463,7 @@ class TSDF(WindowBuilder):
         """
         return self.__slice(">", ts)
 
-    def atOrAfter(self, ts: Union[str, int]) -> "TSDF":
+    def atOrAfter(self, ts: Any) -> "TSDF":
         """
         Select only records at or after a given time
 
@@ -474,7 +474,7 @@ class TSDF(WindowBuilder):
         return self.__slice(">=", ts)
 
     def between(
-        self, start_ts: Union[str, int], end_ts: Union[str, int], inclusive: bool = True
+        self, start_ts: Any, end_ts: Any, inclusive: bool = True
     ) -> "TSDF":
         """
         Select only records in a given range
@@ -529,7 +529,7 @@ class TSDF(WindowBuilder):
         next_window = self.baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
-    def priorTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def priorTo(self, ts: Any, n: int = 1) -> "TSDF":
         """
         Select the n most recent records prior to a given time
         You can think of this like an 'asOf' select - it selects the records as of a particular time
@@ -541,7 +541,7 @@ class TSDF(WindowBuilder):
         """
         return self.atOrBefore(ts).latest(n)
 
-    def subsequentTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def subsequentTo(self, ts: Any, n: int = 1) -> "TSDF":
         """
         Select the n records subsequent to a give time
 
@@ -882,7 +882,7 @@ class TSDF(WindowBuilder):
         if tsPartitionVal is None:
             seq_col = None
             if isinstance(combined_df.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
+                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(1)
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -897,7 +897,7 @@ class TSDF(WindowBuilder):
             )
             seq_col = None
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
+                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).get_ts_component(1)
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
