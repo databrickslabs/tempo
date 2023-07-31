@@ -681,56 +681,6 @@ class TSDF(WindowBuilder):
         except Exception:
             return full_smry
 
-    def __getSparkPlan(self, df: DataFrame, spark: SparkSession) -> str:
-        """
-        Internal helper function to obtain the Spark plan for the input data frame
-
-        Parameters
-        :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
-        :param spark - Spark session which is used to query the view obtained from the Spark data frame
-        """
-
-        df.createOrReplaceTempView("view")
-        plan = spark.sql("explain cost select * from view").collect()[0][0]
-
-        return plan
-
-    def __getBytesFromPlan(self, df: DataFrame, spark: SparkSession) -> float:
-        """
-        Internal helper function to obtain how many bytes in memory the Spark data
-        frame is likely to take up. This is an upper bound and is obtained from the
-        plan details in Spark
-
-        Parameters
-        :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
-        :param spark - Spark session which is used to query the view obtained from the Spark data frame
-        """
-
-        plan = self.__getSparkPlan(df, spark)
-
-        import re
-
-        search_result = re.search(r"sizeInBytes=.*(['\)])", plan, re.MULTILINE)
-        if search_result is not None:
-            result = search_result.group(0).replace(")", "")
-        else:
-            raise ValueError("Unable to obtain sizeInBytes from Spark plan")
-
-        size = result.split("=")[1].split(" ")[0]
-        units = result.split("=")[1].split(" ")[1]
-
-        # perform to MB for threshold check
-        if units == "GiB":
-            plan_bytes = float(size) * 1024 * 1024 * 1024
-        elif units == "MiB":
-            plan_bytes = float(size) * 1024 * 1024
-        elif units == "KiB":
-            plan_bytes = float(size) * 1024
-        else:
-            plan_bytes = float(size)
-
-        return plan_bytes
-
     def asofJoin(
         self,
         right_tsdf: "TSDF",
@@ -775,53 +725,7 @@ class TSDF(WindowBuilder):
             # choose 30MB as the cutoff for the broadcast
             bytes_threshold = 30 * 1024 * 1024
             if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-                spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
-                partition_cols = right_tsdf.series_ids
-                left_cols = list(set(left_df.columns) - set(self.series_ids))
-                right_cols = list(set(right_df.columns) - set(right_tsdf.series_ids))
 
-                left_prefix = (
-                    ""
-                    if ((left_prefix is None) | (left_prefix == ""))
-                    else left_prefix + "_"
-                )
-                right_prefix = (
-                    ""
-                    if ((right_prefix is None) | (right_prefix == ""))
-                    else right_prefix + "_"
-                )
-
-                w = Window.partitionBy(*partition_cols).orderBy(
-                    right_prefix + right_tsdf.ts_col
-                )
-
-                new_left_ts_col = left_prefix + self.ts_col
-                series_cols = [sfn.col(c) for c in self.series_ids]
-                new_left_cols = [
-                    sfn.col(c).alias(left_prefix + c) for c in left_cols
-                ] + series_cols
-                new_right_cols = [
-                    sfn.col(c).alias(right_prefix + c) for c in right_cols
-                ] + series_cols
-                quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
-                    "lead_" + right_tsdf.ts_col,
-                    sfn.lead(right_prefix + right_tsdf.ts_col).over(w),
-                )
-                left_df = left_df.select(*new_left_cols)
-                res = (
-                    left_df.join(quotes_df_w_lag, partition_cols)
-                    .where(
-                        left_df[new_left_ts_col].between(
-                            sfn.col(right_prefix + right_tsdf.ts_col),
-                            sfn.coalesce(
-                                sfn.col("lead_" + right_tsdf.ts_col),
-                                sfn.lit("2099-01-01").cast("timestamp"),
-                            ),
-                        )
-                    )
-                    .drop("lead_" + right_tsdf.ts_col)
-                )
-                return TSDF(res, ts_col=new_left_ts_col, series_ids=self.series_ids)
 
         # end of block checking to see if standard Spark SQL join will work
 
