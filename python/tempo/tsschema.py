@@ -6,6 +6,7 @@ import pyspark.sql.functions as sfn
 from pyspark.sql import Column, WindowSpec, Window
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
+from pyspark.sql._typing import LiteralType, DecimalLiteral, DateTimeLiteral
 
 #
 # Time Units
@@ -56,13 +57,6 @@ class TSIndex(ABC):
     def colname(self) -> str:
         """
         :return: the column name of the timeseries index
-        """
-
-    @property
-    @abstractmethod
-    def ts_col(self) -> str:
-        """
-        :return: the name of the primary timeseries column (may or may not be the same as the name)
         """
 
     @property
@@ -121,6 +115,21 @@ class TSIndex(ABC):
         :return: an expression appropriate for operforming range operations on the :class:`TSDF` records
         """
 
+    @abstractmethod
+    def betweenExpr(self,
+                    lowerBound: Union["Column", "LiteralType", "DateTimeLiteral", "DecimalLiteral"],
+                    upperBound: Union["Column", "LiteralType", "DateTimeLiteral", "DecimalLiteral"]
+                    ) -> Column:
+        """
+        Gets an expression appropriate for performing upper and lower bound comparisons
+        on the values of a timeseries index.
+
+        :param lowerBound: the lower bound for the range comparison
+        :param upperBound: the upper bound for the range comparison
+
+        :return: an expression appropriate for performing upper and lower bound
+        comparisons on the values of a timeseries index
+        """
 
 #
 # Simple TS Index types
@@ -152,12 +161,14 @@ class SimpleTSIndex(TSIndex, ABC):
     def validate(self, df_schema: StructType) -> None:
         # the ts column must exist
         assert(self.colname in df_schema.fieldNames(),
-                f"The TSIndex column {self.colname} does not exist in the given DataFrame")
+               f"The TSIndex column {self.colname} "
+               f"does not exist in the given DataFrame")
         schema_ts_col = df_schema[self.colname]
         # it must have the right type
         schema_ts_type = schema_ts_col.dataType
-        assert( isinstance(schema_ts_type, type(self.dataType)),
-                f"The TSIndex column is of type {schema_ts_type}, but the expected type is {self.dataType}" )
+        assert(isinstance(schema_ts_type, type(self.dataType)),
+               f"The TSIndex column is of type {schema_ts_type}, "
+               f"but the expected type is {self.dataType}")
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
@@ -190,7 +201,8 @@ class NumericIndex(SimpleTSIndex):
     def __init__(self, ts_idx: StructField) -> None:
         if not isinstance(ts_idx.dataType, NumericType):
             raise TypeError(
-                f"NumericIndex must be of a numeric type, but ts_col {ts_idx.name} has type {ts_idx.dataType}"
+                f"NumericIndex must be of a numeric type, "
+                f"but ts_col {ts_idx.name} has type {ts_idx.dataType}"
             )
         super().__init__(ts_idx)
 
@@ -210,7 +222,8 @@ class SimpleTimestampIndex(SimpleTSIndex):
     def __init__(self, ts_idx: StructField) -> None:
         if not isinstance(ts_idx.dataType, TimestampType):
             raise TypeError(
-                f"SimpleTimestampIndex must be of TimestampType, but given ts_col {ts_idx.name} has type {ts_idx.dataType}"
+                f"SimpleTimestampIndex must be of TimestampType, "
+                f"but given ts_col {ts_idx.name} has type {ts_idx.dataType}"
             )
         super().__init__(ts_idx)
 
@@ -260,14 +273,17 @@ class CompositeTSIndex(TSIndex):
     def __init__(self, ts_idx: StructField, *ts_fields: str) -> None:
         if not isinstance(ts_idx.dataType, StructType):
             raise TypeError(
-                f"CompoundTSIndex must be of type StructType, but given compound_ts_idx {ts_idx.name} has type {ts_idx.dataType}"
+                f"CompoundTSIndex must be of type StructType, "
+                f"but given compound_ts_idx {ts_idx.name} has type {ts_idx.dataType}"
             )
         self.__name: str = ts_idx.name
         self.struct: StructType = ts_idx.dataType
         # handle the timestamp fields
         if ts_fields is None or len(ts_fields) < 1:
-            raise ValueError("A CompoundTSIndex must have at least one ts_field specified!")
-        self.ts_components = [SimpleTSIndex.fromTSCol(self.struct[field]) for field in ts_fields]
+            raise ValueError("A CompoundTSIndex must have "
+                             "at least one ts_field specified!")
+        self.ts_components = [SimpleTSIndex.fromTSCol(self.struct[field])
+                              for field in ts_fields]
         self.primary_ts_idx = self.ts_components[0]
 
 
@@ -298,12 +314,14 @@ class CompositeTSIndex(TSIndex):
     def validate(self, df_schema: StructType) -> None:
         # validate that the composite field exists
         assert(self.colname in df_schema.fieldNames(),
-                f"The TSIndex column {self.colname} does not exist in the given DataFrame")
+               f"The TSIndex column {self.colname} "
+               f"does not exist in the given DataFrame")
         schema_ts_col = df_schema[self.colname]
         # it must have the right type
         schema_ts_type = schema_ts_col.dataType
-        assert( isinstance(schema_ts_type, StructType),
-                f"The TSIndex column is of type {schema_ts_type}, but the expected type is {StructType}" )
+        assert(isinstance(schema_ts_type, StructType),
+               f"The TSIndex column is of type {schema_ts_type}, "
+               f"but the expected type is {StructType}")
         # validate all the TS components
         for comp in self.ts_components:
             comp.validate(schema_ts_type)
@@ -350,7 +368,7 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     def __init__(
         self, ts_idx: StructField, src_str_col: str, parsed_col: str
     ) -> None:
-        super().__init__(ts_idx, primary_ts_col=parsed_col)
+        super().__init__(ts_idx, parsed_col)
         src_str_field = self.struct[src_str_col]
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(
@@ -372,12 +390,14 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
         super().validate(df_schema)
         # make sure the parsed field exists
         composite_idx_type: StructType = cast(StructType, df_schema[self.colname].dataType)
-        assert( self.__src_str_col in composite_idx_type,
-                f"The src_str_col column {self.src_str_col} does not exist in the composite field {composite_idx_type}")
+        assert(self.__src_str_col in composite_idx_type,
+               f"The src_str_col column {self.src_str_col} "
+               f"does not exist in the composite field {composite_idx_type}")
         # make sure it's StringType
         src_str_field_type = composite_idx_type[self.__src_str_col].dataType
-        assert( isinstance(src_str_field_type, StringType),
-                f"The src_str_col column {self.src_str_col} should be of StringType, but found {src_str_field_type} instead" )
+        assert(isinstance(src_str_field_type, StringType),
+               f"The src_str_col column {self.src_str_col} "
+               f"should be of StringType, but found {src_str_field_type} instead")
 
 
 class ParsedTimestampIndex(ParsedTSIndex):

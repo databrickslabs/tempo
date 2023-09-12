@@ -146,7 +146,7 @@ class TSDF(WindowBuilder):
 
     @property
     def ts_col(self) -> str:
-        return self.ts_index.ts_col
+        return self.ts_index.colname
 
     @property
     def columns(self) -> List[str]:
@@ -725,6 +725,7 @@ class TSDF(WindowBuilder):
             # choose 30MB as the cutoff for the broadcast
             bytes_threshold = 30 * 1024 * 1024
             if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
+                # TODO - call broadcast join here
 
 
         # end of block checking to see if standard Spark SQL join will work
@@ -737,51 +738,51 @@ class TSDF(WindowBuilder):
             )
 
         # Check whether partition columns have same name in both dataframes
-        self.__checkPartitionCols(right_tsdf)
-
-        # prefix non-partition columns, to avoid duplicated columns.
-        left_df = self.df
-        right_df = right_tsdf.df
-
-        # validate timestamp datatypes match
-        self.__validateTsColMatch(right_tsdf)
-
-        orig_left_col_diff = list(
-            set(left_df.columns) - set(self.series_ids)
-        )
-        orig_right_col_diff = list(
-            set(right_df.columns) - set(self.series_ids)
-        )
-
-        left_tsdf = (
-            (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
-            if left_prefix is not None
-            else self
-        )
-        right_tsdf = right_tsdf.__addPrefixToColumns(
-            [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
-        )
-
-        left_nonpartition_cols = list(
-            set(left_tsdf.df.columns) - set(self.series_ids)
-        )
-        right_nonpartition_cols = list(
-            set(right_tsdf.df.columns) - set(self.series_ids)
-        )
+        # self.__checkPartitionCols(right_tsdf)
+        #
+        # # prefix non-partition columns, to avoid duplicated columns.
+        # left_df = self.df
+        # right_df = right_tsdf.df
+        #
+        # # validate timestamp datatypes match
+        # self.__validateTsColMatch(right_tsdf)
+        #
+        # orig_left_col_diff = list(
+        #     set(left_df.columns) - set(self.series_ids)
+        # )
+        # orig_right_col_diff = list(
+        #     set(right_df.columns) - set(self.series_ids)
+        # )
+        #
+        # left_tsdf = (
+        #     (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
+        #     if left_prefix is not None
+        #     else self
+        # )
+        # right_tsdf = right_tsdf.__addPrefixToColumns(
+        #     [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
+        # )
+        #
+        # left_nonpartition_cols = list(
+        #     set(left_tsdf.df.columns) - set(self.series_ids)
+        # )
+        # right_nonpartition_cols = list(
+        #     set(right_tsdf.df.columns) - set(self.series_ids)
+        # )
 
         # For both dataframes get all non-partition columns (including ts_col)
-        left_columns = [left_tsdf.ts_col] + left_nonpartition_cols
-        right_columns = [right_tsdf.ts_col] + right_nonpartition_cols
-
-        # Union both dataframes, and create a combined TS column
-        combined_ts_col = "combined_ts"
-        combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
-            right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
-        )
-        combined_df.df = combined_df.df.withColumn(
-            "rec_ind",
-            sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
-        )
+        # left_columxxmns = [left_tsdf.ts_col] + left_nonpartition_cols
+        # right_columns = [right_tsdf.ts_col] + right_nonpartition_cols
+        #
+        # # Union both dataframes, and create a combined TS column
+        # combined_ts_col = "combined_ts"
+        # combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
+        #     right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
+        # )
+        # combined_df.df = combined_df.df.withColumn(
+        #     "rec_ind",
+        #     sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
+        # )
 
         # perform asof join.
         if tsPartitionVal is None:

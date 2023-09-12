@@ -27,14 +27,19 @@ class AsOfJoiner(ABC):
         # perform the join
         return self._join(left, right)
 
-    def _overlappingColumns(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> set:
+    def commonSeriesIDs(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> set:
+        """
+        Returns the common series IDs between the left and right TSDFs
+        """
+        return set(left.series_ids).intersection(set(right.series_ids))
+
+    def _prefixableColumns(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> set:
         """
         Returns the overlapping columns in the left and right TSDFs
+        not including overlapping series IDs
         """
-        # find the columns to prefix
-        prefixable_left_cols = set(left.columns) - set(left.series_ids)
-        prefixable_right_cols = set(right.columns) - set(right.series_ids)
-        return prefixable_left_cols.intersection(prefixable_right_cols)
+        return (set(left.columns).intersection(set(right.columns)) -
+                self.commonSeriesIDs(left, right))
 
     def _prefixColumns(self,
                        tsdf: t_tsdf.TSDF,
@@ -45,8 +50,8 @@ class AsOfJoiner(ABC):
         """
         if prefix:
             tsdf = reduce(
-                lambda tsdf, c:
-                    tsdf.withColumnRenamed(c, "_".join([prefix, c])),
+                lambda cur_tsdf, c:
+                    cur_tsdf.withColumnRenamed(c, "_".join([prefix, c])),
                 prefixable_cols,
                 tsdf
             )
@@ -60,7 +65,7 @@ class AsOfJoiner(ABC):
         """
 
         # find the columns to prefix
-        prefixable_cols = self._overlappingColumns(left, right)
+        prefixable_cols = self._prefixableColumns(left, right)
 
         # prefix columns (if we have a prefix to apply)
         left_prefixed = self._prefixColumns(left, prefixable_cols, self.left_prefix)
@@ -68,11 +73,30 @@ class AsOfJoiner(ABC):
 
         return left_prefixed, right_prefixed
 
-    def _checkAreJoinable(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
+    def _checkPartitionCols(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> None:
+        for left_col, right_col in zip(left.series_ids, right.series_ids):
+            if left_col != right_col:
+                raise ValueError(
+                    "left and right dataframe partition columns should have same name in same order"
+                )
+
+    def _validateTsColMatch(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> None:
+        # TODO - can simplify this to get types from schema object
+        left_ts_datatype = type(left.ts_index)
+        right_ts_datatype = type(right.ts_index)
+        if left_ts_datatype != right_ts_datatype:
+            raise ValueError(
+                "left and right dataframe timestamp index columns should have same type"
+            )
+
+    def _checkAreJoinable(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> None:
         """
-        Checks if the left and right TSDFs are joinable
+        Checks if the left and right TSDFs are joinable. If not, raises an exception.
         """
-        pass
+        # make sure their partition columns are the same
+        self._checkPartitionCols(left, right)
+        # make sure their timeseries indices are the same
+        self._validateTsColMatch(left, right)
 
     @abstractmethod
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
@@ -95,51 +119,126 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         self.spark = spark
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
-        self.spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
-        partition_cols = right.series_ids
-        left_cols = list(set(left.df.columns) - set(left.series_ids))
-        right_cols = list(set(right.df.columns) - set(right.series_ids))
-
-        left_prefix = (
-            ""
-            if ((self.left_prefix is None) | (self.left_prefix == ""))
-            else self.left_prefix + "_"
-        )
-        right_prefix = (
-            ""
-            if ((self.right_prefix is None) | (self.right_prefix == ""))
-            else self.right_prefix + "_"
-        )
-
+        # set the range join bin size to 60 seconds
+        self.spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize",
+                            "60")
+        # find a leading column in the right TSDF
         w = right.baseWindow()
+        lead_colname = "lead_" + right.ts_col
+        right_with_lead = right.withColumn(lead_colname,
+                                           sfn.coalesce(
+                                               sfn.lead(right.ts_col).over(w),
+                                               sfn.lit("2099-01-01").cast("timestamp"))
+                                           )
+        # perform the join
+        join_series_ids = self.commonSeriesIDs(left, right)
+        res_df = (left.df.join(right_with_lead.df, list(join_series_ids))
+                  .where(left.ts_index.betweenExpr(right.ts_col, lead_colname))
+                  .drop(lead_colname))
+        # return with the left-hand schema
+        return t_tsdf.TSDF(res_df, ts_schema=left.ts_schema)
 
-        new_left_ts_col = left_prefix + self.ts_col
-        series_cols = [sfn.col(c) for c in self.series_ids]
-        new_left_cols = [
-                            sfn.col(c).alias(left_prefix + c) for c in left_cols
-                        ] + series_cols
-        new_right_cols = [
-                             sfn.col(c).alias(right_prefix + c) for c in right_cols
-                         ] + series_cols
-        quotes_df_w_lag = right.select(*new_right_cols).withColumn(
-            "lead_" + right.ts_col,
-            sfn.lead(right_prefix + right.ts_col).over(w),
+
+_DEFAULT_COMBINED_TS_COLNAME = "combined_ts"
+_DEFAULT_RIGHT_ROW_COLNAME = "righthand_tbl_row"
+
+class UnionSortFilterAsOfJoin(AsOfJoiner):
+    """
+    Implements the classic as-of join strategy of unioning the left and right
+    TSDFs, sorting by the timestamp column, and then filtering out only the
+    most recent matching rows for each right-hand side row
+    """
+
+    def __init__(self,
+                 left_prefix: str = "left",
+                 right_prefix: str = "right",
+                 skipNulls: bool = True,
+                 tolerance: Optional[int] = None):
+        super().__init__(left_prefix, right_prefix)
+        self.skipNulls = skipNulls
+        self.tolerance = tolerance
+
+    def _appendNullColumns(self, tsdf: t_tsdf.TSDF, cols: set[str]) -> t_tsdf.TSDF:
+        """
+        Appends null columns to the TSDF
+        """
+        return reduce(
+            lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)),
+            cols,
+            tsdf)
+
+    def _addRightRowIndicator(self, tsdf: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        """
+        Adds a column to indicate if the row is from the right-hand side
+        """
+        # add indicator column
+        right_row_ind_df = tsdf.df.withColumn(_DEFAULT_RIGHT_ROW_COLNAME,
+                                              sfn.when(
+                                                  sfn.col(tsdf.ts_col).isNotNull(),
+                                                  1)
+                                              .otherwise(-1))
+        # extend the TSIndex with the indicator as a sub-sequence index
+        if isinstance(tsdf.ts_index, t_tsdf.CompositeTSIndex):
+            # TODO - implement extending an existing CompositeTSIndex
+            raise NotImplementedError("Extending an existing CompositeTSIndex "
+                                      "is not yet implemented")
+        else:
+            return t_tsdf.TSDF.fromSubsequenceCol(right_row_ind_df,
+                                                  tsdf.ts_col,
+                                                  _DEFAULT_RIGHT_ROW_COLNAME,
+                                                  tsdf.series_ids)
+
+    def _combine(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        """
+        Combines the left and right TSDFs into a single TSDF
+        """
+        # union the left and right TSDFs
+        unioned = left.unionByName(right)
+        # coalesce the timestamp column,
+        # and add a column to indicate if the row is from the right-hand side
+        combined_ts = unioned.withColumn(_DEFAULT_COMBINED_TS_COLNAME,
+                                         sfn.coalesce(left.ts_col,
+                                                      right.ts_col))
+        # add a column to indicate if the row is from the right-hand side
+        return self._addRightRowIndicator(combined_ts)
+
+    def _filterLastRightRow(self,
+                            combined: t_tsdf.TSDF,
+                            right_cols: set[str]) -> t_tsdf.TSDF:
+        """
+        Filters out the last right-hand row for each left-hand row
+        """
+        # find the last value for each column in the right-hand side
+        w = combined.allBeforeWindow()
+        filtered = reduce(
+            lambda cur_tsdf, col: cur_tsdf.withColumn(
+                col,
+                sfn.last(col, self.skipNulls).over(w),
+            ),
+            right_cols,
+            combined,
         )
-        left_df = left.select(*new_left_cols)
-        res = (
-            left_df._join(quotes_df_w_lag, partition_cols)
-            .where(
-                left_df[new_left_ts_col].between(
-                    sfn.col(right_prefix + right.ts_col),
-                    sfn.coalesce(
-                        sfn.col("lead_" + right.ts_col),
-                        sfn.lit("2099-01-01").cast("timestamp"),
-                    ),
-                )
-            )
-            .drop("lead_" + right.ts_col)
-        )
-        return res
+
+    def _toleranceFilter(self, as_of: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        """
+        Filters out rows from the as_of TSDF that are outside the tolerance
+        """
+        pass
+
+    def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        # find the new columns to add to the left and right TSDFs
+        right_only_cols = set(right.columns) - set(left.columns)
+        left_only_cols = set(left.columns) - set(right.columns)
+        # append null columns to the left and right TSDFs
+        extended_left = self._appendNullColumns(left, right_only_cols)
+        extended_right = self._appendNullColumns(right, left_only_cols)
+        # combine the left and right TSDFs
+        combined = self._combine(extended_left, extended_right)
+        # filter out the last right-hand row for each left-hand row
+        as_of = self._filterLastRightRow(combined, right_only_cols)
+        # apply tolerance filter
+        as_of = self._toleranceFilter(as_of)
+        return as_of
 
 
 # Helper functions
