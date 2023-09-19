@@ -16,6 +16,7 @@ from pyspark.sql import GroupedData, SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DataType, StructType
+from pyspark.sql._typing import ColumnOrName
 from pyspark.sql.window import Window, WindowSpec
 
 import tempo.interpol as t_interpolation
@@ -27,6 +28,24 @@ from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
 
 logger = logging.getLogger(__name__)
 
+# default column name for constructed timeseries index struct columns
+DEFAULT_TS_IDX_COL = "ts_idx"
+
+def makeStructFromCols(df: DataFrame,
+                       struct_col_name: str,
+                       cols_to_move: Collection[str]) -> DataFrame:
+    """
+    Transform a :class:`DataFrame` by moving certain columns into a struct
+
+    :param df: the :class:`DataFrame` to transform
+    :param struct_col_name: name of the struct column to create
+    :param cols_to_move: name of the columns to move into the struct
+
+    :return: the transformed :class:`DataFrame`
+    """
+    return (df.withColumn(struct_col_name,
+                          sfn.struct(*cols_to_move))
+              .drop(*cols_to_move))
 
 class TSDF(WindowBuilder):
     """
@@ -83,23 +102,24 @@ class TSDF(WindowBuilder):
         return self.__withTransformedDF(self.df.select(std_ordered_cols))
 
     @classmethod
-    def __makeStructFromCols(
-        cls, df: DataFrame, struct_col_name: str, cols_to_move: List[str]
-    ) -> DataFrame:
+    def makeCompositeIndexTSDF(
+        cls,
+        df: DataFrame,
+        ts_index_cols: Collection[str],
+        series_ids: Collection[str] = None,
+        other_index_cols: Collection[str] = None,
+        composite_index_name: str = DEFAULT_TS_IDX_COL) -> "TSDF":
         """
-        Transform a :class:`DataFrame` by moving certain columns into a struct
-
-        :param df: the :class:`DataFrame` to transform
-        :param struct_col_name: name of the struct column to create
-        :param cols_to_move: name of the columns to move into the struct
-
-        :return: the transformed :class:`DataFrame`
+        Construct a TSDF with a composite index from the specified columns
         """
-        return (df.withColumn(struct_col_name, sfn.struct(*cols_to_move))
-                  .drop(*cols_to_move))
-
-    # default column name for constructed timeseries index struct columns
-    __DEFAULT_TS_IDX_COL = "ts_idx"
+        # move all the index columns into a struct
+        all_composite_cols = set(ts_index_cols).union(set(other_index_cols or []))
+        with_struct_df = makeStructFromCols(df, composite_index_name, all_composite_cols)
+        # construct an appropriate TSIndex
+        ts_idx_struct = with_struct_df.schema[DEFAULT_TS_IDX_COL]
+        comp_idx = CompositeTSIndex(ts_idx_struct, *ts_index_cols)
+        # construct & return the TSDF with appropriate schema
+        return TSDF(with_struct_df, ts_schema=TSSchema(comp_idx, series_ids))
 
     @classmethod
     def fromSubsequenceCol(
@@ -109,16 +129,7 @@ class TSDF(WindowBuilder):
         subsequence_col: str,
         series_ids: Collection[str] = None,
     ) -> "TSDF":
-        # construct a struct with the ts_col and subsequence_col
-        struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_subseq_struct_df = cls.__makeStructFromCols(
-            df, struct_col_name, [ts_col, subsequence_col]
-        )
-        # construct an appropriate TSIndex
-        subseq_struct = with_subseq_struct_df.schema[struct_col_name]
-        subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
-        # construct & return the TSDF with appropriate schema
-        return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
+        return cls.makeCompositeIndexTSDF(df, [ts_col, subsequence_col], series_ids)
 
     @classmethod
     def fromTimestampString(
@@ -396,7 +407,7 @@ class TSDF(WindowBuilder):
         selected_df = self.df.select(*cols)
         return self.__withTransformedDF(selected_df)
 
-    def where(self, condition: Union[Column, str]) -> "TSDF":
+    def where(self, condition: ColumnOrName) -> "TSDF":
         """
         Selects rows using the given condition.
 

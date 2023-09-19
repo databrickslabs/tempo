@@ -154,10 +154,6 @@ class SimpleTSIndex(TSIndex, ABC):
     def colname(self):
         return self.__name
 
-    @property
-    def ts_col(self) -> str:
-        return self.colname
-
     def validate(self, df_schema: StructType) -> None:
         # the ts column must exist
         assert(self.colname in df_schema.fieldNames(),
@@ -189,7 +185,8 @@ class SimpleTSIndex(TSIndex, ABC):
             return SimpleDateIndex(ts_col)
         else:
             raise TypeError(
-                f"A SimpleTSIndex must be a Numeric, Timestamp or Date type, but column {ts_col.name} is of type {ts_col.dataType}"
+                f"A SimpleTSIndex must be a Numeric, Timestamp or Date type, "
+                f"but column {ts_col.name} is of type {ts_col.dataType}"
             )
 
 
@@ -300,10 +297,6 @@ class CompositeTSIndex(TSIndex):
         return self.__name
 
     @property
-    def ts_col(self) -> str:
-        return self.primary_ts_col
-
-    @property
     def primary_ts_col(self) -> str:
         return self.ts_component(0)
 
@@ -372,7 +365,9 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
         src_str_field = self.struct[src_str_col]
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(
-                f"Source string column must be of StringType, but given column {src_str_field.name} is of type {src_str_field.dataType}"
+                f"Source string column must be of StringType, "
+                f"but given column {src_str_field.name} "
+                f"is of type {src_str_field.dataType}"
             )
         self.__src_str_col = src_str_col
 
@@ -389,7 +384,8 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     def validate(self, df_schema: StructType) -> None:
         super().validate(df_schema)
         # make sure the parsed field exists
-        composite_idx_type: StructType = cast(StructType, df_schema[self.colname].dataType)
+        composite_idx_type: StructType = cast(StructType,
+                                              df_schema[self.colname].dataType)
         assert(self.__src_str_col in composite_idx_type,
                f"The src_str_col column {self.src_str_col} "
                f"does not exist in the composite field {composite_idx_type}")
@@ -411,7 +407,9 @@ class ParsedTimestampIndex(ParsedTSIndex):
         super().__init__(ts_idx, src_str_col, parsed_col)
         if not isinstance(self.primary_ts_idx.dataType, TimestampType):
             raise TypeError(
-                f"ParsedTimestampIndex must be of TimestampType, but given ts_col {self.primary_ts_idx.colname} has type {self.primary_ts_idx.dataType}"
+                f"ParsedTimestampIndex must be of TimestampType, "
+                f"but given ts_col {self.primary_ts_idx.colname} "
+                f"has type {self.primary_ts_idx.dataType}"
             )
 
     def rangeExpr(self, reverse: bool = False) -> Column:
@@ -431,7 +429,9 @@ class ParsedDateIndex(ParsedTSIndex):
         super().__init__(ts_idx, src_str_col, parsed_col)
         if not isinstance(self.primary_ts_idx.dataType, DateType):
             raise TypeError(
-                f"ParsedDateIndex must be of DateType, but given ts_col {self.primary_ts_idx.colname} has type {self.primary_ts_idx.dataType}"
+                f"ParsedDateIndex must be of DateType, "
+                f"but given ts_col {self.primary_ts_idx.colname} "
+                f"has type {self.primary_ts_idx.dataType}"
             )
 
     def rangeExpr(self, reverse: bool = False) -> Column:

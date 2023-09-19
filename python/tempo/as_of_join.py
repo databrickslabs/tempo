@@ -9,6 +9,10 @@ import tempo.tsdf as t_tsdf
 
 # As-of join types
 
+
+joiner = MyAsOfJoinerImpl()
+joiner(left_tsdf, right_tsdf)
+
 class AsOfJoiner(ABC):
     """
     Abstract class for as-of join strategies
@@ -114,14 +118,16 @@ class BroadcastAsOfJoiner(AsOfJoiner):
     def __init__(self,
                  spark: SparkSession,
                  left_prefix: str = "left",
-                 right_prefix: str = "right"):
+                 right_prefix: str = "right",
+                 range_join_bin_size: int = 60):
         super().__init__(left_prefix, right_prefix)
         self.spark = spark
+        self.range_join_bin_size = range_join_bin_size
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
         # set the range join bin size to 60 seconds
         self.spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize",
-                            "60")
+                            str(self.range_join_bin_size))
         # find a leading column in the right TSDF
         w = right.baseWindow()
         lead_colname = "lead_" + right.ts_col
@@ -199,8 +205,17 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         combined_ts = unioned.withColumn(_DEFAULT_COMBINED_TS_COLNAME,
                                          sfn.coalesce(left.ts_col,
                                                       right.ts_col))
-        # add a column to indicate if the row is from the right-hand side
-        return self._addRightRowIndicator(combined_ts)
+        # add indicator column
+        r_row_ind = combined_ts.withColumn(_DEFAULT_RIGHT_ROW_COLNAME,
+                                           sfn.when(
+                                               sfn.col(left.ts_col).isNotNull(),1)
+                                           .otherwise(-1))
+        # combine all the ts columns into a single struct column
+        return t_tsdf.TSDF.makeCompositeIndexTSDF(r_row_ind.df,
+                                                  [_DEFAULT_COMBINED_TS_COLNAME,
+                                                   _DEFAULT_RIGHT_ROW_COLNAME],
+                                                  combined_ts.series_ids,
+                                                  [left.ts_col, right.ts_col])
 
     def _filterLastRightRow(self,
                             combined: t_tsdf.TSDF,
@@ -210,7 +225,7 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         """
         # find the last value for each column in the right-hand side
         w = combined.allBeforeWindow()
-        filtered = reduce(
+        last_right_vals = reduce(
             lambda cur_tsdf, col: cur_tsdf.withColumn(
                 col,
                 sfn.last(col, self.skipNulls).over(w),
@@ -218,6 +233,10 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
             right_cols,
             combined,
         )
+        # filter out the last right-hand row for each left-hand row
+        r_row_ind: str = combined.ts_index.component(_DEFAULT_RIGHT_ROW_COLNAME)
+        filtered = last_right_vals.where(sfn.col(r_row_ind) == 1).drop(r_row_ind)
+        return filtered
 
     def _toleranceFilter(self, as_of: t_tsdf.TSDF) -> t_tsdf.TSDF:
         """
