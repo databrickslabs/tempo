@@ -228,72 +228,30 @@ class TSDF:
             .rowsBetween(Window.unboundedPreceding, Window.currentRow)
         )
 
-        non_right_cols = list(set(self.df.columns) - set(right_cols))
-
+        # generate expressions to find the last value of each right-hand column
         if ignoreNulls is False:
             if tsPartitionVal is not None:
                 raise ValueError(
                     "Disabling null skipping with a partition value is not supported yet."
                 )
-            # df = reduce(
-            #     lambda df, idx: df.withColumn(
-            #         right_cols[idx],
-            #         sfn.last(
-            #             sfn.when(
-            #                 sfn.col("rec_ind") == -1, sfn.struct(right_cols[idx])
-            #             ).otherwise(None),
-            #             True,  # ignore nulls because it indicates rows from the left side
-            #         ).over(window_spec),
-            #     ),
-            #     range(len(right_cols)),
-            #     self.df,
-            # )
-            # df = reduce(
-            #     lambda df, idx: df.withColumn(
-            #         right_cols[idx], sfn.col(right_cols[idx])[right_cols[idx]]
-            #     ),
-            #     range(len(right_cols)),
-            #     df,
-            # )
-
             mod_right_cols = [sfn.last(sfn.when(sfn.col("rec_ind") == -1,
                                                 sfn.struct(col)).otherwise(None),
                                        True).over(window_spec)[col].alias(col)
                               for col in right_cols]
-            df = self.df.select(non_right_cols + mod_right_cols)
         elif tsPartitionVal is None:
-            # splitting off the condition as we want different columns in the reduce if implementing the skew AS OF join
-            # df = reduce(
-            #     lambda df, idx: df.withColumn(
-            #         right_cols[idx],
-            #         sfn.last(right_cols[idx], ignoreNulls).over(window_spec),
-            #     ),
-            #     range(len(right_cols)),
-            #     self.df,
-            # )
-            non_right_cols = list(set(self.df.columns) - set(right_cols))
             mod_right_cols = [sfn.last(col, ignoreNulls).over(window_spec).alias(col)
                               for col in right_cols]
-            df = self.df.select(non_right_cols + mod_right_cols)
         else:
-            # df = reduce(
-            #     lambda df, idx: df.withColumn(
-            #         right_cols[idx],
-            #         sfn.last(right_cols[idx], ignoreNulls).over(window_spec),
-            #     ).withColumn(
-            #         "non_null_ct" + right_cols[idx],
-            #         sfn.count(right_cols[idx]).over(window_spec),
-            #     ),
-            #     range(len(right_cols)),
-            #     self.df,
-            # )
-            non_right_cols = list(set(self.df.columns) - set(right_cols))
             mod_right_cols = [sfn.last(col, ignoreNulls).over(window_spec).alias(col)
                               for col in right_cols]
-            non_null_cols = [sfn.count(col).over(window_spec).alias("non_null_ct" + col)
+            # non-null count columns, these will be dropped below
+            mod_right_cols += [sfn.count(col).over(window_spec).alias("non_null_ct" + col)
                              for col in right_cols]
-            df = self.df.select(non_right_cols + mod_right_cols + non_null_cols)
 
+        # select the left-hand side columns, and the modified right-hand side columns
+        non_right_cols = list(set(self.df.columns) - set(right_cols))
+        df = self.df.select(non_right_cols + mod_right_cols)
+        # drop the null left-hand side rows
         df = (df.filter(sfn.col(left_ts_col).isNotNull()).drop(self.ts_col)).drop(
             "rec_ind"
         )
@@ -868,10 +826,6 @@ class TSDF:
         right_columns = list(
             set(right_tsdf.df.columns).difference(set(self.partitionCols))
         )
-
-        # For both dataframes get all non-partition columns (including ts_col)
-        # left_columns = [left_tsdf.ts_col] + left_nonpartition_cols
-        # right_columns = [right_tsdf.ts_col] + right_nonpartition_cols
 
         # Union both dataframes, and create a combined TS column
         combined_ts_col = "combined_ts"

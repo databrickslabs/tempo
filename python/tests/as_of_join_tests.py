@@ -23,10 +23,6 @@ class AsOfJoinTest(SparkTest):
         ).df
 
         # joined dataframe should equal the expected dataframe
-        print("Joined DF")
-        joined_df.show()
-        print("Expected DF")
-        dfExpected.show()
         self.assertDataFrameEquality(joined_df, dfExpected)
         self.assertDataFrameEquality(non_prefix_joined_df, noRightPrefixdfExpected)
 
