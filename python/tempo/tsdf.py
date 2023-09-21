@@ -751,8 +751,8 @@ class TSDF:
                 left_cols = list(set(left_df.columns) - set(self.partitionCols))
                 right_cols = list(set(right_df.columns) - set(right_tsdf.partitionCols))
 
-                left_prefix = left_prefix +"_" if left_prefix  else ""
-                right_prefix = right_prefix +"_" if right_prefix else ""
+                left_prefix = left_prefix + "_" if left_prefix else ""
+                right_prefix = right_prefix + "_" if right_prefix else ""
 
                 w = Window.partitionBy(*partition_cols).orderBy(
                     right_prefix + right_tsdf.ts_col
