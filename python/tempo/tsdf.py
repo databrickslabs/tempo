@@ -808,18 +808,14 @@ class TSDF:
             set(right_df.columns).difference(set(self.partitionCols))
         )
 
-        start_ts = time()
         left_tsdf = (
             (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
             if left_prefix is not None
             else self
         )
-        print(f"Time to add prefix to left-side columns: {time() - start_ts}")
-        start_ts = time()
         right_tsdf = right_tsdf.__addPrefixToColumns(
             [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
         )
-        print(f"Time to add prefix to right-side columns: {time() - start_ts}")
 
         left_columns = list(
             set(left_tsdf.df.columns).difference(set(self.partitionCols))
@@ -828,13 +824,11 @@ class TSDF:
             set(right_tsdf.df.columns).difference(set(self.partitionCols))
         )
 
-        start_ts = time()
         # Union both dataframes, and create a combined TS column
         combined_ts_col = "combined_ts"
         combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
             right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
         )
-        print(f"Time to combine TSDFs: {time() - start_ts}")
         combined_df.df = combined_df.df.withColumn(
             "rec_ind",
             sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
@@ -842,7 +836,6 @@ class TSDF:
 
         # perform asof join.
         if tsPartitionVal is None:
-            start_ts = time()
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -851,12 +844,10 @@ class TSDF:
                 skipNulls,
                 suppress_null_warning,
             )
-            print(f"Time to get last right row: {time() - start_ts}")
         else:
             tsPartitionDF = combined_df.__getTimePartitions(
                 tsPartitionVal, fraction=fraction
             )
-            start_ts = time()
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -865,7 +856,6 @@ class TSDF:
                 skipNulls,
                 suppress_null_warning,
             )
-            print(f"Time to get last right row: {time() - start_ts}")
 
             # Get rid of overlapped data and the extra columns generated from timePartitions
             df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
