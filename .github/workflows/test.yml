@@ -41,11 +41,12 @@ jobs:
         with:
           python-version: "3.9"
       - name: Type check
+        working-directory: ./python
         run: |
           pip install tox
           tox -e type-check
   test:
-    name: Buid and Test Module
+    name: Build and Test Module
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
