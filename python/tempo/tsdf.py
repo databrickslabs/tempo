@@ -1515,7 +1515,7 @@ class TSDF:
                 )
 
             def state_comparison_fn(a: CT, b: CT) -> Callable[[Column, Column], Column]:
-                return operator_dict[state_definition](a, b)  # type: ignore
+                return operator_dict[state_definition](a, b)
 
         elif callable(state_definition):
             state_comparison_fn = state_definition  # type: ignore
