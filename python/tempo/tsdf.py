@@ -110,7 +110,7 @@ class TSDF:
 
     @staticmethod
     def __validated_column(df: DataFrame, colname: str) -> str:
-        if type(colname) != str:
+        if not isinstance(colname, str):
             raise TypeError(
                 f"Column names must be of type str; found {type(colname)} instead!"
             )
@@ -122,12 +122,12 @@ class TSDF:
         self, df: DataFrame, colnames: Optional[Union[str, List[str]]]
     ) -> List[str]:
         # if provided a string, treat it as a single column
-        if type(colnames) == str:
+        if isinstance(colnames, str):
             colnames = [colnames]
         # otherwise we really should have a list or None
         elif colnames is None:
             colnames = []
-        elif type(colnames) != list:
+        elif not isinstance(colnames, list):
             raise TypeError(
                 f"Columns must be of type list, str, or None; found {type(colnames)} instead!"
             )
