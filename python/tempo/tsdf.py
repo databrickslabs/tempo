@@ -3,21 +3,18 @@ from __future__ import annotations
 import logging
 import operator
 from abc import ABCMeta, abstractmethod
-from functools import reduce
 from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
-from time import time
 
 import numpy as np
 import pandas as pd
-from scipy.fft import fft, fftfreq  # type: ignore
+import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-
-import pyspark.sql.functions as sfn
 from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window, WindowSpec
+from scipy.fft import fft, fftfreq  # type: ignore
 
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
@@ -113,7 +110,7 @@ class TSDF:
 
     @staticmethod
     def __validated_column(df: DataFrame, colname: str) -> str:
-        if type(colname) != str:
+        if colname is not str:
             raise TypeError(
                 f"Column names must be of type str; found {type(colname)} instead!"
             )
@@ -125,19 +122,20 @@ class TSDF:
         self, df: DataFrame, colnames: Optional[Union[str, List[str]]]
     ) -> List[str]:
         # if provided a string, treat it as a single column
-        if type(colnames) == str:
-            colnames = [colnames]
+        valid_colnames: List[str] = []
+        if colnames is str:
+            valid_colnames = [str(colnames)]
         # otherwise we really should have a list or None
         elif colnames is None:
-            colnames = []
-        elif type(colnames) != list:
+            valid_colnames = []
+        elif colnames is not list:
             raise TypeError(
                 f"Columns must be of type list, str, or None; found {type(colnames)} instead!"
             )
         # validate each column
-        for col in colnames:
+        for col in valid_colnames:
             self.__validated_column(df, col)
-        return colnames
+        return valid_colnames
 
     def __checkPartitionCols(self, tsdf_right: "TSDF") -> None:
         for left_col, right_col in zip(self.partitionCols, tsdf_right.partitionCols):
@@ -167,7 +165,11 @@ class TSDF:
         # df = self.df.withColumnsRenamed(col_map)
 
         # build a list of column expressions to rename columns in a select
-        rename_fn = lambda col: sfn.col(col).alias(col_map[col]) if col in col_map else sfn.col(col)
+        rename_fn = (
+            lambda col: sfn.col(col).alias(col_map[col])
+            if col in col_map
+            else sfn.col(col)
+        )
         select_exprs = [rename_fn(col) for col in self.df.columns]
         # select the renamed columns
         renamed_df = self.df.select(*select_exprs)
@@ -231,19 +233,30 @@ class TSDF:
                 raise ValueError(
                     "Disabling null skipping with a partition value is not supported yet."
                 )
-            mod_right_cols = [sfn.last(sfn.when(sfn.col("rec_ind") == -1,
-                                                sfn.struct(col)).otherwise(None),
-                                       True).over(window_spec)[col].alias(col)
-                              for col in right_cols]
+            mod_right_cols = [
+                sfn.last(
+                    sfn.when(sfn.col("rec_ind") == -1, sfn.struct(col)).otherwise(None),
+                    True,
+                )
+                .over(window_spec)[col]
+                .alias(col)
+                for col in right_cols
+            ]
         elif tsPartitionVal is None:
-            mod_right_cols = [sfn.last(col, ignoreNulls).over(window_spec).alias(col)
-                              for col in right_cols]
+            mod_right_cols = [
+                sfn.last(col, ignoreNulls).over(window_spec).alias(col)
+                for col in right_cols
+            ]
         else:
-            mod_right_cols = [sfn.last(col, ignoreNulls).over(window_spec).alias(col)
-                              for col in right_cols]
+            mod_right_cols = [
+                sfn.last(col, ignoreNulls).over(window_spec).alias(col)
+                for col in right_cols
+            ]
             # non-null count columns, these will be dropped below
-            mod_right_cols += [sfn.count(col).over(window_spec).alias("non_null_ct" + col)
-                             for col in right_cols]
+            mod_right_cols += [
+                sfn.count(col).over(window_spec).alias("non_null_ct" + col)
+                for col in right_cols
+            ]
 
         # select the left-hand side columns, and the modified right-hand side columns
         non_right_cols = list(set(self.df.columns) - set(right_cols))
@@ -738,16 +751,8 @@ class TSDF:
                 left_cols = list(set(left_df.columns) - set(self.partitionCols))
                 right_cols = list(set(right_df.columns) - set(right_tsdf.partitionCols))
 
-                left_prefix = (
-                    ""
-                    if ((left_prefix is None) | (left_prefix == ""))
-                    else left_prefix + "_"
-                )
-                right_prefix = (
-                    ""
-                    if ((right_prefix is None) | (right_prefix == ""))
-                    else right_prefix + "_"
-                )
+                left_prefix = left_prefix +"_" if left_prefix  else ""
+                right_prefix = right_prefix +"_" if right_prefix else ""
 
                 w = Window.partitionBy(*partition_cols).orderBy(
                     right_prefix + right_tsdf.ts_col
