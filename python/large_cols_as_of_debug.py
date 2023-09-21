@@ -45,7 +45,7 @@ def build_test_as_of_join(num_cols: int, num_rows: int = 1000) -> DataFrame:
     return joined_df
 
 # run for several different numbers of columns
-# for test_col in [10, 20, 50, 100, 150, 200, 250, 300, 400, 500]:
-#      build_test_as_of_join(test_col)
+for test_col in [10, 20, 50, 100, 150, 200, 250, 300, 400, 500, 1000, 2000]:
+     build_test_as_of_join(test_col)
 
-build_test_as_of_join(500)
+# build_test_as_of_join(500)

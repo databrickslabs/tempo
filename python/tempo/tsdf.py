@@ -158,38 +158,35 @@ class TSDF:
         """
         Add prefix to all specified columns.
         """
-        if prefix != "":
-            prefix = prefix + "_"
+        # no-op if no prefix
+        if not prefix:
+            return self
 
-        df = reduce(
-            lambda df, idx: df.withColumnRenamed(
-                col_list[idx], "".join([prefix, col_list[idx]])
-            ),
-            range(len(col_list)),
-            self.df,
-        )
+        # build a column rename map
+        col_map = {col: "_".join([prefix, col]) for col in col_list}
+        # df = self.df.withColumnsRenamed(col_map)
 
-        if prefix == "":
-            ts_col = self.ts_col
-            seq_col = self.sequence_col if self.sequence_col else self.sequence_col
-        else:
-            ts_col = "".join([prefix, self.ts_col])
-            seq_col = (
-                "".join([prefix, self.sequence_col])
-                if self.sequence_col
-                else self.sequence_col
-            )
-        return TSDF(df, ts_col, self.partitionCols, sequence_col=seq_col)
+        # build a list of column expressions to rename columns in a select
+        rename_fn = lambda col: sfn.col(col).alias(col_map[col]) if col in col_map else sfn.col(col)
+        select_exprs = [rename_fn(col) for col in self.df.columns]
+        # select the renamed columns
+        renamed_df = self.df.select(*select_exprs)
+
+        # find the structural columns
+        ts_col = col_map.get(self.ts_col, self.ts_col)
+        partition_cols = [col_map.get(c, c) for c in self.partitionCols]
+        sequence_col = col_map.get(self.sequence_col, self.sequence_col)
+        return TSDF(renamed_df, ts_col, partition_cols, sequence_col=sequence_col)
 
     def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> "TSDF":
         """
         Add columns from some other DF as lit(None), as pre-step before union.
         """
-        new_df = reduce(
-            lambda df, idx: df.withColumn(other_cols[idx], sfn.lit(None)),
-            range(len(other_cols)),
-            self.df,
-        )
+
+        # build a list of column expressions to rename columns in a select
+        current_cols = [sfn.col(col) for col in self.df.columns]
+        new_cols = [sfn.lit(None).alias(col) for col in other_cols]
+        new_df = self.df.select(current_cols + new_cols)
 
         return TSDF(new_df, self.ts_col, self.partitionCols)
 
@@ -811,14 +808,18 @@ class TSDF:
             set(right_df.columns).difference(set(self.partitionCols))
         )
 
+        start_ts = time()
         left_tsdf = (
             (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
             if left_prefix is not None
             else self
         )
+        print(f"Time to add prefix to left-side columns: {time() - start_ts}")
+        start_ts = time()
         right_tsdf = right_tsdf.__addPrefixToColumns(
             [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
         )
+        print(f"Time to add prefix to right-side columns: {time() - start_ts}")
 
         left_columns = list(
             set(left_tsdf.df.columns).difference(set(self.partitionCols))
@@ -827,11 +828,13 @@ class TSDF:
             set(right_tsdf.df.columns).difference(set(self.partitionCols))
         )
 
+        start_ts = time()
         # Union both dataframes, and create a combined TS column
         combined_ts_col = "combined_ts"
         combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
             right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
         )
+        print(f"Time to combine TSDFs: {time() - start_ts}")
         combined_df.df = combined_df.df.withColumn(
             "rec_ind",
             sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
