@@ -166,8 +166,7 @@ class TSDF:
 
         # build a list of column expressions to rename columns in a select
         select_exprs = [
-            sfn.col(col).alias(col_map[col] if col in col_map
-            else sfn.col(col)
+            sfn.col(col).alias(col_map[col]) if col in col_map else sfn.col(col)
             for col in self.df.columns
         ]
         # select the renamed columns
@@ -1515,7 +1514,7 @@ class TSDF:
                 )
 
             def state_comparison_fn(a: CT, b: CT) -> Callable[[Column, Column], Column]:
-                return operator_dict[state_definition](a, b)
+                return operator_dict[state_definition](a, b)  # type: ignore
 
         elif callable(state_definition):
             state_comparison_fn = state_definition  # type: ignore
