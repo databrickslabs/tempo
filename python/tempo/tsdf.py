@@ -161,6 +161,7 @@ class TSDF:
 
         # build a column rename map
         col_map = {col: "_".join([prefix, col]) for col in col_list}
+        # In the future (when Spark 3.4+ is standard) we should implement batch rename using:
         # df = self.df.withColumnsRenamed(col_map)
 
         # build a list of column expressions to rename columns in a select
