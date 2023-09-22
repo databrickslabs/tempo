@@ -164,12 +164,11 @@ class TSDF:
         # df = self.df.withColumnsRenamed(col_map)
 
         # build a list of column expressions to rename columns in a select
-        rename_fn = (
-            lambda col: sfn.col(col).alias(col_map[col])
-            if col in col_map
+        select_exprs = [
+            sfn.col(col).alias(col_map[col] if col in col_map
             else sfn.col(col)
-        )
-        select_exprs = [rename_fn(col) for col in self.df.columns]
+            for col in self.df.columns
+        ]
         # select the renamed columns
         renamed_df = self.df.select(*select_exprs)
 
