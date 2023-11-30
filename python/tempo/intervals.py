@@ -261,29 +261,6 @@ class IntervalsDF:
         local_end_ts = self.end_ts
         local_series_ids = self.series_ids
 
-        # def make_disjoint_inner(pdf: pd.DataFrame) -> pd.DataFrame:
-        #     """
-        #     function will process all intervals in the input, and break down overlapping intervals into a fully disjoint set
-        #     https://stackoverflow.com/questions/13784192/creating-an-empty-pandas-dataframe-and-then-filling-it
-        #     https://stackoverflow.com/questions/55478191/list-of-series-to-dataframe
-        #     https://pandas.pydata.org/pandas-docs/version/0.21/generated/pandas.DataFrame.append.html
-        #     """
-        #
-        #     global_disjoint_df = pd.DataFrame(columns=pdf.columns)
-        #
-        #     sorted_pdf = pdf.sort_values([local_start_ts, local_end_ts])
-        #
-        #     for _, row in sorted_pdf.iterrows():
-        #         global_disjoint_df = add_as_disjoint(
-        #             row,
-        #             global_disjoint_df,
-        #             (local_start_ts, local_end_ts),
-        #             local_series_ids,
-        #             local_metric_columns,
-        #         )
-        #
-        #     return global_disjoint_df
-
         disjoint_df = self.df.groupby(self.series_ids).applyInPandas(
             func=make_disjoint_wrap(
                 self.start_ts,
