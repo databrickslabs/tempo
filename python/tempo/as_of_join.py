@@ -9,10 +9,6 @@ import tempo.tsdf as t_tsdf
 
 # As-of join types
 
-
-joiner = MyAsOfJoinerImpl()
-joiner(left_tsdf, right_tsdf)
-
 class AsOfJoiner(ABC):
     """
     Abstract class for as-of join strategies
