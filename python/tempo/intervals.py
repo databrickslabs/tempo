@@ -192,12 +192,14 @@ class IntervalsDF:
         return cls(df, start_ts, end_ts, series)
 
     @classmethod
-    def fromNestedBoundariesDF(cls,
-                               df: DataFrame,
-                               nested_boundaries_col: str,
-                               series_ids: Optional[list[str]] = None,
-                               start_element_name: str = "start",
-                               end_element_name: str = "end") -> IntervalsDF:
+    def fromNestedBoundariesDF(
+        cls,
+        df: DataFrame,
+        nested_boundaries_col: str,
+        series_ids: Optional[list[str]] = None,
+        start_element_name: str = "start",
+        end_element_name: str = "end",
+    ) -> IntervalsDF:
         """
 
         :param df:
@@ -211,14 +213,15 @@ class IntervalsDF:
         # unpack the start & end elements
         start_path = f"{nested_boundaries_col}.{start_element_name}"
         end_path = f"{nested_boundaries_col}.{end_element_name}"
-        unpacked_boundaries_df = (df.withColumn(start_element_name, sfn.col(start_path))
-                                    .withColumn(end_element_name, sfn.col(end_path))
-                                    .drop(nested_boundaries_col))
+        unpacked_boundaries_df = (
+            df.withColumn(start_element_name, sfn.col(start_path))
+            .withColumn(end_element_name, sfn.col(end_path))
+            .drop(nested_boundaries_col)
+        )
         # return the results as an IntervalsDF
-        return IntervalsDF(unpacked_boundaries_df,
-                           start_element_name,
-                           end_element_name,
-                           series_ids)
+        return IntervalsDF(
+            unpacked_boundaries_df, start_element_name, end_element_name, series_ids
+        )
 
     def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
         """

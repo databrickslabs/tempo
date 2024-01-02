@@ -35,11 +35,13 @@ class TSDF(WindowBuilder):
     This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
     """
 
-    def __init__(self,
-                 df: DataFrame,
-                 ts_schema: Optional[TSSchema] = None,
-                 ts_col: Optional[str] = None,
-                 series_ids: Optional[Collection[str]] = None) -> None:
+    def __init__(
+        self,
+        df: DataFrame,
+        ts_schema: Optional[TSSchema] = None,
+        ts_col: Optional[str] = None,
+        series_ids: Optional[Collection[str]] = None,
+    ) -> None:
         self.df = df
         # construct schema if we don't already have one
         if ts_schema:
@@ -79,7 +81,9 @@ class TSDF(WindowBuilder):
         :return: a :class:`TSDF` with the columns reordered into "standard order" (as described above)
         """
         std_ordered_cols = (
-            list(self.series_ids) + [self.ts_index.colname] + list(self.observational_cols)
+            list(self.series_ids)
+            + [self.ts_index.colname]
+            + list(self.observational_cols)
         )
 
         return self.__withTransformedDF(self.df.select(std_ordered_cols))
@@ -97,8 +101,9 @@ class TSDF(WindowBuilder):
 
         :return: the transformed :class:`DataFrame`
         """
-        return (df.withColumn(struct_col_name, sfn.struct(*cols_to_move))
-                  .drop(*cols_to_move))
+        return df.withColumn(struct_col_name, sfn.struct(*cols_to_move)).drop(
+            *cols_to_move
+        )
 
     # default column name for constructed timeseries index struct columns
     __DEFAULT_TS_IDX_COL = "ts_idx"
@@ -362,7 +367,9 @@ class TSDF(WindowBuilder):
         df = partition_df.union(remainder_df).drop(
             "partition_remainder", "ts_col_double"
         )
-        return TSDF(df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"])
+        return TSDF(
+            df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"]
+        )
 
     #
     # Slicing & Selection
@@ -828,12 +835,8 @@ class TSDF(WindowBuilder):
         # validate timestamp datatypes match
         self.__validateTsColMatch(right_tsdf)
 
-        orig_left_col_diff = list(
-            set(left_df.columns) - set(self.series_ids)
-        )
-        orig_right_col_diff = list(
-            set(right_df.columns) - set(self.series_ids)
-        )
+        orig_left_col_diff = list(set(left_df.columns) - set(self.series_ids))
+        orig_right_col_diff = list(set(right_df.columns) - set(self.series_ids))
 
         left_tsdf = (
             (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
@@ -930,16 +933,14 @@ class TSDF(WindowBuilder):
     def baseWindow(self, reverse: bool = False) -> WindowSpec:
         return self.ts_schema.baseWindow(reverse=reverse)
 
-    def rowsBetweenWindow(self,
-                          start: int,
-                          end: int,
-                          reverse: bool = False) -> WindowSpec:
+    def rowsBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
         return self.ts_schema.rowsBetweenWindow(start, end, reverse=reverse)
 
-    def rangeBetweenWindow(self,
-                           start: int,
-                           end: int,
-                           reverse: bool = False) -> WindowSpec:
+    def rangeBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
         return self.ts_schema.rangeBetweenWindow(start, end, reverse=reverse)
 
     #
@@ -1013,7 +1014,6 @@ class TSDF(WindowBuilder):
         ...
 
     def drop(self, *cols: ColumnOrName) -> TSDF:
-
         """
         Returns a new :class:`TSDF` that drops the specified column.
 
@@ -1025,9 +1025,9 @@ class TSDF(WindowBuilder):
         dropped_df = self.df.drop(*cols)
         return self.__withTransformedDF(dropped_df)
 
-    def mapInPandas(self,
-                    func: PandasMapIterFunction,
-                    schema: Union[StructType, str]) -> TSDF:
+    def mapInPandas(
+        self, func: PandasMapIterFunction, schema: Union[StructType, str]
+    ) -> TSDF:
         """
 
         :param func:
@@ -1053,9 +1053,9 @@ class TSDF(WindowBuilder):
     # Rolling (Windowed) Transformations
     #
 
-    def rollingAgg(self,
-                   window: WindowSpec,
-                   *exprs: Union[Column, Dict[str, str]]) -> TSDF:
+    def rollingAgg(
+        self, window: WindowSpec, *exprs: Union[Column, Dict[str, str]]
+    ) -> TSDF:
         """
 
         :param window:
@@ -1068,25 +1068,30 @@ class TSDF(WindowBuilder):
             for input_col in exprs.keys():
                 expr_str = exprs[input_col]
                 new_col_name = f"{expr_str}({input_col})"
-                roll_agg_tsdf = roll_agg_tsdf.withColumn(new_col_name,
-                                                         sfn.expr(expr_str).over(window))
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(
+                    new_col_name, sfn.expr(expr_str).over(window)
+                )
         else:
             # Columns
-            assert all(isinstance(c, Column) for c in exprs), \
-                "all exprs should be Column"
+            assert all(
+                isinstance(c, Column) for c in exprs
+            ), "all exprs should be Column"
             for expr in exprs:
                 new_col_name = f"{expr}"
-                roll_agg_tsdf = roll_agg_tsdf.withColumn(new_col_name,
-                                                         expr.over(window))
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(
+                    new_col_name, expr.over(window)
+                )
 
         return roll_agg_tsdf
 
-    def rollingApply(self,
-                     outputCol: str,
-                     window: WindowSpec,
-                     func: PandasGroupedMapFunction,
-                     schema: Union[StructType, str],
-                     *inputCols: Union[str, Column]) -> TSDF:
+    def rollingApply(
+        self,
+        outputCol: str,
+        window: WindowSpec,
+        func: PandasGroupedMapFunction,
+        schema: Union[StructType, str],
+        *inputCols: Union[str, Column],
+    ) -> TSDF:
         """
 
         :param outputCol:
@@ -1172,9 +1177,9 @@ class TSDF(WindowBuilder):
         """
         return self.groupBySeries().agg(exprs)
 
-    def applyToSeries(self,
-                      func: PandasGroupedMapFunction,
-                      schema: Union[StructType, str]) -> DataFrame:
+    def applyToSeries(
+        self, func: PandasGroupedMapFunction, schema: Union[StructType, str]
+    ) -> DataFrame:
         """
         Maps each series using a pandas udf and returns the result as a `DataFrame`.
 
@@ -1206,11 +1211,13 @@ class TSDF(WindowBuilder):
 
     # Cyclical Aggregtion
 
-    def groupByCycles(self,
-                      length: str,
-                      period: Optional[str] = None,
-                      offset: Optional[str] = None,
-                      bySeries: bool = True) -> GroupedData:
+    def groupByCycles(
+        self,
+        length: str,
+        period: Optional[str] = None,
+        offset: Optional[str] = None,
+        bySeries: bool = True,
+    ) -> GroupedData:
         """
 
         :param length:
@@ -1224,20 +1231,26 @@ class TSDF(WindowBuilder):
             grouping_cols = [sfn.col(series_col) for series_col in self.series_ids]
         else:
             grouping_cols = []
-        grouping_cols.append(sfn.window(timeColumn=self.ts_col,
-                                        windowDuration=length,
-                                        slideDuration=period,
-                                        startTime=offset))
+        grouping_cols.append(
+            sfn.window(
+                timeColumn=self.ts_col,
+                windowDuration=length,
+                slideDuration=period,
+                startTime=offset,
+            )
+        )
 
         # return the DataFrame grouped accordingly
         return self.df.groupBy(grouping_cols)
 
-    def aggByCycles(self,
-                    length: str,
-                    *exprs: Union[Column, Dict[str, str]],
-                    period: Optional[str] = None,
-                    offset: Optional[str] = None,
-                    bySeries: bool = True) -> IntervalsDF:
+    def aggByCycles(
+        self,
+        length: str,
+        *exprs: Union[Column, Dict[str, str]],
+        period: Optional[str] = None,
+        offset: Optional[str] = None,
+        bySeries: bool = True,
+    ) -> IntervalsDF:
         """
 
         :param length:
@@ -1252,19 +1265,21 @@ class TSDF(WindowBuilder):
 
         # if we have aggregated over series, we return a TSDF without series
         if bySeries:
-            return IntervalsDF.fromNestedBoundariesDF(agged_df,
-                                                      "window",
-                                                      self.series_ids)
+            return IntervalsDF.fromNestedBoundariesDF(
+                agged_df, "window", self.series_ids
+            )
         else:
             return IntervalsDF.fromNestedBoundariesDF(agged_df, "window")
 
-    def applyToCycles(self,
-                      length: str,
-                      func: PandasGroupedMapFunction,
-                      schema: Union[StructType, str],
-                      period: Optional[str] = None,
-                      offset: Optional[str] = None,
-                      bySeries: bool = True) -> IntervalsDF:
+    def applyToCycles(
+        self,
+        length: str,
+        func: PandasGroupedMapFunction,
+        schema: Union[StructType, str],
+        period: Optional[str] = None,
+        offset: Optional[str] = None,
+        bySeries: bool = True,
+    ) -> IntervalsDF:
         """
 
         :param length:
@@ -1276,14 +1291,15 @@ class TSDF(WindowBuilder):
         :return:
         """
         # apply function to get DataFrame of results
-        applied_df = self.groupByCycles(length, period, offset, bySeries)\
-            .applyInPandas(func, schema)
+        applied_df = self.groupByCycles(length, period, offset, bySeries).applyInPandas(
+            func, schema
+        )
 
         # if we have applied over series, we return a TSDF without series
         if bySeries:
-            return IntervalsDF.fromNestedBoundariesDF(applied_df,
-                                                      "window",
-                                                      self.series_ids)
+            return IntervalsDF.fromNestedBoundariesDF(
+                applied_df, "window", self.series_ids
+            )
         else:
             return IntervalsDF.fromNestedBoundariesDF(applied_df, "window")
 
@@ -1528,7 +1544,7 @@ class _ResampledTSDF(TSDF):
         freq: str,
         func: Union[Callable | str],
         ts_col: str = "event_ts",
-        series_ids: Optional[List[str]] = None
+        series_ids: Optional[List[str]] = None,
     ):
         super(_ResampledTSDF, self).__init__(df, ts_col, series_ids)
         self.__freq = freq

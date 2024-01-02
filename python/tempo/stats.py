@@ -13,10 +13,10 @@ import tempo.resample as t_resample
 
 
 def vwap(
-        tsdf: TSDF,
-        frequency: str = "m",
-        volume_col: str = "volume",
-        price_col: str = "price",
+    tsdf: TSDF,
+    frequency: str = "m",
+    volume_col: str = "volume",
+    price_col: str = "price",
 ) -> TSDF:
     # set pre_vwap as self or enrich with the frequency
     pre_vwap = tsdf.df
@@ -72,9 +72,7 @@ def EMA(tsdf: TSDF, colName: str, window: int = 30, exp_factor: float = 0.2) -> 
     for i in range(window):
         lagColName = "_".join(["lag", colName, str(i)])
         weight = exp_factor * (1 - exp_factor) ** i
-        df = df.withColumn(
-            lagColName, weight * sfn.lag(sfn.col(colName), i).over(w)
-        )
+        df = df.withColumn(lagColName, weight * sfn.lag(sfn.col(colName), i).over(w))
         df = df.withColumn(
             emaColName,
             sfn.col(emaColName)
@@ -88,11 +86,11 @@ def EMA(tsdf: TSDF, colName: str, window: int = 30, exp_factor: float = 0.2) -> 
 
 
 def withLookbackFeatures(
-        tsdf: TSDF,
-        feature_cols: List[str],
-        lookback_window_size: int,
-        exact_size: bool = True,
-        feature_col_name: str = "features",
+    tsdf: TSDF,
+    feature_cols: List[str],
+    lookback_window_size: int,
+    exact_size: bool = True,
+    feature_col_name: str = "features",
 ) -> TSDF:
     """
     Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
@@ -130,10 +128,10 @@ def withLookbackFeatures(
 
 
 def withRangeStats(
-        tsdf: TSDF,
-        type: str = "range",
-        cols_to_summarize: Optional[List[Column]] = None,
-        range_back_window_secs: int = 1000,
+    tsdf: TSDF,
+    type: str = "range",
+    cols_to_summarize: Optional[List[Column]] = None,
+    range_back_window_secs: int = 1000,
 ) -> TSDF:
     """
     Create a wider set of stats based on all numeric columns by default
@@ -172,8 +170,8 @@ def withRangeStats(
         selected_cols.append(sfn.stddev(metric).over(w).alias("stddev_" + metric))
         derived_cols.append(
             (
-                    (sfn.col(metric) - sfn.col("mean_" + metric))
-                    / sfn.col("stddev_" + metric)
+                (sfn.col(metric) - sfn.col("mean_" + metric))
+                / sfn.col("stddev_" + metric)
             ).alias("zscore_" + metric)
         )
     selected_df = tsdf.df.select(*selected_cols)
@@ -185,9 +183,9 @@ def withRangeStats(
 
 
 def withGroupedStats(
-        tsdf: TSDF,
-        metric_cols: Optional[List[str]] = None,
-        freq: Optional[str] = None,
+    tsdf: TSDF,
+    metric_cols: Optional[List[str]] = None,
+    freq: Optional[str] = None,
 ) -> TSDF:
     """
     Create a wider set of stats based on all numeric columns by default
@@ -214,8 +212,8 @@ def withGroupedStats(
             datatype[0]
             for datatype in tsdf.df.dtypes
             if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
+                (datatype[1] in summarizable_types)
+                and (datatype[0].lower() not in prohibited_cols)
             )
         ]
 
@@ -255,10 +253,10 @@ def withGroupedStats(
 
 
 def calc_bars(
-        tsdf: TSDF,
-        freq: str,
-        metric_cols: Optional[List[str]] = None,
-        fill: Optional[bool] = None,
+    tsdf: TSDF,
+    freq: str,
+    metric_cols: Optional[List[str]] = None,
+    fill: Optional[bool] = None,
 ) -> TSDF:
     resample_open = tsdf.resample(
         freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
@@ -279,9 +277,11 @@ def calc_bars(
         .join(resample_low.df, join_cols)
         .join(resample_close.df, join_cols)
     )
-    non_part_cols = set(bars.columns) - set(resample_open.series_ids) - {resample_open.ts_col}
+    non_part_cols = (
+        set(bars.columns) - set(resample_open.series_ids) - {resample_open.ts_col}
+    )
     sel_and_sort = (
-            resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
+        resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
     )
     bars = bars.select(sel_and_sort)
 
@@ -289,9 +289,7 @@ def calc_bars(
 
 
 def fourier_transform(
-        tsdf: TSDF,
-        timestep: Union[int, float, complex],
-        value_col: str
+    tsdf: TSDF, timestep: Union[int, float, complex], value_col: str
 ) -> TSDF:
     """
     Function to fourier transform the time series to its frequency domain representation.
@@ -304,7 +302,7 @@ def fourier_transform(
     """
 
     def tempo_fourier_util(
-            pdf: pd.DataFrame,
+        pdf: pd.DataFrame,
     ) -> pd.DataFrame:
         """
         This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
