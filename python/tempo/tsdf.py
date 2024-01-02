@@ -4,19 +4,20 @@ import copy
 import logging
 import operator
 from abc import ABCMeta, abstractmethod
-from functools import cached_property, reduce
-from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, TypeVar, \
-    Union, \
-    cast, overload
+from functools import cached_property
+from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
+from typing import Collection, Dict, cast, overload
 
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-from pyspark.sql import GroupedData, SparkSession
+from pyspark.sql import GroupedData
+from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
+from scipy.fft import fft, fftfreq  # type: ignore
 
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
@@ -192,33 +193,38 @@ class TSDF(WindowBuilder):
         """
         Add prefix to all specified columns.
         """
-        if prefix != "":
-            prefix = prefix + "_"
+        # no-op if no prefix
+        if not prefix:
+            return self
 
-        df = reduce(
-            lambda df, idx: df.withColumnRenamed(
-                col_list[idx], "".join([prefix, col_list[idx]])
-            ),
-            range(len(col_list)),
-            self.df,
-        )
+        # build a column rename map
+        col_map = {col: "_".join([prefix, col]) for col in col_list}
+        # TODO - In the future (when Spark 3.4+ is standard) we should implement batch rename using:
+        # df = self.df.withColumnsRenamed(col_map)
 
-        if prefix == "":
-            ts_col = self.ts_col
-        else:
-            ts_col = "".join([prefix, self.ts_col])
+        # build a list of column expressions to rename columns in a select
+        select_exprs = [
+            sfn.col(col).alias(col_map[col]) if col in col_map else sfn.col(col)
+            for col in self.df.columns
+        ]
+        # select the renamed columns
+        renamed_df = self.df.select(*select_exprs)
 
-        return TSDF(df, ts_col=ts_col, series_ids=self.series_ids)
+        # find the structural columns
+        ts_col = col_map.get(self.ts_col, self.ts_col)
+        partition_cols = [col_map.get(c, c) for c in self.partitionCols]
+        sequence_col = col_map.get(self.sequence_col, self.sequence_col)
+        return TSDF(renamed_df, ts_col, partition_cols, sequence_col=sequence_col)
 
     def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> "TSDF":
         """
         Add columns from some other DF as lit(None), as pre-step before union.
         """
-        new_df = reduce(
-            lambda df, idx: df.withColumn(other_cols[idx], sfn.lit(None)),
-            range(len(other_cols)),
-            self.df,
-        )
+
+        # build a list of column expressions to rename columns in a select
+        current_cols = [sfn.col(col) for col in self.df.columns]
+        new_cols = [sfn.lit(None).alias(col) for col in other_cols]
+        new_df = self.df.select(current_cols + new_cols)
 
         return self.__withTransformedDF(new_df)
 
@@ -252,54 +258,41 @@ class TSDF(WindowBuilder):
             .rowsBetween(Window.unboundedPreceding, Window.currentRow)
         )
 
+        # generate expressions to find the last value of each right-hand column
         if ignoreNulls is False:
             if tsPartitionVal is not None:
                 raise ValueError(
                     "Disabling null skipping with a partition value is not supported yet."
                 )
-            df = reduce(
-                lambda df, idx: df.withColumn(
-                    right_cols[idx],
-                    sfn.last(
-                        sfn.when(
-                            sfn.col("rec_ind") == -1, sfn.struct(right_cols[idx])
-                        ).otherwise(None),
-                        True,  # ignore nulls because it indicates rows from the left side
-                    ).over(window_spec),
-                ),
-                range(len(right_cols)),
-                self.df,
-            )
-            df = reduce(
-                lambda df, idx: df.withColumn(
-                    right_cols[idx], sfn.col(right_cols[idx])[right_cols[idx]]
-                ),
-                range(len(right_cols)),
-                df,
-            )
+            mod_right_cols = [
+                sfn.last(
+                    sfn.when(sfn.col("rec_ind") == -1, sfn.struct(col)).otherwise(None),
+                    True,
+                )
+                .over(window_spec)[col]
+                .alias(col)
+                for col in right_cols
+            ]
         elif tsPartitionVal is None:
-            # splitting off the condition as we want different columns in the reduce if implementing the skew AS OF join
-            df = reduce(
-                lambda df, idx: df.withColumn(
-                    right_cols[idx],
-                    sfn.last(right_cols[idx], ignoreNulls).over(window_spec),
-                ),
-                range(len(right_cols)),
-                self.df,
-            )
+            mod_right_cols = [
+                sfn.last(col, ignoreNulls).over(window_spec).alias(col)
+                for col in right_cols
+            ]
         else:
-            df = reduce(
-                lambda df, idx: df.withColumn(
-                    right_cols[idx],
-                    sfn.last(right_cols[idx], ignoreNulls).over(window_spec),
-                ).withColumn(
-                    "non_null_ct" + right_cols[idx],
-                    sfn.count(right_cols[idx]).over(window_spec),
-                ),
-                range(len(right_cols)),
-                self.df,
-            )
+            mod_right_cols = [
+                sfn.last(col, ignoreNulls).over(window_spec).alias(col)
+                for col in right_cols
+            ]
+            # non-null count columns, these will be dropped below
+            mod_right_cols += [
+                sfn.count(col).over(window_spec).alias("non_null_ct" + col)
+                for col in right_cols
+            ]
 
+        # select the left-hand side columns, and the modified right-hand side columns
+        non_right_cols = list(set(self.df.columns) - set(right_cols))
+        df = self.df.select(non_right_cols + mod_right_cols)
+        # drop the null left-hand side rows
         df = (df.filter(sfn.col(left_ts_col).isNotNull()).drop(self.ts_col)).drop(
             "rec_ind"
         )
@@ -780,16 +773,8 @@ class TSDF(WindowBuilder):
                 left_cols = list(set(left_df.columns) - set(self.series_ids))
                 right_cols = list(set(right_df.columns) - set(right_tsdf.series_ids))
 
-                left_prefix = (
-                    ""
-                    if ((left_prefix is None) | (left_prefix == ""))
-                    else left_prefix + "_"
-                )
-                right_prefix = (
-                    ""
-                    if ((right_prefix is None) | (right_prefix == ""))
-                    else right_prefix + "_"
-                )
+                left_prefix = left_prefix + "_" if left_prefix else ""
+                right_prefix = right_prefix + "_" if right_prefix else ""
 
                 w = Window.partitionBy(*partition_cols).orderBy(
                     right_prefix + right_tsdf.ts_col
@@ -858,16 +843,12 @@ class TSDF(WindowBuilder):
             [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
         )
 
-        left_nonpartition_cols = list(
-            set(left_tsdf.df.columns) - set(self.series_ids)
+        left_columns = list(
+            set(left_tsdf.df.columns).difference(set(self.partitionCols))
         )
-        right_nonpartition_cols = list(
-            set(right_tsdf.df.columns) - set(self.series_ids)
+        right_columns = list(
+            set(right_tsdf.df.columns).difference(set(self.partitionCols))
         )
-
-        # For both dataframes get all non-partition columns (including ts_col)
-        left_columns = [left_tsdf.ts_col] + left_nonpartition_cols
-        right_columns = [right_tsdf.ts_col] + right_nonpartition_cols
 
         # Union both dataframes, and create a combined TS column
         combined_ts_col = "combined_ts"
@@ -1478,7 +1459,7 @@ class TSDF(WindowBuilder):
                 )
 
             def state_comparison_fn(a: CT, b: CT) -> Callable[[Column, Column], Column]:
-                return operator_dict[state_definition](a, b)  # type: ignore
+                return operator_dict[state_definition](a, b)
 
         elif callable(state_definition):
             state_comparison_fn = state_definition  # type: ignore
