@@ -16,8 +16,9 @@ from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DataType, StructType
+from pyspark.sql._typing import ColumnOrName
+from pyspark.sql.pandas._typing import PandasMapIterFunction, PandasGroupedMapFunction
 from pyspark.sql.window import Window, WindowSpec
-from scipy.fft import fft, fftfreq  # type: ignore
 
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
@@ -594,85 +595,85 @@ class TSDF(WindowBuilder):
             )  # pragma: no cover
         t_utils.get_display_df(self, k).show(n, truncate, vertical)
 
-    def describe(self) -> DataFrame:
-        """
-        Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals
-        Summary
-        global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
-        count / mean / stddev / min / max - standard Spark data frame describe() output
-        missing_vals_pct - percentage (from 0 to 100) of missing values.
-        """
-        # extract the double version of the timestamp column to summarize
-        double_ts_col = self.ts_col + "_dbl"
-
-        this_df = self.df.withColumn(double_ts_col, sfn.col(self.ts_col).cast("double"))
-
-        # summary missing value percentages
-        missing_vals = this_df.select(
-            [
-                (
-                    100
-                    * sfn.count(sfn.when(sfn.col(c[0]).isNull(), c[0]))
-                    / sfn.count(sfn.lit(1))
-                ).alias(c[0])
-                for c in this_df.dtypes
-                if c[1] != "timestamp"
-            ]
-        ).select(sfn.lit("missing_vals_pct").alias("summary"), "*")
-
-        # describe stats
-        desc_stats = this_df.describe().union(missing_vals)
-        unique_ts = this_df.select(*self.series_ids).distinct().count()
-
-        max_ts = this_df.select(
-            sfn.max(sfn.col(self.ts_col)).alias("max_ts")
-        ).collect()[0][0]
-        min_ts = this_df.select(
-            sfn.min(sfn.col(self.ts_col)).alias("max_ts")
-        ).collect()[0][0]
-        gran = this_df.selectExpr(
-            """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
-                  when {0} % 60 != 0 then '2-seconds'
-                  when {0} % 3600 != 0 then '3-minutes'
-                  when {0} % 86400 != 0 then '4-hours'
-                  else '5-days' end) granularity""".format(
-                double_ts_col
-            )
-        ).collect()[0][0][2:]
-
-        non_summary_cols = [c for c in desc_stats.columns if c != "summary"]
-
-        desc_stats = desc_stats.select(
-            sfn.col("summary"),
-            sfn.lit(" ").alias("unique_ts_count"),
-            sfn.lit(" ").alias("min_ts"),
-            sfn.lit(" ").alias("max_ts"),
-            sfn.lit(" ").alias("granularity"),
-            *non_summary_cols,
-        )
-
-        # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
-        global_smry_rec = desc_stats.limit(1).select(
-            sfn.lit("global").alias("summary"),
-            sfn.lit(unique_ts).alias("unique_ts_count"),
-            sfn.lit(min_ts).alias("min_ts"),
-            sfn.lit(max_ts).alias("max_ts"),
-            sfn.lit(gran).alias("granularity"),
-            *[sfn.lit(" ").alias(c) for c in non_summary_cols],
-        )
-
-        full_smry = global_smry_rec.union(desc_stats)
-        full_smry = full_smry.withColumnRenamed(
-            "unique_ts_count", "unique_time_series_count"
-        )
-
-        try:  # pragma: no cover
-            dbutils.fs.ls("/")  # type: ignore
-            return full_smry
-        # TODO: Can we raise something other than generic Exception?
-        #  perhaps refactor to check for IS_DATABRICKS
-        except Exception:
-            return full_smry
+    # def describe(self) -> DataFrame:
+    #     """
+    #     Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals
+    #     Summary
+    #     global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
+    #     count / mean / stddev / min / max - standard Spark data frame describe() output
+    #     missing_vals_pct - percentage (from 0 to 100) of missing values.
+    #     """
+    #     # extract the double version of the timestamp column to summarize
+    #     double_ts_col = self.ts_col + "_dbl"
+    #
+    #     this_df = self.df.withColumn(double_ts_col, sfn.col(self.ts_col).cast("double"))
+    #
+    #     # summary missing value percentages
+    #     missing_vals = this_df.select(
+    #         [
+    #             (
+    #                 100
+    #                 * sfn.count(sfn.when(sfn.col(c[0]).isNull(), c[0]))
+    #                 / sfn.count(sfn.lit(1))
+    #             ).alias(c[0])
+    #             for c in this_df.dtypes
+    #             if c[1] != "timestamp"
+    #         ]
+    #     ).select(sfn.lit("missing_vals_pct").alias("summary"), "*")
+    #
+    #     # describe stats
+    #     desc_stats = this_df.describe().union(missing_vals)
+    #     unique_ts = this_df.select(*self.series_ids).distinct().count()
+    #
+    #     max_ts = this_df.select(
+    #         sfn.max(sfn.col(self.ts_col)).alias("max_ts")
+    #     ).collect()[0][0]
+    #     min_ts = this_df.select(
+    #         sfn.min(sfn.col(self.ts_col)).alias("max_ts")
+    #     ).collect()[0][0]
+    #     gran = this_df.selectExpr(
+    #         """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
+    #               when {0} % 60 != 0 then '2-seconds'
+    #               when {0} % 3600 != 0 then '3-minutes'
+    #               when {0} % 86400 != 0 then '4-hours'
+    #               else '5-days' end) granularity""".format(
+    #             double_ts_col
+    #         )
+    #     ).collect()[0][0][2:]
+    #
+    #     non_summary_cols = [c for c in desc_stats.columns if c != "summary"]
+    #
+    #     desc_stats = desc_stats.select(
+    #         sfn.col("summary"),
+    #         sfn.lit(" ").alias("unique_ts_count"),
+    #         sfn.lit(" ").alias("min_ts"),
+    #         sfn.lit(" ").alias("max_ts"),
+    #         sfn.lit(" ").alias("granularity"),
+    #         *non_summary_cols,
+    #     )
+    #
+    #     # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
+    #     global_smry_rec = desc_stats.limit(1).select(
+    #         sfn.lit("global").alias("summary"),
+    #         sfn.lit(unique_ts).alias("unique_ts_count"),
+    #         sfn.lit(min_ts).alias("min_ts"),
+    #         sfn.lit(max_ts).alias("max_ts"),
+    #         sfn.lit(gran).alias("granularity"),
+    #         *[sfn.lit(" ").alias(c) for c in non_summary_cols],
+    #     )
+    #
+    #     full_smry = global_smry_rec.union(desc_stats)
+    #     full_smry = full_smry.withColumnRenamed(
+    #         "unique_ts_count", "unique_time_series_count"
+    #     )
+    #
+    #     try:  # pragma: no cover
+    #         dbutils.fs.ls("/")  # type: ignore
+    #         return full_smry
+    #     # TODO: Can we raise something other than generic Exception?
+    #     #  perhaps refactor to check for IS_DATABRICKS
+    #     except Exception:
+    #         return full_smry
 
     def __getSparkPlan(self, df: DataFrame, spark: SparkSession) -> str:
         """
@@ -1004,14 +1005,14 @@ class TSDF(WindowBuilder):
         return self.__withTransformedDF(new_df)
 
     @overload
-    def drop(self, cols: "ColumnOrName") -> "TSDF":
+    def drop(self, cols: ColumnOrName) -> TSDF:
         ...
 
     @overload
-    def drop(self, *cols: str) -> "TSDF":
+    def drop(self, *cols: str) -> TSDF:
         ...
 
-    def drop(self, *cols: "ColumnOrName") -> "TSDF":
+    def drop(self, *cols: ColumnOrName) -> TSDF:
 
         """
         Returns a new :class:`TSDF` that drops the specified column.
@@ -1025,7 +1026,7 @@ class TSDF(WindowBuilder):
         return self.__withTransformedDF(dropped_df)
 
     def mapInPandas(self,
-                    func: "PandasMapIterFunction",
+                    func: PandasMapIterFunction,
                     schema: Union[StructType, str]) -> TSDF:
         """
 
@@ -1033,7 +1034,7 @@ class TSDF(WindowBuilder):
         :param schema:
         :return:
         """
-        mapped_df = self.df.mapInPandas(func,schema)
+        mapped_df = self.df.mapInPandas(func, schema)
         return self.__withTransformedDF(mapped_df)
 
     def union(self, other: TSDF) -> TSDF:
@@ -1083,7 +1084,7 @@ class TSDF(WindowBuilder):
     def rollingApply(self,
                      outputCol: str,
                      window: WindowSpec,
-                     func: "PandasGroupedMapFunction",
+                     func: PandasGroupedMapFunction,
                      schema: Union[StructType, str],
                      *inputCols: Union[str, Column]) -> TSDF:
         """
@@ -1103,7 +1104,7 @@ class TSDF(WindowBuilder):
     # Aggregations
     #
 
-    ## Aggregations across series and time
+    # Aggregations across series and time
 
     def summarize(self, *cols: Optional[Union[str, List[str]]]) -> GroupedData:
         """
@@ -1148,7 +1149,7 @@ class TSDF(WindowBuilder):
         """
         return self.df.select(self.metric_cols).summary(statistics)
 
-    ## Aggregations by series
+    # Aggregations by series
 
     def groupBySeries(self) -> GroupedData:
         """
@@ -1172,7 +1173,7 @@ class TSDF(WindowBuilder):
         return self.groupBySeries().agg(exprs)
 
     def applyToSeries(self,
-                      func: "PandasGroupedMapFunction",
+                      func: PandasGroupedMapFunction,
                       schema: Union[StructType, str]) -> DataFrame:
         """
         Maps each series using a pandas udf and returns the result as a `DataFrame`.
@@ -1203,7 +1204,7 @@ class TSDF(WindowBuilder):
         """
         return self.groupBySeries().applyInPandas(func, schema)
 
-    ### Cyclical Aggregtion
+    # Cyclical Aggregtion
 
     def groupByCycles(self,
                       length: str,
@@ -1259,7 +1260,7 @@ class TSDF(WindowBuilder):
 
     def applyToCycles(self,
                       length: str,
-                      func: "PandasGroupedMapFunction",
+                      func: PandasGroupedMapFunction,
                       schema: Union[StructType, str],
                       period: Optional[str] = None,
                       offset: Optional[str] = None,
@@ -1564,7 +1565,7 @@ class _ResampledTSDF(TSDF):
             ts_col = self.ts_col
 
         if series_ids is None:
-            partition_cols = self.series_ids
+            series_ids = self.series_ids
 
         # Set defaults for target columns, timestamp column and partition columns when not provided
         if target_cols is None:
@@ -1582,11 +1583,11 @@ class _ResampledTSDF(TSDF):
             ]
 
         interpolate_service = t_interpolation.Interpolation(is_resampled=True)
-        tsdf_input = TSDF(self.df, ts_col=self.ts_col, series_ids=self.series_ids)
+        tsdf_input = TSDF(self.df, ts_col=ts_col, series_ids=series_ids)
         interpolated_df = interpolate_service.interpolate(
             tsdf=tsdf_input,
-            ts_col=self.ts_col,
-            series_ids=self.series_ids,
+            ts_col=ts_col,
+            series_ids=series_ids,
             target_cols=target_cols,
             freq=freq,
             func=func,

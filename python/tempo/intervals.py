@@ -197,7 +197,7 @@ class IntervalsDF:
                                nested_boundaries_col: str,
                                series_ids: Optional[list[str]] = None,
                                start_element_name: str = "start",
-                               end_element_name: str = "end" ) -> IntervalsDF:
+                               end_element_name: str = "end") -> IntervalsDF:
         """
 
         :param df:
