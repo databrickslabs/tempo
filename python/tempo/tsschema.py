@@ -1,16 +1,25 @@
-from enum import Enum, auto
 from abc import ABC, abstractmethod
-from typing import cast, Any, Union, Optional, Collection, List
+from enum import Enum, auto
+from typing import Any, Collection, List, Optional, Union, cast
 
 import pyspark.sql.functions as sfn
-from pyspark.sql import Column, WindowSpec, Window
-from pyspark.sql.types import *
-from pyspark.sql.types import NumericType
-from pyspark.sql._typing import LiteralType, DecimalLiteral, DateTimeLiteral
+from pyspark.sql import Column, Window, WindowSpec
+from pyspark.sql._typing import DateTimeLiteral, DecimalLiteral, LiteralType
+from pyspark.sql.types import (
+    BooleanType,
+    DateType,
+    NumericType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
+
 
 #
 # Time Units
 #
+
 
 class TimeUnits(Enum):
     YEARS = auto()
@@ -93,7 +102,9 @@ class TSIndex(ABC):
         elif isinstance(expr, list):
             return [col.desc() for col in expr]  # reverse all columns in the expression
         else:
-            raise TypeError(f"Type for expr argument must be either Column or List[Column], instead received: {type(expr)}")
+            raise TypeError(
+                f"Type for expr argument must be either Column or List[Column], instead received: {type(expr)}"
+            )
 
     @abstractmethod
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
@@ -106,7 +117,7 @@ class TSIndex(ABC):
         """
 
     @abstractmethod
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         """
         Gets an expression appropriate for performing range operations on the :class:`TSDF` records.
 
@@ -156,21 +167,21 @@ class SimpleTSIndex(TSIndex, ABC):
 
     def validate(self, df_schema: StructType) -> None:
         # the ts column must exist
-        assert(self.colname in df_schema.fieldNames(),
-               f"The TSIndex column {self.colname} "
-               f"does not exist in the given DataFrame")
+        assert (
+            self.colname in df_schema.fieldNames()
+        ), f"The TSIndex column {self.colname} does not exist in the given DataFrame"
         schema_ts_col = df_schema[self.colname]
         # it must have the right type
         schema_ts_type = schema_ts_col.dataType
-        assert(isinstance(schema_ts_type, type(self.dataType)),
-               f"The TSIndex column is of type {schema_ts_type}, "
-               f"but the expected type is {self.dataType}")
+        assert isinstance(
+            schema_ts_type, type(self.dataType)
+        ), f"The TSIndex column is of type {schema_ts_type}, but the expected type is {self.dataType}"
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
         return self
 
-    def orderByExpr(self, reverse: bool = False) -> Column:
+    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         expr = sfn.col(self.colname)
         return self._reverseOrNot(expr, reverse)
 
@@ -207,7 +218,7 @@ class NumericIndex(SimpleTSIndex):
     def unit(self) -> Optional[TimeUnits]:
         return None
 
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         return self.orderByExpr(reverse)
 
 
@@ -228,7 +239,7 @@ class SimpleTimestampIndex(SimpleTSIndex):
     def unit(self) -> Optional[TimeUnits]:
         return TimeUnits.SECONDS
 
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         # cast timestamp to double (fractional seconds since epoch)
         expr = sfn.col(self.colname).cast("double")
         return self._reverseOrNot(expr, reverse)
@@ -250,7 +261,7 @@ class SimpleDateIndex(SimpleTSIndex):
     def unit(self) -> Optional[TimeUnits]:
         return TimeUnits.DAYS
 
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         # convert date to number of days since the epoch
         expr = sfn.datediff(sfn.col(self.colname), sfn.lit("1970-01-01").cast("date"))
         return self._reverseOrNot(expr, reverse)
@@ -283,13 +294,12 @@ class CompositeTSIndex(TSIndex):
                               for field in ts_fields]
         self.primary_ts_idx = self.ts_components[0]
 
-
     @property
     def _indexAttributes(self) -> dict[str, Any]:
         return {
             "name": self.colname,
             "struct": self.struct,
-            "ts_components": self.ts_components
+            "ts_components": self.ts_components,
         }
 
     @property
@@ -306,15 +316,15 @@ class CompositeTSIndex(TSIndex):
 
     def validate(self, df_schema: StructType) -> None:
         # validate that the composite field exists
-        assert(self.colname in df_schema.fieldNames(),
-               f"The TSIndex column {self.colname} "
-               f"does not exist in the given DataFrame")
+        assert (
+            self.colname in df_schema.fieldNames()
+        ), f"The TSIndex column {self.colname} does not exist in the given DataFrame"
         schema_ts_col = df_schema[self.colname]
         # it must have the right type
         schema_ts_type = schema_ts_col.dataType
-        assert(isinstance(schema_ts_type, StructType),
-               f"The TSIndex column is of type {schema_ts_type}, "
-               f"but the expected type is {StructType}")
+        assert isinstance(
+            schema_ts_type, StructType
+        ), f"The TSIndex column is of type {schema_ts_type}, but the expected type is {StructType}"
         # validate all the TS components
         for comp in self.ts_components:
             comp.validate(schema_ts_type)
@@ -343,12 +353,12 @@ class CompositeTSIndex(TSIndex):
         """
         return self.component(self.ts_components[component_index].colname)
 
-    def orderByExpr(self, reverse: bool = False) -> Column:
+    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         # build an expression for each TS component, in order
         exprs = [sfn.col(self.component(comp.colname)) for comp in self.ts_components]
         return self._reverseOrNot(exprs, reverse)
 
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         return self.primary_ts_idx.rangeExpr(reverse)
 
 
@@ -358,9 +368,7 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     Retains the original string form as well as the parsed column.
     """
 
-    def __init__(
-        self, ts_idx: StructField, src_str_col: str, parsed_col: str
-    ) -> None:
+    def __init__(self, ts_idx: StructField, src_str_col: str, parsed_col: str) -> None:
         super().__init__(ts_idx, parsed_col)
         src_str_field = self.struct[src_str_col]
         if not isinstance(src_str_field.dataType, StringType):
@@ -384,16 +392,16 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     def validate(self, df_schema: StructType) -> None:
         super().validate(df_schema)
         # make sure the parsed field exists
-        composite_idx_type: StructType = cast(StructType,
-                                              df_schema[self.colname].dataType)
-        assert(self.__src_str_col in composite_idx_type,
-               f"The src_str_col column {self.src_str_col} "
-               f"does not exist in the composite field {composite_idx_type}")
+        composite_idx_type: StructType = cast(
+            StructType, df_schema[self.colname].dataType
+        )
+        assert (self.__src_str_col in composite_idx_type.fieldNames()), \
+            f"The src_str_col column {self.src_str_col} does not exist in the composite field {composite_idx_type}"
         # make sure it's StringType
         src_str_field_type = composite_idx_type[self.__src_str_col].dataType
-        assert(isinstance(src_str_field_type, StringType),
-               f"The src_str_col column {self.src_str_col} "
-               f"should be of StringType, but found {src_str_field_type} instead")
+        assert isinstance(
+            src_str_field_type, StringType
+        ), f"The src_str_col column {self.src_str_col} should be of StringType, but found {src_str_field_type} instead"
 
 
 class ParsedTimestampIndex(ParsedTSIndex):
@@ -401,9 +409,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
     Timeseries index class for timestamps parsed from a string column
     """
 
-    def __init__(
-        self, ts_idx: StructField, src_str_col: str, parsed_col: str
-    ) -> None:
+    def __init__(self, ts_idx: StructField, src_str_col: str, parsed_col: str) -> None:
         super().__init__(ts_idx, src_str_col, parsed_col)
         if not isinstance(self.primary_ts_idx.dataType, TimestampType):
             raise TypeError(
@@ -412,7 +418,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
                 f"has type {self.primary_ts_idx.dataType}"
             )
 
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         # cast timestamp to double (fractional seconds since epoch)
         expr = sfn.col(self.primary_ts_col).cast("double")
         return self._reverseOrNot(expr, reverse)
@@ -423,9 +429,7 @@ class ParsedDateIndex(ParsedTSIndex):
     Timeseries index class for dates parsed from a string column
     """
 
-    def __init__(
-        self, ts_idx: StructField, src_str_col: str, parsed_col: str
-    ) -> None:
+    def __init__(self, ts_idx: StructField, src_str_col: str, parsed_col: str) -> None:
         super().__init__(ts_idx, src_str_col, parsed_col)
         if not isinstance(self.primary_ts_idx.dataType, DateType):
             raise TypeError(
@@ -434,7 +438,7 @@ class ParsedDateIndex(ParsedTSIndex):
                 f"has type {self.primary_ts_idx.dataType}"
             )
 
-    def rangeExpr(self, reverse: bool = False) -> Column:
+    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         # convert date to number of days since the epoch
         expr = sfn.datediff(
             sfn.col(self.primary_ts_col), sfn.lit("1970-01-01").cast("date")
@@ -445,6 +449,7 @@ class ParsedDateIndex(ParsedTSIndex):
 #
 # Window Builder Interface
 #
+
 
 class WindowBuilder(ABC):
     """
@@ -463,10 +468,9 @@ class WindowBuilder(ABC):
         pass
 
     @abstractmethod
-    def rowsBetweenWindow(self,
-                          start: int,
-                          end: int,
-                          reverse: bool = False) -> WindowSpec:
+    def rowsBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
         """
         build a row-based window with the given start and end offsets
 
@@ -487,8 +491,7 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        return self.rowsBetweenWindow(Window.unboundedPreceding,
-                                      0 if inclusive else -1)
+        return self.rowsBetweenWindow(Window.unboundedPreceding, 0 if inclusive else -1)
 
     def allAfterWindow(self, inclusive: bool = True) -> WindowSpec:
         """
@@ -499,14 +502,12 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        return self.rowsBetweenWindow(0 if inclusive else 1,
-                                      Window.unboundedFollowing)
+        return self.rowsBetweenWindow(0 if inclusive else 1, Window.unboundedFollowing)
 
     @abstractmethod
-    def rangeBetweenWindow(self,
-                           start: int,
-                           end: int,
-                           reverse: bool = False) -> WindowSpec:
+    def rangeBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
         """
         build a range-based window with the given start and end offsets
 
@@ -529,7 +530,7 @@ class TSSchema(WindowBuilder):
     Schema type for a :class:`TSDF` class.
     """
 
-    def __init__(self, ts_idx: TSIndex, series_ids: Collection[str] = None) -> None:
+    def __init__(self, ts_idx: TSIndex, series_ids: Optional[Collection[str]]) -> None:
         self.__ts_idx = ts_idx
         if series_ids:
             self.__series_ids = list(series_ids)
@@ -565,9 +566,7 @@ class TSSchema(WindowBuilder):
     Series IDs: {self.series_ids}"""
 
     @classmethod
-    def fromDFSchema(
-        cls, df_schema: StructType, ts_col: str, series_ids: Collection[str] = None
-    ) -> "TSSchema":
+    def fromDFSchema(cls, df_schema: StructType, ts_col: str, series_ids: Optional[Collection[str]]) -> "TSSchema":
         # construct a TSIndex for the given ts_col
         ts_idx = SimpleTSIndex.fromTSCol(df_schema[ts_col])
         return cls(ts_idx, series_ids)
@@ -587,8 +586,9 @@ class TSSchema(WindowBuilder):
         self.ts_idx.validate(df_schema)
         # check series IDs
         for sid in self.series_ids:
-            assert( sid in df_schema.fieldNames(),
-                    f"Series ID {sid} does not exist in the given DataFrame" )
+            assert (
+                sid in df_schema.fieldNames()
+            ), f"Series ID {sid} does not exist in the given DataFrame"
 
     def find_observational_columns(self, df_schema: StructType) -> list[str]:
         return list(set(df_schema.fieldNames()) - set(self.structural_columns))
@@ -616,14 +616,16 @@ class TSSchema(WindowBuilder):
             w = w.partitionBy([sfn.col(sid) for sid in self.series_ids])
         return w
 
-    def rowsBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+    def rowsBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
         return self.baseWindow(reverse=reverse).rowsBetween(start, end)
 
-    def rangeBetweenWindow(self, start: int, end: int, reverse: bool = False) -> WindowSpec:
+    def rangeBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
         return (
             self.baseWindow(reverse=reverse)
             .orderBy(self.ts_idx.rangeExpr(reverse=reverse))
             .rangeBetween(start, end)
         )
-
-

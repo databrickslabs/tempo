@@ -161,8 +161,8 @@ class Interpolation:
             "previous_timestamp",
             sfn.col(tsdf.ts_col),
         ).withColumn(
-            "next_timestamp",
-            sfn.lead(sfn.col(tsdf.ts_col)).over(tsdf.baseWindow()))
+            "next_timestamp", sfn.lead(sfn.col(tsdf.ts_col)).over(tsdf.baseWindow())
+        )
 
     def __generate_column_time_fill(
         self,
@@ -184,12 +184,14 @@ class Interpolation:
 
         return tsdf.withColumn(
             f"previous_timestamp_{target_col}",
-            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"),
-                     ignorenulls=True).over(fwd_win),
+            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"), ignorenulls=True).over(
+                fwd_win
+            ),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"),
-                     ignorenulls=True).over(bkwd_win)
+            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"), ignorenulls=True).over(
+                bkwd_win
+            ),
         )
 
     def __generate_target_fill(
@@ -213,15 +215,14 @@ class Interpolation:
         return (
             tsdf.withColumn(
                 f"previous_{target_col}",
-                sfn.last(sfn.col(target_col), ignorenulls=True).over(fwd_win)
+                sfn.last(sfn.col(target_col), ignorenulls=True).over(fwd_win),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
-                sfn.last(sfn.col(target_col), ignorenulls=True).over(bkwd_win)
+                sfn.last(sfn.col(target_col), ignorenulls=True).over(bkwd_win),
             ).withColumn(
-                f"next_{target_col}",
-                sfn.lead(sfn.col(target_col)).over(fwd_win)
+                f"next_{target_col}", sfn.lead(sfn.col(target_col)).over(fwd_win)
             )
         )
 
@@ -277,9 +278,7 @@ class Interpolation:
 
         if self.is_resampled is False:
             # Resample and Normalize Input
-            sampled_input = tsdf.resample(freq=freq,
-                                          func=func,
-                                          metricCols=target_cols)
+            sampled_input = tsdf.resample(freq=freq, func=func, metricCols=target_cols)
 
         # Fill timeseries for nearest values
         time_series_filled = self.__generate_time_series_fill(sampled_input)
@@ -290,11 +289,11 @@ class Interpolation:
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"{tsdf.ts_col}_{column}",
-                sfn.when(sfn.col(column).isNull(), None).otherwise(sfn.col(tsdf.ts_col)),
+                sfn.when(sfn.col(column).isNull(), None).otherwise(
+                    sfn.col(tsdf.ts_col)
+                ),
             )
-            add_column_time = self.__generate_column_time_fill(
-                add_column_time, column
-            )
+            add_column_time = self.__generate_column_time_fill(add_column_time, column)
 
         # Handle edge case if last value (latest) is null
         edge_filled = add_column_time.withColumn(
@@ -325,9 +324,9 @@ class Interpolation:
         flagged_series = (
             exploded_series.withColumn(
                 "is_ts_interpolated",
-                sfn.when(sfn.col(f"new_{tsdf.ts_col}") != sfn.col(tsdf.ts_col), True).otherwise(
-                    False
-                ),
+                sfn.when(
+                    sfn.col(f"new_{tsdf.ts_col}") != sfn.col(tsdf.ts_col), True
+                ).otherwise(False),
             )
             .withColumn(tsdf.ts_col, sfn.col(f"new_{tsdf.ts_col}"))
             .drop(sfn.col(f"new_{tsdf.ts_col}"))

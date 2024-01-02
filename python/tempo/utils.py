@@ -3,14 +3,13 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from typing import List, Optional, Union, overload
+from typing import Optional, Union, overload
 
+import pyspark.sql.functions as sfn
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas.core.frame import DataFrame as pandasDataFrame
-
-import pyspark.sql.functions as sfn
 from pyspark.sql.dataframe import DataFrame
 
 import tempo.resample as t_resample
