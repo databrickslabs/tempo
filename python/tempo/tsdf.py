@@ -47,6 +47,7 @@ class TSDF(WindowBuilder):
         if ts_schema:
             self.ts_schema = ts_schema
         else:
+            assert ts_col is not None
             self.ts_schema = TSSchema.fromDFSchema(self.df.schema, ts_col, series_ids)
         # validate that this schema works for this DataFrame
         self.ts_schema.validate(df.schema)
@@ -114,7 +115,7 @@ class TSDF(WindowBuilder):
         df: DataFrame,
         ts_col: str,
         subsequence_col: str,
-        series_ids: Collection[str] = None,
+        series_ids: Optional[Collection[str]] = None,
     ) -> "TSDF":
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
@@ -132,7 +133,7 @@ class TSDF(WindowBuilder):
         cls,
         df: DataFrame,
         ts_col: str,
-        series_ids: Collection[str] = None,
+        series_ids: Optional[Collection[str]] = None,
         ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]",
     ) -> "TSDF":
         pass
