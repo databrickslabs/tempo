@@ -6,20 +6,19 @@ import operator
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
-from typing import Collection, Dict, cast, overload
+from typing import Collection, Dict, overload
 
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pyspark.sql import GroupedData
 from pyspark.sql import SparkSession
-from pyspark.sql._typing import ColumnOrName
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.pandas._typing import PandasGroupedMapFunction, PandasMapIterFunction
 from pyspark.sql.types import DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
+import tempo.as_of_join as t_as_of_join
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
 import tempo.resample as t_resample
@@ -723,30 +722,42 @@ class TSDF(WindowBuilder):
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
         """
+        # select the appropriate join function
+        joiner = t_as_of_join.choose_as_of_join_strategy(self,
+                                                         right_tsdf,
+                                                         left_prefix=left_prefix,
+                                                         right_prefix=right_prefix,
+                                                         tsPartitionVal=tsPartitionVal,
+                                                         fraction=fraction,
+                                                         skipNulls=skipNulls,
+                                                         sql_join_opt=sql_join_opt,
+                                                         suppress_null_warning=suppress_null_warning,
+                                                         tolerance=tolerance)
+        return joiner(self, right_tsdf)
 
-        # first block of logic checks whether a standard range join will suffice
-        left_df = self.df
-        right_df = right_tsdf.df
-
-        # test if the broadcast join will be efficient
-        if sql_join_opt:
-            spark = SparkSession.builder.getOrCreate()
-            left_bytes = self.__getBytesFromPlan(left_df, spark)
-            right_bytes = self.__getBytesFromPlan(right_df, spark)
-
-            # choose 30MB as the cutoff for the broadcast
-            bytes_threshold = 30 * 1024 * 1024
-            if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-                # TODO - call broadcast join here
-
-        # end of block checking to see if standard Spark SQL join will work
-
-        if tsPartitionVal is not None:
-            logger.warning(
-                "You are using the skew version of the AS OF join. This may result in null values if there are any "
-                "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
-                "lookback, trading off performance and potential blank AS OF values for sparse keys"
-            )
+        # # first block of logic checks whether a standard range join will suffice
+        # left_df = self.df
+        # right_df = right_tsdf.df
+        #
+        # # test if the broadcast join will be efficient
+        # if sql_join_opt:
+        #     spark = SparkSession.builder.getOrCreate()
+        #     left_bytes = self.__getBytesFromPlan(left_df, spark)
+        #     right_bytes = self.__getBytesFromPlan(right_df, spark)
+        #
+        #     # choose 30MB as the cutoff for the broadcast
+        #     bytes_threshold = 30 * 1024 * 1024
+        #     if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
+        #         # TODO - call broadcast join here
+        #
+        # # end of block checking to see if standard Spark SQL join will work
+        #
+        # if tsPartitionVal is not None:
+        #     logger.warning(
+        #         "You are using the skew version of the AS OF join. This may result in null values if there are any "
+        #         "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
+        #         "lookback, trading off performance and potential blank AS OF values for sparse keys"
+        #     )
 
         # Check whether partition columns have same name in both dataframes
         # self.__checkPartitionCols(right_tsdf)
@@ -796,70 +807,70 @@ class TSDF(WindowBuilder):
         # )
 
         # perform asof join.
-        if tsPartitionVal is None:
-            seq_col = None
-            if isinstance(combined_df.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
-            asofDF = combined_df.__getLastRightRow(
-                left_tsdf.ts_col,
-                right_columns,
-                seq_col,
-                tsPartitionVal,
-                skipNulls,
-                suppress_null_warning,
-            )
-        else:
-            tsPartitionDF = combined_df.__getTimePartitions(
-                tsPartitionVal, fraction=fraction
-            )
-            seq_col = None
-            if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
-            asofDF = tsPartitionDF.__getLastRightRow(
-                left_tsdf.ts_col,
-                right_columns,
-                seq_col,
-                tsPartitionVal,
-                skipNulls,
-                suppress_null_warning,
-            )
-
-            # Get rid of overlapped data and the extra columns generated from timePartitions
-            df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
-                "ts_partition", "is_original"
-            )
-
-            asofDF = TSDF(df, ts_col=asofDF.ts_col, series_ids=combined_df.series_ids)
-
-        if tolerance is not None:
-            df = asofDF.df
-            left_ts_col = left_tsdf.ts_col
-            right_ts_col = right_tsdf.ts_col
-            tolerance_condition = (
-                df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
-                > tolerance
-            )
-
-            for right_col in right_columns:
-                # First set right non-timestamp columns to null for rows outside of tolerance band
-                if right_col != right_ts_col:
-                    df = df.withColumn(
-                        right_col,
-                        sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-                            df[right_col]
-                        ),
-                    )
-
-            # Finally, set right timestamp column to null for rows outside of tolerance band
-            df = df.withColumn(
-                right_ts_col,
-                sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-                    df[right_ts_col]
-                ),
-            )
-            asofDF.df = df
-
-        return asofDF
+        # if tsPartitionVal is None:
+        #     seq_col = None
+        #     if isinstance(combined_df.ts_index, CompositeTSIndex):
+        #         seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
+        #     asofDF = combined_df.__getLastRightRow(
+        #         left_tsdf.ts_col,
+        #         right_columns,
+        #         seq_col,
+        #         tsPartitionVal,
+        #         skipNulls,
+        #         suppress_null_warning,
+        #     )
+        # else:
+        #     tsPartitionDF = combined_df.__getTimePartitions(
+        #         tsPartitionVal, fraction=fraction
+        #     )
+        #     seq_col = None
+        #     if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
+        #         seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
+        #     asofDF = tsPartitionDF.__getLastRightRow(
+        #         left_tsdf.ts_col,
+        #         right_columns,
+        #         seq_col,
+        #         tsPartitionVal,
+        #         skipNulls,
+        #         suppress_null_warning,
+        #     )
+        #
+        #     # Get rid of overlapped data and the extra columns generated from timePartitions
+        #     df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
+        #         "ts_partition", "is_original"
+        #     )
+        #
+        #     asofDF = TSDF(df, ts_col=asofDF.ts_col, series_ids=combined_df.series_ids)
+        #
+        # if tolerance is not None:
+        #     df = asofDF.df
+        #     left_ts_col = left_tsdf.ts_col
+        #     right_ts_col = right_tsdf.ts_col
+        #     tolerance_condition = (
+        #         df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
+        #         > tolerance
+        #     )
+        #
+        #     for right_col in right_columns:
+        #         # First set right non-timestamp columns to null for rows outside of tolerance band
+        #         if right_col != right_ts_col:
+        #             df = df.withColumn(
+        #                 right_col,
+        #                 sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
+        #                     df[right_col]
+        #                 ),
+        #             )
+        #
+        #     # Finally, set right timestamp column to null for rows outside of tolerance band
+        #     df = df.withColumn(
+        #         right_ts_col,
+        #         sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
+        #             df[right_ts_col]
+        #         ),
+        #     )
+        #     asofDF.df = df
+        #
+        # return asofDF
 
     def baseWindow(self, reverse: bool = False) -> WindowSpec:
         return self.ts_schema.baseWindow(reverse=reverse)

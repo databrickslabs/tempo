@@ -252,13 +252,32 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         # filter out the last right-hand row for each left-hand row
         as_of = self._filterLastRightRow(combined, right_only_cols)
         # apply tolerance filter
-        as_of = self._toleranceFilter(as_of)
+        if self.tolerance is not None:
+            as_of = self._toleranceFilter(as_of)
         return as_of
+
+
+class SkewAsOfJoiner(UnionSortFilterAsOfJoin):
+    """
+    Implements the as-of join strategy for skewed data
+    """
+
+    def __init__(self,
+                 left_prefix: str = "left",
+                 right_prefix: str = "right",
+                 skipNulls: bool = True,
+                 tolerance: Optional[int] = None,
+                 tsPartitionVal: Optional[int] = None,
+                 fraction: float = 0.5):
+        super().__init__(left_prefix, right_prefix, skipNulls, tolerance)
+
+    def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        pass
 
 
 # Helper functions
 
-def __getSparkPlan(df: DataFrame, spark: SparkSession) -> str:
+def get_spark_plan(df: DataFrame, spark: SparkSession) -> str:
     """
     Internal helper function to obtain the Spark plan for the input data frame
 
@@ -273,7 +292,7 @@ def __getSparkPlan(df: DataFrame, spark: SparkSession) -> str:
     return plan
 
 
-def __getBytesFromPlan(df: DataFrame, spark: SparkSession) -> float:
+def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
     """
     Internal helper function to obtain how many bytes in memory the Spark data
     frame is likely to take up. This is an upper bound and is obtained from the
@@ -284,7 +303,7 @@ def __getBytesFromPlan(df: DataFrame, spark: SparkSession) -> float:
     :param spark - Spark session which is used to query the view obtained from the Spark data frame
     """
 
-    plan = __getSparkPlan(df, spark)
+    plan = get_spark_plan(df, spark)
 
     import re
 
@@ -323,7 +342,7 @@ def choose_as_of_join_strategy(left_tsdf: t_tsdf.TSDF,
                                skipNulls: bool = True,
                                sql_join_opt: bool = False,
                                suppress_null_warning: bool = False,
-                               tolerance: Optional[int] = None,) -> "AsOfJoiner":
+                               tolerance: Optional[int] = None) -> AsOfJoiner:
     """
     Returns an AsOfJoiner object based on the parameters passed in
     """
@@ -331,9 +350,19 @@ def choose_as_of_join_strategy(left_tsdf: t_tsdf.TSDF,
     # test if the broadcast join will be efficient
     if sql_join_opt:
         spark = SparkSession.builder.getOrCreate()
-        left_bytes = __getBytesFromPlan(left_tsdf.df, spark)
-        right_bytes = __getBytesFromPlan(right_tsdf.df, spark)
+        left_bytes = get_bytes_from_plan(left_tsdf.df, spark)
+        right_bytes = get_bytes_from_plan(right_tsdf.df, spark)
 
         bytes_threshold = __DEFAULT_BROADCAST_BYTES_THRESHOLD
         if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
             return BroadcastAsOfJoiner(spark, left_prefix, right_prefix)
+
+    # use the skew join if the partition value is passed in
+    if tsPartitionVal is not None:
+        return SkewAsOfJoiner(tsPartitionVal, left_prefix, right_prefix)
+
+    # default to use the union sort filter join
+    return UnionSortFilterAsOfJoin(left_prefix,
+                                   right_prefix,
+                                   skipNulls,
+                                   tolerance)
