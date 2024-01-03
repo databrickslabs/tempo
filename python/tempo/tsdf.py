@@ -26,6 +26,7 @@ import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
 from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
+from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
 
