@@ -16,8 +16,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DataType, StructType
-from pyspark.sql._typing import ColumnOrName
-from pyspark.sql.pandas._typing import PandasMapIterFunction, PandasGroupedMapFunction
 from pyspark.sql.window import Window, WindowSpec
 
 import tempo.interpol as t_interpolation
@@ -26,6 +24,7 @@ import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
 from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
+from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
 
