@@ -1,7 +1,7 @@
-import warnings
 import re
+import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Collection, List, Optional, Union
+from typing import Collection, List, Optional, Union, Callable
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
@@ -14,6 +14,7 @@ from tempo.timeunit import TimeUnit, StandardTimeUnits
 # Timestamp parsing helpers
 #
 
+EPOCH_START_DATE = "1970-01-01"
 DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
 __time_pattern_components = "hHkKmsS"
 
@@ -44,6 +45,52 @@ def sub_seconds_precision_digits(ts_fmt: str) -> int:
         return len(match.group(1))
 
 
+def _col_or_lit(other) -> Column:
+    """
+    Helper function for managing unknown argument types into
+    Column expressions
+
+    :param other: the argument to convert to a Column expression
+
+    :return: a Column expression
+    """
+    if isinstance(other, (list, tuple)):
+        if len(other) != 1:
+            raise ValueError(
+                "Cannot compare a TSIndex with a list or tuple "
+                f"of length {len(other)}: {other}"
+            )
+        return _col_or_lit(other[0])
+    if isinstance(other, Column):
+        return other
+    else:
+        return sfn.lit(other)
+
+
+def _reverse_or_not(
+    expr: Union[Column, List[Column]], reverse: bool
+) -> Union[Column, List[Column]]:
+    """
+    Helper function for reversing the ordering of an expression, if necessary
+
+    :param expr: the expression to reverse
+    :param reverse: whether to reverse the expression
+
+    :return: the expression, reversed if necessary
+    """
+    if not reverse:
+        return expr  # just return the expression as-is if we're not reversing
+    elif isinstance(expr, Column):
+        return expr.desc()  # reverse a single-expression
+    elif isinstance(expr, list):
+        return [col.desc() for col in expr]  # reverse all columns in the expression
+    else:
+        raise TypeError(
+            "Type for expr argument must be either Column or "
+            f"List[Column], instead received: {type(expr)}"
+        )
+
+
 #
 # Abstract Timeseries Index Classes
 #
@@ -54,30 +101,18 @@ class TSIndex(ABC):
     Abstract base class for all Timeseries Index types
     """
 
-    def __eq__(self, o: object) -> bool:
-        # must be a SimpleTSIndex
-        if not isinstance(o, TSIndex):
-            return False
-        return self._indexAttributes == o._indexAttributes
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
-    def __str__(self) -> str:
-        return f"""{self.__class__.__name__}({self._indexAttributes})"""
-
-    @property
-    @abstractmethod
-    def _indexAttributes(self) -> dict[str, Any]:
-        """
-        :return: key attributes of this index
-        """
-
     @property
     @abstractmethod
     def colname(self) -> str:
         """
         :return: the column name of the timeseries index
+        """
+
+    @property
+    @abstractmethod
+    def dataType(self) -> DataType:
+        """
+        :return: the data type of the timeseries index
         """
 
     @property
@@ -111,20 +146,36 @@ class TSIndex(ABC):
         :return: a copy of this :class:`TSIndex` object with the new name
         """
 
-    def _reverseOrNot(
-        self, expr: Union[Column, List[Column]], reverse: bool
-    ) -> Union[Column, List[Column]]:
-        if not reverse:
-            return expr  # just return the expression as-is if we're not reversing
-        elif isinstance(expr, Column):
-            return expr.desc()  # reverse a single-expression
-        elif isinstance(expr, list):
-            return [col.desc() for col in expr]  # reverse all columns in the expression
-        else:
-            raise TypeError(
-                f"Type for expr argument must be either Column or "
-                f"List[Column], instead received: {type(expr)}"
-            )
+    # comparators
+    # Generate column expressions that compare the index
+    # with other columns, expressions or values
+
+    @abstractmethod
+    def comparableExpr(self) -> Union[Column, List[Column]]:
+        """
+        :return: an expression that can be used to compare an index with
+        other columns, expressions or values
+        """
+
+    def __eq__(self, other) -> Column:
+        return self.comparableExpr().eq(_col_or_lit(other))
+
+    def __ne__(self, other) -> Column:
+        return self.comparableExpr().neq(_col_or_lit(other))
+
+    def __lt__(self, other) -> Column:
+        return self.comparableExpr().lt(_col_or_lit(other))
+
+    def __le__(self, other) -> Column:
+        return self.comparableExpr().leq(_col_or_lit(other))
+
+    def __gt__(self, other) -> Column:
+        return self.comparableExpr().gt(_col_or_lit(other))
+
+    def __ge__(self, other) -> Column:
+        return self.comparableExpr().geq(_col_or_lit(other))
+
+    # other expression builder methods
 
     @abstractmethod
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
@@ -159,15 +210,21 @@ class SimpleTSIndex(TSIndex, ABC):
 
     def __init__(self, ts_col: StructField) -> None:
         self.__name = ts_col.name
-        self.dataType = ts_col.dataType
+        self.__dataType = ts_col.dataType
 
-    @property
-    def _indexAttributes(self) -> dict[str, Any]:
-        return {"name": self.colname, "dataType": self.dataType, "unit": self.unit}
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(name={self.colname}, "
+            f"type={self.dataType}, unit={self.unit})"
+        )
 
     @property
     def colname(self):
         return self.__name
+
+    @property
+    def dataType(self) -> DataType:
+        return self.__dataType
 
     def validate(self, df_schema: StructType) -> None:
         # the ts column must exist
@@ -177,17 +234,20 @@ class SimpleTSIndex(TSIndex, ABC):
         schema_ts_col = df_schema[self.colname]
         # it must have the right type
         schema_ts_type = schema_ts_col.dataType
-        assert isinstance(
-            schema_ts_type, type(self.dataType)
-        ), f"The TSIndex column is of type {schema_ts_type}, but the expected type is {self.dataType}"
+        assert isinstance(schema_ts_type, type(self.dataType)), (
+            f"The TSIndex column is of type {schema_ts_type}, but the expected type is"
+            f" {self.dataType}"
+        )
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
         return self
 
+    def comparableExpr(self) -> Column:
+        return sfn.col(self.colname)
+
     def orderByExpr(self, reverse: bool = False) -> Column:
-        expr = sfn.col(self.colname)
-        return self._reverseOrNot(expr, reverse)
+        return _reverse_or_not(self.comparableExpr(), reverse)
 
     @classmethod
     def fromTSCol(cls, ts_col: StructField) -> "SimpleTSIndex":
@@ -200,7 +260,8 @@ class SimpleTSIndex(TSIndex, ABC):
             return SimpleDateIndex(ts_col)
         else:
             raise TypeError(
-                f"A SimpleTSIndex must be a Numeric, Timestamp or Date type, but column {ts_col.name} is of type {ts_col.dataType}"
+                "A SimpleTSIndex must be a Numeric, Timestamp or Date type, but column"
+                f" {ts_col.name} is of type {ts_col.dataType}"
             )
 
 
@@ -230,7 +291,9 @@ class OrdinalTSIndex(SimpleTSIndex):
         return None
 
     def rangeExpr(self, reverse: bool = False) -> Column:
-        raise TypeError("Cannot perform range operations on an OrdinalTSIndex")
+        raise NotImplementedError(
+            "Cannot perform range operations on an OrdinalTSIndex"
+        )
 
 
 class SimpleTimestampIndex(SimpleTSIndex):
@@ -241,7 +304,7 @@ class SimpleTimestampIndex(SimpleTSIndex):
     def __init__(self, ts_col: StructField) -> None:
         if not isinstance(ts_col.dataType, TimestampType):
             raise TypeError(
-                f"SimpleTimestampIndex must be of TimestampType, "
+                "SimpleTimestampIndex must be of TimestampType, "
                 f"but given ts_col {ts_col.name} has type {ts_col.dataType}"
             )
         super().__init__(ts_col)
@@ -252,8 +315,8 @@ class SimpleTimestampIndex(SimpleTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
-        expr = sfn.col(self.colname).cast("double")
-        return self._reverseOrNot(expr, reverse)
+        expr = self.comparableExpr().cast("double")
+        return _reverse_or_not(expr, reverse)
 
 
 class SimpleDateIndex(SimpleTSIndex):
@@ -264,7 +327,7 @@ class SimpleDateIndex(SimpleTSIndex):
     def __init__(self, ts_col: StructField) -> None:
         if not isinstance(ts_col.dataType, DateType):
             raise TypeError(
-                f"DateIndex must be of DateType, "
+                "DateIndex must be of DateType, "
                 f"but given ts_col {ts_col.name} has type {ts_col.dataType}"
             )
         super().__init__(ts_col)
@@ -275,8 +338,10 @@ class SimpleDateIndex(SimpleTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
-        expr = sfn.datediff(sfn.col(self.colname), sfn.lit("1970-01-01").cast("date"))
-        return self._reverseOrNot(expr, reverse)
+        expr = sfn.datediff(
+            self.comparableExpr(), sfn.lit(EPOCH_START_DATE).cast("date")
+        )
+        return _reverse_or_not(expr, reverse)
 
 
 #
@@ -295,12 +360,12 @@ class CompositeTSIndex(TSIndex, ABC):
     def __init__(self, ts_struct: StructField, *component_fields: str) -> None:
         if not isinstance(ts_struct.dataType, StructType):
             raise TypeError(
-                f"CompoundTSIndex must be of type StructType, but given "
+                "CompoundTSIndex must be of type StructType, but given "
                 f"ts_struct {ts_struct.name} has type {ts_struct.dataType}"
             )
         # validate the index fields
         assert len(component_fields) > 0, (
-            f"A MultiFieldTSIndex must have at least 1 index component field, "
+            "A MultiFieldTSIndex must have at least 1 index component field, "
             f"but {len(component_fields)} were given"
         )
         for ind_f in component_fields:
@@ -312,18 +377,20 @@ class CompositeTSIndex(TSIndex, ABC):
         self.schema: StructType = ts_struct.dataType
         self.component_fields: List[str] = list(component_fields)
 
-    @property
-    def _indexAttributes(self) -> dict[str, Any]:
-        return {
-            "name": self.colname,
-            "schema": self.schema,
-            "unit": self.unit,
-            "component_fields": self.component_fields,
-        }
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(name={self.colname}, "
+            f"schema={self.schema}, unit={self.unit}, "
+            f"component_fields={self.component_fields})"
+        )
 
     @property
     def colname(self) -> str:
         return self.__name
+
+    @property
+    def dataType(self) -> DataType:
+        return self.schema
 
     @property
     def fieldNames(self) -> List[str]:
@@ -332,19 +399,6 @@ class CompositeTSIndex(TSIndex, ABC):
     @property
     def accessory_fields(self) -> List[str]:
         return list(set(self.fieldNames) - set(self.component_fields))
-
-    def validate(self, df_schema: StructType) -> None:
-        # validate that the composite field exists
-        assert (
-            self.colname in df_schema.fieldNames()
-        ), f"The TSIndex column {self.colname} does not exist in the given DataFrame"
-        schema_ts_col = df_schema[self.colname]
-        # it must have the right type
-        schema_ts_type = schema_ts_col.dataType
-        assert schema_ts_type == self.schema, (
-            f"The TSIndex column is of type {schema_ts_type}, "
-            f"but the expected type is {self.schema}"
-        )
 
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
@@ -361,10 +415,122 @@ class CompositeTSIndex(TSIndex, ABC):
         ), f"Field {field} does not exist in the TSIndex schema {self.schema}"
         return f"{self.colname}.{field}"
 
+    def validate(self, df_schema: StructType) -> None:
+        # validate that the composite field exists
+        assert (
+            self.colname in df_schema.fieldNames()
+        ), f"The TSIndex column {self.colname} does not exist in the given DataFrame"
+        schema_ts_col = df_schema[self.colname]
+        # it must have the right type
+        schema_ts_type = schema_ts_col.dataType
+        assert schema_ts_type == self.schema, (
+            f"The TSIndex column is of type {schema_ts_type}, "
+            f"but the expected type is {self.schema}"
+        )
+
+    # expression builder methods
+
+    def comparableExpr(self) -> List[Column]:
+        return [sfn.col(self.fieldPath(comp)) for comp in self.component_fields]
+
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
-        # build an expression for each TS component, in order
-        exprs = [sfn.col(self.fieldPath(comp)) for comp in self.component_fields]
-        return self._reverseOrNot(exprs, reverse)
+        return _reverse_or_not(self.comparableExpr(), reverse)
+
+    # comparators
+
+    def _validate_other(self, other) -> None:
+        if len(other) != len(self.component_fields):
+            raise ValueError(
+                f"{self.__class__.__name__} has {len(self.component_fields)} "
+                "component fields, and requires this many arguments for comparison, "
+                f"but received {len(other)}"
+            )
+
+    def __eq__(self, other) -> Column:
+        # try to compare the whole index to a single value
+        if not isinstance(other, (tuple, list)):
+            return self.__eq__([other])
+        # validate the number of arguments
+        self._validate_other(other)
+        # match each component field with its corresponding comparison value
+        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        # build comparison expressions for each pair
+        comp_exprs = [c.eq(o) for (c, o) in comps]
+        # conjunction of all expressions (AND)
+        return sfn.expr(" AND ".join(comp_exprs))
+
+    def __ne__(self, other) -> Column:
+        # try to compare the whole index to a single value
+        if not isinstance(other, (tuple, list)):
+            return self.__ne__([other])
+        # validate the arguments
+        self._validate_other(other)
+        # match each component field with its corresponding comparison value
+        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        # build comparison expressions for each pair
+        comp_exprs = [c.neq(o) for (c, o) in comps]
+        # disjunction of all expressions (OR)
+        return sfn.expr(" OR ".join(comp_exprs))
+
+    def __lt__(self, other) -> Column:
+        # try to compare the whole index to a single value
+        if not isinstance(other, (tuple, list)):
+            return self.__lt__([other])
+        # validate the arguments
+        self._validate_other(other)
+        # match each component field with its corresponding comparison value
+        comps = list(zip(self.comparableExpr(), [_col_or_lit(o) for o in other]))
+        # do a leq for all but the last component
+        comp_exprs = []
+        if len(comps) > 1:
+            comp_exprs = [c.leq(o) for (c, o) in comps[:-1]]
+        # strict lt for the last component
+        comp_exprs += [c.lt(o) for (c, o) in comps[-1:]]
+        # conjunction of all expressions (AND)
+        return sfn.expr(" AND ".join(comp_exprs))
+
+    def __le__(self, other) -> Column:
+        # try to compare the whole index to a single value
+        if not isinstance(other, (tuple, list)):
+            return self.__le__([other])
+        # validate the arguments
+        self._validate_other(other)
+        # match each component field with its corresponding comparison value
+        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        # build comparison expressions for each pair
+        comp_exprs = [c.leq(o) for (c, o) in comps]
+        # conjunction of all expressions (AND)
+        return sfn.expr(" AND ".join(comp_exprs))
+
+    def __gt__(self, other) -> Column:
+        # try to compare the whole index to a single value
+        if not isinstance(other, (tuple, list)):
+            return self.__gt__([other])
+        # validate the arguments
+        self._validate_other(other)
+        # match each component field with its corresponding comparison value
+        comps = list(zip(self.comparableExpr(), [_col_or_lit(o) for o in other]))
+        # do a geq for all but the last component
+        comp_exprs = []
+        if len(comps) > 1:
+            comp_exprs = [c.geq(o) for (c, o) in comps[:-1]]
+        # strict gt for the last component
+        comp_exprs += [c.gt(o) for (c, o) in comps[-1:]]
+        # conjunction of all expressions (AND)
+        return sfn.expr(" AND ".join(comp_exprs))
+
+    def __ge__(self, other) -> Column:
+        # try to compare the whole index to a single value
+        if not isinstance(other, (tuple, list)):
+            return self.__ge__([other])
+        # validate the arguments
+        self._validate_other(other)
+        # match each component field with its corresponding comparison value
+        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        # build comparison expressions for each pair
+        comp_exprs = [c.geq(o) for (c, o) in comps]
+        # conjunction of all expressions (AND)
+        return sfn.expr(" AND ".join(comp_exprs))
 
 
 #
@@ -372,135 +538,104 @@ class CompositeTSIndex(TSIndex, ABC):
 #
 
 
-# class ParsedTSIndex(CompositeTSIndex, ABC):
-#     """
-#     Abstract base class for timeseries indices that are parsed from a string column.
-#     Retains the original string form as well as the parsed column.
-#     """
-#
-#     def __init__(
-#         self, ts_struct: StructField, parsed_ts_col: str, src_str_col: str
-#     ) -> None:
-#         super().__init__(ts_struct, parsed_ts_col)
-#         # validate the source string column
-#         src_str_field = self.schema[src_str_col]
-#         if not isinstance(src_str_field.dataType, StringType):
-#             raise TypeError(
-#                 f"Source string column must be of StringType, "
-#                 f"but given column {src_str_field.name} "
-#                 f"is of type {src_str_field.dataType}"
-#             )
-#         self._src_str_col = src_str_col
-#         # validate the parsed column
-#         assert parsed_ts_col in self.schema.fieldNames(), (
-#             f"The parsed timestamp index field {parsed_ts_col} does not exist in the "
-#             f"MultiPart TSIndex schema {self.schema}"
-#         )
-#         self._parsed_ts_col = parsed_ts_col
-#
-#     @property
-#     def src_str_col(self):
-#         return self.fieldPath(self._src_str_col)
-#
-#     @property
-#     def parsed_ts_col(self):
-#         return self.fieldPath(self._parsed_ts_col)
-#
-#     @property
-#     def ts_col(self) -> str:
-#         return self.parsed_ts_col
-#
-#     @property
-#     def _indexAttributes(self) -> dict[str, Any]:
-#         attrs = super()._indexAttributes
-#         attrs["parsed_ts_col"] = self.parsed_ts_col
-#         attrs["src_str_col"] = self.src_str_col
-#         return attrs
-#
-#     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
-#         expr = sfn.col(self.parsed_ts_col)
-#         return self._reverseOrNot(expr, reverse)
-#
-#     @classmethod
-#     def fromParsedTimestamp(
-#         cls,
-#         ts_struct: StructField,
-#         parsed_ts_col: str,
-#         src_str_col: str,
-#         double_ts_col: Optional[str] = None,
-#         num_precision_digits: int = 6,
-#     ) -> "ParsedTSIndex":
-#         """
-#         Create a ParsedTimestampIndex from a string column containing timestamps or dates
-#
-#         :param ts_struct: The StructField for the TSIndex column
-#         :param parsed_ts_col: The name of the parsed timestamp column
-#         :param src_str_col: The name of the source string column
-#         :param double_ts_col: The name of the double-precision timestamp column
-#         :param num_precision_digits: The number of digits that make up the precision of
-#
-#         :return: A ParsedTSIndex object
-#         """
-#
-#         # if a double timestamp column is given
-#         # then we are building a SubMicrosecondPrecisionTimestampIndex
-#         if double_ts_col is not None:
-#             return SubMicrosecondPrecisionTimestampIndex(
-#                 ts_struct,
-#                 double_ts_col,
-#                 parsed_ts_col,
-#                 src_str_col,
-#                 num_precision_digits,
-#             )
-#         # otherwise, we base it on the standard timestamp type
-#         # find the schema of the ts_struct column
-#         ts_schema = ts_struct.dataType
-#         if not isinstance(ts_schema, StructType):
-#             raise TypeError(
-#                 f"A ParsedTSIndex must be of type StructType, but given "
-#                 f"ts_struct {ts_struct.name} has type {ts_struct.dataType}"
-#             )
-#         # get the type of the parsed timestamp column
-#         parsed_ts_type = ts_schema[parsed_ts_col].dataType
-#         if isinstance(parsed_ts_type, TimestampType):
-#             return ParsedTimestampIndex(ts_struct, parsed_ts_col, src_str_col)
-#         elif isinstance(parsed_ts_type, DateType):
-#             return ParsedDateIndex(ts_struct, parsed_ts_col, src_str_col)
-#         else:
-#             raise TypeError(
-#                 f"ParsedTimestampIndex must be of TimestampType or DateType, "
-#                 f"but given ts_col {parsed_ts_col} "
-#                 f"has type {parsed_ts_type}"
-#             )
-
-
-class ParsedTimestampIndex(CompositeTSIndex):
+class ParsedTSIndex(CompositeTSIndex, ABC):
     """
-    Timeseries index class for timestamps parsed from a string column
+    Abstract base class for timeseries indices that are parsed from a string column.
+    Retains the original string form as well as the parsed column.
     """
 
     def __init__(
         self, ts_struct: StructField, parsed_ts_col: str, src_str_col: str
     ) -> None:
         super().__init__(ts_struct, parsed_ts_col)
-        # validate the parsed column as a timestamp column
-        parsed_ts_field = self.schema[parsed_ts_col]
-        if not isinstance(parsed_ts_field.dataType, TimestampType):
-            raise TypeError(
-                f"ParsedTimestampIndex requires an index field of TimestampType, "
-                f"but the given parsed_ts_col {parsed_ts_col} "
-                f"has type {parsed_ts_field.dataType}"
-            )
-        self.parsed_ts_col = parsed_ts_col
-        # validate the source column as a string column
+        # validate the source string column
         src_str_field = self.schema[src_str_col]
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(
-                f"ParsedTimestampIndex requires an source field of StringType, "
-                f"but the given src_str_col {src_str_col} "
-                f"has type {src_str_field.dataType}"
+                "Source string column must be of StringType, "
+                f"but given column {src_str_field.name} "
+                f"is of type {src_str_field.dataType}"
             )
-        self.src_str_col = src_str_col
+        self._src_str_col = src_str_col
+        # validate the parsed column
+        assert parsed_ts_col in self.schema.fieldNames(), (
+            f"The parsed timestamp index field {parsed_ts_col} does not exist in the "
+            f"MultiPart TSIndex schema {self.schema}"
+        )
+        self._parsed_ts_col = parsed_ts_col
+
+    @property
+    def src_str_col(self):
+        return self.fieldPath(self._src_str_col)
+
+    @property
+    def parsed_ts_col(self):
+        return self.fieldPath(self._parsed_ts_col)
+
+    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
+        expr = sfn.col(self.parsed_ts_col)
+        return _reverse_or_not(expr, reverse)
+
+    def comparableExpr(self) -> Column:
+        return sfn.col(self.parsed_ts_col)
+
+    @classmethod
+    def fromParsedTimestamp(
+        cls,
+        ts_struct: StructField,
+        parsed_ts_col: str,
+        src_str_col: str,
+        double_ts_col: Optional[str] = None,
+        num_precision_digits: int = 6,
+    ) -> "ParsedTSIndex":
+        """
+        Create a ParsedTimestampIndex from a string column containing timestamps or dates
+
+        :param ts_struct: The StructField for the TSIndex column
+        :param parsed_ts_col: The name of the parsed timestamp column
+        :param src_str_col: The name of the source string column
+        :param double_ts_col: The name of the double-precision timestamp column
+        :param num_precision_digits: The number of digits that make up the precision of
+
+        :return: A ParsedTSIndex object
+        """
+
+        # if a double timestamp column is given
+        # then we are building a SubMicrosecondPrecisionTimestampIndex
+        if double_ts_col is not None:
+            return SubMicrosecondPrecisionTimestampIndex(
+                ts_struct,
+                double_ts_col,
+                parsed_ts_col,
+                src_str_col,
+                num_precision_digits,
+            )
+        # otherwise, we base it on the standard timestamp type
+        # find the schema of the ts_struct column
+        ts_schema = ts_struct.dataType
+        if not isinstance(ts_schema, StructType):
+            raise TypeError(
+                "A ParsedTSIndex must be of type StructType, but given "
+                f"ts_struct {ts_struct.name} has type {ts_struct.dataType}"
+            )
+        # get the type of the parsed timestamp column
+        parsed_ts_type = ts_schema[parsed_ts_col].dataType
+        if isinstance(parsed_ts_type, TimestampType):
+            return ParsedTimestampIndex(ts_struct, parsed_ts_col, src_str_col)
+        elif isinstance(parsed_ts_type, DateType):
+            return ParsedDateIndex(ts_struct, parsed_ts_col, src_str_col)
+        else:
+            raise TypeError(
+                "ParsedTimestampIndex must be of TimestampType or DateType, "
+                f"but given ts_col {parsed_ts_col} "
+                f"has type {parsed_ts_type}"
+            )
+
+
+class ParsedTimestampIndex(ParsedTSIndex):
+    """
+    Timeseries index class for timestamps parsed from a string column
+    """
 
     @property
     def unit(self) -> Optional[TimeUnit]:
@@ -508,37 +643,14 @@ class ParsedTimestampIndex(CompositeTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
-        expr = sfn.col(self.fieldPath(self.parsed_ts_col)).cast("double")
-        return self._reverseOrNot(expr, reverse)
+        expr = sfn.col(self.parsed_ts_col).cast("double")
+        return _reverse_or_not(expr, reverse)
 
 
-class ParsedDateIndex(CompositeTSIndex):
+class ParsedDateIndex(ParsedTSIndex):
     """
     Timeseries index class for dates parsed from a string column
     """
-
-    def __init__(
-        self, ts_struct: StructField, parsed_date_col: str, src_str_col: str
-    ) -> None:
-        super().__init__(ts_struct, parsed_date_col)
-        # validate the parsed column as a date column
-        parsed_date_field = self.schema[parsed_date_col]
-        if not isinstance(parsed_date_field.dataType, DateType):
-            raise TypeError(
-                f"ParsedDateIndex requires an index field of DateType, "
-                f"but the given parsed_ts_col {parsed_date_col} "
-                f"has type {parsed_date_field.dataType}"
-            )
-        self.parsed_date_col = parsed_date_col
-        # validate the source column as a string column
-        src_str_field = self.schema[src_str_col]
-        if not isinstance(src_str_field.dataType, StringType):
-            raise TypeError(
-                f"ParsedDateIndex requires an source field of StringType, "
-                f"but the given src_str_col {src_str_col} "
-                f"has type {src_str_field.dataType}"
-            )
-        self.src_str_col = src_str_col
 
     @property
     def unit(self) -> Optional[TimeUnit]:
@@ -547,10 +659,10 @@ class ParsedDateIndex(CompositeTSIndex):
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
         expr = sfn.datediff(
-            sfn.col(self.fieldPath(self.parsed_date_col)),
-            sfn.lit("1970-01-01").cast("date"),
+            sfn.col(self.parsed_ts_col),
+            sfn.lit(EPOCH_START_DATE).cast("date"),
         )
-        return self._reverseOrNot(expr, reverse)
+        return _reverse_or_not(expr, reverse)
 
 
 class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
@@ -584,7 +696,7 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
         double_ts_field = self.schema[double_ts_col]
         if not isinstance(double_ts_field.dataType, DoubleType):
             raise TypeError(
-                f"The double_ts_col must be of DoubleType, "
+                "The double_ts_col must be of DoubleType, "
                 f"but the given double_ts_col {double_ts_col} "
                 f"has type {double_ts_field.dataType}"
             )
@@ -592,10 +704,10 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
         # validate the number of precision digits
         if num_precision_digits <= 6:
             warnings.warn(
-                f"SubMicrosecondPrecisionTimestampIndex has a num_precision_digits "
+                "SubMicrosecondPrecisionTimestampIndex has a num_precision_digits "
                 f"of {num_precision_digits} which is within the range of the "
-                f"standard timestamp precision of 6 digits (microseconds). "
-                f"Consider using a ParsedTimestampIndex instead."
+                "standard timestamp precision of 6 digits (microseconds). "
+                "Consider using a ParsedTimestampIndex instead."
             )
         self.__unit = TimeUnit(
             f"custom_subsecond_unit (precision: {num_precision_digits})",
@@ -606,7 +718,7 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
         parsed_ts_field = self.schema[parsed_ts_col]
         if not isinstance(parsed_ts_field.dataType, TimestampType):
             raise TypeError(
-                f"parsed_ts_col field must be of TimestampType, "
+                "parsed_ts_col field must be of TimestampType, "
                 f"but the given parsed_ts_col {parsed_ts_col} "
                 f"has type {parsed_ts_field.dataType}"
             )
@@ -615,7 +727,7 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
         src_str_field = self.schema[src_str_col]
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(
-                f"src_str_col field must be of StringType, "
+                "src_str_col field must be of StringType, "
                 f"but the given src_str_col {src_str_col} "
                 f"has type {src_str_field.dataType}"
             )
@@ -625,13 +737,16 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
     def unit(self) -> Optional[TimeUnit]:
         return self.__unit
 
-    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
-        expr = sfn.col(self.fieldPath(self.double_ts_col))
-        return self._reverseOrNot(expr, reverse)
+    def comparableExpr(self) -> Column:
+        return sfn.col(self.fieldPath(self.double_ts_col))
 
-    def rangeExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
+    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
+        return _reverse_or_not(self.comparableExpr(), reverse)
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
         # just use the order by expression, since this is the same
         return self.orderByExpr(reverse)
+
 
 #
 # Window Builder Interface
