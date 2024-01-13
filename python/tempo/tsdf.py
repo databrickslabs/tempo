@@ -1470,6 +1470,7 @@ class TSDF:
 
         :param: metric_cols: the set of metric columns to evaluate for state changes
         :param: state_definition: the comparison function used to evaluate individual metrics for state changes.
+        
         Either a string, giving a standard PySpark column comparison operation, or a binary function with the
         signature: `(x1: Column, x2: Column) -> Column` where the returned column expression evaluates to a
         :class:`~pyspark.sql.types.BooleanType`
