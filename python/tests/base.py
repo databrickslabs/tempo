@@ -58,10 +58,8 @@ class SparkTest(unittest.TestCase):
         cls.spark.stop()
 
     def setUp(self) -> None:
-        self.test_data = self.__loadTestData(self.id())
-
-    def tearDown(self) -> None:
-        del self.test_data
+        if self.test_data is None:
+            self.test_data = self.__loadTestData(self.id())
 
     #
     # Utility Functions
@@ -73,16 +71,15 @@ class SparkTest(unittest.TestCase):
         if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
             ts_cols = [td["ts_col"]] if "ts_col" in td else []
             ts_cols.extend(td.get("other_ts_cols", []))
-        return self.buildTestDF(td["schema"], td["data"], ts_cols)
+        return self.buildTestDF(td["df"])
 
     def get_data_as_tsdf(self, name: str, convert_ts_col=True):
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
         if "sequence_col" in td:
-            tsdf = TSDF.fromSubsequenceCol(df,
-                                           td["ts_col"],
-                                           td["sequence_col"],
-                                           td.get("series_ids", None))
+            tsdf = TSDF.fromSubsequenceCol(
+                df, td["ts_col"], td["sequence_col"], td.get("series_ids", None)
+            )
         else:
             tsdf = TSDF(df, ts_col=td["ts_col"], series_ids=td.get("series_ids", None))
         return tsdf
@@ -112,7 +109,8 @@ class SparkTest(unittest.TestCase):
             dir_path = "./tests"
         elif cwd != "tests":
             raise RuntimeError(
-                f"Cannot locate test data file {test_file_name}, running from dir {os.getcwd()}"
+                f"Cannot locate test data file {test_file_name}, running from dir"
+                f" {os.getcwd()}"
             )
 
         # return appropriate path
@@ -140,35 +138,27 @@ class SparkTest(unittest.TestCase):
             if class_name not in data_metadata_from_json:
                 warnings.warn(f"Could not load test data for {file_name}.{class_name}")
                 return {}
-            if func_name not in data_metadata_from_json[class_name]:
-                warnings.warn(
-                    f"Could not load test data for {file_name}.{class_name}.{func_name}"
-                )
-                return {}
-            return data_metadata_from_json[class_name][func_name]
+            # if func_name not in data_metadata_from_json[class_name]:
+            #     warnings.warn(
+            #         f"Could not load test data for {file_name}.{class_name}.{func_name}"
+            #     )
+            #     return {}
+            # return data_metadata_from_json[class_name][func_name]
+            return data_metadata_from_json[class_name]
 
-    def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
+    def buildTestDF(self, df_spec):
         """
         Constructs a Spark Dataframe from the given components
-        :param schema: the schema to use for the Dataframe
-        :param data: values to use for the Dataframe
-        :param ts_cols: list of column names to be converted to Timestamp values
+        :param df_spec: a dictionary containing the following keys: schema, data, ts_convert
         :return: a Spark Dataframe, constructed from the given schema and values
         """
         # build dataframe
-        df = self.spark.createDataFrame(data, schema)
+        df = self.spark.createDataFrame(df_spec['data'], df_spec['schema'])
 
-        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
-        for tsc in ts_cols:
-            ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
-            ts_pattern = r"^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
-            decimal_pattern = r"[.]\d+"
-            if re.match(ts_pattern, str(ts_value)) is not None:
-                if (
-                    re.search(decimal_pattern, ts_value) is None
-                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
-                ):
-                    df = df.withColumn(tsc, sfn.to_timestamp(sfn.col(tsc)))
+        # convert timestamp columns
+        if 'ts_convert' in df_spec:
+            for ts_col in df_spec['ts_convert']:
+                df = df.withColumn(ts_col, sfn.to_timestamp(ts_col))
         return df
 
     #

@@ -545,39 +545,39 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     """
 
     def __init__(
-        self, ts_struct: StructField, parsed_ts_col: str, src_str_col: str
+        self, ts_struct: StructField, parsed_ts_field: str, src_str_field: str
     ) -> None:
-        super().__init__(ts_struct, parsed_ts_col)
+        super().__init__(ts_struct, parsed_ts_field)
         # validate the source string column
-        src_str_field = self.schema[src_str_col]
-        if not isinstance(src_str_field.dataType, StringType):
+        src_str_type = self.schema[src_str_field].dataType
+        if not isinstance(src_str_type, StringType):
             raise TypeError(
                 "Source string column must be of StringType, "
-                f"but given column {src_str_field.name} "
-                f"is of type {src_str_field.dataType}"
+                f"but given column {src_str_field} "
+                f"is of type {src_str_type}"
             )
-        self._src_str_col = src_str_col
+        self._src_str_field = src_str_field
         # validate the parsed column
-        assert parsed_ts_col in self.schema.fieldNames(), (
-            f"The parsed timestamp index field {parsed_ts_col} does not exist in the "
+        assert parsed_ts_field in self.schema.fieldNames(), (
+            f"The parsed timestamp index field {parsed_ts_field} does not exist in the "
             f"MultiPart TSIndex schema {self.schema}"
         )
-        self._parsed_ts_col = parsed_ts_col
+        self._parsed_ts_field = parsed_ts_field
 
     @property
-    def src_str_col(self):
-        return self.fieldPath(self._src_str_col)
+    def src_str_field(self):
+        return self.fieldPath(self._src_str_field)
 
     @property
-    def parsed_ts_col(self):
-        return self.fieldPath(self._parsed_ts_col)
+    def parsed_ts_field(self):
+        return self.fieldPath(self._parsed_ts_field)
 
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
-        expr = sfn.col(self.parsed_ts_col)
+        expr = sfn.col(self.parsed_ts_field)
         return _reverse_or_not(expr, reverse)
 
     def comparableExpr(self) -> Column:
-        return sfn.col(self.parsed_ts_col)
+        return sfn.col(self.parsed_ts_field)
 
     @classmethod
     def fromParsedTimestamp(
@@ -643,7 +643,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
-        expr = sfn.col(self.parsed_ts_col).cast("double")
+        expr = sfn.col(self.parsed_ts_field).cast("double")
         return _reverse_or_not(expr, reverse)
 
 
@@ -659,7 +659,7 @@ class ParsedDateIndex(ParsedTSIndex):
     def rangeExpr(self, reverse: bool = False) -> Column:
         # convert date to number of days since the epoch
         expr = sfn.datediff(
-            sfn.col(self.parsed_ts_col),
+            sfn.col(self.parsed_ts_field),
             sfn.lit(EPOCH_START_DATE).cast("date"),
         )
         return _reverse_or_not(expr, reverse)
@@ -676,31 +676,31 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
     def __init__(
         self,
         ts_struct: StructField,
-        double_ts_col: str,
-        parsed_ts_col: str,
-        src_str_col: str,
+        double_ts_field: str,
+        secondary_parsed_ts_field: str,
+        src_str_field: str,
         num_precision_digits: int = 9,
     ) -> None:
         """
         :param ts_struct: The StructField for the TSIndex column
-        :param double_ts_col: The name of the double-precision timestamp column
-        :param parsed_ts_col: The name of the parsed timestamp column
-        :param src_str_col: The name of the source string column
+        :param double_ts_field: The name of the double-precision timestamp column
+        :param secondary_parsed_ts_field: The name of the parsed timestamp column
+        :param src_str_field: The name of the source string column
         :param num_precision_digits: The number of digits that make up the precision of
         the timestamp. Ie. 9 for nanoseconds (default), 12 for picoseconds, etc.
         You will receive a warning if this value is 6 or less, as this is the precision
         of the standard timestamp type.
         """
-        super().__init__(ts_struct, double_ts_col)
+        super().__init__(ts_struct, double_ts_field)
         # validate the double timestamp column
-        double_ts_field = self.schema[double_ts_col]
-        if not isinstance(double_ts_field.dataType, DoubleType):
+        double_ts_type = self.schema[double_ts_field].dataType
+        if not isinstance(double_ts_type, DoubleType):
             raise TypeError(
                 "The double_ts_col must be of DoubleType, "
-                f"but the given double_ts_col {double_ts_col} "
-                f"has type {double_ts_field.dataType}"
+                f"but the given double_ts_col {double_ts_field} "
+                f"has type {double_ts_type}"
             )
-        self.double_ts_col = double_ts_col
+        self.double_ts_field = double_ts_field
         # validate the number of precision digits
         if num_precision_digits <= 6:
             warnings.warn(
@@ -715,30 +715,30 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
             num_precision_digits,
         )
         # validate the parsed column as a timestamp column
-        parsed_ts_field = self.schema[parsed_ts_col]
-        if not isinstance(parsed_ts_field.dataType, TimestampType):
+        parsed_ts_type = self.schema[secondary_parsed_ts_field].dataType
+        if not isinstance(parsed_ts_type, TimestampType):
             raise TypeError(
                 "parsed_ts_col field must be of TimestampType, "
-                f"but the given parsed_ts_col {parsed_ts_col} "
-                f"has type {parsed_ts_field.dataType}"
+                f"but the given parsed_ts_col {secondary_parsed_ts_field} "
+                f"has type {parsed_ts_type}"
             )
-        self.parsed_ts_col = parsed_ts_col
+        self.parsed_ts_field = secondary_parsed_ts_field
         # validate the source column as a string column
-        src_str_field = self.schema[src_str_col]
+        src_str_field = self.schema[src_str_field]
         if not isinstance(src_str_field.dataType, StringType):
             raise TypeError(
                 "src_str_col field must be of StringType, "
-                f"but the given src_str_col {src_str_col} "
+                f"but the given src_str_col {src_str_field} "
                 f"has type {src_str_field.dataType}"
             )
-        self.src_str_col = src_str_col
+        self.src_str_col = src_str_field
 
     @property
     def unit(self) -> Optional[TimeUnit]:
         return self.__unit
 
     def comparableExpr(self) -> Column:
-        return sfn.col(self.fieldPath(self.double_ts_col))
+        return sfn.col(self.fieldPath(self.double_ts_field))
 
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         return _reverse_or_not(self.comparableExpr(), reverse)
@@ -851,8 +851,10 @@ class TSSchema(WindowBuilder):
         # must be of TSSchema type
         if not isinstance(o, TSSchema):
             return False
-        # must have same TSIndex
-        if self.ts_idx != o.ts_idx:
+        # must have TSIndices with the same unit
+        if not ((self.ts_idx.has_unit == o.ts_idx.has_unit)
+                and
+                (self.ts_idx.unit == o.ts_idx.unit)):
             return False
         # must have the same series IDs
         if self.series_ids != o.series_ids:
@@ -860,19 +862,55 @@ class TSSchema(WindowBuilder):
         return True
 
     def __repr__(self) -> str:
-        return self.__str__()
-
-    def __str__(self) -> str:
-        return f"""TSSchema({id(self)})
-    TSIndex: {self.ts_idx}
-    Series IDs: {self.series_ids}"""
+        return f"{self.__class__.__name__}(ts_idx={self.ts_idx}, series_ids={self.series_ids})"
 
     @classmethod
-    def fromDFSchema(
-        cls, df_schema: StructType, ts_col: str, series_ids: Collection[str] = None
-    ) -> "TSSchema":
+    def fromDFSchema(cls,
+                     df_schema: StructType,
+                     ts_col: str,
+                     series_ids: Optional[Collection[str]] = None) -> "TSSchema":
         # construct a TSIndex for the given ts_col
         ts_idx = SimpleTSIndex.fromTSCol(df_schema[ts_col])
+        return cls(ts_idx, series_ids)
+
+    @classmethod
+    def fromParsedTSIndex(cls,
+                          df_schema: StructType,
+                          ts_col: str,
+                          parsed_field: str,
+                          src_str_field: str,
+                          series_ids: Optional[Collection[str]] = None,
+                          secondary_parsed_field: Optional[str] = None) -> "TSSchema":
+        ts_idx_schema = df_schema[ts_col].dataType
+        assert isinstance(ts_idx_schema, StructType), \
+            f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
+        # construct the TSIndex
+        parsed_type = ts_idx_schema[parsed_field].dataType
+        if isinstance(parsed_type, DoubleType):
+            ts_idx = SubMicrosecondPrecisionTimestampIndex(
+                df_schema[ts_col],
+                parsed_field,
+                secondary_parsed_field,
+                src_str_field,
+            )
+        elif isinstance(parsed_type, TimestampType):
+            ts_idx = ParsedTimestampIndex(
+                df_schema[ts_col],
+                parsed_field,
+                src_str_field,
+            )
+        elif isinstance(parsed_type, DateType):
+            ts_idx = ParsedDateIndex(
+                df_schema[ts_col],
+                parsed_field,
+                src_str_field,
+            )
+        else:
+            raise TypeError(
+                f"Expected a DoubleType, TimestampType or DateType for parsed_field {parsed_field}, "
+                f"but got {parsed_type}"
+            )
+        # construct the TSSchema
         return cls(ts_idx, series_ids)
 
     @property
@@ -898,7 +936,7 @@ class TSSchema(WindowBuilder):
         return list(set(df_schema.fieldNames()) - set(self.structural_columns))
 
     @classmethod
-    def is_metric_col(cls, col: StructField) -> bool:
+    def __is_metric_col_type(cls, col: StructField) -> bool:
         return isinstance(col.dataType, NumericType) or isinstance(
             col.dataType, BooleanType
         )
@@ -907,7 +945,7 @@ class TSSchema(WindowBuilder):
         return [
             col.name
             for col in df_schema.fields
-            if self.is_metric_col(col)
+            if self.__is_metric_col_type(col)
             and (col.name in self.find_observational_columns(df_schema))
         ]
 
