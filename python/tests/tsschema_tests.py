@@ -29,11 +29,7 @@ from tempo.tsschema import (
 from tests.base import SparkTest
 
 
-class TSIndexTests(SparkTest, ABC):
-    @abstractmethod
-    def _create_index(self) -> TSIndex:
-        pass
-
+class TSIndexTester(unittest.TestCase, ABC):
     def _test_index(self, ts_idx: TSIndex):
         # must be a valid TSIndex object
         self.assertIsNotNone(ts_idx)
@@ -151,7 +147,7 @@ class TSIndexTests(SparkTest, ABC):
         ),
     ],
 )
-class SimpleTSIndexTests(TSIndexTests):
+class TSIndexTests(SparkTest, TSIndexTester):
     def _create_index(self) -> TSIndex:
         if self.extra_constr_args:
             return self.idx_class(self.ts_field, **self.extra_constr_args)
@@ -200,118 +196,17 @@ class SimpleTSIndexTests(TSIndexTests):
 @parameterized_class(
     (
         "name",
-        "ts_field",
+        "df_schema",
+        "constr_method",
         "constr_args",
         "idx_class",
         "ts_unit",
-        "expected_comp_expr",
-        "expected_range_expr",
+        "expected_ts_field",
+        "expected_series_ids",
+        "expected_structural_cols",
+        "expected_obs_cols",
+        "expected_metric_cols",
     ),
-    [
-        (
-            "parsed_timestamp_index",
-            StructField(
-                "ts_idx",
-                StructType([
-                    StructField("parsed_ts", TimestampType(), True),
-                    StructField("src_str", StringType(), True),
-                ]),
-                True,
-            ),
-            {"parsed_ts_field": "parsed_ts", "src_str_field": "src_str"},
-            ParsedTimestampIndex,
-            StandardTimeUnits.SECONDS,
-            "Column<'ts_idx.parsed_ts'>",
-            "Column<'CAST(ts_idx.parsed_ts AS DOUBLE)'>",
-        ),
-        (
-            "parsed_date_index",
-            StructField(
-                "ts_idx",
-                StructType([
-                    StructField("parsed_date", DateType(), True),
-                    StructField("src_str", StringType(), True),
-                ]),
-                True,
-            ),
-            {"parsed_ts_field": "parsed_date", "src_str_field": "src_str"},
-            ParsedDateIndex,
-            StandardTimeUnits.DAYS,
-            "Column<'ts_idx.parsed_date'>",
-            "Column<'datediff(ts_idx.parsed_date, CAST(1970-01-01 AS DATE))'>",
-        ),
-        (
-            "sub_ms_index",
-            StructField(
-                "ts_idx",
-                StructType([
-                    StructField("double_ts", DoubleType(), True),
-                    StructField("parsed_ts", TimestampType(), True),
-                    StructField("src_str", StringType(), True),
-                ]),
-                True,
-            ),
-            {
-                "double_ts_field": "double_ts",
-                "secondary_parsed_ts_field": "parsed_ts",
-                "src_str_field": "src_str",
-            },
-            SubMicrosecondPrecisionTimestampIndex,
-            StandardTimeUnits.NANOSECONDS,
-            "Column<'ts_idx.double_ts'>",
-            "Column<'ts_idx.double_ts'>",
-        ),
-    ],
-)
-class ParsedTSIndexTests(TSIndexTests):
-    def _create_index(self):
-        return self.idx_class(ts_struct=self.ts_field, **self.constr_args)
-
-    def test_index(self):
-        # create a timestamp index
-        ts_idx = self._create_index()
-        # test the index
-        self._test_index(ts_idx)
-
-    def test_comparable_expression(self):
-        # create a timestamp index
-        ts_idx = self._create_index()
-        # get the expressions
-        compbl_expr = ts_idx.comparableExpr()
-        # validate the expression
-        self.assertIsNotNone(compbl_expr)
-        self.assertIsInstance(compbl_expr, Column)
-        self.assertEqual(repr(compbl_expr), self.expected_comp_expr)
-
-    def test_orderby_expression(self):
-        # create a timestamp index
-        ts_idx = self._create_index()
-        # get the expressions
-        orderby_expr = ts_idx.orderByExpr()
-        # validate the expression
-        self.assertIsNotNone(orderby_expr)
-        self.assertIsInstance(orderby_expr, Column)
-        self.assertEqual(repr(orderby_expr), self.expected_comp_expr)
-
-    def test_range_expression(self):
-        # create a timestamp index
-        ts_idx = self._create_index()
-        # get the expressions
-        range_expr = ts_idx.rangeExpr()
-        # validate the expression
-        self.assertIsNotNone(range_expr)
-        self.assertIsInstance(range_expr, Column)
-        self.assertEqual(repr(range_expr), self.expected_range_expr)
-
-
-class TSSchemaTests(TSIndexTests, ABC):
-    @abstractmethod
-    def _create_ts_schema(self) -> TSSchema:
-        pass
-
-
-@parameterized_class(
-    ("name", "df_schema", "ts_col", "series_ids", "idx_class", "ts_unit"),
     [
         (
             "simple_timestamp_index",
@@ -321,10 +216,15 @@ class TSSchemaTests(TSIndexTests, ABC):
                 StructField("trade_pr", DoubleType(), True),
                 StructField("trade_vol", IntegerType(), True),
             ]),
-            "event_ts",
-            ["symbol"],
+            "fromDFSchema",
+            {"ts_col": "event_ts", "series_ids": ["symbol"]},
             SimpleTimestampIndex,
             StandardTimeUnits.SECONDS,
+            "event_ts",
+            ["symbol"],
+            ["event_ts", "symbol"],
+            ["trade_pr", "trade_vol"],
+            ["trade_pr", "trade_vol"],
         ),
         (
             "simple_ts_no_series",
@@ -333,10 +233,15 @@ class TSSchemaTests(TSIndexTests, ABC):
                 StructField("trade_pr", DoubleType(), True),
                 StructField("trade_vol", IntegerType(), True),
             ]),
-            "event_ts",
-            [],
+            "fromDFSchema",
+            {"ts_col": "event_ts", "series_ids": []},
             SimpleTimestampIndex,
             StandardTimeUnits.SECONDS,
+            "event_ts",
+            [],
+            ["event_ts"],
+            ["trade_pr", "trade_vol"],
+            ["trade_pr", "trade_vol"],
         ),
         (
             "ordinal_double_index",
@@ -345,10 +250,15 @@ class TSSchemaTests(TSIndexTests, ABC):
                 StructField("event_ts_dbl", DoubleType(), True),
                 StructField("trade_pr", DoubleType(), True),
             ]),
-            "event_ts_dbl",
-            ["symbol"],
+            "fromDFSchema",
+            {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
             OrdinalTSIndex,
             None,
+            "event_ts_dbl",
+            ["symbol"],
+            ["event_ts_dbl", "symbol"],
+            ["trade_pr"],
+            ["trade_pr"],
         ),
         (
             "ordinal_int_index",
@@ -357,10 +267,15 @@ class TSSchemaTests(TSIndexTests, ABC):
                 StructField("order", IntegerType(), True),
                 StructField("trade_pr", DoubleType(), True),
             ]),
-            "order",
-            ["symbol"],
+            "fromDFSchema",
+            {"ts_col": "order", "series_ids": ["symbol"]},
             OrdinalTSIndex,
             None,
+            "order",
+            ["symbol"],
+            ["order", "symbol"],
+            ["trade_pr"],
+            ["trade_pr"],
         ),
         (
             "simple_date_index",
@@ -369,68 +284,176 @@ class TSSchemaTests(TSIndexTests, ABC):
                 StructField("date", DateType(), True),
                 StructField("trade_pr", DoubleType(), True),
             ]),
-            "date",
-            ["symbol"],
+            "fromDFSchema",
+            {"ts_col": "date", "series_ids": ["symbol"]},
             SimpleDateIndex,
             StandardTimeUnits.DAYS,
+            "date",
+            ["symbol"],
+            ["date", "symbol"],
+            ["trade_pr"],
+            ["trade_pr"],
+        ),
+        (
+            "parsed_timestamp_index",
+            StructType([
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType([
+                        StructField("parsed_ts", TimestampType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]),
+                    True,
+                ),
+                StructField("trade_pr", DoubleType(), True),
+                StructField("trade_vol", IntegerType(), True),
+            ]),
+            "fromParsedTimestamp",
+            {
+                "ts_col": "ts_idx",
+                "parsed_field": "parsed_ts",
+                "src_str_field": "src_str",
+                "series_ids": ["symbol"],
+            },
+            ParsedTimestampIndex,
+            StandardTimeUnits.SECONDS,
+            "ts_idx",
+            ["symbol"],
+            ["ts_idx", "symbol"],
+            ["trade_pr", "trade_vol"],
+            ["trade_pr", "trade_vol"],
+        ),
+        (
+            "parsed_ts_no_series",
+            StructType([
+                StructField(
+                    "ts_idx",
+                    StructType([
+                        StructField("parsed_ts", TimestampType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]),
+                    True,
+                ),
+                StructField("trade_pr", DoubleType(), True),
+                StructField("trade_vol", IntegerType(), True),
+            ]),
+            "fromParsedTimestamp",
+            {
+                "ts_col": "ts_idx",
+                "parsed_field": "parsed_ts",
+                "src_str_field": "src_str",
+            },
+            ParsedTimestampIndex,
+            StandardTimeUnits.SECONDS,
+            "ts_idx",
+            [],
+            ["ts_idx"],
+            ["trade_pr", "trade_vol"],
+            ["trade_pr", "trade_vol"],
+        ),
+        (
+            "parsed_date_index",
+            StructType([
+                StructField(
+                    "ts_idx",
+                    StructType([
+                        StructField("parsed_date", DateType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]),
+                    True,
+                ),
+                StructField("symbol", StringType(), True),
+                StructField("trade_pr", DoubleType(), True),
+            ]),
+            "fromParsedTimestamp",
+            {
+                "ts_col": "ts_idx",
+                "parsed_field": "parsed_date",
+                "src_str_field": "src_str",
+                "series_ids": ["symbol"],
+            },
+            ParsedDateIndex,
+            StandardTimeUnits.DAYS,
+            "ts_idx",
+            ["symbol"],
+            ["ts_idx", "symbol"],
+            ["trade_pr"],
+            ["trade_pr"],
+        ),
+        (
+            "sub_ms_index",
+            StructType([
+                StructField(
+                    "ts_idx",
+                    StructType([
+                        StructField("double_ts", DoubleType(), True),
+                        StructField("parsed_ts", TimestampType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]),
+                    True,
+                ),
+                StructField("symbol", StringType(), True),
+                StructField("trade_pr", DoubleType(), True),
+            ]),
+            "fromParsedTimestamp",
+            {
+                "ts_col": "ts_idx",
+                "parsed_field": "double_ts",
+                "src_str_field": "src_str",
+                "secondary_parsed_field": "parsed_ts",
+                "series_ids": ["symbol"],
+            },
+            SubMicrosecondPrecisionTimestampIndex,
+            StandardTimeUnits.NANOSECONDS,
+            "ts_idx",
+            ["symbol"],
+            ["ts_idx", "symbol"],
+            ["trade_pr"],
+            ["trade_pr"],
         ),
     ],
 )
-class SimpleIndexTSSchemaTests(TSSchemaTests):
-    def _create_index(self) -> TSIndex:
-        pass
-
+class TSSchemaTests(SparkTest, TSIndexTester):
     def _create_ts_schema(self) -> TSSchema:
-        return TSSchema.fromDFSchema(self.df_schema, self.ts_col, self.series_ids)
+        return getattr(TSSchema, self.constr_method)(self.df_schema, **self.constr_args)
 
     def setUp(self) -> None:
         super().setUp()
+        self.ts_col = self.constr_args["ts_col"]
         self.ts_field = self.df_schema[self.ts_col]
+        self.ts_schema = self._create_ts_schema()
 
     def test_schema(self):
-        print(self.id())
-        # create a TSSchema
-        ts_schema = self._create_ts_schema()
         # make sure it's a valid TSSchema instance
-        self.assertIsNotNone(ts_schema)
-        self.assertIsInstance(ts_schema, TSSchema)
+        self.assertIsNotNone(self.ts_schema)
+        self.assertIsInstance(self.ts_schema, TSSchema)
         # test the index
-        self._test_index(ts_schema.ts_idx)
-        # test the series ids
-        self.assertEqual(ts_schema.series_ids, self.series_ids)
+        self._test_index(self.ts_schema.ts_idx)
         # validate the index
-        ts_schema.validate(self.df_schema)
+        self.ts_schema.validate(self.df_schema)
+
+    def test_series_ids(self):
+        # test the series ids
+        self.assertEqual(self.ts_schema.series_ids, self.expected_series_ids)
 
     def test_structural_cols(self):
-        # create a TSSchema
-        ts_schema = self._create_ts_schema()
         # test the structural columns
-        struct_cols = [self.ts_col] + self.series_ids
-        self.assertEqual(set(ts_schema.structural_columns), set(struct_cols))
+        self.assertEqual(set(self.ts_schema.structural_columns),
+                         set(self.expected_structural_cols))
 
     def test_observational_cols(self):
-        # create a TSSchema
-        ts_schema = self._create_ts_schema()
-        # test the structural columns
-        struct_cols = [self.ts_col] + self.series_ids
-        obs_cols = set(self.df_schema.fieldNames()) - set(struct_cols)
+        # test the observational columns
         self.assertEqual(
-            ts_schema.find_observational_columns(self.df_schema), list(obs_cols)
+            set(self.ts_schema.find_observational_columns(self.df_schema)),
+            set(self.expected_obs_cols)
         )
 
     def test_metric_cols(self):
-        # create a TSSchema
-        ts_schema = self._create_ts_schema()
         # test the metric columns
-        struct_cols = [self.ts_col] + self.series_ids
-        obs_cols = set(self.df_schema.fieldNames()) - set(struct_cols)
-        metric_cols = {
-            mc
-            for mc in obs_cols
-            if isinstance(self.df_schema[mc].dataType, NumericType)
-        }
         self.assertEqual(
-            set(ts_schema.find_metric_columns(self.df_schema)), metric_cols
+            set(self.ts_schema.find_metric_columns(self.df_schema)),
+            set(self.expected_metric_cols)
         )
 
     def test_base_window(self):
@@ -476,11 +499,3 @@ class SimpleIndexTSSchemaTests(TSSchemaTests):
             self.assertRaises(
                 NotImplementedError, ts_schema.rangeBetweenWindow, 0, 10, reverse=True
             )
-
-
-class ParsedIndexTSSchemaTests(TSSchemaTests):
-    def _create_index(self) -> TSIndex:
-        pass
-
-    def _create_ts_schema(self) -> TSSchema:
-        pass

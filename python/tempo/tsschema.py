@@ -874,13 +874,13 @@ class TSSchema(WindowBuilder):
         return cls(ts_idx, series_ids)
 
     @classmethod
-    def fromParsedTSIndex(cls,
-                          df_schema: StructType,
-                          ts_col: str,
-                          parsed_field: str,
-                          src_str_field: str,
-                          series_ids: Optional[Collection[str]] = None,
-                          secondary_parsed_field: Optional[str] = None) -> "TSSchema":
+    def fromParsedTimestamp(cls,
+                            df_schema: StructType,
+                            ts_col: str,
+                            parsed_field: str,
+                            src_str_field: str,
+                            series_ids: Optional[Collection[str]] = None,
+                            secondary_parsed_field: Optional[str] = None) -> "TSSchema":
         ts_idx_schema = df_schema[ts_col].dataType
         assert isinstance(ts_idx_schema, StructType), \
             f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
@@ -907,8 +907,8 @@ class TSSchema(WindowBuilder):
             )
         else:
             raise TypeError(
-                f"Expected a DoubleType, TimestampType or DateType for parsed_field {parsed_field}, "
-                f"but got {parsed_type}"
+                f"Expected a DoubleType, TimestampType or DateType "
+                f"for parsed_field {parsed_field}, but got {parsed_type}"
             )
         # construct the TSSchema
         return cls(ts_idx, series_ids)
