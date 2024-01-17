@@ -49,14 +49,12 @@ class TSDF(WindowBuilder):
         self.ts_schema.validate(df.schema)
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
 
-    def __str__(self) -> str:
-        return f"""TSDF({id(self)}):
-        TS Index: {self.ts_index}
-        Series IDs: {self.series_ids}
-        Observational Cols: {self.observational_cols}
-        DataFrame: {self.df.schema}"""
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, TSDF):
+            return False
+        return self.ts_schema == other.ts_schema and self.df == other.df
 
     def __withTransformedDF(self, new_df: DataFrame) -> "TSDF":
         """

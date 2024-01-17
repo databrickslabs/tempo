@@ -158,22 +158,22 @@ class TSIndex(ABC):
         """
 
     def __eq__(self, other) -> Column:
-        return self.comparableExpr().eq(_col_or_lit(other))
+        return self.comparableExpr() == _col_or_lit(other)
 
     def __ne__(self, other) -> Column:
-        return self.comparableExpr().neq(_col_or_lit(other))
+        return self.comparableExpr() != _col_or_lit(other)
 
     def __lt__(self, other) -> Column:
-        return self.comparableExpr().lt(_col_or_lit(other))
+        return self.comparableExpr() < _col_or_lit(other)
 
     def __le__(self, other) -> Column:
-        return self.comparableExpr().leq(_col_or_lit(other))
+        return self.comparableExpr() <= _col_or_lit(other)
 
     def __gt__(self, other) -> Column:
-        return self.comparableExpr().gt(_col_or_lit(other))
+        return self.comparableExpr() > _col_or_lit(other)
 
     def __ge__(self, other) -> Column:
-        return self.comparableExpr().geq(_col_or_lit(other))
+        return self.comparableExpr() >= _col_or_lit(other)
 
     # other expression builder methods
 

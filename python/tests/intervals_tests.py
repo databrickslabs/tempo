@@ -3,7 +3,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.utils import AnalysisException
 
 from tempo.intervals import IntervalsDF
-from tests.tsdf_tests import SparkTest
+from tests.base import SparkTest
 
 
 class IntervalsDFTests(SparkTest):
