@@ -5,9 +5,9 @@ import warnings
 from typing import Union
 
 import jsonref
-from chispa import assert_df_equality
-
 import pyspark.sql.functions as sfn
+from chispa import assert_df_equality
+from delta.pip_utils import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 
@@ -28,9 +28,14 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
         cls.spark = (
-            SparkSession.builder.appName("unit-tests")
-            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            configure_spark_with_delta_pip(
+                SparkSession.builder.appName("unit-tests")
+            )
+            # .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
+            .config(
+                "spark.sql.extensions",
+                "io.delta.sql.DeltaSparkSessionExtension",
+            )
             .config(
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
@@ -70,7 +75,9 @@ class SparkTest(unittest.TestCase):
     def get_data_as_sdf(self, name: str, convert_ts_col=True):
         td = self.test_data[name]
         ts_cols = []
-        if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
+        if convert_ts_col and (
+            td.get("ts_col", None) or td.get("other_ts_cols", [])
+        ):
             ts_cols = [td["ts_col"]] if "ts_col" in td else []
             ts_cols.extend(td.get("other_ts_cols", []))
         return self.buildTestDF(td["schema"], td["data"], ts_cols)
@@ -124,7 +131,7 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")
+        file_name, class_name, func_name = test_case_path.split(".")[-3:]
 
         # find our test data file
         test_data_file = self.__getTestDataFilePath(file_name)
@@ -137,7 +144,9 @@ class SparkTest(unittest.TestCase):
             data_metadata_from_json = jsonref.load(f)
             # warn if data not present
             if class_name not in data_metadata_from_json:
-                warnings.warn(f"Could not load test data for {file_name}.{class_name}")
+                warnings.warn(
+                    f"Could not load test data for {file_name}.{class_name}"
+                )
                 return {}
             if func_name not in data_metadata_from_json[class_name]:
                 warnings.warn(
