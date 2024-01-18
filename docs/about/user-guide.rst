@@ -25,7 +25,7 @@ to create new features from. Below are the public methods available for TSDF tra
 Sample Reference Architecture for Capital Markets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. image:: _static/ts_in_fs.png
+.. image:: ../_static/ts_in_fs.png
    :alt: Architecture diagram
 
 Quickstart - Python
@@ -33,7 +33,7 @@ Quickstart - Python
 
 Data source is UCI public accelerometer data available at this `URL <https://archive.ics.uci.edu/ml/datasets/Heterogeneity+Activity+Recognition>`_
 
-.. image:: _static/Phone_Accelerometer.png
+.. image:: ../_static/Phone_Accelerometer.png
    :alt: Data Info
 
 Read in Data
@@ -130,7 +130,7 @@ For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min'
 
      fig.show()
 
-.. image:: _static/resample.png
+.. image:: ../_static/resample.png
    :alt: Raw time series
 
 AS OF Join
@@ -139,7 +139,7 @@ AS OF Join
 This join uses windowing in order to select the latest record from a source table and merges this onto the base fact
 table.
 
-.. image:: _static/AS_OF_JOIN.png
+.. image:: ../_static/AS_OF_JOIN.png
    :alt: As of join
 
 .. code-block:: python
