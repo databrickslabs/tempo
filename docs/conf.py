@@ -9,7 +9,7 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
+
 from datetime import date
 import os
 import sys
@@ -22,13 +22,12 @@ from version import get_latest_git_tag
 
 # -- Project information -----------------------------------------------------
 
-project = "Tempo"
-copyright = f"{date.today().year}, Databricks Labs"
-author = "Databricks Labs"
+project = 'Tempo'
+copyright = '2024, Databricks Labs'
+author = 'Databricks Labs'
 
 # The full version, including alpha/beta/rc tags
 release = get_latest_git_tag()
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -46,12 +45,12 @@ extensions = [
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
+templates_path = ['_templates']
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -59,7 +58,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "furo"
+html_theme = 'furo'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -68,14 +67,6 @@ html_static_path = ["_static"]
 html_theme_options = {
     "light_logo": "tempo - light background.svg",
     "dark_logo": "tempo - dark background.svg",
-    "light_css_variables": {
-        "color-brand-primary": "#7C4DFF",
-        "color-brand-content": "#7C4DFF",
-    },
-    "dark_css_variables": {
-        "color-brand-primary": "#7C4DFF",
-        "color-brand-content": "#7C4DFF",
-    },
     "footer_icons": [
         {
             "name": "GitHub",
@@ -95,4 +86,4 @@ html_theme_options = {
         },
     ],
 }
-html_favicon = "favicon.svg"
+html_favicon = "_static/favicon.svg"
