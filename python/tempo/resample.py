@@ -157,9 +157,7 @@ def aggregate(
         exprs = {x: "avg" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(
-                set(tsdf.series_ids + [tsdf.ts_col, "agg_key"])
-            )
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
             sfn.col(c).alias(
@@ -172,9 +170,7 @@ def aggregate(
         exprs = {x: "min" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(
-                set(tsdf.series_ids + [tsdf.ts_col, "agg_key"])
-            )
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
             sfn.col(c).alias(
@@ -187,9 +183,7 @@ def aggregate(
         exprs = {x: "max" for x in metricCols}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(
-                set(tsdf.series_ids + [tsdf.ts_col, "agg_key"])
-            )
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
         )
         new_cols = [
             sfn.col(c).alias(
@@ -245,9 +239,9 @@ def aggregate(
             metrics.append(col[0])
 
     if fill:
-        res = imputes.join(
-            res, tsdf.series_ids + [tsdf.ts_col], "leftouter"
-        ).na.fill(0, metrics)
+        res = imputes.join(res, tsdf.series_ids + [tsdf.ts_col], "leftouter").na.fill(
+            0, metrics
+        )
 
     return res
 

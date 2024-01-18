@@ -41,11 +41,12 @@ jobs:
         with:
           python-version: "3.9"
       - name: Type check
+        working-directory: ./python
         run: |
           pip install tox
           tox -e type-check
   test:
-    name: Buid and Test Module
+    name: Build and Test Module
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -71,4 +72,7 @@ jobs:
         coverage combine
         coverage xml
     - name: Publish test coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
+      with:
+          fail_ci_if_error: true
+          files: ./python/coverage.xml

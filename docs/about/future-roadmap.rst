@@ -8,35 +8,39 @@ of development might change.
    :class: important
 
    - *Next generation API version 0.2*
-    1. Meta-data cleanup
 
-    2. Simpler constructors
-
-    3. New core TSDF transformation functions
+     1. Meta-data cleanup
+     2. Simpler constructors
+     3. New core TSDF transformation functions
 
    - *Clear separation of resampling & interpolation functions*
-   --------------------------------------------------------------------------
+
    - *Intervals API*
-    1. Extract intervals from TSDFs
-    2. Get distinct (non-overlapping intervals)
-    3. Interval-TSDF joins
+
+     1. Extract intervals from TSDFs
+     2. Get distinct (non-overlapping intervals)
+     3. Interval-TSDF joins
 
    - *Streaming Support* 🚀
-    1. Streaming as-of joins
-    2. Streaming resampling
+
+     1. Streaming as-of joins
+     2. Streaming resampling
 
    - *Integration with timeseries forecasting & ML libraries:* 📈
-    1. statsmodels
-    2. FB Prophet
-    3. Tensorflow
-    4. Pytorch
-    5. tsfresh
-    6. sktime
 
-    And many more...
+     1. statsmodels
+     2. FB Prophet
+     3. Tensorflow
+     4. Pytorch
+     5. tsfresh
+     6. sktime
+
+     And many more...
 
    - *Simpler Windowing API*
-    1. Use natural-language expressions (ie "5 mins", "16 days", etc.)
+
+     1. Use natural-language expressions (ie "5 mins", "16 days", etc.)
+
 
 
 Don't see what you are looking for, reach out to the team directly
