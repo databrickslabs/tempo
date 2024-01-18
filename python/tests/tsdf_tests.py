@@ -216,10 +216,10 @@ class TimeSlicingTests(SparkTest):
         # load TSDF
         tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
         # slice at timestamp
-        at_tsdf = tsdf.before(ts)
+        before_tsdf = tsdf.before(ts)
         # validate the slice
         expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
-        self.assertDataFrameEquality(at_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(before_tsdf, expected_tsdf)
 
     @parameterized.expand([
         (
@@ -295,10 +295,10 @@ class TimeSlicingTests(SparkTest):
         # load TSDF
         tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
         # slice at timestamp
-        at_tsdf = tsdf.atOrBefore(ts)
+        at_before_tsdf = tsdf.atOrBefore(ts)
         # validate the slice
         expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
-        self.assertDataFrameEquality(at_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(at_before_tsdf, expected_tsdf)
 
     @parameterized.expand([
         (
@@ -311,7 +311,7 @@ class TimeSlicingTests(SparkTest):
                     "ts_convert": ["event_ts"],
                     "data": [
                         ["S1", "2020-09-01 00:19:12", 362.1],
-                        ["S2", "2020-09-01 00:20:42", 762.33]
+                        ["S2", "2020-09-01 00:20:42", 762.33],
                     ],
                 },
             },
@@ -326,7 +326,7 @@ class TimeSlicingTests(SparkTest):
                     "ts_convert": ["event_ts"],
                     "data": [
                         ["2020-09-01 00:19:12", 362.1],
-                        ["2020-09-01 00:20:42", 762.33]
+                        ["2020-09-01 00:20:42", 762.33],
                     ],
                 },
             },
@@ -342,7 +342,7 @@ class TimeSlicingTests(SparkTest):
                         ["S1", 1.207, 351.32],
                         ["S1", 10.0, 361.1],
                         ["S1", 24.357, 362.1],
-                        ["S2", 10.0, 762.33]
+                        ["S2", 10.0, 762.33],
                     ],
                 },
             },
@@ -358,7 +358,7 @@ class TimeSlicingTests(SparkTest):
                         ["S1", 20, 351.32],
                         ["S1", 127, 361.1],
                         ["S1", 243, 362.1],
-                        ["S2", 100, 762.33]
+                        ["S2", 100, 762.33],
                     ],
                 },
             },
@@ -368,10 +368,10 @@ class TimeSlicingTests(SparkTest):
         # load TSDF
         tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
         # slice at timestamp
-        at_tsdf = tsdf.after(ts)
+        after_tsdf = tsdf.after(ts)
         # validate the slice
         expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
-        self.assertDataFrameEquality(at_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(after_tsdf, expected_tsdf)
 
     @parameterized.expand([
         (
@@ -386,7 +386,7 @@ class TimeSlicingTests(SparkTest):
                         ["S1", "2020-09-01 00:02:10", 361.1],
                         ["S1", "2020-09-01 00:19:12", 362.1],
                         ["S2", "2020-09-01 00:02:10", 761.10],
-                        ["S2", "2020-09-01 00:20:42", 762.33]
+                        ["S2", "2020-09-01 00:20:42", 762.33],
                     ],
                 },
             },
@@ -403,7 +403,7 @@ class TimeSlicingTests(SparkTest):
                         ["2020-08-01 00:01:24", 751.92],
                         ["2020-09-01 00:02:10", 361.1],
                         ["2020-09-01 00:19:12", 362.1],
-                        ["2020-09-01 00:20:42", 762.33]
+                        ["2020-09-01 00:20:42", 762.33],
                     ],
                 },
             },
@@ -418,7 +418,7 @@ class TimeSlicingTests(SparkTest):
                     "data": [
                         ["S1", 10.0, 361.1],
                         ["S1", 24.357, 362.1],
-                        ["S2", 10.0, 762.33]
+                        ["S2", 10.0, 762.33],
                     ],
                 },
             },
@@ -435,7 +435,7 @@ class TimeSlicingTests(SparkTest):
                         ["S1", 127, 361.1],
                         ["S1", 243, 362.1],
                         ["S2", 10, 761.10],
-                        ["S2", 100, 762.33]
+                        ["S2", 100, 762.33],
                     ],
                 },
             },
@@ -445,7 +445,475 @@ class TimeSlicingTests(SparkTest):
         # load TSDF
         tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
         # slice at timestamp
-        at_tsdf = tsdf.atOrAfter(ts)
+        at_after_tsdf = tsdf.atOrAfter(ts)
         # validate the slice
         expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
-        self.assertDataFrameEquality(at_tsdf, expected_tsdf)
+        self.assertDataFrameEquality(at_after_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:12", 351.32],
+                        ["2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            0.1,
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S2", 1.0, 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            100,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [["S1", 20, 351.32], ["S2", 10, 761.10]],
+                },
+            },
+        ),
+    ])
+    def test_between_non_inclusive(
+        self, init_tsdf_id, start_ts, end_ts, expected_tsdf_dict
+    ):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        between_tsdf = tsdf.between(start_ts, end_ts, inclusive=False)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-08-01 00:01:10", 743.01],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:10", 743.01],
+                        ["2020-08-01 00:01:12", 351.32],
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            0.1,
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S1", 10.0, 361.1],
+                        ["S2", 0.1, 751.92],
+                        ["S2", 1.0, 761.10],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            100,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 1, 349.21],
+                        ["S1", 20, 351.32],
+                        ["S2", 1, 751.92],
+                        ["S2", 10, 761.10],
+                        ["S2", 100, 762.33],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_between_inclusive(
+        self, init_tsdf_id, start_ts, end_ts, expected_tsdf_dict
+    ):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        between_tsdf = tsdf.between(start_ts, end_ts, inclusive=True)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10", 349.21],
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-08-01 00:01:10", 743.01],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:00:10", 349.21],
+                        ["2020-08-01 00:01:10", 743.01],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S2", 0.005, 743.01],
+                        ["S2", 0.1, 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            2,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 1, 349.21],
+                        ["S1", 20, 351.32],
+                        ["S2", 0, 743.01],
+                        ["S2", 1, 751.92],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_earliest(self, init_tsdf_id, num_records, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # get earliest timestamp
+        earliest_ts = tsdf.earliest(n=num_records)
+        # validate the timestamp
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(earliest_ts, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:19:12", 362.1],
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-09-01 00:20:42", 762.33],
+                        ["S2", "2020-09-01 00:02:10", 761.10]
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            4,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-09-01 00:20:42", 762.33],
+                        ["2020-09-01 00:19:12", 362.1],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-08-01 00:01:24", 751.92]
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            1,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 24.357, 362.1],
+                        ["S2", 10.0, 762.33]
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            3,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 243, 362.1],
+                        ["S1", 127, 361.1],
+                        ["S1", 20, 351.32],
+                        ["S2", 100, 762.33],
+                        ["S2", 10, 761.10],
+                        ["S2", 1, 751.92],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_latest(self, init_tsdf_id, num_records, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # get earliest timestamp
+        latest_ts = tsdf.latest(n=num_records)
+        # validate the timestamp
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(latest_ts, expected_tsdf)
+
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                        ["S2", "2020-08-01 00:01:24", 751.92]
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-09-01 00:19:12",
+            3,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-09-01 00:19:12", 362.1],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            4,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 10.0, 361.1],
+                        ["S1", 1.207, 351.32],
+                        ["S1", 0.13, 349.21],
+                        ["S2", 10.0, 762.33],
+                        ["S2", 1.0, 761.10],
+                        ["S2", 0.1, 751.92],
+                        ["S2", 0.005, 743.01],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            1,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [["S1", 1, 349.21], ["S2", 1, 751.92]],
+                },
+            },
+        ),
+    ])
+    def test_priorTo(self, init_tsdf_id, ts, n, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        prior_tsdf = tsdf.priorTo(ts, n=n)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(prior_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            1,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-09-01 00:02:10", 761.10]
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:24",
+            3,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-09-01 00:19:12", 362.1]
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 10.0, 361.1],
+                        ["S1", 24.357, 362.1],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            10,
+            2,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 20, 351.32],
+                        ["S1", 127, 361.1],
+                        ["S2", 10, 761.10],
+                        ["S2", 100, 762.33],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_subsequentTo(self, init_tsdf_id, ts, n, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        subseq_tsdf = tsdf.subsequentTo(ts, n=n)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(subseq_tsdf, expected_tsdf)
