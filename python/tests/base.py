@@ -10,7 +10,6 @@ from chispa import assert_df_equality
 from delta.pip_utils import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
 
@@ -31,7 +30,6 @@ class SparkTest(unittest.TestCase):
             configure_spark_with_delta_pip(
                 SparkSession.builder.appName("unit-tests")
             )
-            # .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
             .config(
                 "spark.sql.extensions",
                 "io.delta.sql.DeltaSparkSessionExtension",
