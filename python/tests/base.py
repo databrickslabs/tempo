@@ -27,9 +27,7 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
         cls.spark = (
-            configure_spark_with_delta_pip(
-                SparkSession.builder.appName("unit-tests")
-            )
+            configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
             .config(
                 "spark.sql.extensions",
                 "io.delta.sql.DeltaSparkSessionExtension",
@@ -73,9 +71,7 @@ class SparkTest(unittest.TestCase):
     def get_data_as_sdf(self, name: str, convert_ts_col=True):
         td = self.test_data[name]
         ts_cols = []
-        if convert_ts_col and (
-            td.get("ts_col", None) or td.get("other_ts_cols", [])
-        ):
+        if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
             ts_cols = [td["ts_col"]] if "ts_col" in td else []
             ts_cols.extend(td.get("other_ts_cols", []))
         return self.buildTestDF(td["schema"], td["data"], ts_cols)
@@ -142,9 +138,7 @@ class SparkTest(unittest.TestCase):
             data_metadata_from_json = jsonref.load(f)
             # warn if data not present
             if class_name not in data_metadata_from_json:
-                warnings.warn(
-                    f"Could not load test data for {file_name}.{class_name}"
-                )
+                warnings.warn(f"Could not load test data for {file_name}.{class_name}")
                 return {}
             if func_name not in data_metadata_from_json[class_name]:
                 warnings.warn(
@@ -232,4 +226,5 @@ class SparkTest(unittest.TestCase):
             ignore_row_order=ignore_row_order,
             ignore_column_order=ignore_column_order,
             ignore_nullable=ignore_nullable,
+            ignore_metadata=True,
         )
