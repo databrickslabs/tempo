@@ -4,7 +4,7 @@ from io import StringIO
 from unittest import mock
 
 from tempo.utils import *  # noqa: F403
-from tests.tsdf_tests import SparkTest
+from tests.base import SparkTest
 
 
 class UtilsTest(SparkTest):

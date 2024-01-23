@@ -23,7 +23,8 @@ import tempo.io as t_io
 import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
+from tempo.tsschema import DEFAULT_TIMESTAMP_FORMAT, is_time_format, sub_seconds_precision_digits, \
+    CompositeTSIndex, ParsedTSIndex, TSIndex, TSSchema, WindowBuilder
 from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
@@ -52,14 +53,12 @@ class TSDF(WindowBuilder):
         self.ts_schema.validate(df.schema)
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
 
-    def __str__(self) -> str:
-        return f"""TSDF({id(self)}):
-        TS Index: {self.ts_index}
-        Series IDs: {self.series_ids}
-        Observational Cols: {self.observational_cols}
-        DataFrame: {self.df.schema}"""
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, TSDF):
+            return False
+        return self.ts_schema == other.ts_schema and self.df == other.df
 
     def __withTransformedDF(self, new_df: DataFrame) -> "TSDF":
         """
@@ -118,34 +117,48 @@ class TSDF(WindowBuilder):
     ) -> "TSDF":
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_subseq_struct_df = cls.__makeStructFromCols(
-            df, struct_col_name, [ts_col, subsequence_col]
-        )
+        with_subseq_struct_df = cls.__makeStructFromCols(df,
+                                                         struct_col_name,
+                                                         [ts_col, subsequence_col])
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
         subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
         # construct & return the TSDF with appropriate schema
         return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
 
+    # default column name for parsed timeseries column
+    __DEFAULT_PARSED_TS_COL = "parsed_ts"
+
     @classmethod
-    def fromTimestampString(
+    def fromStringTimestamp(
         cls,
         df: DataFrame,
         ts_col: str,
         series_ids: Optional[Collection[str]] = None,
-        ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]",
+        ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT
     ) -> "TSDF":
-        pass
-
-    @classmethod
-    def fromDateString(
-        cls,
-        df: DataFrame,
-        ts_col: str,
-        series_ids: Collection[str],
-        date_fmt: str = "YYYY-MM-DD",
-    ) -> "TSDF ":
-        pass
+        # parse the ts_col based on the pattern
+        if is_time_format(ts_fmt):
+            # if the ts_fmt is a time format, we can use to_timestamp
+            ts_expr = sfn.to_timestamp(sfn.col(ts_col), ts_fmt)
+        else:
+            # otherwise, we'll use to_date
+            ts_expr = sfn.to_date(sfn.col(ts_col), ts_fmt)
+        # parse the ts_col give the expression
+        parsed_ts_col = cls.__DEFAULT_PARSED_TS_COL
+        parsed_df = df.withColumn(parsed_ts_col, ts_expr)
+        # move the ts cols into a struct
+        struct_col_name = cls.__DEFAULT_TS_IDX_COL
+        with_parsed_struct_df = cls.__makeStructFromCols(parsed_df,
+                                                         struct_col_name,
+                                                         [ts_col, parsed_ts_col])
+        # construct an appropriate TSIndex
+        parsed_struct = with_parsed_struct_df.schema[struct_col_name]
+        parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
+                                                          parsed_ts_col,
+                                                          ts_col)
+        # construct & return the TSDF with appropriate schema
+        return TSDF(with_parsed_struct_df, ts_schema=TSSchema(parsed_ts_idx, series_ids))
 
     @property
     def ts_index(self) -> "TSIndex":
@@ -153,7 +166,8 @@ class TSDF(WindowBuilder):
 
     @property
     def ts_col(self) -> str:
-        return self.ts_index.ts_col
+        # TODO - this should be replaced TSIndex expressions
+        pass
 
     @property
     def columns(self) -> List[str]:
@@ -409,23 +423,7 @@ class TSDF(WindowBuilder):
         where_df = self.df.where(condition)
         return self.__withTransformedDF(where_df)
 
-    def __slice(self, op: str, target_ts: Union[str, int]) -> "TSDF":
-        """
-        Private method to slice TSDF by time
-
-        :param op: string symbol of the operation to perform
-        :type op: str
-        :param target_ts: timestamp on which to filter
-
-        :return: a TSDF object containing only those records within the time slice specified
-        """
-        # quote our timestamp if its a string
-        target_expr = f"'{target_ts}'" if isinstance(target_ts, str) else target_ts
-        slice_expr = sfn.expr(f"{self.ts_col} {op} {target_expr}")
-        sliced_df = self.df.where(slice_expr)
-        return self.__withTransformedDF(sliced_df)
-
-    def at(self, ts: Union[str, int]) -> "TSDF":
+    def at(self, ts: Any) -> "TSDF":
         """
         Select only records at a given time
 
@@ -433,9 +431,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at the given time
         """
-        return self.__slice("==", ts)
+        return self.where(self.ts_index == ts)
 
-    def before(self, ts: Union[str, int]) -> "TSDF":
+    def before(self, ts: Any) -> "TSDF":
         """
         Select only records before a given time
 
@@ -443,9 +441,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records before the given time
         """
-        return self.__slice("<", ts)
+        return self.where(self.ts_index < ts)
 
-    def atOrBefore(self, ts: Union[str, int]) -> "TSDF":
+    def atOrBefore(self, ts: Any) -> "TSDF":
         """
         Select only records at or before a given time
 
@@ -453,9 +451,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at or before the given time
         """
-        return self.__slice("<=", ts)
+        return self.where(self.ts_index <= ts)
 
-    def after(self, ts: Union[str, int]) -> "TSDF":
+    def after(self, ts: Any) -> "TSDF":
         """
         Select only records after a given time
 
@@ -463,9 +461,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records after the given time
         """
-        return self.__slice(">", ts)
+        return self.where(self.ts_index > ts)
 
-    def atOrAfter(self, ts: Union[str, int]) -> "TSDF":
+    def atOrAfter(self, ts: Any) -> "TSDF":
         """
         Select only records at or after a given time
 
@@ -473,10 +471,10 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at or after the given time
         """
-        return self.__slice(">=", ts)
+        return self.where(self.ts_index >= ts)
 
     def between(
-        self, start_ts: Union[str, int], end_ts: Union[str, int], inclusive: bool = True
+        self, start_ts: Any, end_ts: Any, inclusive: bool = True
     ) -> "TSDF":
         """
         Select only records in a given range
@@ -531,7 +529,7 @@ class TSDF(WindowBuilder):
         next_window = self.baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
-    def priorTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def priorTo(self, ts: Any, n: int = 1) -> "TSDF":
         """
         Select the n most recent records prior to a given time
         You can think of this like an 'asOf' select - it selects the records as of a particular time
@@ -543,7 +541,7 @@ class TSDF(WindowBuilder):
         """
         return self.atOrBefore(ts).latest(n)
 
-    def subsequentTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def subsequentTo(self, ts: Any, n: int = 1) -> "TSDF":
         """
         Select the n records subsequent to a give time
 
@@ -868,7 +866,7 @@ class TSDF(WindowBuilder):
         if tsPartitionVal is None:
             seq_col = None
             if isinstance(combined_df.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
+                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(1)
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -883,7 +881,7 @@ class TSDF(WindowBuilder):
             )
             seq_col = None
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
+                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).get_ts_component(1)
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,

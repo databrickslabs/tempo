@@ -1,1128 +1,1597 @@
-import os
-import sys
-import unittest
-from io import StringIO
-from unittest import mock
-from unittest.mock import patch
-
-from dateutil import parser as dt_parser
-
-import pyspark.sql.functions as sfn
-from pyspark.sql.column import Column
-from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.window import WindowSpec
+from parameterized import parameterized
 
 from tempo.tsdf import TSDF
-from tests.base import SparkTest
+from tempo.tsschema import (
+    SimpleTimestampIndex,
+    SimpleDateIndex,
+    OrdinalTSIndex,
+    ParsedTimestampIndex,
+    ParsedDateIndex,
+    TSSchema,
+)
+from tests.base import TestDataFrame, SparkTest
 
 
 class TSDFBaseTests(SparkTest):
-    def test_TSDF_init(self):
-        tsdf_init = self.get_data_as_tsdf("init")
-
-        self.assertIsInstance(tsdf_init.df, DataFrame)
-        self.assertEqual(tsdf_init.ts_col, "event_ts")
-        self.assertEqual(tsdf_init.series_ids, ["symbol"])
-
-    def test_describe(self):
-        """AS-OF Join without a time-partition test"""
-
-        # Construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-
-        # generate description dataframe
-        res = tsdf_init.describe()
-
-        # joined dataframe should equal the expected dataframe
-        # self.assertDataFrameEquality(res, dfExpected)
-        assert res.count() == 7
-        assert (
-            res.filter(sfn.col("unique_time_series_count") != " ")
-            .select(sfn.max(sfn.col("unique_time_series_count")))
-            .collect()[0][0]
-            == "1"
-        )
-        assert (
-            res.filter(sfn.col("min_ts") != " ")
-            .select(sfn.col("min_ts").cast("string"))
-            .collect()[0][0]
-            == "2020-08-01 00:00:10"
-        )
-        assert (
-            res.filter(sfn.col("max_ts") != " ")
-            .select(sfn.col("max_ts").cast("string"))
-            .collect()[0][0]
-            == "2020-09-01 00:19:12"
-        )
-
-    def test__getSparkPlan(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        plan = init_tsdf._TSDF__getSparkPlan(init_tsdf.df, self.spark)
-
-        self.assertIsInstance(plan, str)
-        self.assertIn("Optimized Logical Plan", plan)
-        self.assertIn("Physical Plan", plan)
-        self.assertIn("sizeInBytes", plan)
-
-    def test__getBytesFromPlan(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
-
-        self.assertEqual(_bytes, 6.2)
-
-    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
-    def test__getBytesFromPlan_search_result_is_None(self, mock__getSparkPlan):
-        mock__getSparkPlan.return_value = "will not match search value"
-
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertRaises(
-            ValueError,
-            init_tsdf._TSDF__getBytesFromPlan,
-            init_tsdf.df,
-            self.spark,
-        )
-
-    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
-    def test__getBytesFromPlan_size_in_MiB(self, mock__getSparkPlan):
-        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 MiB) '"
-
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
-        expected = 1 * 1024 * 1024
-
-        self.assertEqual(_bytes, expected)
-
-    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
-    def test__getBytesFromPlan_size_in_KiB(self, mock__getSparkPlan):
-        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 KiB) '"
-
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
-
-        self.assertEqual(_bytes, 1 * 1024)
-
-    @patch("tempo.tsdf.TSDF._TSDF__getSparkPlan")
-    def test__getBytesFromPlan_size_in_GiB(self, mock__getSparkPlan):
-        mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 GiB) '"
-
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
-
-        self.assertEqual(_bytes, 1 * 1024 * 1024 * 1024)
-
-    @staticmethod
-    @mock.patch.dict(os.environ, {"TZ": "UTC"})
-    def __timestamp_to_double(ts: str) -> float:
-        return dt_parser.isoparse(ts).timestamp()
-
-    @staticmethod
-    def __tsdf_with_double_tscol(tsdf: TSDF) -> TSDF:
-        return tsdf.withColumn(tsdf.ts_col,
-                               sfn.col(tsdf.ts_col).cast("double"))
-
-    # TODO: write equivalent test for a double ts column
-    # def test__add_double_ts(self):
-    #     init_tsdf = self.get_data_as_tsdf("init")
-    #     df = init_tsdf._TSDF__add_double_ts()
-    #
-    #     schema_string = df.schema.simpleString()
-    #
-    #     self.assertIn("double_ts:double", schema_string)
-
-    # TODO: write equivalent test for TSDFs with string timestamps
-    # def test__validate_ts_string_valid(self):
-    #     valid_timestamp_string = "2020-09-01 00:02:10"
-    #
-    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-    #
-    # def test__validate_ts_string_alt_format_valid(self):
-    #     valid_timestamp_string = "2020-09-01T00:02:10"
-    #
-    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-    #
-    # def test__validate_ts_string_with_microseconds_valid(self):
-    #     valid_timestamp_string = "2020-09-01 00:02:10.00000000"
-    #
-    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-    #
-    # def test__validate_ts_string_alt_format_with_microseconds_valid(self):
-    #     valid_timestamp_string = "2020-09-01T00:02:10.00000000"
-    #
-    #     self.assertIsNone(TSDF._TSDF__validate_ts_string(valid_timestamp_string))
-    #
-    # def test__validate_ts_string_invalid(self):
-    #     invalid_timestamp_string = "this will not work"
-    #
-    #     self.assertRaises(
-    #         ValueError, TSDF._TSDF__validate_ts_string, invalid_timestamp_string
-    #     )
-
-    # TODO: write equivalent test for testing TSDF initialization
-    # def test__validated_column_not_string(self):
-    #     init_df = self.get_data_as_tsdf("init").df
-    #
-    #     self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
-    #
-    # def test__validated_column_not_found(self):
-    #     init_df = self.get_data_as_tsdf("init").df
-    #
-    #     self.assertRaises(
-    #         ValueError,
-    #         TSDF._TSDF__validated_column,
-    #         init_df,
-    #         "does not exist",
-    #     )
-    #
-    # def test__validated_column(self):
-    #     init_df = self.get_data_as_tsdf("init").df
-    #
-    #     self.assertEqual(
-    #         TSDF._TSDF__validated_column(init_df, "symbol"),
-    #         "symbol",
-    #     )
-    #
-    # def test__validated_columns_string(self):
-    #     init_tsdf = self.get_data_as_tsdf("init")
-    #
-    #     self.assertEqual(
-    #         init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
-    #         ["symbol"],
-    #     )
-    #
-    # def test__validated_columns_none(self):
-    #     init_tsdf = self.get_data_as_tsdf("init")
-    #
-    #     self.assertEqual(
-    #         init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
-    #         [],
-    #     )
-    #
-    # def test__validated_columns_tuple(self):
-    #     init_tsdf = self.get_data_as_tsdf("init")
-    #
-    #     self.assertRaises(
-    #         TypeError,
-    #         init_tsdf._TSDF__validated_columns,
-    #         init_tsdf.df,
-    #         ("symbol",),
-    #     )
-    #
-    # def test__validated_columns_list_multiple_elems(self):
-    #     init_tsdf = self.get_data_as_tsdf("init")
-    #
-    #     self.assertEqual(
-    #         init_tsdf._TSDF__validated_columns(
-    #             init_tsdf.df,
-    #             ["symbol", "event_ts", "trade_pr"],
-    #         ),
-    #         ["symbol", "event_ts", "trade_pr"],
-    #     )
-
-    def test__checkPartitionCols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        right_tsdf = self.get_data_as_tsdf("right_tsdf")
-
-        self.assertRaises(ValueError, init_tsdf._TSDF__checkPartitionCols, right_tsdf)
-
-    def test__validateTsColMatch(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        right_tsdf = self.get_data_as_tsdf("right_tsdf")
-
-        self.assertRaises(ValueError, init_tsdf._TSDF__validateTsColMatch, right_tsdf)
-
-    def test__addPrefixToColumns_non_empty_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "prefix").df
-
-        schema_string = df.schema.simpleString()
-
-        self.assertIn("prefix_event_ts", schema_string)
-
-    def test__addPrefixToColumns_empty_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "").df
-
-        schema_string = df.schema.simpleString()
-
-        # comma included (,event_ts) to ensure we don't match if there is a prefix added
-        self.assertIn(",event_ts", schema_string)
-
-    def test__addColumnsFromOtherDF(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        df = init_tsdf._TSDF__addColumnsFromOtherDF(["another_col"]).df
-
-        schema_string = df.schema.simpleString()
-
-        self.assertIn("another_col", schema_string)
-
-    def test__combineTSDF(self):
-        init1_tsdf = self.get_data_as_tsdf("init")
-        init2_tsdf = self.get_data_as_tsdf("init")
-
-        union_tsdf = init1_tsdf._TSDF__combineTSDF(init2_tsdf, "combined_ts_col")
-        df = union_tsdf.df
-
-        schema_string = df.schema.simpleString()
-
-        self.assertEqual(init1_tsdf.df.count() + init2_tsdf.df.count(), df.count())
-        self.assertIn("combined_ts_col", schema_string)
-
-    def test__getLastRightRow(self):
-        # TODO: several errors and hard-coded columns that throw AnalysisException
-        pass
-
-    def test__getTimePartitions(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        actual_tsdf = init_tsdf._TSDF__getTimePartitions(10)
-
-        self.assertDataFrameEquality(
-            actual_tsdf,
-            expected_tsdf,
-            from_tsdf=True,
-        )
-
-    def test__getTimePartitions_with_fraction(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        actual_tsdf = init_tsdf._TSDF__getTimePartitions(10, 0.25)
-
-        self.assertDataFrameEquality(
-            actual_tsdf,
-            expected_tsdf,
-            from_tsdf=True,
-        )
-
-    def test_select_empty(self):
-        # TODO: Can we narrow down to types of Exception?
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertRaises(Exception, init_tsdf.select)
-
-    def test_select_only_required_cols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        tsdf = init_tsdf.select("event_ts", "symbol")
-
-        self.assertEqual(tsdf.df.columns, ["event_ts", "symbol"])
-
-    def test_select_all_cols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        tsdf = init_tsdf.select("event_ts", "symbol", "trade_pr")
-
-        self.assertEqual(tsdf.df.columns, ["event_ts", "symbol", "trade_pr"])
-
-    def test_show(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        init_tsdf.show()
-        self.assertEqual(
-            captured_output.getvalue(),
-            (
-                "+------+-------------------+--------+\n"
-                "|symbol|           event_ts|trade_pr|\n"
-                "+------+-------------------+--------+\n"
-                "|    S1|2020-08-01 00:00:10|  349.21|\n"
-                "|    S1|2020-08-01 00:01:12|  351.32|\n"
-                "|    S1|2020-09-01 00:02:10|   361.1|\n"
-                "|    S1|2020-09-01 00:19:12|   362.1|\n"
-                "|    S2|2020-08-01 00:01:10|  743.01|\n"
-                "|    S2|2020-08-01 00:01:24|  751.92|\n"
-                "|    S2|2020-09-01 00:02:10|   761.1|\n"
-                "|    S2|2020-09-01 00:20:42|  762.33|\n"
-                "+------+-------------------+--------+\n"
-                "\n"
-            ),
-        )
-
-    def test_show_n_5(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        init_tsdf.show(5)
-        self.assertEqual(
-            captured_output.getvalue(),
-            (
-                "+------+-------------------+--------+\n"
-                "|symbol|           event_ts|trade_pr|\n"
-                "+------+-------------------+--------+\n"
-                "|    S1|2020-08-01 00:00:10|  349.21|\n"
-                "|    S1|2020-08-01 00:01:12|  351.32|\n"
-                "|    S1|2020-09-01 00:02:10|   361.1|\n"
-                "|    S1|2020-09-01 00:19:12|   362.1|\n"
-                "|    S2|2020-08-01 00:01:10|  743.01|\n"
-                "+------+-------------------+--------+\n"
-                "only showing top 5 rows\n"
-                "\n"
-            ),
-        )
-
-    def test_show_k_gt_n(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        self.assertRaises(ValueError, init_tsdf.show, 5, 10)
-
-    def test_show_truncate_false(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        init_tsdf.show(truncate=False)
-        self.assertEqual(
-            captured_output.getvalue(),
-            (
-                "+------+-------------------+--------+\n"
-                "|symbol|event_ts           |trade_pr|\n"
-                "+------+-------------------+--------+\n"
-                "|S1    |2020-08-01 00:00:10|349.21  |\n"
-                "|S1    |2020-08-01 00:01:12|351.32  |\n"
-                "|S1    |2020-09-01 00:02:10|361.1   |\n"
-                "|S1    |2020-09-01 00:19:12|362.1   |\n"
-                "|S2    |2020-08-01 00:01:10|743.01  |\n"
-                "|S2    |2020-08-01 00:01:24|751.92  |\n"
-                "|S2    |2020-09-01 00:02:10|761.1   |\n"
-                "|S2    |2020-09-01 00:20:42|762.33  |\n"
-                "+------+-------------------+--------+\n"
-                "\n"
-            ),
-        )
-
-    def test_show_vertical_true(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        init_tsdf.show(vertical=True)
-        self.assertEqual(
-            captured_output.getvalue(),
-            (
-                "-RECORD 0-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-08-01 00:00:10 \n"
-                " trade_pr | 349.21              \n"
-                "-RECORD 1-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-08-01 00:01:12 \n"
-                " trade_pr | 351.32              \n"
-                "-RECORD 2-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-09-01 00:02:10 \n"
-                " trade_pr | 361.1               \n"
-                "-RECORD 3-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-09-01 00:19:12 \n"
-                " trade_pr | 362.1               \n"
-                "-RECORD 4-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-08-01 00:01:10 \n"
-                " trade_pr | 743.01              \n"
-                "-RECORD 5-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-08-01 00:01:24 \n"
-                " trade_pr | 751.92              \n"
-                "-RECORD 6-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-09-01 00:02:10 \n"
-                " trade_pr | 761.1               \n"
-                "-RECORD 7-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-09-01 00:20:42 \n"
-                " trade_pr | 762.33              \n"
-                "\n"
-            ),
-        )
-
-    def test_show_vertical_true_n_5(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        init_tsdf.show(5, vertical=True)
-        self.assertEqual(
-            captured_output.getvalue(),
-            (
-                "-RECORD 0-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-08-01 00:00:10 \n"
-                " trade_pr | 349.21              \n"
-                "-RECORD 1-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-08-01 00:01:12 \n"
-                " trade_pr | 351.32              \n"
-                "-RECORD 2-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-09-01 00:02:10 \n"
-                " trade_pr | 361.1               \n"
-                "-RECORD 3-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-09-01 00:19:12 \n"
-                " trade_pr | 362.1               \n"
-                "-RECORD 4-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-08-01 00:01:10 \n"
-                " trade_pr | 743.01              \n"
-                "only showing top 5 rows\n"
-                "\n"
-            ),
-        )
-
-    def test_show_truncate_false_vertical_true(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        captured_output = StringIO()
-        sys.stdout = captured_output
-        init_tsdf.show(truncate=False, vertical=True)
-        self.assertEqual(
-            captured_output.getvalue(),
-            (
-                "-RECORD 0-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-08-01 00:00:10 \n"
-                " trade_pr | 349.21              \n"
-                "-RECORD 1-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-08-01 00:01:12 \n"
-                " trade_pr | 351.32              \n"
-                "-RECORD 2-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-09-01 00:02:10 \n"
-                " trade_pr | 361.1               \n"
-                "-RECORD 3-----------------------\n"
-                " symbol   | S1                  \n"
-                " event_ts | 2020-09-01 00:19:12 \n"
-                " trade_pr | 362.1               \n"
-                "-RECORD 4-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-08-01 00:01:10 \n"
-                " trade_pr | 743.01              \n"
-                "-RECORD 5-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-08-01 00:01:24 \n"
-                " trade_pr | 751.92              \n"
-                "-RECORD 6-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-09-01 00:02:10 \n"
-                " trade_pr | 761.1               \n"
-                "-RECORD 7-----------------------\n"
-                " symbol   | S2                  \n"
-                " event_ts | 2020-09-01 00:20:42 \n"
-                " trade_pr | 762.33              \n"
-                "\n"
-            ),
-        )
-
-    def test_at_string_timestamp(self):
-        """
-        Test of time-slicing at(..) function using a string timestamp
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-        at_tsdf = init_tsdf.at(target_ts)
-
-        self.assertDataFrameEquality(at_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_at_numeric_timestamp(self):
-        """
-        Test of time-slicint at(..) function using a numeric timestamp
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_ts = "2020-09-01 00:02:10"
-        target_dbl = self.__timestamp_to_double(target_ts)
-        at_dbl_tsdf = init_dbl_tsdf.at(target_dbl)
-
-        self.assertDataFrameEquality(at_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
-
-    def test_before_string_timestamp(self):
-        """
-        Test of time-slicing before(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-        before_tsdf = init_tsdf.before(target_ts)
-
-        self.assertDataFrameEquality(before_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_before_numeric_timestamp(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_ts = "2020-09-01 00:02:10"
-        target_dbl = self.__timestamp_to_double(target_ts)
-        before_dbl_tsdf = init_dbl_tsdf.before(target_dbl)
-
-        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
-
-    def test_atOrBefore_string_timestamp(self):
-        """
-        Test of time-slicing atOrBefore(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-        before_tsdf = init_tsdf.atOrBefore(target_ts)
-
-        self.assertDataFrameEquality(before_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_atOrBefore_numeric_timestamp(self):
-        """
-        Test of time-slicing atOrBefore(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_dbl = self.__timestamp_to_double(target_ts)
-        before_dbl_tsdf = init_dbl_tsdf.atOrBefore(target_dbl)
-
-        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
-
-    def test_after_string_timestamp(self):
-        """
-        Test of time-slicing after(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-        after_tsdf = init_tsdf.after(target_ts)
-
-        self.assertDataFrameEquality(after_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_after_numeric_timestamp(self):
-        """
-        Test of time-slicing after(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_dbl = self.__timestamp_to_double(target_ts)
-        after_dbl_tsdf = init_dbl_tsdf.after(target_dbl)
-
-        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
-
-    def test_atOrAfter_string_timestamp(self):
-        """
-        Test of time-slicing atOrAfter(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-        after_tsdf = init_tsdf.atOrAfter(target_ts)
-
-        self.assertDataFrameEquality(after_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_atOrAfter_numeric_timestamp(self):
-        """
-        Test of time-slicing atOrAfter(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:10"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_dbl = self.__timestamp_to_double(target_ts)
-        after_dbl_tsdf = init_dbl_tsdf.atOrAfter(target_dbl)
-
-        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
-
-    def test_between_string_timestamp(self):
-        """
-        Test of time-slicing between(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        ts1 = "2020-08-01 00:01:10"
-        ts2 = "2020-09-01 00:18:00"
-        between_tsdf = init_tsdf.between(ts1, ts2)
-
-        self.assertDataFrameEquality(between_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_between_numeric_timestamp(self):
-        """
-        Test of time-slicing between(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        ts1 = "2020-08-01 00:01:10"
-        ts2 = "2020-09-01 00:18:00"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        ts1_dbl = self.__timestamp_to_double(ts1)
-        ts2_dbl = self.__timestamp_to_double(ts2)
-        between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl)
-
-        self.assertDataFrameEquality(
-            between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
-        )
-
-    def test_between_exclusive_string_timestamp(self):
-        """
-        Test of time-slicing between(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        ts1 = "2020-08-01 00:01:10"
-        ts2 = "2020-09-01 00:18:00"
-        between_tsdf = init_tsdf.between(ts1, ts2, inclusive=False)
-
-        self.assertDataFrameEquality(between_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_between_exclusive_numeric_timestamp(self):
-        """
-        Test of time-slicing between(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        ts1 = "2020-08-01 00:01:10"
-        ts2 = "2020-09-01 00:18:00"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        ts1_dbl = self.__timestamp_to_double(ts1)
-        ts2_dbl = self.__timestamp_to_double(ts2)
-        between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl, inclusive=False)
-
-        self.assertDataFrameEquality(
-            between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
-        )
-
-    def test_earliest_string_timestamp(self):
-        """
-        Test of time-slicing earliest(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        earliest_tsdf = init_tsdf.earliest(n=3)
-
-        self.assertDataFrameEquality(earliest_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_earliest_numeric_timestamp(self):
-        """
-        Test of time-slicing earliest(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        earliest_dbl_tsdf = init_dbl_tsdf.earliest(n=3)
-
-        self.assertDataFrameEquality(
-            earliest_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
-        )
-
-    def test_latest_string_timestamp(self):
-        """
-        Test of time-slicing latest(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        latest_tsdf = init_tsdf.latest(n=3)
-
-        self.assertDataFrameEquality(
-            latest_tsdf, expected_tsdf, ignore_row_order=True, from_tsdf=True
-        )
-
-    def test_latest_numeric_timestamp(self):
-        """
-        Test of time-slicing latest(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        latest_dbl_tsdf = init_dbl_tsdf.latest(n=3)
-
-        self.assertDataFrameEquality(
-            latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True, from_tsdf=True
-        )
-
-    def test_priorTo_string_timestamp(self):
-        """
-        Test of time-slicing priorTo(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:00"
-        prior_tsdf = init_tsdf.priorTo(target_ts)
-
-        self.assertDataFrameEquality(prior_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_priorTo_numeric_timestamp(self):
-        """
-        Test of time-slicing priorTo(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:00"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_dbl = self.__timestamp_to_double(target_ts)
-        prior_dbl_tsdf = init_dbl_tsdf.priorTo(target_dbl)
-
-        self.assertDataFrameEquality(prior_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
-
-    def test_subsequentTo_string_timestamp(self):
-        """
-        Test of time-slicing subsequentTo(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:00"
-        subsequent_tsdf = init_tsdf.subsequentTo(target_ts)
-
-        self.assertDataFrameEquality(subsequent_tsdf, expected_tsdf, from_tsdf=True)
-
-    def test_subsequentTo_numeric_timestamp(self):
-        """
-        Test of time-slicing subsequentTo(..) function
-        """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
-
-        target_ts = "2020-09-01 00:02:00"
-
-        # test with numeric ts_col
-        init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
-        expected_dbl_tsdf = self.__tsdf_with_double_tscol(expected_tsdf)
-
-        target_dbl = self.__timestamp_to_double(target_ts)
-        subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
-
-        self.assertDataFrameEquality(
-            subsequent_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
-        )
-
-    def test__rowsBetweenWindow(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-
-        self.assertIsInstance(init_tsdf.rowsBetweenWindow(1, 1), WindowSpec)
-
-    def test_tsdf_interpolate(self):
-        ...
-
-
-class ExtractStateIntervalsTest(SparkTest):
-    """Test of finding time ranges for metrics with constant state."""
-
-    def test_eq_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_eq_1_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3"
-        )
-        intervals_eq_2_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="=="
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_eq_1_df, expected_df)
-        self.assertDataFrameEquality(intervals_eq_2_df, expected_df)
-
-    def test_eq_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_eq_1_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3"
-        )
-        intervals_eq_2_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="=="
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_eq_1_df, expected_df)
-        self.assertDataFrameEquality(intervals_eq_2_df, expected_df)
-
-    def test_ne_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_ne_0_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="!="
-        )
-        intervals_ne_1_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<>"
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_ne_0_df, expected_df)
-        self.assertDataFrameEquality(intervals_ne_1_df, expected_df)
-
-    def test_ne_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_ne_0_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="!="
-        )
-        intervals_ne_1_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<>"
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_ne_0_df, expected_df)
-        self.assertDataFrameEquality(intervals_ne_1_df, expected_df)
-
-    def test_gt_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition=">"
-        )
-
-        self.assertDataFrameEquality(intervals_gt_df, expected_df)
-
-    def test_gt_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition=">"
-        )
-
-        self.assertDataFrameEquality(intervals_gt_df, expected_df)
-
-    def test_lt_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_lt_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<"
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_lt_df, expected_df)
-
-    def test_lt_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_lt_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<"
-        )
-
-        # test intervals_tsdf summary
-        self.assertDataFrameEquality(intervals_lt_df, expected_df)
-
-    def test_gte_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition=">="
-        )
-
-        self.assertDataFrameEquality(intervals_gt_df, expected_df)
-
-    def test_gte_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition=">="
-        )
-
-        self.assertDataFrameEquality(intervals_gt_df, expected_df)
-
-    def test_lte_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_lte_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<="
-        )
-
-        # test intervals_tsdf summary
-        self.assertDataFrameEquality(intervals_lte_df, expected_df)
-
-    def test_lte_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # call extractStateIntervals method
-        intervals_lte_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<="
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_lte_df, expected_df)
-
-    def test_threshold_fn(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # threshold state function
-        def threshold_fn(a: Column, b: Column) -> Column:
-            return sfn.abs(a - b) < sfn.lit(0.5)
-
-        # call extractStateIntervals method
-        extracted_intervals_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition=threshold_fn
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(extracted_intervals_df, expected_df)
-
-    def test_null_safe_eq_0(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<=>"
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(
-            intervals_eq_df, expected_df, ignore_nullable=False
-        )
-
-    def test_null_safe_eq_1(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3", state_definition="<=>"
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(
-            intervals_eq_df, expected_df, ignore_nullable=False
-        )
-
-    def test_adjacent_intervals(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
-            "metric_1", "metric_2", "metric_3"
-        )
-
-        # test extractStateIntervals_tsdf summary
-        self.assertDataFrameEquality(intervals_eq_df, expected_df)
-
-    def test_invalid_state_definition_str(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-
-        try:
-            input_tsdf.extractStateIntervals(
-                "metric_1", "metric_2", "metric_3", state_definition="N/A"
-            )
-        except ValueError as e:
-            self.assertEqual(type(e), ValueError)
-
-    def test_invalid_state_definition_type(self):
-        # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-
-        try:
-            input_tsdf.extractStateIntervals(
-                "metric_1", "metric_2", "metric_3", state_definition=0
-            )
-        except TypeError as e:
-            self.assertEqual(type(e), TypeError)
-
-
-# MAIN
-if __name__ == "__main__":
-    unittest.main()
+    @parameterized.expand([
+        ("simple_ts_idx", SimpleTimestampIndex),
+        ("simple_ts_no_series", SimpleTimestampIndex),
+        ("simple_date_idx", SimpleDateIndex),
+        ("ordinal_double_index", OrdinalTSIndex),
+        ("ordinal_int_index", OrdinalTSIndex),
+        ("parsed_ts_idx", ParsedTimestampIndex),
+        ("parsed_date_idx", ParsedDateIndex),
+    ])
+    def test_tsdf_constructor(self, init_tsdf_id, expected_idx_class):
+        # create TSDF
+        init_tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # check that TSDF was created correctly
+        self.assertIsNotNone(init_tsdf)
+        self.assertIsInstance(init_tsdf, TSDF)
+        # validate the TSSchema
+        self.assertIsNotNone(init_tsdf.ts_schema)
+        self.assertIsInstance(init_tsdf.ts_schema, TSSchema)
+        # validate the TSIndex
+        self.assertIsNotNone(init_tsdf.ts_index)
+        self.assertIsInstance(init_tsdf.ts_index, expected_idx_class)
+
+    @parameterized.expand([
+        ("simple_ts_idx", ["symbol"]),
+        ("simple_ts_no_series", []),
+        ("simple_date_idx", ["station"]),
+        ("ordinal_double_index", ["symbol"]),
+        ("ordinal_int_index", ["symbol"]),
+        ("parsed_ts_idx", ["symbol"]),
+        ("parsed_date_idx", ["station"]),
+    ])
+    def test_series_ids(self, init_tsdf_id, expected_series_ids):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # validate series ids
+        self.assertEqual(set(tsdf.series_ids), set(expected_series_ids))
+
+    @parameterized.expand([
+        ("simple_ts_idx", ["event_ts", "symbol"]),
+        ("simple_ts_no_series", ["event_ts"]),
+        ("simple_date_idx", ["date", "station"]),
+        ("ordinal_double_index", ["event_ts_dbl", "symbol"]),
+        ("ordinal_int_index", ["order", "symbol"]),
+        ("parsed_ts_idx", ["ts_idx", "symbol"]),
+        ("parsed_date_idx", ["ts_idx", "station"]),
+    ])
+    def test_structural_cols(self, init_tsdf_id, expected_structural_cols):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # validate structural cols
+        self.assertEqual(set(tsdf.structural_cols), set(expected_structural_cols))
+
+    @parameterized.expand([
+        ("simple_ts_idx", ["trade_pr"]),
+        ("simple_ts_no_series", ["trade_pr"]),
+        ("simple_date_idx", ["temp"]),
+        ("ordinal_double_index", ["trade_pr"]),
+        ("ordinal_int_index", ["trade_pr"]),
+        ("parsed_ts_idx", ["trade_pr"]),
+        ("parsed_date_idx", ["temp"]),
+    ])
+    def test_obs_cols(self, init_tsdf_id, expected_obs_cols):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # validate obs cols
+        self.assertEqual(set(tsdf.observational_cols), set(expected_obs_cols))
+
+    @parameterized.expand([
+        ("simple_ts_idx", ["trade_pr"]),
+        ("simple_ts_no_series", ["trade_pr"]),
+        ("simple_date_idx", ["temp"]),
+        ("ordinal_double_index", ["trade_pr"]),
+        ("ordinal_int_index", ["trade_pr"]),
+        ("parsed_ts_idx", ["trade_pr"]),
+        ("parsed_date_idx", ["temp"]),
+    ])
+    def test_metric_cols(self, init_tsdf_id, expected_metric_cols):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # validate metric cols
+        self.assertEqual(set(tsdf.metric_cols), set(expected_metric_cols))
+
+
+class TimeSlicingTests(SparkTest):
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-09-01 00:19:12",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-09-01 00:19:12", 362.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-02",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 10.0, 361.1],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 1, 349.21],
+                        ["S2", 1, 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10.032",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-04",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_at(self, init_tsdf_id, ts, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        at_tsdf = tsdf.at(ts)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(at_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10", 349.21],
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-08-01 00:01:10", 743.01],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-09-01 00:19:12",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:00:10", 349.21],
+                        ["2020-08-01 00:01:10", 743.01],
+                        ["2020-08-01 00:01:12", 351.32],
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S2", 0.005, 743.01],
+                        ["S2", 0.1, 751.92],
+                        ["S2", 1.0, 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [["S2", 0, 743.01]],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10.000",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10.010", 349.21],
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S2", "2020-08-01 00:01:10.054", 743.01],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_before(self, init_tsdf_id, ts, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        before_tsdf = tsdf.before(ts)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(before_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10", 349.21],
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-08-01 00:01:10", 743.01],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-09-01 00:19:12",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:00:10", 349.21],
+                        ["2020-08-01 00:01:10", 743.01],
+                        ["2020-08-01 00:01:12", 351.32],
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-09-01 00:19:12", 362.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["LGA", "2020-08-03", 28.53],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                        ["YYZ", "2020-08-03", 20.62],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S1", 10.0, 361.1],
+                        ["S2", 0.005, 743.01],
+                        ["S2", 0.1, 751.92],
+                        ["S2", 1.0, 761.10],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [["S1", 1, 349.21], ["S2", 0, 743.01], ["S2", 1, 751.92]],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10.000",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10.010", 349.21],
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S2", "2020-08-01 00:01:10.054", 743.01],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["LGA", "2020-08-03", 28.53],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                        ["YYZ", "2020-08-03", 20.62],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_atOrBefore(self, init_tsdf_id, ts, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        at_before_tsdf = tsdf.atOrBefore(ts)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(at_before_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:19:12", 362.1],
+                        ["S2", "2020-09-01 00:20:42", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-09-01 00:08:12",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-09-01 00:19:12", 362.1],
+                        ["2020-09-01 00:20:42", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-02",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            1.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 1.207, 351.32],
+                        ["S1", 10.0, 361.1],
+                        ["S1", 24.357, 362.1],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            10,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 20, 351.32],
+                        ["S1", 127, 361.1],
+                        ["S1", 243, 362.1],
+                        ["S2", 100, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10.000",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                        ["S1", "2020-09-01 00:19:12.043", 362.1],
+                        ["S2", "2020-09-01 00:02:10.076", 761.10],
+                        ["S2", "2020-09-01 00:20:42.087", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_after(self, init_tsdf_id, ts, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        after_tsdf = tsdf.after(ts)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(after_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S1", "2020-09-01 00:19:12", 362.1],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                        ["S2", "2020-09-01 00:20:42", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:24",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-09-01 00:19:12", 362.1],
+                        ["2020-09-01 00:20:42", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 10.0, 361.1],
+                        ["S1", 24.357, 362.1],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            10,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 20, 351.32],
+                        ["S1", 127, 361.1],
+                        ["S1", 243, 362.1],
+                        ["S2", 10, 761.10],
+                        ["S2", 100, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10.000",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                        ["S1", "2020-09-01 00:19:12.043", 362.1],
+                        ["S2", "2020-09-01 00:02:10.076", 761.10],
+                        ["S2", "2020-09-01 00:20:42.087", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-03",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_atOrAfter(self, init_tsdf_id, ts, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        at_after_tsdf = tsdf.atOrAfter(ts)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(at_after_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:12", 351.32],
+                        ["2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-01",
+            "2020-08-03",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            0.1,
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S2", 1.0, 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            100,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [["S1", 20, 351.32], ["S2", 10, 761.10]],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-08-01 00:00:10.010",
+            "2020-09-01 00:02:10.076",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                        ["S2", "2020-08-01 00:01:10.054", 743.01],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-01",
+            "2020-08-03",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_between_non_inclusive(
+        self, init_tsdf_id, start_ts, end_ts, expected_tsdf_dict
+    ):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        between_tsdf = tsdf.between(start_ts, end_ts, inclusive=False)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-08-01 00:01:10", 743.01],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:10",
+            "2020-09-01 00:02:10",
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:10", 743.01],
+                        ["2020-08-01 00:01:12", 351.32],
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-01",
+            "2020-08-03",
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["LGA", "2020-08-03", 28.53],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                        ["YYZ", "2020-08-03", 20.62],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            0.1,
+            10.0,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S1", 10.0, 361.1],
+                        ["S2", 0.1, 751.92],
+                        ["S2", 1.0, 761.10],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            100,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 1, 349.21],
+                        ["S1", 20, 351.32],
+                        ["S2", 1, 751.92],
+                        ["S2", 10, 761.10],
+                        ["S2", 100, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-08-01 00:00:10.010",
+            "2020-09-01 00:02:10.076",
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10.010", 349.21],
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                        ["S2", "2020-08-01 00:01:10.054", 743.01],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                        ["S2", "2020-09-01 00:02:10.076", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-01",
+            "2020-08-03",
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["LGA", "2020-08-03", 28.53],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                        ["YYZ", "2020-08-03", 20.62],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_between_inclusive(
+        self, init_tsdf_id, start_ts, end_ts, expected_tsdf_dict
+    ):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        between_tsdf = tsdf.between(start_ts, end_ts, inclusive=True)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10", 349.21],
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-08-01 00:01:10", 743.01],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:00:10", 349.21],
+                        ["2020-08-01 00:01:10", 743.01],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            2,
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 0.13, 349.21],
+                        ["S1", 1.207, 351.32],
+                        ["S2", 0.005, 743.01],
+                        ["S2", 0.1, 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            2,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 1, 349.21],
+                        ["S1", 20, 351.32],
+                        ["S2", 0, 743.01],
+                        ["S2", 1, 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            2,
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-08-01 00:00:10.010", 349.21],
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S2", "2020-08-01 00:01:10.054", 743.01],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            2,
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-01", 27.58],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-01", 24.16],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_earliest(self, init_tsdf_id, num_records, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # get earliest timestamp
+        earliest_ts = tsdf.earliest(n=num_records)
+        # validate the timestamp
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(earliest_ts, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:19:12", 362.1],
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-09-01 00:20:42", 762.33],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            4,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-09-01 00:20:42", 762.33],
+                        ["2020-09-01 00:19:12", 362.1],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            3,
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-04", 25.57],
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-04", 20.65],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            1,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [["S1", 24.357, 362.1], ["S2", 10.0, 762.33]],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            3,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 243, 362.1],
+                        ["S1", 127, 361.1],
+                        ["S1", 20, 351.32],
+                        ["S2", 100, 762.33],
+                        ["S2", 10, 761.10],
+                        ["S2", 1, 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            3,
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-09-01 00:19:12.043", 362.1],
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S2", "2020-09-01 00:20:42.087", 762.33],
+                        ["S2", "2020-09-01 00:02:10.076", 761.10],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            1,
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_latest(self, init_tsdf_id, num_records, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # get earliest timestamp
+        latest_ts = tsdf.latest(n=num_records)
+        # validate the timestamp
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(latest_ts, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S1", "2020-08-01 00:01:12", 351.32],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                        ["S2", "2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-09-01 00:19:12",
+            3,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-09-01 00:19:12", 362.1],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-08-01 00:01:24", 751.92],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-03",
+            2,
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-02", 22.25],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            4,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 10.0, 361.1],
+                        ["S1", 1.207, 351.32],
+                        ["S1", 0.13, 349.21],
+                        ["S2", 10.0, 762.33],
+                        ["S2", 1.0, 761.10],
+                        ["S2", 0.1, 751.92],
+                        ["S2", 0.005, 743.01],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            1,
+            1,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [["S1", 1, 349.21], ["S2", 1, 751.92]],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10.000",
+            2,
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-08-01 00:01:12.021", 351.32],
+                        ["S1", "2020-08-01 00:00:10.010", 349.21],
+                        ["S2", "2020-08-01 00:01:24.065", 751.92],
+                        ["S2", "2020-08-01 00:01:10.054", 743.01],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-03",
+            3,
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-02", 28.79],
+                        ["LGA", "2020-08-01", 27.58],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-02", 22.25],
+                        ["YYZ", "2020-08-01", 24.16],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_priorTo(self, init_tsdf_id, ts, n, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        prior_tsdf = tsdf.priorTo(ts, n=n)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(prior_tsdf, expected_tsdf)
+
+    @parameterized.expand([
+        (
+            "simple_ts_idx",
+            "2020-09-01 00:02:10",
+            1,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10", 361.1],
+                        ["S2", "2020-09-01 00:02:10", 761.10],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_ts_no_series",
+            "2020-08-01 00:01:24",
+            3,
+            {
+                "ts_idx": {"ts_col": "event_ts", "series_ids": []},
+                "df": {
+                    "schema": "event_ts string, trade_pr float",
+                    "ts_convert": ["event_ts"],
+                    "data": [
+                        ["2020-08-01 00:01:24", 751.92],
+                        ["2020-09-01 00:02:10", 361.1],
+                        ["2020-09-01 00:19:12", 362.1],
+                    ],
+                },
+            },
+        ),
+        (
+            "simple_date_idx",
+            "2020-08-02",
+            5,
+            {
+                "ts_idx": {"ts_col": "date", "series_ids": ["station"]},
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "date_convert": ["date"],
+                    "data": [
+                        ["LGA", "2020-08-02", 28.79],
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-02", 22.25],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_double_index",
+            10.0,
+            2,
+            {
+                "ts_idx": {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, event_ts_dbl double, trade_pr float",
+                    "data": [
+                        ["S1", 10.0, 361.1],
+                        ["S1", 24.357, 362.1],
+                        ["S2", 10.0, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "ordinal_int_index",
+            10,
+            2,
+            {
+                "ts_idx": {"ts_col": "order", "series_ids": ["symbol"]},
+                "df": {
+                    "schema": "symbol string, order int, trade_pr float",
+                    "data": [
+                        ["S1", 20, 351.32],
+                        ["S1", 127, 361.1],
+                        ["S2", 10, 761.10],
+                        ["S2", 100, 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_ts_idx",
+            "2020-09-01 00:02:10",
+            3,
+            {
+                "ts_idx": {
+                    "ts_col": "event_ts",
+                    "series_ids": ["symbol"],
+                    "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSS",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "symbol string, event_ts string, trade_pr float",
+                    "data": [
+                        ["S1", "2020-09-01 00:02:10.032", 361.1],
+                        ["S1", "2020-09-01 00:19:12.043", 362.1],
+                        ["S2", "2020-09-01 00:02:10.076", 761.10],
+                        ["S2", "2020-09-01 00:20:42.087", 762.33],
+                    ],
+                },
+            },
+        ),
+        (
+            "parsed_date_idx",
+            "2020-08-03",
+            2,
+            {
+                "ts_idx": {
+                    "ts_col": "date",
+                    "series_ids": ["station"],
+                    "ts_fmt": "yyyy-MM-dd",
+                },
+                "tsdf_constructor": "fromStringTimestamp",
+                "df": {
+                    "schema": "station string, date string, temp float",
+                    "data": [
+                        ["LGA", "2020-08-03", 28.53],
+                        ["LGA", "2020-08-04", 25.57],
+                        ["YYZ", "2020-08-03", 20.62],
+                        ["YYZ", "2020-08-04", 20.65],
+                    ],
+                },
+            },
+        ),
+    ])
+    def test_subsequentTo(self, init_tsdf_id, ts, n, expected_tsdf_dict):
+        # load TSDF
+        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        # slice at timestamp
+        subseq_tsdf = tsdf.subsequentTo(ts, n=n)
+        # validate the slice
+        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        self.assertDataFrameEquality(subseq_tsdf, expected_tsdf)
