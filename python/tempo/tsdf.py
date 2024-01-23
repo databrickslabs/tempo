@@ -6,7 +6,7 @@ import operator
 from abc import ABCMeta, abstractmethod
 from functools import cached_property
 from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
-from typing import Collection, Dict, overload
+from typing import Collection, Dict, cast, overload
 
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
@@ -18,35 +18,17 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
-import tempo.as_of_join as t_as_of_join
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
 import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
+from tempo.tsschema import DEFAULT_TIMESTAMP_FORMAT, is_time_format, sub_seconds_precision_digits, \
+    CompositeTSIndex, ParsedTSIndex, TSIndex, TSSchema, WindowBuilder
 from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
 
-# default column name for constructed timeseries index struct columns
-DEFAULT_TS_IDX_COL = "ts_idx"
-
-def makeStructFromCols(df: DataFrame,
-                       struct_col_name: str,
-                       cols_to_move: Collection[str]) -> DataFrame:
-    """
-    Transform a :class:`DataFrame` by moving certain columns into a struct
-
-    :param df: the :class:`DataFrame` to transform
-    :param struct_col_name: name of the struct column to create
-    :param cols_to_move: name of the columns to move into the struct
-
-    :return: the transformed :class:`DataFrame`
-    """
-    return (df.withColumn(struct_col_name,
-                          sfn.struct(*cols_to_move))
-              .drop(*cols_to_move))
 
 class TSDF(WindowBuilder):
     """
@@ -71,14 +53,12 @@ class TSDF(WindowBuilder):
         self.ts_schema.validate(df.schema)
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
 
-    def __str__(self) -> str:
-        return f"""TSDF({id(self)}):
-        TS Index: {self.ts_index}
-        Series IDs: {self.series_ids}
-        Observational Cols: {self.observational_cols}
-        DataFrame: {self.df.schema}"""
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, TSDF):
+            return False
+        return self.ts_schema == other.ts_schema and self.df == other.df
 
     def __withTransformedDF(self, new_df: DataFrame) -> "TSDF":
         """
@@ -108,24 +88,24 @@ class TSDF(WindowBuilder):
         return self.__withTransformedDF(self.df.select(std_ordered_cols))
 
     @classmethod
-    def makeCompositeIndexTSDF(
-        cls,
-        df: DataFrame,
-        ts_index_cols: Collection[str],
-        series_ids: Collection[str] = None,
-        other_index_cols: Collection[str] = None,
-        composite_index_name: str = DEFAULT_TS_IDX_COL) -> "TSDF":
+    def __makeStructFromCols(
+        cls, df: DataFrame, struct_col_name: str, cols_to_move: List[str]
+    ) -> DataFrame:
         """
-        Construct a TSDF with a composite index from the specified columns
+        Transform a :class:`DataFrame` by moving certain columns into a struct
+
+        :param df: the :class:`DataFrame` to transform
+        :param struct_col_name: name of the struct column to create
+        :param cols_to_move: name of the columns to move into the struct
+
+        :return: the transformed :class:`DataFrame`
         """
-        # move all the index columns into a struct
-        all_composite_cols = set(ts_index_cols).union(set(other_index_cols or []))
-        with_struct_df = makeStructFromCols(df, composite_index_name, all_composite_cols)
-        # construct an appropriate TSIndex
-        ts_idx_struct = with_struct_df.schema[DEFAULT_TS_IDX_COL]
-        comp_idx = CompositeTSIndex(ts_idx_struct, *ts_index_cols)
-        # construct & return the TSDF with appropriate schema
-        return TSDF(with_struct_df, ts_schema=TSSchema(comp_idx, series_ids))
+        return df.withColumn(struct_col_name, sfn.struct(*cols_to_move)).drop(
+            *cols_to_move
+        )
+
+    # default column name for constructed timeseries index struct columns
+    __DEFAULT_TS_IDX_COL = "ts_idx"
 
     @classmethod
     def fromSubsequenceCol(
@@ -135,27 +115,50 @@ class TSDF(WindowBuilder):
         subsequence_col: str,
         series_ids: Optional[Collection[str]] = None,
     ) -> "TSDF":
-        return cls.makeCompositeIndexTSDF(df, [ts_col, subsequence_col], series_ids)
+        # construct a struct with the ts_col and subsequence_col
+        struct_col_name = cls.__DEFAULT_TS_IDX_COL
+        with_subseq_struct_df = cls.__makeStructFromCols(df,
+                                                         struct_col_name,
+                                                         [ts_col, subsequence_col])
+        # construct an appropriate TSIndex
+        subseq_struct = with_subseq_struct_df.schema[struct_col_name]
+        subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
+        # construct & return the TSDF with appropriate schema
+        return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
+
+    # default column name for parsed timeseries column
+    __DEFAULT_PARSED_TS_COL = "parsed_ts"
 
     @classmethod
-    def fromTimestampString(
+    def fromStringTimestamp(
         cls,
         df: DataFrame,
         ts_col: str,
         series_ids: Optional[Collection[str]] = None,
-        ts_fmt: str = "YYYY-MM-DDThh:mm:ss[.SSSSSS]",
+        ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT
     ) -> "TSDF":
-        pass
-
-    @classmethod
-    def fromDateString(
-        cls,
-        df: DataFrame,
-        ts_col: str,
-        series_ids: Collection[str],
-        date_fmt: str = "YYYY-MM-DD",
-    ) -> "TSDF ":
-        pass
+        # parse the ts_col based on the pattern
+        if is_time_format(ts_fmt):
+            # if the ts_fmt is a time format, we can use to_timestamp
+            ts_expr = sfn.to_timestamp(sfn.col(ts_col), ts_fmt)
+        else:
+            # otherwise, we'll use to_date
+            ts_expr = sfn.to_date(sfn.col(ts_col), ts_fmt)
+        # parse the ts_col give the expression
+        parsed_ts_col = cls.__DEFAULT_PARSED_TS_COL
+        parsed_df = df.withColumn(parsed_ts_col, ts_expr)
+        # move the ts cols into a struct
+        struct_col_name = cls.__DEFAULT_TS_IDX_COL
+        with_parsed_struct_df = cls.__makeStructFromCols(parsed_df,
+                                                         struct_col_name,
+                                                         [ts_col, parsed_ts_col])
+        # construct an appropriate TSIndex
+        parsed_struct = with_parsed_struct_df.schema[struct_col_name]
+        parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
+                                                          parsed_ts_col,
+                                                          ts_col)
+        # construct & return the TSDF with appropriate schema
+        return TSDF(with_parsed_struct_df, ts_schema=TSSchema(parsed_ts_idx, series_ids))
 
     @property
     def ts_index(self) -> "TSIndex":
@@ -163,7 +166,8 @@ class TSDF(WindowBuilder):
 
     @property
     def ts_col(self) -> str:
-        return self.ts_index.colname
+        # TODO - this should be replaced TSIndex expressions
+        pass
 
     @property
     def columns(self) -> List[str]:
@@ -407,7 +411,7 @@ class TSDF(WindowBuilder):
         selected_df = self.df.select(*cols)
         return self.__withTransformedDF(selected_df)
 
-    def where(self, condition: ColumnOrName) -> "TSDF":
+    def where(self, condition: Union[Column, str]) -> "TSDF":
         """
         Selects rows using the given condition.
 
@@ -419,23 +423,7 @@ class TSDF(WindowBuilder):
         where_df = self.df.where(condition)
         return self.__withTransformedDF(where_df)
 
-    def __slice(self, op: str, target_ts: Union[str, int]) -> "TSDF":
-        """
-        Private method to slice TSDF by time
-
-        :param op: string symbol of the operation to perform
-        :type op: str
-        :param target_ts: timestamp on which to filter
-
-        :return: a TSDF object containing only those records within the time slice specified
-        """
-        # quote our timestamp if its a string
-        target_expr = f"'{target_ts}'" if isinstance(target_ts, str) else target_ts
-        slice_expr = sfn.expr(f"{self.ts_col} {op} {target_expr}")
-        sliced_df = self.df.where(slice_expr)
-        return self.__withTransformedDF(sliced_df)
-
-    def at(self, ts: Union[str, int]) -> "TSDF":
+    def at(self, ts: Any) -> "TSDF":
         """
         Select only records at a given time
 
@@ -443,9 +431,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at the given time
         """
-        return self.__slice("==", ts)
+        return self.where(self.ts_index == ts)
 
-    def before(self, ts: Union[str, int]) -> "TSDF":
+    def before(self, ts: Any) -> "TSDF":
         """
         Select only records before a given time
 
@@ -453,9 +441,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records before the given time
         """
-        return self.__slice("<", ts)
+        return self.where(self.ts_index < ts)
 
-    def atOrBefore(self, ts: Union[str, int]) -> "TSDF":
+    def atOrBefore(self, ts: Any) -> "TSDF":
         """
         Select only records at or before a given time
 
@@ -463,9 +451,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at or before the given time
         """
-        return self.__slice("<=", ts)
+        return self.where(self.ts_index <= ts)
 
-    def after(self, ts: Union[str, int]) -> "TSDF":
+    def after(self, ts: Any) -> "TSDF":
         """
         Select only records after a given time
 
@@ -473,9 +461,9 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records after the given time
         """
-        return self.__slice(">", ts)
+        return self.where(self.ts_index > ts)
 
-    def atOrAfter(self, ts: Union[str, int]) -> "TSDF":
+    def atOrAfter(self, ts: Any) -> "TSDF":
         """
         Select only records at or after a given time
 
@@ -483,10 +471,10 @@ class TSDF(WindowBuilder):
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at or after the given time
         """
-        return self.__slice(">=", ts)
+        return self.where(self.ts_index >= ts)
 
     def between(
-        self, start_ts: Union[str, int], end_ts: Union[str, int], inclusive: bool = True
+        self, start_ts: Any, end_ts: Any, inclusive: bool = True
     ) -> "TSDF":
         """
         Select only records in a given range
@@ -541,7 +529,7 @@ class TSDF(WindowBuilder):
         next_window = self.baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
-    def priorTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def priorTo(self, ts: Any, n: int = 1) -> "TSDF":
         """
         Select the n most recent records prior to a given time
         You can think of this like an 'asOf' select - it selects the records as of a particular time
@@ -553,7 +541,7 @@ class TSDF(WindowBuilder):
         """
         return self.atOrBefore(ts).latest(n)
 
-    def subsequentTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def subsequentTo(self, ts: Any, n: int = 1) -> "TSDF":
         """
         Select the n records subsequent to a give time
 
@@ -692,6 +680,56 @@ class TSDF(WindowBuilder):
     #     except Exception:
     #         return full_smry
 
+    def __getSparkPlan(self, df: DataFrame, spark: SparkSession) -> str:
+        """
+        Internal helper function to obtain the Spark plan for the input data frame
+
+        Parameters
+        :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
+        :param spark - Spark session which is used to query the view obtained from the Spark data frame
+        """
+
+        df.createOrReplaceTempView("view")
+        plan = spark.sql("explain cost select * from view").collect()[0][0]
+
+        return plan
+
+    def __getBytesFromPlan(self, df: DataFrame, spark: SparkSession) -> float:
+        """
+        Internal helper function to obtain how many bytes in memory the Spark data
+        frame is likely to take up. This is an upper bound and is obtained from the
+        plan details in Spark
+
+        Parameters
+        :param df - input Spark data frame - the AS OF join has 2 data frames; this will be called for each
+        :param spark - Spark session which is used to query the view obtained from the Spark data frame
+        """
+
+        plan = self.__getSparkPlan(df, spark)
+
+        import re
+
+        search_result = re.search(r"sizeInBytes=.*(['\)])", plan, re.MULTILINE)
+        if search_result is not None:
+            result = search_result.group(0).replace(")", "")
+        else:
+            raise ValueError("Unable to obtain sizeInBytes from Spark plan")
+
+        size = result.split("=")[1].split(" ")[0]
+        units = result.split("=")[1].split(" ")[1]
+
+        # perform to MB for threshold check
+        if units == "GiB":
+            plan_bytes = float(size) * 1024 * 1024 * 1024
+        elif units == "MiB":
+            plan_bytes = float(size) * 1024 * 1024
+        elif units == "KiB":
+            plan_bytes = float(size) * 1024
+        else:
+            plan_bytes = float(size)
+
+        return plan_bytes
+
     def asofJoin(
         self,
         right_tsdf: "TSDF",
@@ -722,155 +760,173 @@ class TSDF(WindowBuilder):
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
         """
-        # select the appropriate join function
-        joiner = t_as_of_join.choose_as_of_join_strategy(self,
-                                                         right_tsdf,
-                                                         left_prefix=left_prefix,
-                                                         right_prefix=right_prefix,
-                                                         tsPartitionVal=tsPartitionVal,
-                                                         fraction=fraction,
-                                                         skipNulls=skipNulls,
-                                                         sql_join_opt=sql_join_opt,
-                                                         suppress_null_warning=suppress_null_warning,
-                                                         tolerance=tolerance)
-        return joiner(self, right_tsdf)
 
-        # # first block of logic checks whether a standard range join will suffice
-        # left_df = self.df
-        # right_df = right_tsdf.df
-        #
-        # # test if the broadcast join will be efficient
-        # if sql_join_opt:
-        #     spark = SparkSession.builder.getOrCreate()
-        #     left_bytes = self.__getBytesFromPlan(left_df, spark)
-        #     right_bytes = self.__getBytesFromPlan(right_df, spark)
-        #
-        #     # choose 30MB as the cutoff for the broadcast
-        #     bytes_threshold = 30 * 1024 * 1024
-        #     if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-        #         # TODO - call broadcast join here
-        #
-        # # end of block checking to see if standard Spark SQL join will work
-        #
-        # if tsPartitionVal is not None:
-        #     logger.warning(
-        #         "You are using the skew version of the AS OF join. This may result in null values if there are any "
-        #         "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
-        #         "lookback, trading off performance and potential blank AS OF values for sparse keys"
-        #     )
+        # first block of logic checks whether a standard range join will suffice
+        left_df = self.df
+        right_df = right_tsdf.df
+
+        # test if the broadcast join will be efficient
+        if sql_join_opt:
+            spark = SparkSession.builder.getOrCreate()
+            left_bytes = self.__getBytesFromPlan(left_df, spark)
+            right_bytes = self.__getBytesFromPlan(right_df, spark)
+
+            # choose 30MB as the cutoff for the broadcast
+            bytes_threshold = 30 * 1024 * 1024
+            if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
+                spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
+                partition_cols = right_tsdf.series_ids
+                left_cols = list(set(left_df.columns) - set(self.series_ids))
+                right_cols = list(set(right_df.columns) - set(right_tsdf.series_ids))
+
+                left_prefix = left_prefix + "_" if left_prefix else ""
+                right_prefix = right_prefix + "_" if right_prefix else ""
+
+                w = Window.partitionBy(*partition_cols).orderBy(
+                    right_prefix + right_tsdf.ts_col
+                )
+
+                new_left_ts_col = left_prefix + self.ts_col
+                series_cols = [sfn.col(c) for c in self.series_ids]
+                new_left_cols = [
+                    sfn.col(c).alias(left_prefix + c) for c in left_cols
+                ] + series_cols
+                new_right_cols = [
+                    sfn.col(c).alias(right_prefix + c) for c in right_cols
+                ] + series_cols
+                quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
+                    "lead_" + right_tsdf.ts_col,
+                    sfn.lead(right_prefix + right_tsdf.ts_col).over(w),
+                )
+                left_df = left_df.select(*new_left_cols)
+                res = (
+                    left_df.join(quotes_df_w_lag, partition_cols)
+                    .where(
+                        left_df[new_left_ts_col].between(
+                            sfn.col(right_prefix + right_tsdf.ts_col),
+                            sfn.coalesce(
+                                sfn.col("lead_" + right_tsdf.ts_col),
+                                sfn.lit("2099-01-01").cast("timestamp"),
+                            ),
+                        )
+                    )
+                    .drop("lead_" + right_tsdf.ts_col)
+                )
+                return TSDF(res, ts_col=new_left_ts_col, series_ids=self.series_ids)
+
+        # end of block checking to see if standard Spark SQL join will work
+
+        if tsPartitionVal is not None:
+            logger.warning(
+                "You are using the skew version of the AS OF join. This may result in null values if there are any "
+                "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
+                "lookback, trading off performance and potential blank AS OF values for sparse keys"
+            )
 
         # Check whether partition columns have same name in both dataframes
-        # self.__checkPartitionCols(right_tsdf)
-        #
-        # # prefix non-partition columns, to avoid duplicated columns.
-        # left_df = self.df
-        # right_df = right_tsdf.df
-        #
-        # # validate timestamp datatypes match
-        # self.__validateTsColMatch(right_tsdf)
-        #
-        # orig_left_col_diff = list(
-        #     set(left_df.columns) - set(self.series_ids)
-        # )
-        # orig_right_col_diff = list(
-        #     set(right_df.columns) - set(self.series_ids)
-        # )
-        #
-        # left_tsdf = (
-        #     (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
-        #     if left_prefix is not None
-        #     else self
-        # )
-        # right_tsdf = right_tsdf.__addPrefixToColumns(
-        #     [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
-        # )
-        #
-        # left_nonpartition_cols = list(
-        #     set(left_tsdf.df.columns) - set(self.series_ids)
-        # )
-        # right_nonpartition_cols = list(
-        #     set(right_tsdf.df.columns) - set(self.series_ids)
-        # )
+        self.__checkPartitionCols(right_tsdf)
 
-        # For both dataframes get all non-partition columns (including ts_col)
-        # left_columxxmns = [left_tsdf.ts_col] + left_nonpartition_cols
-        # right_columns = [right_tsdf.ts_col] + right_nonpartition_cols
-        #
-        # # Union both dataframes, and create a combined TS column
-        # combined_ts_col = "combined_ts"
-        # combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
-        #     right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
-        # )
-        # combined_df.df = combined_df.df.withColumn(
-        #     "rec_ind",
-        #     sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
-        # )
+        # prefix non-partition columns, to avoid duplicated columns.
+        left_df = self.df
+        right_df = right_tsdf.df
+
+        # validate timestamp datatypes match
+        self.__validateTsColMatch(right_tsdf)
+
+        orig_left_col_diff = list(set(left_df.columns) - set(self.series_ids))
+        orig_right_col_diff = list(set(right_df.columns) - set(self.series_ids))
+
+        left_tsdf = (
+            (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
+            if left_prefix is not None
+            else self
+        )
+        right_tsdf = right_tsdf.__addPrefixToColumns(
+            [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
+        )
+
+        left_columns = list(
+            set(left_tsdf.df.columns).difference(set(self.partitionCols))
+        )
+        right_columns = list(
+            set(right_tsdf.df.columns).difference(set(self.partitionCols))
+        )
+
+        # Union both dataframes, and create a combined TS column
+        combined_ts_col = "combined_ts"
+        combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
+            right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
+        )
+        combined_df.df = combined_df.df.withColumn(
+            "rec_ind",
+            sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
+        )
 
         # perform asof join.
-        # if tsPartitionVal is None:
-        #     seq_col = None
-        #     if isinstance(combined_df.ts_index, CompositeTSIndex):
-        #         seq_col = cast(CompositeTSIndex, combined_df.ts_index).ts_component(1)
-        #     asofDF = combined_df.__getLastRightRow(
-        #         left_tsdf.ts_col,
-        #         right_columns,
-        #         seq_col,
-        #         tsPartitionVal,
-        #         skipNulls,
-        #         suppress_null_warning,
-        #     )
-        # else:
-        #     tsPartitionDF = combined_df.__getTimePartitions(
-        #         tsPartitionVal, fraction=fraction
-        #     )
-        #     seq_col = None
-        #     if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-        #         seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).ts_component(1)
-        #     asofDF = tsPartitionDF.__getLastRightRow(
-        #         left_tsdf.ts_col,
-        #         right_columns,
-        #         seq_col,
-        #         tsPartitionVal,
-        #         skipNulls,
-        #         suppress_null_warning,
-        #     )
-        #
-        #     # Get rid of overlapped data and the extra columns generated from timePartitions
-        #     df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
-        #         "ts_partition", "is_original"
-        #     )
-        #
-        #     asofDF = TSDF(df, ts_col=asofDF.ts_col, series_ids=combined_df.series_ids)
-        #
-        # if tolerance is not None:
-        #     df = asofDF.df
-        #     left_ts_col = left_tsdf.ts_col
-        #     right_ts_col = right_tsdf.ts_col
-        #     tolerance_condition = (
-        #         df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
-        #         > tolerance
-        #     )
-        #
-        #     for right_col in right_columns:
-        #         # First set right non-timestamp columns to null for rows outside of tolerance band
-        #         if right_col != right_ts_col:
-        #             df = df.withColumn(
-        #                 right_col,
-        #                 sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-        #                     df[right_col]
-        #                 ),
-        #             )
-        #
-        #     # Finally, set right timestamp column to null for rows outside of tolerance band
-        #     df = df.withColumn(
-        #         right_ts_col,
-        #         sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-        #             df[right_ts_col]
-        #         ),
-        #     )
-        #     asofDF.df = df
-        #
-        # return asofDF
+        if tsPartitionVal is None:
+            seq_col = None
+            if isinstance(combined_df.ts_index, CompositeTSIndex):
+                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(1)
+            asofDF = combined_df.__getLastRightRow(
+                left_tsdf.ts_col,
+                right_columns,
+                seq_col,
+                tsPartitionVal,
+                skipNulls,
+                suppress_null_warning,
+            )
+        else:
+            tsPartitionDF = combined_df.__getTimePartitions(
+                tsPartitionVal, fraction=fraction
+            )
+            seq_col = None
+            if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
+                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).get_ts_component(1)
+            asofDF = tsPartitionDF.__getLastRightRow(
+                left_tsdf.ts_col,
+                right_columns,
+                seq_col,
+                tsPartitionVal,
+                skipNulls,
+                suppress_null_warning,
+            )
+
+            # Get rid of overlapped data and the extra columns generated from timePartitions
+            df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
+                "ts_partition", "is_original"
+            )
+
+            asofDF = TSDF(df, ts_col=asofDF.ts_col, series_ids=combined_df.series_ids)
+
+        if tolerance is not None:
+            df = asofDF.df
+            left_ts_col = left_tsdf.ts_col
+            right_ts_col = right_tsdf.ts_col
+            tolerance_condition = (
+                df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
+                > tolerance
+            )
+
+            for right_col in right_columns:
+                # First set right non-timestamp columns to null for rows outside of tolerance band
+                if right_col != right_ts_col:
+                    df = df.withColumn(
+                        right_col,
+                        sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
+                            df[right_col]
+                        ),
+                    )
+
+            # Finally, set right timestamp column to null for rows outside of tolerance band
+            df = df.withColumn(
+                right_ts_col,
+                sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
+                    df[right_ts_col]
+                ),
+            )
+            asofDF.df = df
+
+        return asofDF
 
     def baseWindow(self, reverse: bool = False) -> WindowSpec:
         return self.ts_schema.baseWindow(reverse=reverse)
@@ -1374,6 +1430,7 @@ class TSDF(WindowBuilder):
 
         :param: metric_cols: the set of metric columns to evaluate for state changes
         :param: state_definition: the comparison function used to evaluate individual metrics for state changes.
+
         Either a string, giving a standard PySpark column comparison operation, or a binary function with the
         signature: `(x1: Column, x2: Column) -> Column` where the returned column expression evaluates to a
         :class:`~pyspark.sql.types.BooleanType`

@@ -4,8 +4,6 @@ from pyspark.sql import Column
 
 from pandas.core.frame import DataFrame as PandasDataFrame
 
-from pyspark.sql.pandas._typing import PandasMapIterFunction, PandasGroupedMapFunction
-
 # These definitions were copied from private pypark modules:
 # - pyspark.sql._typing
 # - pyspark.sql.pandas._typing
