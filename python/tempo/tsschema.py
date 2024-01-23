@@ -1,13 +1,14 @@
 import re
 import warnings
 from abc import ABC, abstractmethod
-from typing import Collection, List, Optional, Union
+from typing import Collection, Tuple, List, Optional, Union, Iterator
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
 
+from tempo.typing import AnyLiteral
 from tempo.timeunit import TimeUnit, StandardTimeUnits
 
 #
@@ -116,6 +117,13 @@ class TSIndex(ABC):
         """
 
     @property
+    def is_composite(self) -> bool:
+        """
+        :return: whether this index is a composite index
+        """
+        return isinstance(self, CompositeTSIndex)
+
+    @property
     @abstractmethod
     def unit(self) -> Optional[TimeUnit]:
         """
@@ -157,6 +165,14 @@ class TSIndex(ABC):
         other columns, expressions or values
         """
 
+    @abstractmethod
+    def is_comparable(self, other: "TSIndex") -> bool:
+        """
+        :param other: the other TSIndex to compare with
+
+        :return: whether this TSIndex can be compared with the other TSIndex
+        """
+
     def __eq__(self, other) -> Column:
         return self.comparableExpr() == _col_or_lit(other)
 
@@ -174,6 +190,17 @@ class TSIndex(ABC):
 
     def __ge__(self, other) -> Column:
         return self.comparableExpr() >= _col_or_lit(other)
+
+    def between(self, lowerBound, upperBound) -> "Column":
+        """
+        A boolean expression that is evaluated to true if the value of this expression is between the given columns.
+
+        :param lowerBound: The lower bound of the range
+        :param upperBound: The upper bound of the range
+
+        :return: A boolean expression
+        """
+        return self.comparableExpr().between(lowerBound, upperBound)
 
     # other expression builder methods
 
@@ -245,6 +272,11 @@ class SimpleTSIndex(TSIndex, ABC):
 
     def comparableExpr(self) -> Column:
         return sfn.col(self.colname)
+
+    def is_comparable(self, other: "TSIndex") -> bool:
+        if isinstance(other, SimpleTSIndex):
+            return self.dataType == other.dataType
+        return other.is_comparable(self)
 
     def orderByExpr(self, reverse: bool = False) -> Column:
         return _reverse_or_not(self.comparableExpr(), reverse)
@@ -433,12 +465,24 @@ class CompositeTSIndex(TSIndex, ABC):
     def comparableExpr(self) -> List[Column]:
         return [sfn.col(self.fieldPath(comp)) for comp in self.component_fields]
 
+    def is_comparable(self, other: "TSIndex") -> bool:
+        # the types of our component fields
+        my_comp_types = [self.schema[f].dataType for f in self.component_fields]
+        # if other is a CompositeTSIndex,
+        if isinstance(other, CompositeTSIndex):
+            # then we compare the types of the component fields
+            other_comp_types = [other.schema[f].dataType for f in other.component_fields]
+            return my_comp_types == other_comp_types
+        else:
+            # otherwise, we compare to a single type
+            return my_comp_types == [other.dataType]
+
     def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
         return _reverse_or_not(self.comparableExpr(), reverse)
 
     # comparators
 
-    def _validate_other(self, other) -> None:
+    def _validate_other(self, other: Union[Tuple, List]) -> None:
         if len(other) != len(self.component_fields):
             raise ValueError(
                 f"{self.__class__.__name__} has {len(self.component_fields)} "
@@ -446,14 +490,26 @@ class CompositeTSIndex(TSIndex, ABC):
                 f"but received {len(other)}"
             )
 
-    def __eq__(self, other) -> Column:
+    def _expand_comps(self, other) -> List[Column]:
+        # if other is another TSIndex,
+        # then we evaluate against its comparable expressions
+        if isinstance(other, TSIndex):
+            return self._expand_comps(other.comparableExpr())
         # try to compare the whole index to a single value
         if not isinstance(other, (tuple, list)):
-            return self.__eq__([other])
+            return self._expand_comps([other])
         # validate the number of arguments
         self._validate_other(other)
+        # if not a column, then a literal
+        return [_col_or_lit(o) for o in other]
+
+    def _build_comps(self, other) -> Iterator[Column]:
         # match each component field with its corresponding comparison value
-        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        return zip(self.comparableExpr(), self._expand_comps(other))
+
+    def __eq__(self, other) -> Column:
+        # match each component field with its corresponding comparison value
+        comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs: list[Column] = [(c == o) for (c, o) in comps]
         # conjunction of all expressions (AND)
@@ -463,13 +519,8 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
     def __ne__(self, other) -> Column:
-        # try to compare the whole index to a single value
-        if not isinstance(other, (tuple, list)):
-            return self.__ne__([other])
-        # validate the arguments
-        self._validate_other(other)
         # match each component field with its corresponding comparison value
-        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs = [(c != o) for (c, o) in comps]
         # disjunction of all expressions (OR)
@@ -479,13 +530,8 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
     def __lt__(self, other) -> Column:
-        # try to compare the whole index to a single value
-        if not isinstance(other, (tuple, list)):
-            return self.__lt__([other])
-        # validate the arguments
-        self._validate_other(other)
         # match each component field with its corresponding comparison value
-        comps = list(zip(self.comparableExpr(), [_col_or_lit(o) for o in other]))
+        comps = list(self._build_comps(other))
         # do a leq for all but the last component
         comp_exprs = []
         if len(comps) > 1:
@@ -499,13 +545,8 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
     def __le__(self, other) -> Column:
-        # try to compare the whole index to a single value
-        if not isinstance(other, (tuple, list)):
-            return self.__le__([other])
-        # validate the arguments
-        self._validate_other(other)
         # match each component field with its corresponding comparison value
-        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs = [(c <= o) for (c, o) in comps]
         # conjunction of all expressions (AND)
@@ -515,13 +556,8 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
     def __gt__(self, other) -> Column:
-        # try to compare the whole index to a single value
-        if not isinstance(other, (tuple, list)):
-            return self.__gt__([other])
-        # validate the arguments
-        self._validate_other(other)
         # match each component field with its corresponding comparison value
-        comps = list(zip(self.comparableExpr(), [_col_or_lit(o) for o in other]))
+        comps = list(self._build_comps(other))
         # do a geq for all but the last component
         comp_exprs = []
         if len(comps) > 1:
@@ -535,13 +571,8 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
     def __ge__(self, other) -> Column:
-        # try to compare the whole index to a single value
-        if not isinstance(other, (tuple, list)):
-            return self.__ge__([other])
-        # validate the arguments
-        self._validate_other(other)
         # match each component field with its corresponding comparison value
-        comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
+        comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs = [(c >= o) for (c, o) in comps]
         # conjunction of all expressions (AND)
@@ -550,6 +581,19 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
+    def between(self, lowerBound, upperBound) -> "Column":
+        # match each component field with its
+        # corresponding lower and upper bound values
+        comps = zip(self.comparableExpr(),
+                    self._expand_comps(lowerBound),
+                    self._expand_comps(upperBound))
+        # build comparison expressions for each triple
+        comp_exprs = [(c.between(lb, ub)) for (c, lb, ub) in comps]
+        # conjunction of all expressions (AND)
+        if len(comp_exprs) > 1:
+            return sfn.expr(" AND ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
 #
 # Parsed TS Index types
@@ -851,10 +895,8 @@ class TSSchema(WindowBuilder):
         # must be of TSSchema type
         if not isinstance(o, TSSchema):
             return False
-        # must have TSIndices with the same unit
-        if not ((self.ts_idx.has_unit == o.ts_idx.has_unit)
-                and
-                (self.ts_idx.unit == o.ts_idx.unit)):
+        # must have comparable TSIndex types
+        if not self.ts_idx.is_comparable(o.ts_idx):
             return False
         # must have the same series IDs
         if self.series_ids != o.series_ids:

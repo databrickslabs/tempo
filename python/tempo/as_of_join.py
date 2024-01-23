@@ -1,3 +1,4 @@
+import copy
 from abc import ABC, abstractmethod
 from typing import Optional
 from functools import reduce
@@ -5,9 +6,11 @@ from functools import reduce
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as sfn
 
+from tempo.tsschema import CompositeTSIndex, TSSchema
 import tempo.tsdf as t_tsdf
 
 # As-of join types
+
 
 class AsOfJoiner(ABC):
     """
@@ -73,30 +76,12 @@ class AsOfJoiner(ABC):
 
         return left_prefixed, right_prefixed
 
-    def _checkPartitionCols(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> None:
-        for left_col, right_col in zip(left.series_ids, right.series_ids):
-            if left_col != right_col:
-                raise ValueError(
-                    "left and right dataframe partition columns should have same name in same order"
-                )
-
-    def _validateTsColMatch(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> None:
-        # TODO - can simplify this to get types from schema object
-        left_ts_datatype = type(left.ts_index)
-        right_ts_datatype = type(right.ts_index)
-        if left_ts_datatype != right_ts_datatype:
-            raise ValueError(
-                "left and right dataframe timestamp index columns should have same type"
-            )
-
     def _checkAreJoinable(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> None:
         """
         Checks if the left and right TSDFs are joinable. If not, raises an exception.
         """
-        # make sure their partition columns are the same
-        self._checkPartitionCols(left, right)
-        # make sure their timeseries indices are the same
-        self._validateTsColMatch(left, right)
+        # make sure the schemas are equivalent
+        assert left.ts_schema == right.ts_schema
 
     @abstractmethod
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
@@ -128,14 +113,11 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         w = right.baseWindow()
         lead_colname = "lead_" + right.ts_col
         right_with_lead = right.withColumn(lead_colname,
-                                           sfn.coalesce(
-                                               sfn.lead(right.ts_col).over(w),
-                                               sfn.lit("2099-01-01").cast("timestamp"))
-                                           )
+                                           sfn.lead(right.ts_index.colname).over(w))
         # perform the join
         join_series_ids = self.commonSeriesIDs(left, right)
         res_df = (left.df.join(right_with_lead.df, list(join_series_ids))
-                  .where(left.ts_index.betweenExpr(right.ts_col, lead_colname))
+                  .where(left.ts_index.between(right.ts_index, sfn.col(lead_colname)))
                   .drop(lead_colname))
         # return with the left-hand schema
         return t_tsdf.TSDF(res_df, ts_schema=left.ts_schema)
@@ -143,6 +125,8 @@ class BroadcastAsOfJoiner(AsOfJoiner):
 
 _DEFAULT_COMBINED_TS_COLNAME = "combined_ts"
 _DEFAULT_RIGHT_ROW_COLNAME = "righthand_tbl_row"
+_LEFT_HAND_ROW_INDICATOR = 1
+_RIGHT_HAND_ROW_INDICATOR = -1
 
 class UnionSortFilterAsOfJoin(AsOfJoiner):
     """
@@ -169,70 +153,73 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
             cols,
             tsdf)
 
-    def _addRightRowIndicator(self, tsdf: t_tsdf.TSDF) -> t_tsdf.TSDF:
-        """
-        Adds a column to indicate if the row is from the right-hand side
-        """
-        # add indicator column
-        right_row_ind_df = tsdf.df.withColumn(_DEFAULT_RIGHT_ROW_COLNAME,
-                                              sfn.when(
-                                                  sfn.col(tsdf.ts_col).isNotNull(),
-                                                  1)
-                                              .otherwise(-1))
-        # extend the TSIndex with the indicator as a sub-sequence index
-        if isinstance(tsdf.ts_index, t_tsdf.CompositeTSIndex):
-            # TODO - implement extending an existing CompositeTSIndex
-            raise NotImplementedError("Extending an existing CompositeTSIndex "
-                                      "is not yet implemented")
-        else:
-            return t_tsdf.TSDF.fromSubsequenceCol(right_row_ind_df,
-                                                  tsdf.ts_col,
-                                                  _DEFAULT_RIGHT_ROW_COLNAME,
-                                                  tsdf.series_ids)
-
     def _combine(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
         """
         Combines the left and right TSDFs into a single TSDF
         """
         # union the left and right TSDFs
         unioned = left.unionByName(right)
-        # coalesce the timestamp column,
-        # and add a column to indicate if the row is from the right-hand side
-        combined_ts = unioned.withColumn(_DEFAULT_COMBINED_TS_COLNAME,
-                                         sfn.coalesce(left.ts_col,
-                                                      right.ts_col))
-        # add indicator column
-        r_row_ind = combined_ts.withColumn(_DEFAULT_RIGHT_ROW_COLNAME,
-                                           sfn.when(
-                                               sfn.col(left.ts_col).isNotNull(),1)
-                                           .otherwise(-1))
-        # combine all the ts columns into a single struct column
-        return t_tsdf.TSDF.makeCompositeIndexTSDF(r_row_ind.df,
-                                                  [_DEFAULT_COMBINED_TS_COLNAME,
-                                                   _DEFAULT_RIGHT_ROW_COLNAME],
-                                                  combined_ts.series_ids,
-                                                  [left.ts_col, right.ts_col])
+        # coalesce a combined ts index
+        left_comps = left.ts_index.comparableExpr()
+        right_comps = right.ts_index.comparableExpr()
+        if not isinstance(left_comps, list):
+            left_comps = [left_comps]
+        if not isinstance(right_comps, list):
+            right_comps = [right_comps]
+        if isinstance(left.ts_index, t_tsdf.CompositeTSIndex):
+            comp_names = left.ts_index.component_names
+        else:
+            comp_names = [left.ts_index.colname]
+        combined_comps = [sfn.coalesce(lc, rc).alias(cn) for lc, rc, cn in zip(left_comps, right_comps, comp_names)]
+        # build an expression for an right-hand side indicator field
+        right_ind = (sfn.when(sfn.col(left.ts_col).isNotNull(),
+                              _LEFT_HAND_ROW_INDICATOR)
+                     .otherwise(_RIGHT_HAND_ROW_INDICATOR)
+                     .alias(_DEFAULT_RIGHT_ROW_COLNAME))
+        # combine all into a single struct column
+        with_combined_ts = unioned.withColumn(_DEFAULT_COMBINED_TS_COLNAME,
+                                              sfn.struct(*combined_comps,right_ind))
+        combined_ts_col = with_combined_ts.df.schema[_DEFAULT_COMBINED_TS_COLNAME]
+        # construct a CompositeTSIndex from the combined ts index
+        combined_tsidx = CompositeTSIndex(combined_ts_col,
+                                          *(comp_names+[_DEFAULT_RIGHT_ROW_COLNAME]))
+        # put it all together in a new TSDF
+        return t_tsdf.TSDF(with_combined_ts.df,
+                           ts_schema=TSSchema(combined_tsidx, left.series_ids))
 
     def _filterLastRightRow(self,
                             combined: t_tsdf.TSDF,
-                            right_cols: set[str]) -> t_tsdf.TSDF:
+                            right_cols: set[str],
+                            last_left_tsschema: TSSchema) -> t_tsdf.TSDF:
         """
         Filters out the last right-hand row for each left-hand row
         """
         # find the last value for each column in the right-hand side
         w = combined.allBeforeWindow()
-        last_right_vals = reduce(
-            lambda cur_tsdf, col: cur_tsdf.withColumn(
-                col,
-                sfn.last(col, self.skipNulls).over(w),
-            ),
-            right_cols,
-            combined,
-        )
+        if self.skipNulls:
+            last_right_cols = [
+                sfn.last(col, True).over(w).alias(col)
+                for col in right_cols
+            ]
+        else:
+            last_right_cols = [
+                sfn.last(
+                    sfn.when(sfn.col(_DEFAULT_RIGHT_ROW_COLNAME) == _RIGHT_HAND_ROW_INDICATOR,
+                             sfn.struct(col)).otherwise(None),
+                    True,
+                ).over(w).alias(col)
+                for col in right_cols
+            ]
+        # get the last right-hand row for each left-hand row
+        non_right_cols = list(set(combined.columns) - right_cols)
+        last_right_vals = combined.select(*(non_right_cols + last_right_cols))
         # filter out the last right-hand row for each left-hand row
-        r_row_ind: str = combined.ts_index.component(_DEFAULT_RIGHT_ROW_COLNAME)
-        filtered = last_right_vals.where(sfn.col(r_row_ind) == 1).drop(r_row_ind)
-        return filtered
+        as_of_df = (last_right_vals.df
+                    .where(sfn.col(_DEFAULT_RIGHT_ROW_COLNAME) ==
+                           _LEFT_HAND_ROW_INDICATOR)
+                    .drop(_DEFAULT_COMBINED_TS_COLNAME))
+        # return with the left-hand schema
+        return t_tsdf.TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
     def _toleranceFilter(self, as_of: t_tsdf.TSDF) -> t_tsdf.TSDF:
         """
@@ -250,7 +237,9 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         # combine the left and right TSDFs
         combined = self._combine(extended_left, extended_right)
         # filter out the last right-hand row for each left-hand row
-        as_of = self._filterLastRightRow(combined, right_only_cols)
+        as_of = self._filterLastRightRow(combined,
+                                         right_only_cols,
+                                         extended_left.ts_schema)
         # apply tolerance filter
         if self.tolerance is not None:
             as_of = self._toleranceFilter(as_of)
