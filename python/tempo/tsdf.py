@@ -23,8 +23,8 @@ import tempo.io as t_io
 import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.tsschema import DEFAULT_TIMESTAMP_FORMAT, is_time_format, \
-    CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
+from tempo.tsschema import DEFAULT_TIMESTAMP_FORMAT, is_time_format, sub_seconds_precision_digits, \
+    CompositeTSIndex, ParsedTSIndex, TSIndex, TSSchema, WindowBuilder
 from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ class TSDF(WindowBuilder):
             ts_expr = sfn.to_date(sfn.col(ts_col), ts_fmt)
         # parse the ts_col give the expression
         parsed_ts_col = cls.__DEFAULT_PARSED_TS_COL
-        parsed_df = df.withColumn(cls.__DEFAULT_PARSED_TS_COL, ts_expr)
+        parsed_df = df.withColumn(parsed_ts_col, ts_expr)
         # move the ts cols into a struct
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
         with_parsed_struct_df = cls.__makeStructFromCols(parsed_df,

@@ -1,7 +1,7 @@
 import re
 import warnings
 from abc import ABC, abstractmethod
-from typing import Collection, List, Optional, Union, Callable
+from typing import Collection, List, Optional, Union
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
@@ -455,9 +455,12 @@ class CompositeTSIndex(TSIndex, ABC):
         # match each component field with its corresponding comparison value
         comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
         # build comparison expressions for each pair
-        comp_exprs = [c.eq(o) for (c, o) in comps]
+        comp_exprs: list[Column] = [(c == o) for (c, o) in comps]
         # conjunction of all expressions (AND)
-        return sfn.expr(" AND ".join(comp_exprs))
+        if len(comp_exprs) > 1:
+            return sfn.expr(" AND ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
     def __ne__(self, other) -> Column:
         # try to compare the whole index to a single value
@@ -468,9 +471,12 @@ class CompositeTSIndex(TSIndex, ABC):
         # match each component field with its corresponding comparison value
         comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
         # build comparison expressions for each pair
-        comp_exprs = [c.neq(o) for (c, o) in comps]
+        comp_exprs = [(c != o) for (c, o) in comps]
         # disjunction of all expressions (OR)
-        return sfn.expr(" OR ".join(comp_exprs))
+        if len(comp_exprs) > 1:
+            return sfn.expr(" OR ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
     def __lt__(self, other) -> Column:
         # try to compare the whole index to a single value
@@ -483,11 +489,14 @@ class CompositeTSIndex(TSIndex, ABC):
         # do a leq for all but the last component
         comp_exprs = []
         if len(comps) > 1:
-            comp_exprs = [c.leq(o) for (c, o) in comps[:-1]]
+            comp_exprs = [(c <= o) for (c, o) in comps[:-1]]
         # strict lt for the last component
-        comp_exprs += [c.lt(o) for (c, o) in comps[-1:]]
+        comp_exprs += [(c < o) for (c, o) in comps[-1:]]
         # conjunction of all expressions (AND)
-        return sfn.expr(" AND ".join(comp_exprs))
+        if len(comp_exprs) > 1:
+            return sfn.expr(" AND ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
     def __le__(self, other) -> Column:
         # try to compare the whole index to a single value
@@ -498,9 +507,12 @@ class CompositeTSIndex(TSIndex, ABC):
         # match each component field with its corresponding comparison value
         comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
         # build comparison expressions for each pair
-        comp_exprs = [c.leq(o) for (c, o) in comps]
+        comp_exprs = [(c <= o) for (c, o) in comps]
         # conjunction of all expressions (AND)
-        return sfn.expr(" AND ".join(comp_exprs))
+        if len(comp_exprs) > 1:
+            return sfn.expr(" AND ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
     def __gt__(self, other) -> Column:
         # try to compare the whole index to a single value
@@ -513,11 +525,14 @@ class CompositeTSIndex(TSIndex, ABC):
         # do a geq for all but the last component
         comp_exprs = []
         if len(comps) > 1:
-            comp_exprs = [c.geq(o) for (c, o) in comps[:-1]]
+            comp_exprs = [(c >= o) for (c, o) in comps[:-1]]
         # strict gt for the last component
-        comp_exprs += [c.gt(o) for (c, o) in comps[-1:]]
+        comp_exprs += [(c > o) for (c, o) in comps[-1:]]
         # conjunction of all expressions (AND)
-        return sfn.expr(" AND ".join(comp_exprs))
+        if len(comp_exprs) > 1:
+            return sfn.expr(" AND ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
     def __ge__(self, other) -> Column:
         # try to compare the whole index to a single value
@@ -528,9 +543,12 @@ class CompositeTSIndex(TSIndex, ABC):
         # match each component field with its corresponding comparison value
         comps = zip(self.comparableExpr(), [_col_or_lit(o) for o in other])
         # build comparison expressions for each pair
-        comp_exprs = [c.geq(o) for (c, o) in comps]
+        comp_exprs = [(c >= o) for (c, o) in comps]
         # conjunction of all expressions (AND)
-        return sfn.expr(" AND ".join(comp_exprs))
+        if len(comp_exprs) > 1:
+            return sfn.expr(" AND ".join(comp_exprs))
+        else:
+            return comp_exprs[0]
 
 
 #
@@ -572,13 +590,6 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
     def parsed_ts_field(self):
         return self.fieldPath(self._parsed_ts_field)
 
-    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
-        expr = sfn.col(self.parsed_ts_field)
-        return _reverse_or_not(expr, reverse)
-
-    def comparableExpr(self) -> Column:
-        return sfn.col(self.parsed_ts_field)
-
     @classmethod
     def fromParsedTimestamp(
         cls,
@@ -602,14 +613,14 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
 
         # if a double timestamp column is given
         # then we are building a SubMicrosecondPrecisionTimestampIndex
-        if double_ts_col is not None:
-            return SubMicrosecondPrecisionTimestampIndex(
-                ts_struct,
-                double_ts_col,
-                parsed_ts_col,
-                src_str_col,
-                num_precision_digits,
-            )
+        # if double_ts_col is not None:
+        #     return SubMicrosecondPrecisionTimestampIndex(
+        #         ts_struct,
+        #         double_ts_col,
+        #         parsed_ts_col,
+        #         src_str_col,
+        #         num_precision_digits,
+        #     )
         # otherwise, we base it on the standard timestamp type
         # find the schema of the ts_struct column
         ts_schema = ts_struct.dataType
@@ -665,7 +676,7 @@ class ParsedDateIndex(ParsedTSIndex):
         return _reverse_or_not(expr, reverse)
 
 
-class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
+class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
     """
     Timeseries index class for timestamps with sub-microsecond precision
     parsed from a string column. Internally, the timestamps are stored as
@@ -691,7 +702,7 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
         You will receive a warning if this value is 6 or less, as this is the precision
         of the standard timestamp type.
         """
-        super().__init__(ts_struct, double_ts_field)
+        super().__init__(ts_struct, double_ts_field, src_str_field)
         # validate the double timestamp column
         double_ts_type = self.schema[double_ts_field].dataType
         if not isinstance(double_ts_type, DoubleType):
@@ -700,7 +711,7 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
                 f"but the given double_ts_col {double_ts_field} "
                 f"has type {double_ts_type}"
             )
-        self.double_ts_field = double_ts_field
+        self._double_ts_field = double_ts_field
         # validate the number of precision digits
         if num_precision_digits <= 6:
             warnings.warn(
@@ -709,11 +720,7 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
                 "standard timestamp precision of 6 digits (microseconds). "
                 "Consider using a ParsedTimestampIndex instead."
             )
-        self.__unit = TimeUnit(
-            f"custom_subsecond_unit (precision: {num_precision_digits})",
-            10 ** (-num_precision_digits),
-            num_precision_digits,
-        )
+        self._num_precision_digits = num_precision_digits
         # validate the parsed column as a timestamp column
         parsed_ts_type = self.schema[secondary_parsed_ts_field].dataType
         if not isinstance(parsed_ts_type, TimestampType):
@@ -722,30 +729,23 @@ class SubMicrosecondPrecisionTimestampIndex(CompositeTSIndex):
                 f"but the given parsed_ts_col {secondary_parsed_ts_field} "
                 f"has type {parsed_ts_type}"
             )
-        self.parsed_ts_field = secondary_parsed_ts_field
-        # validate the source column as a string column
-        src_str_field = self.schema[src_str_field]
-        if not isinstance(src_str_field.dataType, StringType):
-            raise TypeError(
-                "src_str_col field must be of StringType, "
-                f"but the given src_str_col {src_str_field} "
-                f"has type {src_str_field.dataType}"
-            )
-        self.src_str_col = src_str_field
+        self.secondary_parsed_ts_field = secondary_parsed_ts_field
+
+    @property
+    def double_ts_field(self):
+        return self.fieldPath(self._double_ts_field)
+
+    @property
+    def num_precision_digits(self):
+        return self._num_precision_digits
 
     @property
     def unit(self) -> Optional[TimeUnit]:
-        return self.__unit
-
-    def comparableExpr(self) -> Column:
-        return sfn.col(self.fieldPath(self.double_ts_field))
-
-    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
-        return _reverse_or_not(self.comparableExpr(), reverse)
+        return StandardTimeUnits.SECONDS
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # just use the order by expression, since this is the same
-        return self.orderByExpr(reverse)
+        return _reverse_or_not(sfn.col(self.double_ts_field), reverse)
 
 
 #

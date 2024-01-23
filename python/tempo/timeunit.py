@@ -6,7 +6,6 @@ from functools import total_ordering
 class TimeUnit(NamedTuple):
     name: str
     approx_seconds: float
-    sub_second_precision: int = 0
     """
     Represents a unit of time, with a name,
     an approximate number of seconds,
@@ -40,7 +39,8 @@ StandardTimeUnits = TimeUnitsType(
     TimeUnit("hour", 60 * 60),
     TimeUnit("minute", 60),
     TimeUnit("second", 1),
-    TimeUnit("millisecond", 1e-03, 3),
-    TimeUnit("microsecond", 1e-06, 6),
-    TimeUnit("nanosecond", 1e-09, 9)
+    TimeUnit("millisecond", 1e-03),
+    TimeUnit("microsecond", 1e-06),
+    TimeUnit("nanosecond", 1e-09)
 )
+

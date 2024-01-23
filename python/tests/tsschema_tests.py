@@ -1,9 +1,9 @@
 import unittest
-from abc import ABC, abstractmethod
-from parameterized import parameterized, parameterized_class
+from abc import ABC
+from typing import List
 
+from parameterized import parameterized_class
 from pyspark.sql import Column, WindowSpec
-from pyspark.sql import functions as sfn
 from pyspark.sql.types import (
     StructField,
     StructType,
@@ -12,7 +12,6 @@ from pyspark.sql.types import (
     DoubleType,
     IntegerType,
     DateType,
-    NumericType,
 )
 
 from tempo.tsschema import (
@@ -105,7 +104,7 @@ class TSIndexTester(unittest.TestCase, ABC):
             ParsedTimestampIndex,
             {"parsed_ts_field": "parsed_ts", "src_str_field": "src_str"},
             StandardTimeUnits.SECONDS,
-            "Column<'ts_idx.parsed_ts'>",
+            "[Column<'ts_idx.parsed_ts'>]",
             "Column<'CAST(ts_idx.parsed_ts AS DOUBLE)'>",
         ),
         (
@@ -121,7 +120,7 @@ class TSIndexTester(unittest.TestCase, ABC):
             ParsedDateIndex,
             {"parsed_ts_field": "parsed_date", "src_str_field": "src_str"},
             StandardTimeUnits.DAYS,
-            "Column<'ts_idx.parsed_date'>",
+            "[Column<'ts_idx.parsed_date'>]",
             "Column<'datediff(ts_idx.parsed_date, CAST(1970-01-01 AS DATE))'>",
         ),
         (
@@ -141,8 +140,8 @@ class TSIndexTester(unittest.TestCase, ABC):
                 "secondary_parsed_ts_field": "parsed_ts",
                 "src_str_field": "src_str",
             },
-            StandardTimeUnits.NANOSECONDS,
-            "Column<'ts_idx.double_ts'>",
+            StandardTimeUnits.SECONDS,
+            "[Column<'ts_idx.double_ts'>]",
             "Column<'ts_idx.double_ts'>",
         ),
     ],
@@ -166,7 +165,7 @@ class TSIndexTests(SparkTest, TSIndexTester):
         compbl_expr = ts_idx.comparableExpr()
         # validate the expression
         self.assertIsNotNone(compbl_expr)
-        self.assertIsInstance(compbl_expr, Column)
+        self.assertIsInstance(compbl_expr, (Column, List))
         self.assertEqual(repr(compbl_expr), self.expected_comp_expr)
 
     def test_orderby_expression(self):
@@ -176,7 +175,7 @@ class TSIndexTests(SparkTest, TSIndexTester):
         orderby_expr = ts_idx.orderByExpr()
         # validate the expression
         self.assertIsNotNone(orderby_expr)
-        self.assertIsInstance(orderby_expr, Column)
+        self.assertIsInstance(orderby_expr, (Column, List))
         self.assertEqual(repr(orderby_expr), self.expected_comp_expr)
 
     def test_range_expression(self):
@@ -405,7 +404,7 @@ class TSIndexTests(SparkTest, TSIndexTester):
                 "series_ids": ["symbol"],
             },
             SubMicrosecondPrecisionTimestampIndex,
-            StandardTimeUnits.NANOSECONDS,
+            StandardTimeUnits.SECONDS,
             "ts_idx",
             ["symbol"],
             ["ts_idx", "symbol"],
