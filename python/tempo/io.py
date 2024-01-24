@@ -6,10 +6,9 @@ from collections import deque
 from typing import Optional
 
 import pyspark.sql.functions as sfn
+import tempo.tsdf as t_tsdf
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
-
-import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +30,15 @@ def write(
     df = tsdf.df
     ts_col = tsdf.ts_col
     partitionCols = tsdf.partitionCols
+
+    # TODO: this assumption of "event_time" column name is not appropriate
     if optimizationCols:
         optimizationCols = optimizationCols + ["event_time"]
     else:
         optimizationCols = ["event_time"]
 
+    # TODO: improve this logic. We should be checking for optimizationCols, not
+    # DATABRICKS_RUNTIME_VERSION
     useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
     view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(

@@ -59,6 +59,7 @@ class DeltaWriteTest(SparkTest):
             ],
         )
 
+    # TODO: FIX ME
     @mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "10.4"})
     def test_write_to_delta_bad_dbr_environment_logging(self):
         """Test useDeltaOpt Exception"""
