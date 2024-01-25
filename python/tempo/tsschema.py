@@ -8,7 +8,6 @@ from pyspark.sql import Column, Window, WindowSpec
 from pyspark.sql.types import *
 from pyspark.sql.types import NumericType
 
-from tempo.typing import AnyLiteral
 from tempo.timeunit import TimeUnit, StandardTimeUnits
 
 #
@@ -16,13 +15,13 @@ from tempo.timeunit import TimeUnit, StandardTimeUnits
 #
 
 EPOCH_START_DATE = "1970-01-01"
-DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
+DEFAULT_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss[.[SSSSSS][SSSSS][SSSS][SSS][SS][S]]"
 __time_pattern_components = "hHkKmsS"
 
 
 def is_time_format(ts_fmt: str) -> bool:
     """
-    Checcks whether the given format string contains time elements,
+    Checks whether the given format string contains time elements,
     or if it is just a date format
 
     :param ts_fmt: the format string to check
@@ -31,22 +30,51 @@ def is_time_format(ts_fmt: str) -> bool:
     """
     return any(c in ts_fmt for c in __time_pattern_components)
 
+def identify_fractional_second_separator(ts_fmt: str) -> str:
+    """
+    Returns the separator character between the integer and fractional part
+    of a timestamp format string. It will default to '.' or ','
+    if one exists in the format string, otherwise it will
+    return the empty string.
+
+    :param ts_fmt: the timestamp format string
+
+    :return: the separator character between the integer and fractional part
+    """
+    # pattern for matching the sub-second precision digits
+    fract_secs_char_ptrn = r"([\.\,])[\[\]S]+"
+    # find the sub-second precision digits
+    match = re.search(fract_secs_char_ptrn, ts_fmt)
+    if match is None:
+        return ''
+    else:
+        return match.group(1)
 
 def sub_seconds_precision_digits(ts_fmt: str) -> int:
     """
     Returns the number of digits of precision for a timestamp format string
+
+    :param ts_fmt: the timestamp format string
+
+    :return: the number of digits of precision for a timestamp format string
     """
     # pattern for matching the sub-second precision digits
-    sub_seconds_ptrn = r"\.(\S+)"
+    fract_sec_char = identify_fractional_second_separator(ts_fmt)
+    if not fract_sec_char:
+        return 0
+    # split off the fractional seconds part
+    ts_fmt_parts = ts_fmt.split(fract_sec_char)
+    if len(ts_fmt_parts) < 2:
+        return 0
     # find the sub-second precision digits
-    match = re.search(sub_seconds_ptrn, ts_fmt)
+    match = re.findall(r"[*(S+)]*", ts_fmt_parts[1])
     if match is None:
         return 0
     else:
-        return len(match.group(1))
+        return max([len(m) for m in match])
 
 
-def _col_or_lit(other) -> Column:
+def _unpack_comparable(other) -> Column:
     """
     Helper function for managing unknown argument types into
     Column expressions
@@ -55,13 +83,15 @@ def _col_or_lit(other) -> Column:
 
     :return: a Column expression
     """
+    if isinstance(other, TSIndex):
+        return _unpack_comparable(other.comparableExpr())
     if isinstance(other, (list, tuple)):
         if len(other) != 1:
             raise ValueError(
                 "Cannot compare a TSIndex with a list or tuple "
                 f"of length {len(other)}: {other}"
             )
-        return _col_or_lit(other[0])
+        return _unpack_comparable(other[0])
     if isinstance(other, Column):
         return other
     else:
@@ -174,22 +204,22 @@ class TSIndex(ABC):
         """
 
     def __eq__(self, other) -> Column:
-        return self.comparableExpr() == _col_or_lit(other)
+        return self.comparableExpr() == _unpack_comparable(other)
 
     def __ne__(self, other) -> Column:
-        return self.comparableExpr() != _col_or_lit(other)
+        return self.comparableExpr() != _unpack_comparable(other)
 
     def __lt__(self, other) -> Column:
-        return self.comparableExpr() < _col_or_lit(other)
+        return self.comparableExpr() < _unpack_comparable(other)
 
     def __le__(self, other) -> Column:
-        return self.comparableExpr() <= _col_or_lit(other)
+        return self.comparableExpr() <= _unpack_comparable(other)
 
     def __gt__(self, other) -> Column:
-        return self.comparableExpr() > _col_or_lit(other)
+        return self.comparableExpr() > _unpack_comparable(other)
 
     def __ge__(self, other) -> Column:
-        return self.comparableExpr() >= _col_or_lit(other)
+        return self.comparableExpr() >= _unpack_comparable(other)
 
     def between(self, lowerBound, upperBound) -> "Column":
         """
@@ -200,7 +230,8 @@ class TSIndex(ABC):
 
         :return: A boolean expression
         """
-        return self.comparableExpr().between(lowerBound, upperBound)
+        return self.comparableExpr().between(_unpack_comparable(lowerBound),
+                                             _unpack_comparable(upperBound))
 
     # other expression builder methods
 
@@ -501,7 +532,7 @@ class CompositeTSIndex(TSIndex, ABC):
         # validate the number of arguments
         self._validate_other(other)
         # if not a column, then a literal
-        return [_col_or_lit(o) for o in other]
+        return [_unpack_comparable(o) for o in other]
 
     def _build_comps(self, other) -> Iterator[Column]:
         # match each component field with its corresponding comparison value
@@ -657,14 +688,14 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
 
         # if a double timestamp column is given
         # then we are building a SubMicrosecondPrecisionTimestampIndex
-        # if double_ts_col is not None:
-        #     return SubMicrosecondPrecisionTimestampIndex(
-        #         ts_struct,
-        #         double_ts_col,
-        #         parsed_ts_col,
-        #         src_str_col,
-        #         num_precision_digits,
-        #     )
+        if double_ts_col is not None:
+            return SubMicrosecondPrecisionTimestampIndex(
+                ts_struct,
+                double_ts_col,
+                parsed_ts_col,
+                src_str_col,
+                num_precision_digits,
+            )
         # otherwise, we base it on the standard timestamp type
         # find the schema of the ts_struct column
         ts_schema = ts_struct.dataType

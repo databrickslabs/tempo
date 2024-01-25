@@ -3,11 +3,30 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from functools import reduce
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame, SparkSession, Column
 import pyspark.sql.functions as sfn
 
+from tempo.timeunit import TimeUnit
 from tempo.tsschema import CompositeTSIndex, TSSchema
 import tempo.tsdf as t_tsdf
+
+# Helpers
+
+
+class _AsOfJoinCompositeTSIndex(CompositeTSIndex):
+    """
+    CompositeTSIndex subclass for as-of joins
+    """
+
+    @property
+    def unit(self) -> Optional[TimeUnit]:
+        return None
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        raise NotImplementedError("rangeExpr is not defined for as-of join composite ts index")
+
+
+
 
 # As-of join types
 
@@ -111,7 +130,7 @@ class BroadcastAsOfJoiner(AsOfJoiner):
                             str(self.range_join_bin_size))
         # find a leading column in the right TSDF
         w = right.baseWindow()
-        lead_colname = "lead_" + right.ts_col
+        lead_colname = "lead_" + right.ts_index.colname
         right_with_lead = right.withColumn(lead_colname,
                                            sfn.lead(right.ts_index.colname).over(w))
         # perform the join
@@ -128,7 +147,8 @@ _DEFAULT_RIGHT_ROW_COLNAME = "righthand_tbl_row"
 _LEFT_HAND_ROW_INDICATOR = 1
 _RIGHT_HAND_ROW_INDICATOR = -1
 
-class UnionSortFilterAsOfJoin(AsOfJoiner):
+
+class UnionSortFilterAsOfJoiner(AsOfJoiner):
     """
     Implements the classic as-of join strategy of unioning the left and right
     TSDFs, sorting by the timestamp column, and then filtering out only the
@@ -167,12 +187,12 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         if not isinstance(right_comps, list):
             right_comps = [right_comps]
         if isinstance(left.ts_index, t_tsdf.CompositeTSIndex):
-            comp_names = left.ts_index.component_names
+            comp_names = left.ts_index.component_fields
         else:
             comp_names = [left.ts_index.colname]
         combined_comps = [sfn.coalesce(lc, rc).alias(cn) for lc, rc, cn in zip(left_comps, right_comps, comp_names)]
         # build an expression for an right-hand side indicator field
-        right_ind = (sfn.when(sfn.col(left.ts_col).isNotNull(),
+        right_ind = (sfn.when(sfn.col(left.ts_index.colname).isNotNull(),
                               _LEFT_HAND_ROW_INDICATOR)
                      .otherwise(_RIGHT_HAND_ROW_INDICATOR)
                      .alias(_DEFAULT_RIGHT_ROW_COLNAME))
@@ -181,8 +201,9 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
                                               sfn.struct(*combined_comps,right_ind))
         combined_ts_col = with_combined_ts.df.schema[_DEFAULT_COMBINED_TS_COLNAME]
         # construct a CompositeTSIndex from the combined ts index
-        combined_tsidx = CompositeTSIndex(combined_ts_col,
-                                          *(comp_names+[_DEFAULT_RIGHT_ROW_COLNAME]))
+        combined_comp_names = comp_names + [_DEFAULT_RIGHT_ROW_COLNAME]
+        combined_tsidx = _AsOfJoinCompositeTSIndex(combined_ts_col,
+                                                   *combined_comp_names)
         # put it all together in a new TSDF
         return t_tsdf.TSDF(with_combined_ts.df,
                            ts_schema=TSSchema(combined_tsidx, left.series_ids))
@@ -196,6 +217,7 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         """
         # find the last value for each column in the right-hand side
         w = combined.allBeforeWindow()
+        right_row_field = combined.ts_index.fieldPath(_DEFAULT_RIGHT_ROW_COLNAME)
         if self.skipNulls:
             last_right_cols = [
                 sfn.last(col, True).over(w).alias(col)
@@ -204,7 +226,7 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         else:
             last_right_cols = [
                 sfn.last(
-                    sfn.when(sfn.col(_DEFAULT_RIGHT_ROW_COLNAME) == _RIGHT_HAND_ROW_INDICATOR,
+                    sfn.when(sfn.col(right_row_field) == _RIGHT_HAND_ROW_INDICATOR,
                              sfn.struct(col)).otherwise(None),
                     True,
                 ).over(w).alias(col)
@@ -215,7 +237,7 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         last_right_vals = combined.select(*(non_right_cols + last_right_cols))
         # filter out the last right-hand row for each left-hand row
         as_of_df = (last_right_vals.df
-                    .where(sfn.col(_DEFAULT_RIGHT_ROW_COLNAME) ==
+                    .where(sfn.col(right_row_field) ==
                            _LEFT_HAND_ROW_INDICATOR)
                     .drop(_DEFAULT_COMBINED_TS_COLNAME))
         # return with the left-hand schema
@@ -246,7 +268,7 @@ class UnionSortFilterAsOfJoin(AsOfJoiner):
         return as_of
 
 
-class SkewAsOfJoiner(UnionSortFilterAsOfJoin):
+class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
     """
     Implements the as-of join strategy for skewed data
     """
@@ -351,7 +373,7 @@ def choose_as_of_join_strategy(left_tsdf: t_tsdf.TSDF,
         return SkewAsOfJoiner(tsPartitionVal, left_prefix, right_prefix)
 
     # default to use the union sort filter join
-    return UnionSortFilterAsOfJoin(left_prefix,
-                                   right_prefix,
-                                   skipNulls,
-                                   tolerance)
+    return UnionSortFilterAsOfJoiner(left_prefix,
+                                     right_prefix,
+                                     skipNulls,
+                                     tolerance)
