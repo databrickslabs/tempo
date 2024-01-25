@@ -43,12 +43,9 @@ Run the following command in your terminal to create a virtual environment in th
 tox --devenv .venv -e {environment-name}
 ```
 The `—devenv` flag tells `tox` to create a development environment, and `.venv` is the folder where the virtual environment will be created.
-Pre-defined environments can be found within the `tox.ini` file for different Python versions and their corresponding PySpark version. They include:
-- py37-pyspark300
-- py38-pyspark312
-- py38-pyspark321
-- py39-pyspark330
-- py39-pyspark332
+
+## Environments we test
+The environments we test against are defined within the `tox.ini` file, and the requirements for those environments are stored in `python/tests/requirements`. The makeup of these environments is inspired by the [Databricks Runtime](https://docs.databricks.com/en/release-notes/runtime/index.html#) (hence the naming convention), but it's important to note that developing Databricks is **not** a requirement. We're simply  mimicking some of the different runtime versions because (a) we recognize that much of the user base uses `tempo` on Databricks and (b) it saves development time spent trying to build out test environments with different versions of Python and PySpark from scratch.
 
 ## Run tests locally for one or more environments
 You can run tests locally for one or more environments defined enviornments without setting up a development environment first.
