@@ -876,8 +876,7 @@ class TSDFBaseTests(SparkTest):
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
-    def test_tsdf_interpolate(self):
-        ...
+    def test_tsdf_interpolate(self): ...
 
 
 class FourierTransformTest(SparkTest):

@@ -52,7 +52,7 @@ class DeltaWriteTest(SparkTest):
             with self.assertLogs(level="ERROR") as error_captured:
                 # should fail to run optimize
                 input_tsdf.write(self.spark, table_name, ["date"])
-            
+
             self.assertEqual(len(error_captured.records), 1)
             print(error_captured.output)
             self.assertEqual(

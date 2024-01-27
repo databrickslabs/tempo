@@ -139,13 +139,11 @@ def calculate_time_horizon(
 
 
 @overload
-def display_html(df: pandasDataFrame) -> None:
-    ...
+def display_html(df: pandasDataFrame) -> None: ...
 
 
 @overload
-def display_html(df: DataFrame) -> None:
-    ...
+def display_html(df: DataFrame) -> None: ...
 
 
 def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
@@ -192,16 +190,13 @@ if (
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
     @overload
-    def display_improvised(obj: t_tsdf.TSDF) -> None:
-        ...
+    def display_improvised(obj: t_tsdf.TSDF) -> None: ...
 
     @overload
-    def display_improvised(obj: pandasDataFrame) -> None:
-        ...
+    def display_improvised(obj: pandasDataFrame) -> None: ...
 
     @overload
-    def display_improvised(obj: DataFrame) -> None:
-        ...
+    def display_improvised(obj: DataFrame) -> None: ...
 
     def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
         if isinstance(obj, t_tsdf.TSDF):
@@ -214,16 +209,13 @@ if (
 elif ENV_CAN_RENDER_HTML:
 
     @overload
-    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
-        ...
+    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
 
     @overload
-    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
-        ...
+    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
 
     @overload
-    def display_html_improvised(obj: Optional[DataFrame]) -> None:
-        ...
+    def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
 
     def display_html_improvised(
         obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
