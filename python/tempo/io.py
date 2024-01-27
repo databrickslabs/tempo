@@ -37,10 +37,6 @@ def write(
     else:
         optimizationCols = ["event_time"]
 
-    # TODO: improve this logic. We should be checking for optimizationCols, not
-    # DATABRICKS_RUNTIME_VERSION
-    useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
-
     view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(
         "event_time",
         sfn.translate(sfn.split(sfn.col(ts_col).cast("string"), " ")[1], ":", "").cast(
@@ -55,21 +51,15 @@ def write(
         tabName
     )
 
-    if useDeltaOpt:
-        try:
-            spark.sql(
-                "optimize {} zorder by {}".format(
-                    tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
-                )
+    try:
+        spark.sql(
+            "optimize {} zorder by {}".format(
+                tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
             )
-        except ParseException as e:
-            logger.error(
-                "Delta optimizations attempted, but was not successful.\nError: {}".format(
-                    e
-                )
+        )
+    except ParseException as e:
+        logger.error(
+            "Delta optimizations attempted, but was not successful.\nError: {}".format(
+                e
             )
-    else:
-        logger.warning(
-            "Delta optimizations attempted on a non-Databricks platform. "
-            "Switch to use Databricks Runtime to get optimization advantages."
         )
