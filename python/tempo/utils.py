@@ -5,16 +5,14 @@ import os
 import warnings
 from typing import List, Optional, Union, overload
 
+import pyspark.sql.functions as sfn
+import tempo.resample as t_resample
+import tempo.tsdf as t_tsdf
 from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas.core.frame import DataFrame as pandasDataFrame
-
-import pyspark.sql.functions as sfn
 from pyspark.sql.dataframe import DataFrame
-
-import tempo.resample as t_resample
-import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -139,11 +137,13 @@ def calculate_time_horizon(
 
 
 @overload
-def display_html(df: pandasDataFrame) -> None: ...
+def display_html(df: pandasDataFrame) -> None:
+    ...
 
 
 @overload
-def display_html(df: DataFrame) -> None: ...
+def display_html(df: DataFrame) -> None:
+    ...
 
 
 def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
@@ -190,13 +190,16 @@ if (
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
     @overload
-    def display_improvised(obj: t_tsdf.TSDF) -> None: ...
+    def display_improvised(obj: t_tsdf.TSDF) -> None:
+        ...
 
     @overload
-    def display_improvised(obj: pandasDataFrame) -> None: ...
+    def display_improvised(obj: pandasDataFrame) -> None:
+        ...
 
     @overload
-    def display_improvised(obj: DataFrame) -> None: ...
+    def display_improvised(obj: DataFrame) -> None:
+        ...
 
     def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
         if isinstance(obj, t_tsdf.TSDF):
@@ -209,13 +212,16 @@ if (
 elif ENV_CAN_RENDER_HTML:
 
     @overload
-    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
+    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
+        ...
 
     @overload
-    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
+    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
+        ...
 
     @overload
-    def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
+    def display_html_improvised(obj: Optional[DataFrame]) -> None:
+        ...
 
     def display_html_improvised(
         obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
