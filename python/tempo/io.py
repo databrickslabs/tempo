@@ -30,12 +30,6 @@ def write(
     ts_col = tsdf.ts_col
     partitionCols = tsdf.partitionCols
 
-    # TODO: this assumption of "event_time" column name is not appropriate
-    if optimizationCols:
-        optimizationCols = optimizationCols + ["event_time"]
-    else:
-        optimizationCols = ["event_time"]
-
     view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(
         "event_time",
         sfn.translate(sfn.split(sfn.col(ts_col).cast("string"), " ")[1], ":", "").cast(
@@ -50,15 +44,17 @@ def write(
         tabName
     )
 
-    try:
-        spark.sql(
-            "optimize {} zorder by {}".format(
-                tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
+    if optimizationCols:
+        try:
+            spark.sql(
+                "optimize {} zorder by {}".format(
+                    tabName,
+                    "(" + ",".join(partitionCols + optimizationCols + [ts_col]) + ")",
+                )
             )
-        )
-    except ParseException as e:
-        logger.error(
-            "Delta optimizations attempted, but was not successful.\nError: {}".format(
-                e
+        except ParseException as e:
+            logger.error(
+                "Delta optimizations attempted, but was not successful.\nError: {}".format(
+                    e
+                )
             )
-        )
