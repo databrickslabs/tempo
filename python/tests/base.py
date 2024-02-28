@@ -5,11 +5,12 @@ import warnings
 from typing import Union
 
 import jsonref
-import pyspark.sql.functions as sfn
 from chispa import assert_df_equality
-from delta.pip_utils import configure_spark_with_delta_pip
+
+import pyspark.sql.functions as sfn
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
+
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
 
@@ -27,11 +28,9 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
         cls.spark = (
-            configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
-            .config(
-                "spark.sql.extensions",
-                "io.delta.sql.DeltaSparkSessionExtension",
-            )
+            SparkSession.builder.appName("unit-tests")
+            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             .config(
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
@@ -125,7 +124,7 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")[-3:]
+        file_name, class_name, func_name = test_case_path.split(".")
 
         # find our test data file
         test_data_file = self.__getTestDataFilePath(file_name)
@@ -226,5 +225,4 @@ class SparkTest(unittest.TestCase):
             ignore_row_order=ignore_row_order,
             ignore_column_order=ignore_column_order,
             ignore_nullable=ignore_nullable,
-            ignore_metadata=True,
         )
