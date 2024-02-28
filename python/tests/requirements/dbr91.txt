@@ -1,5 +1,5 @@
 delta-spark==1.0.0
-ipython==7.22.0
+ipython==8.10.0
 numpy==1.19.2
 pandas==1.2.4
 pyarrow==4.0.0
