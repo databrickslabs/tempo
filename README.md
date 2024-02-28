@@ -17,6 +17,7 @@ a suite of abstractions and functions that make operations on timeseries data ea
 [![Downloads](https://pepy.tech/badge/dbl-tempo/month)](https://pepy.tech/project/dbl-tempo)
 [![PyPI version](https://badge.fury.io/py/dbl-tempo.svg)](https://badge.fury.io/py/dbl-tempo)
 [![docs](https://github.com/databrickslabs/tempo/actions/workflows/docs.yml/badge.svg)](https://databrickslabs.github.io/tempo/)
+[![lines of code](https://tokei.rs/b1/github/databrickslabs/tempo)]([https://codecov.io/github/databrickslabs/tempo](https://github.com/databrickslabs/tempo))
 
 ## [Tempo Project Documentation](https://databrickslabs.github.io/tempo/)
 
