@@ -3,7 +3,9 @@ name: build
 on:
   pull_request:
     branches: [ 'master' ]
-  workflow_dispatch:
+  # workflow_dispatch:
+  push:
+    branches: ['*']
 
 jobs:
   tox:
