@@ -28,7 +28,7 @@ jobs:
       run: tox type-check
 
   test:
-    needs: ci
+    needs: lint-and-check
     runs-on: ubuntu-latest
     strategy:
       matrix:
