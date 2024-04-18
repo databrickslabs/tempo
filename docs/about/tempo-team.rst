@@ -18,5 +18,3 @@ Contact
 
 Reach out to the team at `labs@databricks.com <mailto:labs@databricks.com>`_ for feature requests, ideas for improvement
 etc.
-
-
