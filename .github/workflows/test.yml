@@ -36,7 +36,7 @@ jobs:
         pyenv --version
 
   tox:
-    needs: install_python
+    needs: install_python_with_pyenv
     runs-on: ubuntu-latest
     strategy:
       matrix:
