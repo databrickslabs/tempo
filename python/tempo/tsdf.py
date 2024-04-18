@@ -13,6 +13,7 @@ from IPython.display import display as ipydisplay
 from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.types import TimestampType
 from pyspark.sql.window import Window, WindowSpec
 from scipy.fft import fft, fftfreq  # type: ignore
 
@@ -1102,7 +1103,7 @@ class TSDF:
             ]
 
         # build window
-        if str(self.df.schema[self.ts_col].dataType) == "TimestampType":
+        if isinstance(self.df.schema[self.ts_col].dataType, TimestampType):
             self.df = self.__add_double_ts()
             prohibited_cols.extend(["double_ts"])
             w = self.__rangeBetweenWindow(
