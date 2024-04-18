@@ -52,7 +52,9 @@ jobs:
       run: pip install tox
     - name: Run tox
       working-directory: ./python
-      run: tox -e ${{ matrix.env }}
+      run: |
+        pyenv local 3.8 3.9 3.10
+        tox -e ${{ matrix.env }}
     - name: Generate coverage report
       working-directory: ./python
       run: |
