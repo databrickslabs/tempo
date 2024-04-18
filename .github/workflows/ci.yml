@@ -22,10 +22,10 @@ jobs:
         python -m pip install tox tox-gh-actions
     - name: Execute tox envs
       working-directory: ./python
-      run: tox lint
+      run: tox -e lint
     - name: Execute tox envs
       working-directory: ./python
-      run: tox type-check
+      run: tox -e type-check
 
   test:
     needs: lint-and-check
