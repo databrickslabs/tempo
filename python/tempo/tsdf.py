@@ -8,8 +8,8 @@ from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
 import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
+from IPython.core.display import HTML  # type: ignore
+from IPython.display import display as ipydisplay  # type: ignore
 from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
