@@ -20,10 +20,9 @@ jobs:
           - dbr104
           - dbr91
     steps:
-    - name: setup pyenv
-      uses: "gabrielfalcao/pyenv-action@v18"
+    - uses: actions/setup-python@v4
       with:
-        versions: 3.8, 3.9, 3.10
+        python-version: ['3.8', '3.9', '3.10'] 
     - uses: actions/checkout@v3
     - name: Install tox
       run: pip install tox
