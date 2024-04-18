@@ -34,7 +34,11 @@ jobs:
       shell: bash
       run: |
         pyenv --version
-
+    - name: Install python versions
+      shell: bash
+      run: |
+        pyenv install 3.8 3.9 3.10
+        
   tox:
     needs: install_python_with_pyenv
     runs-on: ubuntu-latest
