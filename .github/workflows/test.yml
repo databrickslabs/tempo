@@ -20,33 +20,11 @@ jobs:
           - dbr104
           - dbr91
     steps:
-    - name: Install python build tools
-      shell: bash
-      # Ref: https://github.com/pyenv/pyenv/wiki#suggested-build-environment
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y make build-essential libssl-dev zlib1g-dev \
-        libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-        libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev ffmpeg
-    - name: Install pyenv
-      shell: bash
-      run: |
-        git clone https://github.com/pyenv/pyenv.git "$HOME/.pyenv"
-    - name: Setup environment variables
-      shell: bash
-      run: |
-        PYENV_ROOT="$HOME/.pyenv"
-        PYENV_BIN="$PYENV_ROOT/bin"
-        echo "$PYENV_BIN" >> $GITHUB_PATH
-        echo "PYENV_ROOT=$PYENV_ROOT" >> $GITHUB_ENV
-    - name: Check pyenv version
-      shell: bash
-      run: |
-        pyenv --version
-    - name: Install python versions
-      shell: bash
-      run: |
-        pyenv install 3.8 3.9 3.10
+    - name: setup pyenv
+      uses: "gabrielfalcao/pyenv-action@v18"
+      with:
+        default: 3.9
+        versions: 3.8, 3.10
     - uses: actions/checkout@v3
     - name: Install tox
       run: pip install tox
