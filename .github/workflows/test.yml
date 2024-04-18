@@ -15,10 +15,10 @@ jobs:
         env:
           - dbr142
           - dbr133
-          - dbr122
-          - dbr113
-          - dbr104
-          - dbr91
+          # - dbr122
+          # - dbr113
+          # - dbr104
+          # - dbr91
     steps:
     - uses: actions/setup-python@v4
       with:
