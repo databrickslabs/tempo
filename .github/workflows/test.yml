@@ -8,7 +8,28 @@ on:
     branches: ['*']
 
 jobs:
+  install_python:
+    runs-on: ubuntu latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install pyenv
+        run: |
+          git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+          echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+          echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+          echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+          source ~/.bashrc     
+      - name: Install Python versions
+        run: |  
+          pyenv install 3.8 3.9 3.10
+      - name: Verify Python installations
+        run: |
+          python3.8 --version
+          python3.9 --version  
+          python3.10 --version
+
   tox:
+    needs: install_python
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,35 +40,13 @@ jobs:
           - dbr113
           - dbr104
           - dbr91
-
     steps:
     - uses: actions/checkout@v3
-
-    - name: Install pyenv
-      run: |
-        git clone https://github.com/pyenv/pyenv.git ~/.pyenv
-        echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-        echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-        echo 'eval "$(pyenv init -)"' >> ~/.bashrc
-        source ~/.bashrc
-        
-    - name: Install Python versions
-      run: |  
-        pyenv install 3.8 3.9 3.10
-
-    - name: Verify Python installations
-      run: |
-        python3.8 --version
-        python3.9 --version  
-        python3.10 --version
-
     - name: Install tox
       run: pip install tox
-
     - name: Run tox
       working-directory: ./python
       run: tox -e ${{ matrix.env }}
-
     - name: Generate coverage report
       working-directory: ./python
       run: |
