@@ -20,7 +20,7 @@ jobs:
     - name: test
       run: |
         ls
-        git status
+        git describe --abbrev=0 --tags
     # - name: Set up Python ${{ matrix.python-version }}
     #   uses: actions/setup-python@v4
     #   with:
