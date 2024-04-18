@@ -8,8 +8,17 @@ on:
     branches: ['*']
 
 jobs:
-  install_python_with_pyenv:
+  tox:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env:
+          - dbr142
+          - dbr133
+          - dbr122
+          - dbr113
+          - dbr104
+          - dbr91
     steps:
     - name: Install python build tools
       shell: bash
@@ -38,20 +47,6 @@ jobs:
       shell: bash
       run: |
         pyenv install 3.8 3.9 3.10
-        
-  tox:
-    needs: install_python_with_pyenv
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        env:
-          - dbr142
-          - dbr133
-          - dbr122
-          - dbr113
-          - dbr104
-          - dbr91
-    steps:
     - uses: actions/checkout@v3
     - name: Install tox
       run: pip install tox
