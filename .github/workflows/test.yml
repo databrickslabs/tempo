@@ -23,8 +23,7 @@ jobs:
     - name: setup pyenv
       uses: "gabrielfalcao/pyenv-action@v18"
       with:
-        default: 3.9
-        versions: 3.8, 3.10
+        versions: 3.8, 3.9, 3.10
     - uses: actions/checkout@v3
     - name: Install tox
       run: pip install tox
