@@ -12,27 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        env:
-          - dbr142
-          - dbr133
-          # - dbr122
-          # - dbr113
-          # - dbr104
-          # - dbr91
+        python-version: ['3.8', '3.9', '3.10']
     steps:
-    - uses: actions/setup-python@v4
-      with:
-        python-version: |
-          3.8
-          3.9
-          3.10
     - uses: actions/checkout@v3
-    - name: Install tox
-      run: pip install tox
-    - name: Run tox
-      working-directory: ./python
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
       run: |
-        tox -e ${{ matrix.env }}
+        python -m pip install --upgrade pip
+        python -m pip install tox tox-gh-actions
+    - name: Test with tox
+      working-directory: ./python
+      run: tox
     - name: Generate coverage report
       working-directory: ./python
       run: |
