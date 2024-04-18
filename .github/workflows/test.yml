@@ -9,4 +9,4 @@ on:
 
 jobs:
   ci:
-    uses: ./.github/actions/ci.yml@main
+    uses: ./.github/workflows/ci.yml@main
