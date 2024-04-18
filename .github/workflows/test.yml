@@ -9,7 +9,7 @@ on:
 
 jobs:
   install_python:
-    runs-on: ubuntu latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Install pyenv
