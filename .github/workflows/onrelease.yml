@@ -47,3 +47,7 @@ jobs:
           user: __token__
           password: ${{ secrets.LABS_PYPI_TOKEN }}
           packages_dir: python/dist/
+  
+  docs:
+    needs: release
+    uses: ./.github/workflows/docs.yml
