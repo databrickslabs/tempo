@@ -49,6 +49,11 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -68,7 +73,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install tox
 
-      - name: Build dist
+      - name: Build docs
         working-directory: ./python
         run: tox -e build-docs
 
