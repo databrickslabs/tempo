@@ -4,12 +4,15 @@ on:
   pull_request:
     types: [opened, synchronize]
   push:
-    branches: ['master']
-  workflow_dispatch:
+    branches: ['*']
+  workflow_dispatch: 
+
+env:
+  OS: ubuntu-latest
 
 jobs:
   lint-and-check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ env.OS }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -31,7 +34,7 @@ jobs:
       run: tox -e type-check
   
   analyze:
-    runs-on: ubuntu-latest
+    runs-on: "${{ env.OS }}"
     permissions:
       actions: read
       contents: read
@@ -71,7 +74,7 @@ jobs:
 
   test:
     needs: lint-and-check
-    runs-on: ubuntu-latest
+    runs-on: "${{ env.OS }}"
     strategy:
       matrix:
         python-version: ['3.8', '3.9', '3.10']
@@ -92,7 +95,7 @@ jobs:
       working-directory: ./python
       run: tox
     - name: Publish test coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
           fail_ci_if_error: true
           files: ./python/coverage.xml
