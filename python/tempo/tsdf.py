@@ -536,7 +536,7 @@ class TSDF:
         and align cells right.
         :param vertical: If set to True, print output rows vertically (one line per column value).
 
-        ## Example to show usage:        
+        ## Example to show usage:
         .. code-block:: python
         from pyspark.sql.functions import *
 
