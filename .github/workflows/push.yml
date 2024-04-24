@@ -25,7 +25,7 @@ jobs:
         python -m pip install tox tox-gh-actions
     - name: Execute tox envs
       working-directory: ./python
-      run: tox -e lint
+      run: tox -e lint -- --check --diff
     - name: Execute tox envs
       working-directory: ./python
       run: tox -e type-check
