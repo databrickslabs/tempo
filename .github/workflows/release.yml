@@ -55,11 +55,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: '0'
-      - name: Copy Requirements
-        uses: canastro/copy-file-action@master
-        with:
-          source: "python/requirements/dbr143.txt"
-          target: "docs/requirements.txt"
+      # - name: Copy Requirements
+      #   uses: canastro/copy-file-action@master
+      #   with:
+      #     source: "python/requirements/dbr143.txt"
+      #     target: "docs/requirements.txt"
       - name: Build HTML
         uses: ammaraskar/sphinx-action@0.4
         with:
