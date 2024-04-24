@@ -338,15 +338,12 @@ class TSDF:
     def select(self, *cols: Union[str, List[str]]) -> "TSDF":
         """
         pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
-        Parameters
-        ----------
-        cols : str or list of strs
-        column names (string).
-        If one of the column names is '*', that column is expanded to include all columns
-        in the current :class:`TSDF`.
 
-        Examples
-        --------
+        :param cols: str or list of strs column names (string). If one of the column names is '*', that
+        column is expanded to include all columns in the current :class:`TSDF`.
+
+        ## Examples
+        .. code-block:: python
         tsdf.select('*').collect()
         [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
         tsdf.select('name', 'age').collect()
@@ -533,23 +530,22 @@ class TSDF:
         """
         pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
 
-        Parameters
-        ----------
-        n : int, optional
-        Number of rows to show.
-        truncate : bool or int, optional
-        If set to ``True``, truncate strings longer than 20 chars by default.
-        If set to a number greater than one, truncates long strings to length ``truncate``
+        :param n: Number of rows to show. (default: 20)
+        :param truncate: If set to True, truncate strings longer than 20 chars by default.
+        If set to a number greater than one, truncates long strings to length truncate
         and align cells right.
-        vertical : bool, optional
-        If set to ``True``, print output rows vertically (one line
-        per column value).
+        :param vertical: If set to True, print output rows vertically (one line per column value).
 
-        Example to show usage
-        ---------------------
+        ## Example to show usage:        
+        .. code-block:: python
         from pyspark.sql.functions import *
 
-        phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+        phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer") \n
+            .withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")) \n
+            .withColumn("x", col("x").cast("double")) \n
+            .withColumn("y", col("y").cast("double")) \n
+            .withColumn("z", col("z").cast("double")) \n
+            .withColumn("event_ts_dbl", col("event_ts").cast("double"))
 
         from tempo import *
 
@@ -557,7 +553,6 @@ class TSDF:
 
         # Call show method here
         phone_accel_tsdf.show()
-
         """
         # validate k <= n
         if k > n:
