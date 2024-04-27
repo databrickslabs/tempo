@@ -1,4 +1,6 @@
-chispa
-jsonref
-packaging
-python-dateutil
+pip>=23,<24
+chispa>=0.10,<1
+coverage>=7,<8
+jsonref>=1,<2
+packaging>=24,<25
+python-dateutil>=2,<3
