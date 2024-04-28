@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize]
   push:
-    branches: ['*'] # FIXME
+    branches: ['master']
   workflow_dispatch: 
 
 jobs:
@@ -75,10 +75,6 @@ jobs:
     strategy:
       matrix:
         config:
-          - py: '3.8'
-            dbr: dbr91
-          - py: '3.8'
-            dbr: dbr104
           - py: '3.9'
             dbr: dbr113
           - py: '3.9'
