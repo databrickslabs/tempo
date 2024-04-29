@@ -10,7 +10,7 @@ six==1.16.0
 wheel==0.38.4
 semver==2.13.0
 sphinx-autobuild==2021.3.14
-furo==2022.9.29
+furo==2024.4.27
 sphinx-copybutton==0.5.1
 Sphinx==4.5.0
 sphinx-design==0.2.0
