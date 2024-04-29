@@ -83,6 +83,7 @@ jobs:
             dbr: dbr133
           - py: '3.10'
             dbr: dbr143
+      fail-fast: false
     steps:
     - uses: actions/checkout@v4
       with:
