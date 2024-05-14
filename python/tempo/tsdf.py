@@ -6,8 +6,9 @@ import operator
 from abc import ABCMeta, abstractmethod
 from functools import cached_property, reduce
 from typing import Any, Callable, Collection, Dict, List, Optional, Sequence, TypeVar, \
-    Union, \
-    cast, overload
+    Union, cast, overload
+from math import ceil
+from datetime import datetime as dt, timedelta as td
 
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
@@ -25,6 +26,54 @@ from tempo.intervals import IntervalsDF
 from tempo.tsschema import CompositeTSIndex, TSIndex, TSSchema, WindowBuilder
 
 logger = logging.getLogger(__name__)
+
+
+def time_range(spark: SparkSession,
+               start_time: dt,
+               ts_colname: str = "event_ts",
+               end_time: Optional[dt] = None,
+               step_size: Optional[td] = None,
+               num_intervals: Optional[int] = None) -> DataFrame:
+    """
+    Create a DataFrame with a range of timestamps.
+
+    @param spark: SparkSession
+    @param start_time: start time of the range
+    @param ts_colname: name of the timestamp column
+    @param end_time: end time of the range, if not provided,
+    must provide num_intervals and step_size
+    @param step_size: size of the time step, if not provided,
+    must provide end_time and num_intervals
+    @param num_intervals: number of intervals in the range, if not provided,
+    must provide end_time and step_size
+    """
+
+    # compute step_size if not provided
+    if not step_size:
+        # must have both end_time and num_intervals defined
+        assert end_time and num_intervals, \
+            "must provide at least 2 of: end_time, step_size, num_intervals"
+        diff_time = end_time - start_time
+        step_size = diff_time / num_intervals
+
+    # compute the number of intervals if not provided
+    if not num_intervals:
+        # must have both end_time and num_intervals defined
+        assert end_time and step_size, \
+            "must provide at least 2 of: end_time, step_size, num_intervals"
+        diff_time = end_time - start_time
+        num_intervals = ceil(diff_time / step_size)
+
+    # define expressions for the time range
+    start_time_expr = sfn.to_timestamp(sfn.lit(str(start_time)))
+    step_fractional_seconds = step_size.seconds + (step_size.microseconds / 1000000.0)
+    interval_expr = sfn.make_dt_interval(days=sfn.lit(step_size.days),
+                                         secs=sfn.lit(step_fractional_seconds))
+
+    # create the DataFrame
+    range_df = spark.range(0, num_intervals) \
+        .withColumn(ts_colname, start_time_expr + sfn.col("id") * interval_expr)
+    return range_df
 
 
 class TSDF(WindowBuilder):
