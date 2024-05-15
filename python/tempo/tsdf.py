@@ -67,9 +67,11 @@ class TSDF:
         if isinstance(df.schema[ts_col].dataType, StringType):  # pragma: no cover
             sample_ts = df.select(ts_col).limit(1).collect()[0][0]
             self.__validate_ts_string(sample_ts)
-            self.df = self.__add_double_ts()\
-                          .drop(self.ts_col)\
-                          .withColumnRenamed("double_ts", self.ts_col)
+            self.df = (
+                self.__add_double_ts()
+                .drop(self.ts_col)
+                .withColumnRenamed("double_ts", self.ts_col)
+            )
 
         """
     Make sure DF is ordered by its respective ts_col and partition columns.
@@ -80,11 +82,13 @@ class TSDF:
     #
 
     @staticmethod
-    def parse_nanos_timestamp(df: DataFrame,
-                              str_ts_col: str,
-                              ts_fmt: str = "yyyy-MM-dd HH:mm:ss",
-                              double_ts_col: Optional[str] = None,
-                              parsed_ts_col: Optional[str] = None) -> DataFrame:
+    def parse_nanos_timestamp(
+        df: DataFrame,
+        str_ts_col: str,
+        ts_fmt: str = "yyyy-MM-dd HH:mm:ss",
+        double_ts_col: Optional[str] = None,
+        parsed_ts_col: Optional[str] = None,
+    ) -> DataFrame:
         """
         Parse a string timestamp column with nanosecond precision into a double timestamp column.
 
@@ -100,23 +104,27 @@ class TSDF:
         """
 
         # add a parsed timestamp column if requested
-        src_df = df.withColumn(parsed_ts_col,
-                               sfn.to_timestamp(sfn.col(str_ts_col), ts_fmt)) \
-            if parsed_ts_col else df
+        src_df = (
+            df.withColumn(parsed_ts_col, sfn.to_timestamp(sfn.col(str_ts_col), ts_fmt))
+            if parsed_ts_col
+            else df
+        )
 
         return (
-            src_df.withColumn("nanos",
-                              sfn.when(sfn.col(str_ts_col).contains("."),
-                                       sfn.concat(sfn.lit("0."),
-                                                  sfn.split(sfn.col(str_ts_col),
-                                                            r"\.")[1])
-                                       ).otherwise(0).cast("double"))
-            .withColumn("long_ts",
-                        sfn.unix_timestamp(str_ts_col, ts_fmt))
-            .withColumn((double_ts_col or str_ts_col),
-                        sfn.col("long_ts") + sfn.col("nanos")))
-
-
+            src_df.withColumn(
+                "nanos",
+                sfn.when(
+                    sfn.col(str_ts_col).contains("."),
+                    sfn.concat(sfn.lit("0."), sfn.split(sfn.col(str_ts_col), r"\.")[1]),
+                )
+                .otherwise(0)
+                .cast("double"),
+            )
+            .withColumn("long_ts", sfn.unix_timestamp(str_ts_col, ts_fmt))
+            .withColumn(
+                (double_ts_col or str_ts_col), sfn.col("long_ts") + sfn.col("nanos")
+            )
+        )
 
     def __add_double_ts(self) -> DataFrame:
         """Add a double (epoch) version of the string timestamp out to nanos"""
