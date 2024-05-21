@@ -1373,162 +1373,174 @@
   "RangeStatsTest": {
     "test_range_stats": {
       "init": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            1,
-            349.21,
-            349.21,
-            349.21,
-            null,
-            null
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            350.26,
-            2,
-            349.21,
-            351.32,
-            700.53,
-            1.49,
-            0.71
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            1,
-            361.1,
-            361.1,
-            361.1,
-            null,
-            null
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            361.6,
-            2,
-            361.1,
-            362.1,
-            723.2,
-            0.71,
-            0.71
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21,
+              1,
+              349.21,
+              349.21,
+              349.21,
+              null,
+              null
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              350.26,
+              2,
+              349.21,
+              351.32,
+              700.53,
+              1.49,
+              0.71
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1,
+              1,
+              361.1,
+              361.1,
+              361.1,
+              null,
+              null
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              361.6,
+              2,
+              361.1,
+              362.1,
+              723.2,
+              0.71,
+              0.71
+            ]
           ]
-        ]
+        }
       }
     },
     "test_group_stats": {
       "init": {
-        "schema": "symbol string, event_ts string, trade_pr float, index integer",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            1
-          ],
-          [
-            "S1",
-            "2020-08-01 00:00:33",
-            351.32,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:49",
-            362.1,
-            1
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float, index integer",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21,
+              1
+            ],
+            [
+              "S1",
+              "2020-08-01 00:00:33",
+              351.32,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:49",
+              362.1,
+              1
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            350.26,
-            2,
-            349.21,
-            351.32,
-            700.53,
-            1.49,
-            1,
-            2,
-            1,
-            1,
-            2,
-            0
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:00",
-            361.6,
-            2,
-            361.1,
-            362.1,
-            723.2,
-            0.71,
-            1,
-            2,
-            1,
-            1,
-            2,
-            0
-          ]
-        ]
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": ["symbol"]
+        },
+        "df": {
+            "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
+            "ts_convert": ["event_ts"],
+            "data": [
+              [
+                "S1",
+                "2020-08-01 00:00:00",
+                350.26,
+                2,
+                349.21,
+                351.32,
+                700.53,
+                1.49,
+                1,
+                2,
+                1,
+                1,
+                2,
+                0
+              ],
+              [
+                "S1",
+                "2020-09-01 00:02:00",
+                361.6,
+                2,
+                361.1,
+                362.1,
+                723.2,
+                0.71,
+                1,
+                2,
+                1,
+                1,
+                2,
+                0
+              ]
+            ]
+        }
       }
     }
   },

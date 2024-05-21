@@ -938,8 +938,8 @@ class RangeStatsTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        dfExpected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
 
@@ -979,8 +979,8 @@ class RangeStatsTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        dfExpected = self.get_test_df_builder("expected").as_sdf()
 
         # using lookback of 20 minutes
         featured_df = tsdf_init.withGroupedStats(freq="1 min").df
