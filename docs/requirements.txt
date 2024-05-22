@@ -1,0 +1,6 @@
+sphinx-autobuild
+sphinx-copybutton
+sphinx
+sphinx-design
+sphinx-panels
+furo

@@ -12,18 +12,18 @@ Be sure to carefully follow the instructions to configure your shell environment
 
 Use `pyenv` to install the following Python versions for testing.
 ```bash
-pyenv install 3.7 3.8 3.9
+pyenv install 3.8 3.9 3.10
 ```
 
 You will probably want to set one of these versions as your global Python version. This will be the version of Python that is used when you run `python` commands in your terminal.
 For example, to set Python 3.9 as your global Python version, run the following command:
 ```bash
-pyenv global 3.9
+pyenv global 3.10
 ```
 
 Within the `tempo/python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
 ```bash
-pyenv local 3.7 3.8 3.9
+pyenv local 3.8 3.9 3.10
 ```
 
 This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
@@ -43,12 +43,9 @@ Run the following command in your terminal to create a virtual environment in th
 tox --devenv .venv -e {environment-name}
 ```
 The `—devenv` flag tells `tox` to create a development environment, and `.venv` is the folder where the virtual environment will be created.
-Pre-defined environments can be found within the `tox.ini` file for different Python versions and their corresponding PySpark version. They include:
-- py37-pyspark300
-- py38-pyspark312
-- py38-pyspark321
-- py39-pyspark330
-- py39-pyspark332
+
+## Environments we test
+The environments we test against are defined within the `tox.ini` file, and the requirements for those environments are stored in `python/tests/requirements`. The makeup of these environments is inspired by the [Databricks Runtime](https://docs.databricks.com/en/release-notes/runtime/index.html#) (hence the naming convention), but it's important to note that developing Databricks is **not** a requirement. We're simply  mimicking some of the different runtime versions because (a) we recognize that much of the user base uses `tempo` on Databricks and (b) it saves development time spent trying to build out test environments with different versions of Python and PySpark from scratch.
 
 ## Run tests locally for one or more environments
 You can run tests locally for one or more environments defined enviornments without setting up a development environment first.
@@ -67,9 +64,10 @@ This will run tests for all listed environments.
 ### Run additional checks locally
 `tox` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
 These environments are also defined in the `tox.ini`file and skip installing dependencies listed in the `requirements.txt` file and building the distribution when those are not required . They can be specified using the `-e` flag:
-* format
 * lint
 * type-check
+* build-dist
+* build-docs
 * coverage-report
 
 # Code style & Standards

@@ -8,8 +8,8 @@ from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
 import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
+from IPython.core.display import HTML  # type: ignore
+from IPython.display import display as ipydisplay  # type: ignore
 from pyspark.sql import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
@@ -65,9 +65,13 @@ class TSDF:
         # Timestamp string matching then do some pattern matching to extract
         # the time stamp.
         if isinstance(df.schema[ts_col].dataType, StringType):  # pragma: no cover
-            sample_ts = df.limit(1).collect()[0][0]
+            sample_ts = df.select(ts_col).limit(1).collect()[0][0]
             self.__validate_ts_string(sample_ts)
-            self.df = self.__add_double_ts().withColumnRenamed("double_ts", self.ts_col)
+            self.df = (
+                self.__add_double_ts()
+                .drop(self.ts_col)
+                .withColumnRenamed("double_ts", self.ts_col)
+            )
 
         """
     Make sure DF is ordered by its respective ts_col and partition columns.
@@ -76,6 +80,51 @@ class TSDF:
     #
     # Helper functions
     #
+
+    @staticmethod
+    def parse_nanos_timestamp(
+        df: DataFrame,
+        str_ts_col: str,
+        ts_fmt: str = "yyyy-MM-dd HH:mm:ss",
+        double_ts_col: Optional[str] = None,
+        parsed_ts_col: Optional[str] = None,
+    ) -> DataFrame:
+        """
+        Parse a string timestamp column with nanosecond precision into a double timestamp column.
+
+        :param df: DataFrame containing the string timestamp column
+        :param str_ts_col: Name of the string timestamp column
+        :param ts_fmt: Format of the string timestamp column (default: "yyyy-MM-dd HH:mm:ss")
+        :param double_ts_col: Name of the double timestamp column to create, if None
+                the source string column will be overwritten
+        :param parsed_ts_col: Name of the parsed timestamp column to create, if None
+                no parsed timestamp column will be kept
+
+        :return: DataFrame with the double timestamp column
+        """
+
+        # add a parsed timestamp column if requested
+        src_df = (
+            df.withColumn(parsed_ts_col, sfn.to_timestamp(sfn.col(str_ts_col), ts_fmt))
+            if parsed_ts_col
+            else df
+        )
+
+        return (
+            src_df.withColumn(
+                "nanos",
+                sfn.when(
+                    sfn.col(str_ts_col).contains("."),
+                    sfn.concat(sfn.lit("0."), sfn.split(sfn.col(str_ts_col), r"\.")[1]),
+                )
+                .otherwise(0)
+                .cast("double"),
+            )
+            .withColumn("long_ts", sfn.unix_timestamp(str_ts_col, ts_fmt))
+            .withColumn(
+                (double_ts_col or str_ts_col), sfn.col("long_ts") + sfn.col("nanos")
+            )
+        )
 
     def __add_double_ts(self) -> DataFrame:
         """Add a double (epoch) version of the string timestamp out to nanos"""
@@ -338,15 +387,12 @@ class TSDF:
     def select(self, *cols: Union[str, List[str]]) -> "TSDF":
         """
         pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
-        Parameters
-        ----------
-        cols : str or list of strs
-        column names (string).
-        If one of the column names is '*', that column is expanded to include all columns
-        in the current :class:`TSDF`.
 
-        Examples
-        --------
+        :param cols: str or list of strs column names (string). If one of the column names is '*', that
+        column is expanded to include all columns in the current :class:`TSDF`.
+
+        ## Examples
+        .. code-block:: python
         tsdf.select('*').collect()
         [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
         tsdf.select('name', 'age').collect()
@@ -533,23 +579,22 @@ class TSDF:
         """
         pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
 
-        Parameters
-        ----------
-        n : int, optional
-        Number of rows to show.
-        truncate : bool or int, optional
-        If set to ``True``, truncate strings longer than 20 chars by default.
-        If set to a number greater than one, truncates long strings to length ``truncate``
+        :param n: Number of rows to show. (default: 20)
+        :param truncate: If set to True, truncate strings longer than 20 chars by default.
+        If set to a number greater than one, truncates long strings to length truncate
         and align cells right.
-        vertical : bool, optional
-        If set to ``True``, print output rows vertically (one line
-        per column value).
+        :param vertical: If set to True, print output rows vertically (one line per column value).
 
-        Example to show usage
-        ---------------------
+        ## Example to show usage:
+        .. code-block:: python
         from pyspark.sql.functions import *
 
-        phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
+        phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer") \n
+            .withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")) \n
+            .withColumn("x", col("x").cast("double")) \n
+            .withColumn("y", col("y").cast("double")) \n
+            .withColumn("z", col("z").cast("double")) \n
+            .withColumn("event_ts_dbl", col("event_ts").cast("double"))
 
         from tempo import *
 
@@ -557,7 +602,6 @@ class TSDF:
 
         # Call show method here
         phone_accel_tsdf.show()
-
         """
         # validate k <= n
         if k > n:

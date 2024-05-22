@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: General Databricks questions
+    url: https://help.databricks.com/
+    about: Issues related to Databricks and not related to UCX
+
+  - name: UCX Documentation
+    url: https://databrickslabs.github.io/tempo/
+    about: Documentation about Tempo
