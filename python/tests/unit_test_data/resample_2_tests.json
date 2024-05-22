@@ -2,92 +2,37 @@
     "ResampleUnitTests": {
         "test_appendAggKey_freq_is_none": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             }
         },
         "test_appendAggKey_freq_microsecond": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             }
         },
         "test_appendAggKey_freq_is_invalid": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             }
         },
         "test_aggregate_floor": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -110,35 +55,16 @@
         },
         "test_aggregate_average": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, trade_pr double, trade_pr_2 double",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -159,35 +85,16 @@
         },
         "test_aggregate_min": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -210,35 +117,16 @@
         },
         "test_aggregate_min_with_prefix": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, min_date string, min_trade_pr float, min_trade_pr_2 float",
-                    "ts_convert": null,
                     "data": {
                         "$ref": "#/ResampleUnitTests/test_aggregate_min/expected_data/data"
                     }
@@ -248,35 +136,16 @@
         },
         "test_aggregate_min_with_fill": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -509,35 +378,16 @@
         },
         "test_aggregate_max": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -560,35 +410,16 @@
         },
         "test_aggregate_ceiling": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -611,35 +442,16 @@
         },
         "test_aggregate_invalid_func_arg": {
             "input_data": {
-                "tsdf": {
-                    "ts_col": null,
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
-                },
-                "df": {
-                    "schema": null,
-                    "ts_convert": null,
-                    "data": null
-                },
+                "tsdf": {},
+                "df": {},
                 "$ref": "#/__SharedData/input_data"
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts",
-                    "other_ts_cols": null,
-                    "partition_cols": null,
-                    "sequenc_col": null,
-                    "start_ts": null,
-                    "end_ts": null,
-                    "series": null
+                    "ts_col": "event_ts"
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-                    "ts_convert": null,
                     "data": [
                         [
                             "S1",
@@ -664,17 +476,10 @@
     "__SharedData": {
         "input_data": {
             "tsdf": {
-                "ts_col": "event_ts",
-                "other_ts_cols": null,
-                "partition_cols": null,
-                "sequence_col": null,
-                "start_ts": null,
-                "end_ts": null,
-                "series": null
+                "ts_col": "event_ts"
             },
             "df": {
                 "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
-                "ts_convert": null,
                 "data": [
                     [
                         "S1",
