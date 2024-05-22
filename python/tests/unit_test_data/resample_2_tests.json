@@ -29,7 +29,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
@@ -61,7 +64,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, trade_pr double, trade_pr_2 double",
@@ -91,7 +97,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
@@ -123,7 +132,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, min_date string, min_trade_pr float, min_trade_pr_2 float",
@@ -142,7 +154,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
@@ -384,7 +399,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
@@ -416,7 +434,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
@@ -448,7 +469,10 @@
             },
             "expected_data": {
                 "tsdf": {
-                    "ts_col": "event_ts"
+                    "ts_col": "event_ts",
+                    "partition_cols": [
+                        "symbol"
+                    ]
                 },
                 "df": {
                     "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
@@ -476,7 +500,10 @@
     "__SharedData": {
         "input_data": {
             "tsdf": {
-                "ts_col": "event_ts"
+                "ts_col": "event_ts",
+                "partition_cols": [
+                    "symbol"
+                ]
             },
             "df": {
                 "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
@@ -531,8 +558,7 @@
                         4.0
                     ]
                 ]
-            },
-            "$ref": null
+            }
         }
     }
 }
