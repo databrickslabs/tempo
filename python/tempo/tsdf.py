@@ -23,11 +23,76 @@ import tempo.io as t_io
 import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.tsschema import DEFAULT_TIMESTAMP_FORMAT, is_time_format, sub_seconds_precision_digits, \
-    CompositeTSIndex, ParsedTSIndex, TSIndex, TSSchema, WindowBuilder
+from tempo.tsschema import (DEFAULT_TIMESTAMP_FORMAT, is_time_format,
+                            identify_fractional_second_separator,
+                            sub_seconds_precision_digits,
+                            CompositeTSIndex, ParsedTSIndex, TSIndex, TSSchema,
+                            WindowBuilder)
 from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
+
+
+# Helper functions
+
+
+def make_struct_from_cols(df: DataFrame,
+                          struct_col_name: str,
+                          cols_to_move: List[str]) -> DataFrame:
+    """
+    Transform a :class:`DataFrame` by moving certain columns into a named struct
+
+    :param df: the :class:`DataFrame` to transform
+    :param struct_col_name: name of the struct column to create
+    :param cols_to_move: name of the columns to move into the struct
+
+    :return: the transformed :class:`DataFrame`
+    """
+    return (df.withColumn(struct_col_name,
+                          sfn.struct(*cols_to_move))
+              .drop(*cols_to_move))
+
+
+def time_str_to_double(df: DataFrame,
+                       ts_str_col: str,
+                       ts_dbl_col: str,
+                       ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT) -> DataFrame:
+    """
+    Convert a string timestamp column to a double timestamp column
+
+    :param df: the :class:`DataFrame` to transform
+    :param ts_str_col: name of the string timestamp column
+    :param ts_dbl_col: name of the double timestamp column to create
+    :param fractional_seconds_split_char: the character to split fractional seconds on
+
+    :return: the transformed :class:`DataFrame`
+    """
+    tmp_int_ts_col = "__tmp_int_ts"
+    tmp_frac_ts_col = "__tmp_fract_ts"
+    fract_secs_sep = identify_fractional_second_separator(ts_fmt)
+    double_ts_df = (
+                # get the interger part of the timestamp
+                df.withColumn(tmp_int_ts_col,
+                              sfn.to_timestamp(ts_str_col, ts_fmt).cast("long"))
+                # get the fractional part of the timestamp
+                .withColumn(tmp_frac_ts_col,
+                            sfn.when(
+                                sfn.col(ts_str_col).contains(fract_secs_sep),
+                                sfn.concat(
+                                    sfn.lit("0."),
+                                    sfn.split(sfn.col(ts_str_col),
+                                              f"\\{fract_secs_sep}")[1]
+                                )).otherwise(0.0).cast("double")
+                            )
+                # combine them together
+                .withColumn(ts_dbl_col,
+                            sfn.col(tmp_int_ts_col) + sfn.col(tmp_frac_ts_col))
+                # clean up
+                .drop(tmp_int_ts_col, tmp_frac_ts_col)
+            )
+    return double_ts_df
+
+# The TSDF class
 
 
 class TSDF(WindowBuilder):
@@ -87,23 +152,6 @@ class TSDF(WindowBuilder):
 
         return self.__withTransformedDF(self.df.select(std_ordered_cols))
 
-    @classmethod
-    def __makeStructFromCols(
-        cls, df: DataFrame, struct_col_name: str, cols_to_move: List[str]
-    ) -> DataFrame:
-        """
-        Transform a :class:`DataFrame` by moving certain columns into a struct
-
-        :param df: the :class:`DataFrame` to transform
-        :param struct_col_name: name of the struct column to create
-        :param cols_to_move: name of the columns to move into the struct
-
-        :return: the transformed :class:`DataFrame`
-        """
-        return df.withColumn(struct_col_name, sfn.struct(*cols_to_move)).drop(
-            *cols_to_move
-        )
-
     # default column name for constructed timeseries index struct columns
     __DEFAULT_TS_IDX_COL = "ts_idx"
 
@@ -117,9 +165,9 @@ class TSDF(WindowBuilder):
     ) -> "TSDF":
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_subseq_struct_df = cls.__makeStructFromCols(df,
-                                                         struct_col_name,
-                                                         [ts_col, subsequence_col])
+        with_subseq_struct_df = make_struct_from_cols(df,
+                                                      struct_col_name,
+                                                      [ts_col, subsequence_col])
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
         subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
@@ -128,6 +176,7 @@ class TSDF(WindowBuilder):
 
     # default column name for parsed timeseries column
     __DEFAULT_PARSED_TS_COL = "parsed_ts"
+    __DEFAULT_DOUBLE_TS_COL = "double_ts"
 
     @classmethod
     def fromStringTimestamp(
@@ -138,7 +187,12 @@ class TSDF(WindowBuilder):
         ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT
     ) -> "TSDF":
         # parse the ts_col based on the pattern
+        is_sub_ms = False
+        sub_ms_digits = 0
         if is_time_format(ts_fmt):
+            # is this a sub-microsecond precision timestamp?
+            sub_ms_digits = sub_seconds_precision_digits(ts_fmt)
+            is_sub_ms = sub_ms_digits > 6
             # if the ts_fmt is a time format, we can use to_timestamp
             ts_expr = sfn.to_timestamp(sfn.col(ts_col), ts_fmt)
         else:
@@ -147,18 +201,36 @@ class TSDF(WindowBuilder):
         # parse the ts_col give the expression
         parsed_ts_col = cls.__DEFAULT_PARSED_TS_COL
         parsed_df = df.withColumn(parsed_ts_col, ts_expr)
+        # parse a sub-microsecond precision timestamp to a double
+        if is_sub_ms:
+            # get the integer part of the timestamp
+            parsed_df = time_str_to_double(parsed_df,
+                                           ts_col,
+                                           cls.__DEFAULT_DOUBLE_TS_COL,
+                                           ts_fmt)
         # move the ts cols into a struct
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_parsed_struct_df = cls.__makeStructFromCols(parsed_df,
-                                                         struct_col_name,
-                                                         [ts_col, parsed_ts_col])
+        cols_to_move = [ts_col, parsed_ts_col]
+        if is_sub_ms:
+            cols_to_move.append(cls.__DEFAULT_DOUBLE_TS_COL)
+        with_parsed_struct_df = make_struct_from_cols(parsed_df,
+                                                      struct_col_name,
+                                                      cols_to_move)
         # construct an appropriate TSIndex
         parsed_struct = with_parsed_struct_df.schema[struct_col_name]
-        parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
-                                                          parsed_ts_col,
-                                                          ts_col)
+        if is_sub_ms:
+            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
+                                                              parsed_ts_col,
+                                                              ts_col,
+                                                              cls.__DEFAULT_DOUBLE_TS_COL,
+                                                              sub_ms_digits)
+        else:
+            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
+                                                              parsed_ts_col,
+                                                              ts_col)
         # construct & return the TSDF with appropriate schema
-        return TSDF(with_parsed_struct_df, ts_schema=TSSchema(parsed_ts_idx, series_ids))
+        return TSDF(with_parsed_struct_df,
+                    ts_schema=TSSchema(parsed_ts_idx, series_ids))
 
     @property
     def ts_index(self) -> "TSIndex":

@@ -9,7 +9,7 @@ from tempo.tsschema import (
     ParsedDateIndex,
     TSSchema,
 )
-from tests.base import TestDataFrame, SparkTest
+from tests.base import TestDataFrameBuilder, SparkTest
 
 
 class TSDFBaseTests(SparkTest):
@@ -24,7 +24,7 @@ class TSDFBaseTests(SparkTest):
     ])
     def test_tsdf_constructor(self, init_tsdf_id, expected_idx_class):
         # create TSDF
-        init_tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        init_tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # check that TSDF was created correctly
         self.assertIsNotNone(init_tsdf)
         self.assertIsInstance(init_tsdf, TSDF)
@@ -46,7 +46,7 @@ class TSDFBaseTests(SparkTest):
     ])
     def test_series_ids(self, init_tsdf_id, expected_series_ids):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # validate series ids
         self.assertEqual(set(tsdf.series_ids), set(expected_series_ids))
 
@@ -61,7 +61,7 @@ class TSDFBaseTests(SparkTest):
     ])
     def test_structural_cols(self, init_tsdf_id, expected_structural_cols):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # validate structural cols
         self.assertEqual(set(tsdf.structural_cols), set(expected_structural_cols))
 
@@ -76,7 +76,7 @@ class TSDFBaseTests(SparkTest):
     ])
     def test_obs_cols(self, init_tsdf_id, expected_obs_cols):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # validate obs cols
         self.assertEqual(set(tsdf.observational_cols), set(expected_obs_cols))
 
@@ -91,7 +91,7 @@ class TSDFBaseTests(SparkTest):
     ])
     def test_metric_cols(self, init_tsdf_id, expected_metric_cols):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # validate metric cols
         self.assertEqual(set(tsdf.metric_cols), set(expected_metric_cols))
 
@@ -210,11 +210,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_at(self, init_tsdf_id, ts, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         at_tsdf = tsdf.at(ts)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(at_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -343,11 +343,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_before(self, init_tsdf_id, ts, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         before_tsdf = tsdf.before(ts)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(before_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -485,11 +485,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_atOrBefore(self, init_tsdf_id, ts, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         at_before_tsdf = tsdf.atOrBefore(ts)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(at_before_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -615,11 +615,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_after(self, init_tsdf_id, ts, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         after_tsdf = tsdf.after(ts)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(after_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -751,11 +751,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_atOrAfter(self, init_tsdf_id, ts, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         at_after_tsdf = tsdf.atOrAfter(ts)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(at_after_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -882,11 +882,11 @@ class TimeSlicingTests(SparkTest):
         self, init_tsdf_id, start_ts, end_ts, expected_tsdf_dict
     ):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         between_tsdf = tsdf.between(start_ts, end_ts, inclusive=False)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(between_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -1037,11 +1037,11 @@ class TimeSlicingTests(SparkTest):
         self, init_tsdf_id, start_ts, end_ts, expected_tsdf_dict
     ):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         between_tsdf = tsdf.between(start_ts, end_ts, inclusive=True)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(between_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -1171,11 +1171,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_earliest(self, init_tsdf_id, num_records, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # get earliest timestamp
         earliest_ts = tsdf.earliest(n=num_records)
         # validate the timestamp
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(earliest_ts, expected_tsdf)
 
     @parameterized.expand([
@@ -1306,11 +1306,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_latest(self, init_tsdf_id, num_records, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # get earliest timestamp
         latest_ts = tsdf.latest(n=num_records)
         # validate the timestamp
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(latest_ts, expected_tsdf)
 
     @parameterized.expand([
@@ -1448,11 +1448,11 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_priorTo(self, init_tsdf_id, ts, n, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         prior_tsdf = tsdf.priorTo(ts, n=n)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(prior_tsdf, expected_tsdf)
 
     @parameterized.expand([
@@ -1589,9 +1589,9 @@ class TimeSlicingTests(SparkTest):
     ])
     def test_subsequentTo(self, init_tsdf_id, ts, n, expected_tsdf_dict):
         # load TSDF
-        tsdf = self.get_test_data(init_tsdf_id).as_tsdf()
+        tsdf = self.get_test_df_builder(init_tsdf_id).as_tsdf()
         # slice at timestamp
         subseq_tsdf = tsdf.subsequentTo(ts, n=n)
         # validate the slice
-        expected_tsdf = TestDataFrame(self.spark, expected_tsdf_dict).as_tsdf()
+        expected_tsdf = TestDataFrameBuilder(self.spark, expected_tsdf_dict).as_tsdf()
         self.assertDataFrameEquality(subseq_tsdf, expected_tsdf)
