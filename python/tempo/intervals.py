@@ -1,18 +1,42 @@
 from __future__ import annotations
 
+from itertools import islice
+from typing import Optional, Iterable, cast, Any, Callable
 from functools import cached_property
-from typing import Optional
 
-import pyspark.sql.functions as sfn
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import BooleanType, NumericType, StructField
+from pyspark.sql.types import (
+    # NB: NumericType is a non-public object, so we shouldn't import it directly
+    ByteType,
+    ShortType,
+    IntegerType,
+    LongType,
+    FloatType,
+    DoubleType,
+    DecimalType,
+    BooleanType,
+    StructField,
+)
+import pyspark.sql.functions as f
 from pyspark.sql.window import Window, WindowSpec
+
+import numpy as np
+import pandas as pd
 
 
 def is_metric_col(col: StructField) -> bool:
-    return isinstance(col.dataType, NumericType) or isinstance(
-        col.dataType, BooleanType
-    )
+    return isinstance(
+        col.dataType,
+        (
+            ByteType,
+            ShortType,
+            IntegerType,
+            LongType,
+            FloatType,
+            DoubleType,
+            DecimalType,
+        ),
+    ) or isinstance(col.dataType, BooleanType)
 
 
 class IntervalsDF:
@@ -35,7 +59,7 @@ class IntervalsDF:
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        series_ids: Optional[list[str]] = None,
+        series_ids: Optional[Iterable[str]] = None,
     ) -> None:
         """
          Constructor for :class:`IntervalsDF`.
@@ -58,7 +82,7 @@ class IntervalsDF:
                 [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", 5, 0]],
                 "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 INT, metric_2 INT",
             )
-            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
+            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"])
             idf.df.collect()
             [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=0)]
 
@@ -80,12 +104,18 @@ class IntervalsDF:
 
         if not series_ids:
             self.series_ids = []
-        elif isinstance(series_ids, list):
-            self.series_ids = series_ids
+        elif isinstance(series_ids, str):
+            series_ids = series_ids.split(",")
+            self.series_ids = [s.strip() for s in series_ids]
+        elif isinstance(series_ids, Iterable):
+            self.series_ids = list(series_ids)
         else:
             raise ValueError(
-                f"series_ids must be a list of column names, instead got {type(series_ids)}"
+                f"series_ids must be an Iterable or comma seperated string"
+                f" of column names, instead got {type(series_ids)}"
             )
+
+        # self.make_disjoint = MakeDisjointBuilder()
 
     @cached_property
     def interval_boundaries(self) -> list[str]:
@@ -191,272 +221,7 @@ class IntervalsDF:
 
         return cls(df, start_ts, end_ts, series)
 
-    @classmethod
-    def fromNestedBoundariesDF(cls,
-                               df: DataFrame,
-                               nested_boundaries_col: str,
-                               series_ids: Optional[list[str]] = None,
-                               start_element_name: str = "start",
-                               end_element_name: str = "end" ) -> IntervalsDF:
-        """
-
-        :param df:
-        :param nested_boundaries_col:
-        :param series_ids:
-        :param start_element_name:
-        :param end_element_name:
-        :return:
-        """
-
-        # unpack the start & end elements
-        start_path = f"{nested_boundaries_col}.{start_element_name}"
-        end_path = f"{nested_boundaries_col}.{end_element_name}"
-        unpacked_boundaries_df = (df.withColumn(start_element_name, sfn.col(start_path))
-                                    .withColumn(end_element_name, sfn.col(end_path))
-                                    .drop(nested_boundaries_col))
-        # return the results as an IntervalsDF
-        return IntervalsDF(unpacked_boundaries_df,
-                           start_element_name,
-                           end_element_name,
-                           series_ids)
-
-    def __get_adjacent_rows(self, df: DataFrame) -> DataFrame:
-        """
-        Returns a new `Spark DataFrame`_ containing columns from applying the
-        `lead`_ and `lag`_ window functions.
-
-        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-        .. `lead`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lead.html#pyspark.sql.functions.lead
-        .. `lag`_: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.lag.html#pyspark.sql.functions.lag
-
-        .. todo:
-            - should column names generated here be created at class
-                initialization, saved as attributes then iterated on here?
-                this would allow easier reuse throughout code
-
-        """
-        for c in self.interval_boundaries + self.metric_columns:
-            df = df.withColumn(
-                f"_lead_1_{c}",
-                sfn.lead(c, 1).over(self.window),
-            ).withColumn(
-                f"_lag_1_{c}",
-                sfn.lag(c, 1).over(self.window),
-            )
-
-        return df
-
-    def __identify_subset_intervals(self, df: DataFrame) -> tuple[DataFrame, str]:
-        """
-        Returns a new `Spark DataFrame`_ containing a boolean column if the
-        current interval is a subset of the previous interval and the name
-        of this column for future use.
-
-        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-
-        .. todo:
-            - should subset_indicator be defined here or as an attribute for
-                easier reuse across code?
-
-        """
-
-        subset_indicator = "_lag_1_is_subset"
-
-        df = df.withColumn(
-            subset_indicator,
-            (sfn.col(f"_lag_1_{self.start_ts}") <= sfn.col(self.start_ts))
-            & (sfn.col(f"_lag_1_{self.end_ts}") >= sfn.col(self.end_ts)),
-        )
-
-        # NB: the first record cannot be a subset of the previous and
-        # `lag` will return null for this record with no default set
-        df = df.fillna(
-            False,
-            subset=[subset_indicator],
-        )
-
-        return df, subset_indicator
-
-    def __identify_overlaps(self, df: DataFrame) -> tuple[DataFrame, list[str]]:
-        """
-        Returns a new `Spark DataFrame`_ containing boolean columns if the
-        current interval overlaps with the previous or next interval and a list
-        with the names of these columns for future use.
-
-        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-
-        .. todo:
-            - should overlap_indicators be defined here or as an attribute for
-                easier reuse across code?
-
-        """
-
-        overlap_indicators: list[str] = []
-
-        # identify overlaps for each interval boundary
-        # NB: between is inclusive so not used here, and
-        # matches on boundaries should be ignored
-        for ts in self.interval_boundaries:
-            df = df.withColumn(
-                f"_lead_1_{ts}_overlaps",
-                (sfn.col(f"_lead_1_{ts}") > sfn.col(self.start_ts))
-                & (sfn.col(f"_lead_1_{ts}") < sfn.col(self.end_ts)),
-            ).withColumn(
-                f"_lag_1_{ts}_overlaps",
-                (sfn.col(f"_lag_1_{ts}") > sfn.col(self.start_ts))
-                & (sfn.col(f"_lag_1_{ts}") < sfn.col(self.end_ts)),
-            )
-
-            overlap_indicators.extend(
-                (
-                    f"_lead_1_{ts}_overlaps",
-                    f"_lag_1_{ts}_overlaps",
-                )
-            )
-
-        # NB: the first and last record cannot be a subset of the previous and
-        # next respectively. `lag` will return null for this record with no
-        # default set.
-        df = df.fillna(
-            False,
-            subset=overlap_indicators,
-        )
-
-        return df, overlap_indicators
-
-    def __merge_adjacent_subset_and_superset(
-        self, df: DataFrame, subset_indicator: str
-    ) -> DataFrame:
-        """
-        Returns a new `Spark DataFrame`_ where a subset and it's adjacent
-        superset, identified by `subset_indicator` are merged together.
-
-        We assume that a metric cannot simultaneously have two values in the
-        same interval (unless captured in a structure such as ArrayType, etc)
-        so `coalesce`_ is used to merge metrics when a subset exist. Priority
-        in the coalesce is given to the metrics of the current record, ie it
-        is listed as the first argument.
-
-        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-        .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
-
-        .. todo:
-            - should subset_indicator be defined here or as an attribute for
-                easier reuse across code?
-
-        """
-
-        for c in self.metric_columns:
-            df = df.withColumn(
-                c,
-                sfn.when(
-                    sfn.col(subset_indicator),
-                    sfn.coalesce(sfn.col(c), f"_lag_1_{c}"),
-                ).otherwise(sfn.col(c)),
-            )
-
-        return df
-
-    def __merge_adjacent_overlaps(
-        self, df: DataFrame, how: str, overlap_indicators: list[str]
-    ) -> DataFrame:
-        """
-        Returns a new `Spark DataFrame`_ where adjacent intervals which overlap,
-        identified by `overlap_indicators` are merged together.
-
-        We assume that a metric cannot simultaneously have two values in the
-        same interval (unless captured in a structure such as ArrayType, etc)
-        so `coalesce`_ is used to merge metrics when overlaps exist. Priority
-        in the `coalesce` is given to the metrics of the current record, ie it
-        is listed as the first argument.
-
-        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-        .. _`coalesce`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.coalesce.html
-
-        .. todo:
-            - should overlap_indicators be defined here or as an attribute for
-                easier reuse across code?
-
-        """
-
-        if how == "left":
-            # new boundary for interval end will become the start of the next
-            # interval
-            new_boundary_col = self.end_ts
-            new_boundary_val = f"_lead_1_{self.start_ts}"
-
-        else:
-            # new boundary for interval start will become the end of the
-            # previous interval
-            new_boundary_col = self.start_ts
-            new_boundary_val = f"_lead_1_{self.end_ts}"
-
-        # NB: supersets are split here
-        # subsets are filled with the superset metrics in
-        # `__merge_adjacent_subset_and_superset`
-        superset_interval_when_case = (
-            f"WHEN _lead_1_{self.start_ts}_overlaps "
-            f"AND _lead_1_{self.end_ts}_overlaps "
-            f"THEN {new_boundary_val} "
-        )
-
-        overlap_interval_when_cases = tuple(
-            f"WHEN {c} THEN {c.replace('_overlaps', '')} " for c in overlap_indicators
-        )
-
-        # this logic will be used to create boundaries of disjoint intervals
-        new_interval_boundaries = (
-            "CASE "
-            + superset_interval_when_case
-            + " ".join(overlap_interval_when_cases)
-            + "ELSE null END "
-        )
-
-        df = df.withColumn(
-            new_boundary_col,
-            sfn.expr(new_interval_boundaries),
-        )
-
-        if how == "left":
-            for c in self.metric_columns:
-                df = df.withColumn(
-                    c,
-                    # needed when intervals have same start but different ends
-                    # in this case, merge metrics since they overlap
-                    sfn.when(
-                        sfn.col(f"_lag_1_{self.end_ts}_overlaps"),
-                        sfn.coalesce(sfn.col(c), sfn.col(f"_lag_1_{c}")),
-                    )
-                    # general case when constructing left disjoint interval
-                    # just want new boundary without merging metrics
-                    .otherwise(sfn.col(c)),
-                )
-
-        return df
-
-    def __merge_equal_intervals(self, df: DataFrame) -> DataFrame:
-        """
-        Returns a new `Spark DataFrame`_ where intervals with the same start
-        and end timestamps are merged together.
-
-        We assume that a metric cannot simultaneously have two values in the
-        same interval (unless captured in a structure such as ArrayType, etc.)
-        so `groupBy`_ with an arbitrary `aggregate function`_ is used to merge
-        metrics when a subset exists. In this implementation, `max`_ is used to
-        perform the merge.
-
-        .. _`Spark DataFrame`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.html
-        .. _`groupBy`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.groupBy.html
-        .. _`aggregate function`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/functions.html#aggregate-functions
-        .. _`max`: https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.max.html
-
-        """
-
-        merge_expr = tuple(sfn.max(c).alias(c) for c in self.metric_columns)
-
-        return df.groupBy(*self.interval_boundaries, *self.series_ids).agg(*merge_expr)
-
-    def disjoint(self) -> "IntervalsDF":
+    def make_disjoint(self) -> "IntervalsDF":
         """
         Returns a new :class:`IntervalsDF` where metrics of overlapping time intervals
         are correlated and merged prior to constructing new time interval boundaries (
@@ -468,7 +233,7 @@ class IntervalsDF:
 
         This is often used after :meth:`fromStackedMetrics` to reduce the number of
         metrics with `null` values and helps when constructing filter predicates to
-        to retrieve specific metric values across all instances.
+        retrieve specific metric values across all instances.
 
         :return: A new :class:`IntervalsDF` containing disjoint time intervals
 
@@ -487,67 +252,31 @@ class IntervalsDF:
              Row(start_ts='2020-08-01 00:00:10', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=5, metric_2=0),
              Row(start_ts='2020-08-01 00:00:11', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null)]
 
-        .. todo:
-            - checks that when merging in helper functions, prior to coalesce at least
-                one of the metrics is null
-
         """
-        df = self.df
+        # NB: creating local copies of class and instance attributes to be
+        # referenced by UDF because complex python objects, like classes,
+        # is not possible with PyArrow's supported data types
+        # https://arrow.apache.org/docs/python/api/datatypes.html
+        local_start_ts = self.start_ts
+        local_end_ts = self.end_ts
+        local_series_ids = self.series_ids
 
-        df = self.__get_adjacent_rows(df)
-
-        (df, subset_indicator) = self.__identify_subset_intervals(df)
-
-        subset_df = df.filter(sfn.col(subset_indicator))
-
-        subset_df = self.__merge_adjacent_subset_and_superset(
-            subset_df, subset_indicator
+        disjoint_df = self.df.groupby(self.series_ids).applyInPandas(
+            func=make_disjoint_wrap(
+                self.start_ts,
+                self.end_ts,
+                self.series_ids,
+                self.metric_columns,
+            ),
+            schema=self.df.schema,
         )
 
-        subset_df = subset_df.select(
-            *self.interval_boundaries, *self.series_ids, *self.metric_columns
+        return IntervalsDF(
+            disjoint_df,
+            local_start_ts,
+            local_end_ts,
+            local_series_ids,
         )
-
-        non_subset_df = df.filter(~sfn.col(subset_indicator))
-
-        (non_subset_df, overlap_indicators) = self.__identify_overlaps(non_subset_df)
-
-        overlaps_predicate = " OR ".join(tuple(col for col in overlap_indicators))
-
-        overlaps_df = non_subset_df.filter(overlaps_predicate)
-
-        disjoint_predicate = f"NOT({overlaps_predicate})"
-
-        # filter for intervals that are already disjoint
-        disjoint_df = non_subset_df.filter(disjoint_predicate).select(
-            *self.interval_boundaries, *self.series_ids, *self.metric_columns
-        )
-
-        left_overlaps_df = self.__merge_adjacent_overlaps(
-            overlaps_df, "left", overlap_indicators
-        )
-
-        left_overlaps_df = left_overlaps_df.select(
-            *self.interval_boundaries, *self.series_ids, *self.metric_columns
-        )
-
-        right_overlaps_df = self.__merge_adjacent_overlaps(
-            overlaps_df, "right", overlap_indicators
-        )
-
-        right_overlaps_df = right_overlaps_df.select(
-            *self.interval_boundaries, *self.series_ids, *self.metric_columns
-        )
-
-        unioned_df = (
-            subset_df.unionByName(disjoint_df)
-            .unionByName(left_overlaps_df)
-            .unionByName(right_overlaps_df)
-        )
-
-        disjoint_df = self.__merge_equal_intervals(unioned_df)
-
-        return IntervalsDF(disjoint_df, self.start_ts, self.end_ts, self.series_ids)
 
     def union(self, other: "IntervalsDF") -> "IntervalsDF":
         """
@@ -604,7 +333,10 @@ class IntervalsDF:
             raise TypeError
 
         return IntervalsDF(
-            self.df.unionByName(other.df), self.start_ts, self.end_ts, self.series_ids
+            self.df.unionByName(other.df),
+            self.start_ts,
+            self.end_ts,
+            self.series_ids,
         )
 
     def toDF(self, stack: bool = False) -> DataFrame:
@@ -640,8 +372,961 @@ class IntervalsDF:
             )
 
             return self.df.select(
-                *self.interval_boundaries, *self.series_ids, sfn.expr(stack_expr)
+                *self.interval_boundaries,
+                *self.series_ids,
+                f.expr(stack_expr),
             ).dropna(subset="metric_value")
 
         else:
             return self.df
+
+
+def identify_interval_overlaps(
+    in_pdf: pd.DataFrame,
+    with_row: pd.Series,
+    interval_start_ts: str,
+    interval_end_ts: str,
+) -> pd.DataFrame:
+    """
+    return the subset of rows in DataFrame `in_pdf` that overlap with row `with_row`
+    """
+
+    if in_pdf.empty or with_row.empty:
+        # return in_pdf
+        return pd.DataFrame()
+
+    local_in_pdf = in_pdf.copy()
+
+    # https://stackoverflow.com/questions/19913659/pandas-conditional-creation-of-a-series-dataframe-column
+    local_in_pdf["max_start_timestamp"] = [
+        _ if _ >= with_row[interval_start_ts] else with_row[interval_start_ts]
+        for _ in local_in_pdf[interval_start_ts]
+    ]
+
+    local_in_pdf["min_end_timestamp"] = [
+        _ if _ <= with_row[interval_end_ts] else with_row[interval_end_ts]
+        for _ in local_in_pdf[interval_end_ts]
+    ]
+
+    # https://www.baeldung.com/cs/finding-all-overlapping-intervals
+    local_in_pdf = local_in_pdf[
+        local_in_pdf["max_start_timestamp"] < local_in_pdf["min_end_timestamp"]
+    ]
+
+    local_in_pdf = local_in_pdf.drop(
+        columns=["max_start_timestamp", "min_end_timestamp"]
+    )
+
+    # NB: with_row will always be included in the subset because with_row
+    #     is identical to with_row. This step is to remove it from subset.
+    remove_with_row_mask = ~(
+        local_in_pdf.fillna("¯\\_(ツ)_/¯") == np.array(with_row.fillna("¯\\_(ツ)_/¯"))
+    ).all(1)
+    local_in_pdf = local_in_pdf[remove_with_row_mask]
+
+    return local_in_pdf
+
+
+def check_for_nan_values(to_check: Any) -> bool:
+    """
+    return True if there are any NaN values in `to_check`
+    """
+    if isinstance(to_check, pd.Series):
+        return to_check.isna().any()
+    elif isinstance(to_check, pd.DataFrame):
+        return to_check.isna().any().any()
+    elif isinstance(to_check, np.ndarray):
+        return bool(np.isnan(to_check).any())
+    elif isinstance(to_check, (np.generic, float)):
+        return np.isnan(to_check)
+    else:
+        return to_check is None
+
+
+def interval_starts_before(
+    *,
+    interval: pd.Series,
+    other: pd.Series,
+    interval_start_ts: str,
+    other_start_ts: Optional[str] = None,
+) -> bool:
+    """
+    return True if interval_a starts before interval_b starts
+    """
+
+    if other_start_ts is None:
+        other_start_ts = interval_start_ts
+
+    if check_for_nan_values(interval[interval_start_ts]) or check_for_nan_values(
+        other[other_start_ts]
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return interval[interval_start_ts] < other[other_start_ts]
+
+
+def interval_ends_before(
+    *,
+    interval: pd.Series,
+    other: pd.Series,
+    interval_end_ts: str,
+    other_end_ts: Optional[str] = None,
+) -> bool:
+    """
+    return True if interval_a ends before interval_b ends
+    """
+
+    if other_end_ts is None:
+        other_end_ts = interval_end_ts
+
+    if check_for_nan_values(interval[interval_end_ts]) or check_for_nan_values(
+        other[other_end_ts]
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return interval[interval_end_ts] < other[other_end_ts]
+
+
+def interval_is_contained_by(
+    *,
+    interval: pd.Series,
+    other: pd.Series,
+    interval_start_ts: str,
+    interval_end_ts: str,
+    other_start_ts: Optional[str] = None,
+    other_end_ts: Optional[str] = None,
+) -> bool:
+    """
+    return True if interval is contained in other
+    """
+
+    if other_start_ts is None:
+        other_start_ts = interval_start_ts
+
+    if other_end_ts is None:
+        other_end_ts = interval_end_ts
+
+    if (
+        check_for_nan_values(interval[interval_start_ts])
+        or check_for_nan_values(interval[interval_end_ts])
+        or check_for_nan_values(other[other_start_ts])
+        or check_for_nan_values(other[other_end_ts])
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return interval_starts_before(
+        interval=other,
+        other=interval,
+        interval_start_ts=other_start_ts,
+        other_start_ts=interval_start_ts,
+    ) and interval_ends_before(
+        interval=interval,
+        other=other,
+        interval_end_ts=interval_end_ts,
+        other_end_ts=other_end_ts,
+    )
+
+
+def intervals_share_start_boundary(
+    interval: pd.Series,
+    other: pd.Series,
+    interval_start_ts: str,
+    other_start_ts: Optional[str] = None,
+) -> bool:
+    """
+    return True if interval_a and interval_b share a start boundary
+    """
+
+    if other_start_ts is None:
+        other_start_ts = interval_start_ts
+
+    if check_for_nan_values(interval[interval_start_ts]) or check_for_nan_values(
+        other[other_start_ts]
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return interval[interval_start_ts] == other[other_start_ts]
+
+
+def intervals_share_end_boundary(
+    interval: pd.Series,
+    other: pd.Series,
+    interval_end_ts: str,
+    other_end_ts: Optional[str] = None,
+) -> bool:
+    """
+    return True if interval_a and interval_b share an end boundary
+    """
+
+    if other_end_ts is None:
+        other_end_ts = interval_end_ts
+
+    if check_for_nan_values(interval[interval_end_ts]) or check_for_nan_values(
+        other[other_end_ts]
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return interval[interval_end_ts] == other[other_end_ts]
+
+
+def intervals_boundaries_are_equivalent(
+    interval: pd.Series,
+    other: pd.Series,
+    interval_start_ts: str,
+    interval_end_ts: str,
+    other_start_ts: Optional[str] = None,
+    other_end_ts: Optional[str] = None,
+) -> bool:
+    """
+    return True if interval_a is equivalent to interval_b
+    """
+
+    if other_start_ts is None:
+        other_start_ts = interval_start_ts
+
+    if other_end_ts is None:
+        other_end_ts = interval_end_ts
+
+    if (
+        check_for_nan_values(interval[interval_start_ts])
+        or check_for_nan_values(interval[interval_end_ts])
+        or check_for_nan_values(other[other_start_ts])
+        or check_for_nan_values(other[other_end_ts])
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return intervals_share_start_boundary(
+        interval,
+        other,
+        interval_start_ts=interval_start_ts,
+        other_start_ts=other_start_ts,
+    ) and intervals_share_end_boundary(
+        interval,
+        other,
+        interval_end_ts=interval_end_ts,
+        other_end_ts=other_end_ts,
+    )
+
+
+def intervals_have_equivalent_metric_columns(
+    interval_a: pd.Series,
+    interval_b: pd.Series,
+    metric_columns: Iterable[str],
+) -> bool:
+    """
+    return True if interval_a and interval_b have identical metrics
+    """
+    if isinstance(metric_columns, str):
+        metric_columns = metric_columns.split(",")
+        metric_columns = [s.strip() for s in metric_columns]
+    elif isinstance(metric_columns, Iterable):
+        metric_columns = list(metric_columns)
+    else:
+        raise ValueError(
+            f"series_ids must be an Iterable or comma seperated string"
+            f" of column names, instead got {type(metric_columns)}"
+        )
+
+    interval_a = interval_a.copy().fillna("¯\\_(ツ)_/¯")
+    interval_b = interval_b.copy().fillna("¯\\_(ツ)_/¯")
+    return all(
+        interval_a[metric_col] == interval_b[metric_col]
+        for metric_col in metric_columns
+    )
+
+
+def intervals_do_not_overlap(
+    *,
+    interval: pd.Series,
+    other: pd.Series,
+    interval_start_ts: str,
+    interval_end_ts: str,
+    other_start_ts: Optional[str] = None,
+    other_end_ts: Optional[str] = None,
+) -> bool:
+    if other_start_ts is None:
+        other_start_ts = interval_start_ts
+
+    if other_end_ts is None:
+        other_end_ts = interval_end_ts
+
+    if (
+        check_for_nan_values(interval[interval_start_ts])
+        or check_for_nan_values(interval[interval_end_ts])
+        or check_for_nan_values(other[other_start_ts])
+        or check_for_nan_values(other[other_end_ts])
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    return (
+        interval[interval_end_ts] < other[other_start_ts]
+        or interval[interval_start_ts] > other[other_end_ts]
+    )
+
+
+def update_interval_boundary(
+    *,
+    interval: pd.Series,
+    boundary_to_update: str,
+    update_value: str,
+) -> pd.Series:
+    """
+    return new copy of interval with start or end time updated using update_value
+    """
+    if boundary_to_update not in (interval_keys := interval.keys()):
+        raise KeyError(f"boundary_to_update must exist in of {interval_keys}")
+
+    updated_interval = interval.copy()
+    updated_interval[boundary_to_update] = update_value
+
+    return updated_interval
+
+
+def merge_metric_columns_of_intervals(
+    *,
+    main_interval: pd.Series,
+    child_interval: pd.Series,
+    metric_columns: Iterable[str],
+    metric_merge_method: bool = False,
+) -> pd.Series:
+    """
+    return the merged metrics of interval_a and interval_b
+    """
+
+    if isinstance(metric_columns, str):
+        metric_columns = metric_columns.split(",")
+        metric_columns = [s.strip() for s in metric_columns]
+    elif isinstance(metric_columns, Iterable):
+        metric_columns = list(metric_columns)
+    else:
+        raise ValueError(
+            f"series_ids must be an Iterable or comma seperated string"
+            f" of column names, instead got {type(metric_columns)}"
+        )
+
+    merged_interval = main_interval.copy()
+
+    if metric_merge_method:
+        for metric_col in metric_columns:
+            if pd.notna(child_interval[metric_col]):
+                merged_interval[metric_col] = child_interval[metric_col]
+
+    return merged_interval
+
+
+def resolve_overlap(  # TODO: need to implement proper metric merging
+    #  -> for now, can just take non-null values from both intervals
+    interval: pd.Series,
+    other: pd.Series,
+    interval_start_ts: str,
+    interval_end_ts: str,
+    series_ids: Iterable[str],
+    metric_columns: Iterable[str],
+    other_start_ts: Optional[str] = None,
+    other_end_ts: Optional[str] = None,
+) -> list[pd.Series]:
+    """
+    resolve overlaps between the two given intervals,
+    splitting them as necessary into some set of disjoint intervals
+    """
+
+    if other_start_ts is None:
+        try:
+            _ = other[interval_start_ts]
+            other_start_ts = interval_start_ts
+        except KeyError:
+            raise ValueError(
+                f"`other_start_ts` must be set or equivalent to `interval_start_ts`, got {other_start_ts}"
+            )
+
+    if other_end_ts is None:
+        try:
+            _ = other[interval_end_ts]
+            other_end_ts = interval_end_ts
+        except KeyError:
+            raise ValueError(
+                f"`other_end_ts` must be set or equivalent to `interval_end_ts`, got {other_end_ts}"
+            )
+
+    if (
+        check_for_nan_values(interval[interval_start_ts])
+        or check_for_nan_values(interval[interval_end_ts])
+        or check_for_nan_values(other[other_start_ts])
+        or check_for_nan_values(other[other_end_ts])
+    ):
+        raise ValueError("interval and other cannot contain NaN values for timestamps")
+
+    interval_index = set(interval.index).difference(
+        (
+            interval_start_ts,
+            interval_end_ts,
+        )
+    )
+    other_index = set(other.index).difference(
+        (
+            other_start_ts,
+            other_end_ts,
+        )
+    )
+
+    if not interval_index == other_index:
+        raise ValueError("Expected indices of pd.Series elements to be equivalent.")
+
+    for arg in (series_ids, metric_columns):
+        if isinstance(arg, str):
+            arg = [s.strip() for s in arg.split(",")]
+        elif isinstance(arg, Iterable):
+            arg = list(arg)
+        else:
+            raise ValueError(
+                f"{arg} must be an Iterable or comma seperated string"
+                f" of column names, instead got {type(arg)}"
+            )
+
+    series_ids = cast(list[str], series_ids)
+    metric_columns = cast(list[str], metric_columns)
+
+    resolved_intervals = list()
+
+    # NB: Checking order of intervals in terms of start time allows
+    # us to remove all cases where b precedes a because the interval
+    # which opens sooner can always be set to a
+    if interval[interval_start_ts] > other[other_start_ts]:
+        interval, other = other, interval
+
+    # intervals_do_not_overlap(interval, other, ...) is True
+    #
+    # Results in 2 disjoint intervals
+    # 1) A.start, A.end, A.metric_columns
+    # 2) B.start, B.end, B.metric_columns
+
+    if intervals_do_not_overlap(
+        interval=interval,
+        other=other,
+        interval_start_ts=interval_start_ts,
+        interval_end_ts=interval_end_ts,
+        other_start_ts=other_start_ts,
+        other_end_ts=other_end_ts,
+    ):
+        return [interval, other]
+
+    # intervals_have_equivalent_metric_columns(interval, other, metric_columns) is True
+    #
+    # Results in 1 disjoint interval
+    # 1) A.start, B.end, A.metric_columns
+
+    if intervals_have_equivalent_metric_columns(interval, other, metric_columns):
+        resolved_series = update_interval_boundary(
+            interval=interval,
+            boundary_to_update=interval_end_ts,
+            update_value=other[other_end_ts],
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        return resolved_intervals
+
+    # interval_is_contained_by(interval=other, other=interval, ...) is True
+    #
+    # Results in 3 disjoint intervals
+    # 1) A.start, B.start, A.metric_columns
+    # 2) B.start, B.end, merge(A.metric_columns, B.metric_columns)
+    # 3) B.end, A.end, A.metric_columns
+
+    if interval_is_contained_by(
+        interval=other,
+        other=interval,
+        interval_start_ts=other_start_ts,
+        interval_end_ts=other_end_ts,
+        other_start_ts=interval_start_ts,
+        other_end_ts=interval_end_ts,
+    ):
+        # 1)
+        resolved_series = update_interval_boundary(
+            interval=interval,
+            boundary_to_update=interval_end_ts,
+            update_value=other[other_start_ts],
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        # 2)
+        resolved_series = merge_metric_columns_of_intervals(
+            main_interval=other,
+            child_interval=interval,
+            metric_columns=metric_columns,
+            metric_merge_method=True,
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        # 3)
+        resolved_series = update_interval_boundary(
+            interval=interval,
+            boundary_to_update=interval_start_ts,
+            update_value=other[other_end_ts],
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        return resolved_intervals
+
+    # A shares a common start with B, a different end boundary
+    # - A.start = B.start & A.end != B.end
+    #
+    # Results in 2 disjoint intervals
+    # - if A.end < B.end
+    #     1) A.start, A.end, merge(A.metric_columns, B.metric_columns)
+    #     2) A.end, B.end, B.metric_columns
+    # - if A.end > B.end
+    #     1) B.start, B.end, merge(A.metric_columns, B.metric_columns)
+    #     2) B.end, A.end, A.metric_columns
+
+    if intervals_share_start_boundary(
+        interval,
+        other,
+        interval_start_ts=interval_start_ts,
+        other_start_ts=other_start_ts,
+    ) and not intervals_share_end_boundary(
+        interval, other, interval_end_ts=interval_end_ts
+    ):
+        if interval_ends_before(
+            interval=interval,
+            other=other,
+            interval_end_ts=interval_end_ts,
+            other_end_ts=other_end_ts,
+        ):
+            # 1)
+            resolved_series = merge_metric_columns_of_intervals(
+                main_interval=interval,
+                child_interval=other,
+                metric_columns=metric_columns,
+                metric_merge_method=True,
+            )
+
+            resolved_intervals.append(resolved_series)
+
+            # 2)
+            resolved_series = update_interval_boundary(
+                interval=other,
+                boundary_to_update=other_start_ts,
+                update_value=interval[interval_end_ts],
+            )
+
+            resolved_intervals.append(resolved_series)
+
+        else:
+            # 1)
+            resolved_series = merge_metric_columns_of_intervals(
+                main_interval=other,
+                child_interval=interval,
+                metric_columns=metric_columns,
+                metric_merge_method=True,
+            )
+
+            resolved_intervals.append(resolved_series)
+
+            # 2)
+            resolved_series = update_interval_boundary(
+                interval=interval,
+                boundary_to_update=interval_start_ts,
+                update_value=other[other_end_ts],
+            )
+
+            resolved_intervals.append(resolved_series)
+
+        return resolved_intervals
+
+    # A shares a common end with B, a different start boundary
+    # - A.start != B.start & A.end = B.end
+    #
+    # Results in 2 disjoint intervals
+    # - if A.start < B.start
+    #     1) A.start, B.start, A.metric_columns
+    #     1) B.start, B.end, merge(A.metric_columns, B.metric_columns)
+    # - if A.start > B.start
+    #     1) B.start, A.end, B.metric_columns
+    #     2) A.start, A.end, merge(A.metric_columns, B.metric_columns)
+
+    if not intervals_share_start_boundary(
+        interval,
+        other,
+        interval_start_ts=interval_start_ts,
+        other_start_ts=other_start_ts,
+    ) and intervals_share_end_boundary(
+        interval,
+        other,
+        interval_end_ts=interval_end_ts,
+        other_end_ts=other_end_ts,
+    ):
+        if interval_starts_before(
+            interval=interval,
+            other=other,
+            interval_start_ts=interval_start_ts,
+            other_start_ts=other_start_ts,
+        ):
+            # 1)
+            resolved_series = update_interval_boundary(
+                interval=interval,
+                boundary_to_update=interval_end_ts,
+                update_value=other[other_start_ts],
+            )
+
+            resolved_intervals.append(resolved_series)
+
+            # 2)
+            resolved_series = merge_metric_columns_of_intervals(
+                main_interval=other,
+                child_interval=interval,
+                metric_columns=metric_columns,
+                metric_merge_method=True,
+            )
+
+            resolved_intervals.append(resolved_series)
+
+        return resolved_intervals
+
+    # A and B share a common start and end boundary, making them equivalent.
+    # - A.start = B.start & A.end = B.end
+    #
+    # Results in 1 disjoint interval
+    # 1) A.start, A.end, merge(A.metric_columns, B.metric_columns)
+
+    if intervals_boundaries_are_equivalent(
+        interval,
+        other,
+        interval_start_ts=interval_start_ts,
+        interval_end_ts=interval_end_ts,
+        other_start_ts=other_start_ts,
+        other_end_ts=other_end_ts,
+    ):
+        resolved_series = merge_metric_columns_of_intervals(
+            main_interval=interval,
+            child_interval=other,
+            metric_columns=metric_columns,
+            metric_merge_method=True,
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        return resolved_intervals
+
+    # Interval A starts first and A partially overlaps B
+    # - A.start < B.start & A.end < B.end
+    #
+    # Results in 3 disjoint intervals
+    # 1) A.start, B.start, A.metric_columns
+    # 2) B.start, A.end, merge(A.metric_columns, B.metric_columns)
+    # 3) A.end, B.end, B.metric_columns
+
+    if interval_starts_before(
+        interval=interval,
+        other=other,
+        interval_start_ts=interval_start_ts,
+        other_start_ts=other_start_ts,
+    ) and interval_ends_before(
+        interval=interval,
+        other=other,
+        interval_end_ts=interval_end_ts,
+        other_end_ts=other_end_ts,
+    ):
+        # 1)
+        resolved_series = update_interval_boundary(
+            interval=interval,
+            boundary_to_update=interval_end_ts,
+            update_value=other[other_start_ts],
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        # 2)
+        updated_series = update_interval_boundary(
+            interval=other,
+            boundary_to_update=other_end_ts,
+            update_value=interval[interval_end_ts],
+        )
+        resolved_series = merge_metric_columns_of_intervals(
+            main_interval=updated_series,
+            child_interval=interval,
+            metric_columns=metric_columns,
+            metric_merge_method=True,
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        # 3)
+        resolved_series = update_interval_boundary(
+            interval=other,
+            boundary_to_update=other_start_ts,
+            update_value=interval[interval_end_ts],
+        )
+
+        resolved_intervals.append(resolved_series)
+
+        return resolved_intervals
+
+    raise NotImplementedError("Interval resolution not implemented")
+
+
+def resolve_all_overlaps(
+    with_row: pd.Series,
+    overlaps: pd.DataFrame,
+    with_row_start_ts: str,
+    with_row_end_ts: str,
+    series_ids: Iterable[str],
+    metric_columns: Iterable[str],
+    overlap_start_ts: Optional[str] = None,
+    overlap_end_ts: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    resolve the interval `x` against all overlapping intervals in `overlapping`,
+    returning a set of disjoint intervals with the same spans
+    https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html
+    """
+
+    if overlap_start_ts is None:
+        try:
+            _ = overlaps[with_row_start_ts]
+            overlap_start_ts = with_row_start_ts
+        except KeyError:
+            raise ValueError(
+                f"`overlaps_start_ts` must be set or equivalent to `with_row_start_ts`, got {overlap_start_ts}"
+            )
+
+    if overlap_end_ts is None:
+        try:
+            _ = overlaps[with_row_end_ts]
+            overlap_end_ts = with_row_end_ts
+        except KeyError:
+            raise ValueError(
+                f"`overlaps_end_ts` must be set or equivalent to `with_row_end_ts`, got {overlap_end_ts}"
+            )
+
+    for arg in (series_ids, metric_columns):
+        if isinstance(arg, str):
+            arg = [s.strip() for s in arg.split(",")]
+        elif isinstance(arg, Iterable):
+            arg = list(arg)
+        else:
+            raise ValueError(
+                f"{arg} must be an Iterable or comma seperated string"
+                f" of column names, instead got {type(arg)}"
+            )
+
+    series_ids = cast(list[str], series_ids)
+    metric_columns = cast(list[str], metric_columns)
+
+    first_row = overlaps.iloc[0]
+    initial_intervals = resolve_overlap(
+        with_row,
+        first_row,
+        with_row_start_ts,
+        with_row_end_ts,
+        series_ids,
+        metric_columns,
+        overlap_start_ts,
+        overlap_end_ts,
+    )
+    local_disjoint_df = pd.DataFrame(initial_intervals)
+
+    # NB: using `itertools.islice` to build a generator that skips the first
+    # row of overlaps
+    for _, row in islice(overlaps.iterrows(), 1, None):
+        resolved_intervals = resolve_overlap(
+            with_row,
+            row,
+            with_row_start_ts,
+            with_row_end_ts,
+            series_ids,
+            metric_columns,
+            overlap_start_ts,
+            overlap_end_ts,
+        )
+        for interval in resolved_intervals:
+            local_disjoint_df = add_as_disjoint(
+                interval,
+                local_disjoint_df,
+                (overlap_start_ts, overlap_end_ts),
+                series_ids,
+                metric_columns,
+            )
+
+    return local_disjoint_df
+
+
+def add_as_disjoint(
+    interval: pd.Series,
+    disjoint_set: Optional[pd.DataFrame],
+    interval_boundaries: Iterable[str],
+    series_ids: Iterable[str],
+    metric_columns: Iterable[str],
+) -> pd.DataFrame:
+    """
+    returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
+    """
+
+    if isinstance(interval_boundaries, str):
+        _ = interval_boundaries.split(",")
+        interval_boundaries = [s.strip() for s in _]
+    elif isinstance(interval_boundaries, Iterable):
+        interval_boundaries = list(interval_boundaries)
+    else:
+        raise ValueError(
+            f"series_ids must be an Iterable or comma seperated string"
+            f" of column names, instead got {type(interval_boundaries)}"
+        )
+
+    if len(interval_boundaries) != 2:
+        raise ValueError(
+            f"interval_boundaries must be an Iterable of length 2, instead got {len(interval_boundaries)}"
+        )
+
+    start_ts, end_ts = interval_boundaries
+
+    for arg in (series_ids, metric_columns):
+        if isinstance(arg, str):
+            arg = [s.strip() for s in arg.split(",")]
+        elif isinstance(arg, Iterable):
+            arg = list(arg)
+        else:
+            raise ValueError(
+                f"{arg} must be an Iterable or comma seperated string"
+                f" of column names, instead got {type(arg)}"
+            )
+
+    series_ids = cast(list[str], series_ids)
+    metric_columns = cast(list[str], metric_columns)
+
+    if disjoint_set is None:
+        return pd.DataFrame([interval])
+
+    if disjoint_set.empty:
+        return pd.DataFrame([interval])
+
+    overlapping_subset_df = identify_interval_overlaps(
+        in_pdf=disjoint_set,
+        with_row=interval,
+        interval_start_ts=start_ts,
+        interval_end_ts=end_ts,
+    )
+
+    # if there are no overlaps, add the interval to disjoint_set
+    if overlapping_subset_df.empty:
+        element_wise_comparison = (
+            disjoint_set.fillna("¯\\_(ツ)_/¯") == interval.fillna("¯\\_(ツ)_/¯").values
+        )
+        row_wise_comparison = element_wise_comparison.all(axis=1)
+        # NB: because of the nested iterations, we need to check that the
+        # record hasn't already been added to `global_disjoint_df` by another loop
+        if row_wise_comparison.any():
+            return disjoint_set
+        else:
+            return pd.concat((disjoint_set, pd.DataFrame([interval])))
+
+    # identify all intervals which do not overlap with the given interval to
+    # concatenate them to the disjoint set after resolving overlaps
+    non_overlapping_subset_df = disjoint_set[
+        ~disjoint_set.set_index(interval_boundaries).index.isin(
+            overlapping_subset_df.set_index(interval_boundaries).index
+        )
+    ]
+
+    # Avoid a call to `resolve_all_overlaps` if there is only one to resolve
+    multiple_to_resolve = len(overlapping_subset_df.index) > 1
+
+    # If every record overlaps, no need to handle non-overlaps
+    only_overlaps_present = len(disjoint_set.index) == len(overlapping_subset_df.index)
+
+    # Resolve the interval against all the existing, overlapping intervals
+    # `multiple_to_resolve` is used to avoid unnecessary calls to `resolve_all_overlaps`
+    # `only_overlaps_present` is used to avoid unnecessary calls to `pd.concat`
+    if not multiple_to_resolve and only_overlaps_present:
+        return pd.DataFrame(
+            resolve_overlap(
+                interval,
+                overlapping_subset_df.iloc[0],
+                start_ts,
+                end_ts,
+                series_ids,
+                metric_columns,
+            )
+        )
+
+    if multiple_to_resolve and only_overlaps_present:
+        return resolve_all_overlaps(
+            interval,
+            overlapping_subset_df,
+            start_ts,
+            end_ts,
+            series_ids,
+            metric_columns,
+        )
+
+    if not multiple_to_resolve and not only_overlaps_present:
+        return pd.concat(
+            (
+                pd.DataFrame(
+                    resolve_overlap(
+                        interval,
+                        overlapping_subset_df.iloc[0],
+                        start_ts,
+                        end_ts,
+                        series_ids,
+                        metric_columns,
+                    )
+                ),
+                non_overlapping_subset_df,
+            ),
+        )
+
+    if multiple_to_resolve and not only_overlaps_present:
+        return pd.concat(
+            (
+                resolve_all_overlaps(
+                    interval,
+                    overlapping_subset_df,
+                    start_ts,
+                    end_ts,
+                    series_ids,
+                    metric_columns,
+                ),
+                non_overlapping_subset_df,
+            ),
+        )
+
+    # if we get here, something went wrong
+    raise NotImplementedError
+
+
+def make_disjoint_wrap(
+    start_ts: str,
+    end_ts: str,
+    series_ids: Iterable[str],
+    metric_columns: Iterable[str],
+) -> Callable[[pd.DataFrame], pd.DataFrame]:
+    def make_disjoint_inner(
+        pdf: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        function will process all intervals in the input, and break down overlapping intervals into a fully disjoint set
+        https://stackoverflow.com/questions/13784192/creating-an-empty-pandas-dataframe-and-then-filling-it
+        https://stackoverflow.com/questions/55478191/list-of-series-to-dataframe
+        https://pandas.pydata.org/pandas-docs/version/0.21/generated/pandas.DataFrame.append.html
+        """
+
+        global_disjoint_df = pd.DataFrame(columns=pdf.columns)
+
+        sorted_pdf = pdf.sort_values([start_ts, end_ts])
+
+        for _, row in sorted_pdf.iterrows():
+            global_disjoint_df = add_as_disjoint(
+                row,
+                global_disjoint_df,
+                (start_ts, end_ts),
+                series_ids,
+                metric_columns,
+            )
+
+        return global_disjoint_df
+
+    return make_disjoint_inner

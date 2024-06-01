@@ -5,7 +5,7 @@ from pyspark.sql.dataframe import DataFrame
 from tempo.resample import resample
 from tempo.interpol import interpolate, Interpolation
 from tempo.tsdf import TSDF
-from tests.tsdf_tests import SparkTest
+from tests.base import SparkTest
 
 
 class InterpolationUnitTest(SparkTest):

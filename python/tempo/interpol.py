@@ -7,56 +7,11 @@ import pyspark.sql.functions as sfn
 
 import tempo.resample as t_resample
 import tempo.tsdf as t_tsdf
+import tempo.utils as t_utils
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
 supported_target_col_types = ["int", "bigint", "float", "double"]
-
-
-def interpolate(
-    tsdf: t_tsdf.TSDF,
-    method: str,
-    freq: Optional[str] = None,
-    func: Optional[Union[Callable | str]] = None,
-    target_cols: Optional[List[str]] = None,
-    show_interpolated: bool = False,
-    perform_checks: bool = True,
-) -> t_tsdf.TSDF:
-    """
-    Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
-    will be filled based on the fill calculation.
-
-    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
-    :param func: function used to aggregate input
-    :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
-    :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
-    :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
-    :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
-    :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
-    :param perform_checks: calculate time horizon and warnings if True (default is True)
-    :return: new TSDF object containing interpolated data
-    """
-
-    # Set defaults for target columns, timestamp column and partition columns when not provided
-    if freq is None:
-        raise ValueError("freq must be provided")
-    if func is None:
-        raise ValueError("func must be provided")
-    if target_cols is None:
-        target_cols = tsdf.metric_cols
-
-    interpolate_service = Interpolation(is_resampled=False)
-    interpolated_df: DataFrame = interpolate_service.interpolate(
-        tsdf,
-        target_cols,
-        freq,
-        func,
-        method,
-        show_interpolated,
-        perform_checks,
-    )
-
-    return t_tsdf.TSDF(interpolated_df, ts_col=ts_col, series_ids=series_ids)
 
 
 class Interpolation:
@@ -206,8 +161,8 @@ class Interpolation:
             "previous_timestamp",
             sfn.col(tsdf.ts_col),
         ).withColumn(
-            "next_timestamp",
-            sfn.lead(sfn.col(tsdf.ts_col)).over(tsdf.baseWindow()))
+            "next_timestamp", sfn.lead(sfn.col(tsdf.ts_col)).over(tsdf.baseWindow())
+        )
 
     def __generate_column_time_fill(
         self,
@@ -229,12 +184,14 @@ class Interpolation:
 
         return tsdf.withColumn(
             f"previous_timestamp_{target_col}",
-            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"),
-                     ignorenulls=True).over(fwd_win),
+            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"), ignorenulls=True).over(
+                fwd_win
+            ),
         ).withColumn(
             f"next_timestamp_{target_col}",
-            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"),
-                     ignorenulls=True).over(bkwd_win)
+            sfn.last(sfn.col(f"{tsdf.ts_col}_{target_col}"), ignorenulls=True).over(
+                bkwd_win
+            ),
         )
 
     def __generate_target_fill(
@@ -258,15 +215,14 @@ class Interpolation:
         return (
             tsdf.withColumn(
                 f"previous_{target_col}",
-                sfn.last(sfn.col(target_col), ignorenulls=True).over(fwd_win)
+                sfn.last(sfn.col(target_col), ignorenulls=True).over(fwd_win),
             )
             # Handle if subsequent value is null
             .withColumn(
                 f"next_null_{target_col}",
-                sfn.last(sfn.col(target_col), ignorenulls=True).over(bkwd_win)
+                sfn.last(sfn.col(target_col), ignorenulls=True).over(bkwd_win),
             ).withColumn(
-                f"next_{target_col}",
-                sfn.lead(sfn.col(target_col)).over(fwd_win)
+                f"next_{target_col}", sfn.lead(sfn.col(target_col)).over(fwd_win)
             )
         )
 
@@ -311,7 +267,7 @@ class Interpolation:
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if perform_checks:
-            t_resample.calculate_time_horizon(tsdf, freq)
+            t_utils.calculate_time_horizon(tsdf, freq)
 
         # Only select required columns for interpolation
         input_cols: List[str] = [tsdf.ts_col, *target_cols]
@@ -322,10 +278,7 @@ class Interpolation:
 
         if self.is_resampled is False:
             # Resample and Normalize Input
-            sampled_input = t_resample.resample(tsdf,
-                                                freq=freq,
-                                                func=func,
-                                                metricCols=target_cols)
+            sampled_input = tsdf.resample(freq=freq, func=func, metricCols=target_cols)
 
         # Fill timeseries for nearest values
         time_series_filled = self.__generate_time_series_fill(sampled_input)
@@ -336,11 +289,11 @@ class Interpolation:
         for column in target_cols:
             add_column_time = add_column_time.withColumn(
                 f"{tsdf.ts_col}_{column}",
-                sfn.when(sfn.col(column).isNull(), None).otherwise(sfn.col(tsdf.ts_col)),
+                sfn.when(sfn.col(column).isNull(), None).otherwise(
+                    sfn.col(tsdf.ts_col)
+                ),
             )
-            add_column_time = self.__generate_column_time_fill(
-                add_column_time, column
-            )
+            add_column_time = self.__generate_column_time_fill(add_column_time, column)
 
         # Handle edge case if last value (latest) is null
         edge_filled = add_column_time.withColumn(
@@ -366,21 +319,21 @@ class Interpolation:
             ),
         )
         # Mark rows that are interpolated if flag is set to True
-        flagged_series = exploded_series
+        flagged_series: DataFrame = exploded_series
 
         flagged_series = (
             exploded_series.withColumn(
                 "is_ts_interpolated",
-                sfn.when(sfn.col(f"new_{tsdf.ts_col}") != sfn.col(tsdf.ts_col), True).otherwise(
-                    False
-                ),
+                sfn.when(
+                    sfn.col(f"new_{tsdf.ts_col}") != sfn.col(tsdf.ts_col), True
+                ).otherwise(False),
             )
             .withColumn(tsdf.ts_col, sfn.col(f"new_{tsdf.ts_col}"))
             .drop(sfn.col(f"new_{tsdf.ts_col}"))
         )
 
         # # Perform interpolation on each target column
-        interpolated_result = flagged_series
+        interpolated_result: DataFrame = flagged_series
         for target_col in target_cols:
             # Interpolate target columns
             interpolated_result = self.__interpolate_column(
