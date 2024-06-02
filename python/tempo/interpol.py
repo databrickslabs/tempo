@@ -79,16 +79,14 @@ def interpolate(
 
     # identify transitions between segments
     seg_trans_col = "__tmp_seg_transition"
-    all_win = Window.partitionBy("symbol").orderBy("timestamp")
+    all_win = tsdf.baseWindow()
     segments = segments.withColumn(seg_trans_col,
                                    sfn.lag(needs_intpl_col, 1).over(all_win)
                                    != sfn.col(needs_intpl_col))
 
     # assign a group number to each segment
     seg_group_col = "__tmp_seg_group"
-    all_prev_win = Window.partitionBy("symbol")\
-        .orderBy("timestamp")\
-        .rowsBetween(Window.unboundedPreceding, Window.currentRow)
+    all_prev_win = tsdf.allBeforeWindow()
     segments = segments.withColumn(seg_group_col,
                                    sfn.count_if(seg_trans_col).over(all_prev_win))
 
@@ -96,9 +94,7 @@ def interpolate(
     if leading_margin > 0 or lagging_margin > 0:
         # collect the group number of each segment with a margin
         margin_col = "__tmp_group_with_margin"
-        margin_win = Window.partitionBy("symbol")\
-            .orderBy("timestamp")\
-            .rowsBetween(-leading_margin, lagging_margin)
+        margin_win = tsdf.rowsBetweenWindow(-leading_margin, lagging_margin)
         segments = segments.withColumn(margin_col,
                                        sfn.when(~sfn.col(needs_intpl_col),
                                                 sfn.collect_set(seg_group_col)
