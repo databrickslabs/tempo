@@ -4,18 +4,24 @@ import copy
 import logging
 import operator
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable
 from functools import cached_property
-from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, Mapping
 from typing import Collection, Dict, cast, overload
 
-import pyspark.sql.functions as sfn
+from datetime import datetime as dt, timedelta as td
+
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
-from pyspark.sql import GroupedData
-from pyspark.sql import SparkSession
+import pandas as pd
+from pandas.core.frame import DataFrame as PandasDataFrame
+
+from pyspark import RDD
+import pyspark.sql.functions as sfn
+from pyspark.sql import SparkSession, GroupedData
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import DataType, StructType
+from pyspark.sql.types import AtomicType, DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
 import tempo.interpol as t_interpolation
@@ -97,7 +103,9 @@ def time_str_to_double(df: DataFrame,
 
 class TSDF(WindowBuilder):
     """
-    This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
+    This class represents a time series DataFrame (TSDF) - a DataFrame with a
+    time series index. It can represent multiple logical time series,
+    each identified by a unique set of series IDs.
     """
 
     def __init__(
@@ -142,7 +150,8 @@ class TSDF(WindowBuilder):
         * ts_index,
         * observation columns
 
-        :return: a :class:`TSDF` with the columns reordered into "standard order" (as described above)
+        :return: a :class:`TSDF` with the columns reordered into
+        "standard order" (as described above)
         """
         std_ordered_cols = (
             list(self.series_ids)
@@ -154,6 +163,88 @@ class TSDF(WindowBuilder):
 
     # default column name for constructed timeseries index struct columns
     __DEFAULT_TS_IDX_COL = "ts_idx"
+
+    @classmethod
+    def buildEmptyLattice(
+            cls,
+            spark: SparkSession,
+            start_time: dt,
+            end_time: Optional[dt] = None,
+            step_size: Optional[td] = None,
+            num_intervals: Optional[int] = None,
+            ts_col: Optional[str] = None,
+            series_ids: Optional[Any] = None,
+            series_schema: Optional[Union[AtomicType, StructType, str]] = None,
+            observation_cols: Optional[Union[Mapping[str, str], Iterable[str]]] = None,
+            num_partitions: Optional[int] = None) -> TSDF:
+        """
+        Construct an empty "lattice", i.e. a :class:`TSDF` with a time range
+        for each unique series and a set of observational columns (initialized to Nulls)
+
+        :param spark: the Spark session to use
+        :param start_time: the start time of the lattice
+        :param end_time: the end time of the lattice (optional)
+        :param step_size: the step size between each time interval (optional)
+        :param num_intervals: the number of intervals to create (optional)
+        :param ts_col: the name of the timestamp column (optional)
+        :param series_ids: the unique series identifiers (optional)
+        :param series_schema: the schema of the series identifiers (optional)
+        :param observation_cols: the observational columns to include (optional)
+        :param num_partitions: the number of partitions to create (optional)
+
+        :return: a :class:`TSDF` representing the empty lattice
+        """
+
+        # set a default timestamp column if not provided
+        if ts_col is None:
+            ts_col = cls.__DEFAULT_TS_IDX_COL
+
+        # initialize the lattice as a time range
+        lattice_df = t_utils.time_range(spark,
+                                        start_time,
+                                        end_time,
+                                        step_size,
+                                        num_intervals,
+                                        ts_colname=ts_col)
+        select_exprs = [sfn.col(ts_col)]
+
+        # handle construction of the series_ids DataFrame
+        series_df = None
+        if series_ids:
+            if isinstance(series_ids, DataFrame):
+                series_df = series_ids
+            elif isinstance(series_ids, (RDD, PandasDataFrame)):
+                series_df = spark.createDataFrame(series_ids)
+            elif isinstance(series_ids, dict):
+                series_df = spark.createDataFrame(pd.DataFrame(series_ids))
+            else:
+                series_df = spark.createDataFrame(data=series_ids, schema=series_schema)
+            # add the series columns to the select expressions
+            select_exprs += [sfn.col(c) for c in series_df.columns]
+            # lattice is the cross join of the time range and the series identifiers
+            lattice_df = lattice_df.crossJoin(series_df)
+
+        # set up select expressions for the observation columns
+        if observation_cols:
+            # convert to a dict if not already, mapping all columns to "double" types
+            if not isinstance(observation_cols, dict):
+                observation_cols = {col: "double" for col in observation_cols}
+            select_exprs += [sfn.lit(None).cast(coltype).alias(colname)
+                             for colname, coltype in observation_cols.items()]
+            lattice_df = lattice_df.select(*select_exprs)
+
+        # repartition the lattice in a more optimal way
+        if num_partitions is None:
+            num_partitions = lattice_df.rdd.getNumPartitions()
+        if series_df:
+            sort_cols = series_df.columns + [ts_col]
+            lattice_df = (lattice_df.repartition(num_partitions, *(series_df.columns))
+                          .sortWithinPartitions(*sort_cols))
+        else:
+            lattice_df = lattice_df.repartitionByRange(num_partitions, ts_col)
+
+        # construct the appropriate TSDF
+        return TSDF(lattice_df, ts_col=ts_col, series_ids=series_df.columns)
 
     @classmethod
     def fromSubsequenceCol(
