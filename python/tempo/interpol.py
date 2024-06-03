@@ -30,13 +30,12 @@ def _build_interpolator(
         interpol_fn: Callable[[pd.Series], pd.Series]
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     def interpolator_fn(pdf: pd.DataFrame) -> pd.DataFrame:
-        # first we identify non-gap sections and return them as-is
-        if pdf["needs_interpol"].sum() < 1:
-            return pdf
+        # those rows that need interpolation
+        na_mask = pdf[interpol_col].isna()
         # otherwise we interpolate the missing values
         pdf[interpol_col] = interpol_fn(pdf[interpol_col])
         # return only the rows that were missing (others are margins)
-        return pdf[pdf["needs_interpol"]]
+        return pdf[na_mask]
 
     return interpolator_fn
 
@@ -73,16 +72,12 @@ def interpolate(
     column interpolated
     """
 
-    # flag columns that need interpolation
-    needs_intpl_col = "__tmp_needs_interpol"
-    segments = tsdf.df.withColumn(needs_intpl_col, sfn.col(col).isNull())
-
     # identify transitions between segments
     seg_trans_col = "__tmp_seg_transition"
     all_win = tsdf.baseWindow()
-    segments = segments.withColumn(seg_trans_col,
-                                   sfn.lag(needs_intpl_col, 1).over(all_win)
-                                   != sfn.col(needs_intpl_col))
+    segments = tsdf.df.withColumn(seg_trans_col,
+                                  sfn.lag(col, 1).over(all_win).isNull()
+                                  != sfn.col(col).isNull())
 
     # assign a group number to each segment
     seg_group_col = "__tmp_seg_group"
@@ -96,15 +91,23 @@ def interpolate(
         margin_col = "__tmp_group_with_margin"
         margin_win = tsdf.rowsBetweenWindow(-leading_margin, lagging_margin)
         segments = segments.withColumn(margin_col,
-                                       sfn.when(~sfn.col(needs_intpl_col),
+                                       sfn.when(sfn.col(col).isNotNull(),
                                                 sfn.collect_set(seg_group_col)
                                                 .over(margin_win))
                                        .otherwise(sfn.array(seg_group_col)))
         # explode the groups with margins
-        explode_exprs = (tsdf.df.columns
-                         + [sfn.explode(margin_col).alias(seg_group_col),
-                            needs_intpl_col])
-        segments = segments.select(*explode_exprs)
+        needs_intpl_col = "__tmp_needs_interpol"
+        explode_exprs = tsdf.df.columns + [sfn.explode(margin_col).alias(seg_group_col)]
+
+    # identify segments that need interpolation
+    segment_win = Window.partitionBy("symbol", "gap_group")
+    segments = (segments.select(*explode_exprs)
+                .withColumn(needs_intpl_col,
+                            sfn.bool_or(sfn.col(col).isNull()).over(segment_win)))
+
+    # split the segments according to the need for interpolation
+    needs_interpol = segments.where(needs_intpl_col)
+    no_interpol = segments.where(~sfn.col(needs_intpl_col))
 
     # build the interpolator function
     if isinstance(fn, str):
@@ -113,9 +116,12 @@ def interpolate(
         interpolator = _build_interpolator(col, fn)
 
     # apply the interpolator to each segment
-    interpolated_df = segments.groupBy(tsdf.series_ids + [seg_group_col]) \
-        .applyInPandas(interpolator, segments.schema) \
-        .drop(seg_group_col, needs_intpl_col)
+    interpolated_df = needs_interpol.groupBy(tsdf.series_ids + [seg_group_col]) \
+        .applyInPandas(interpolator, needs_interpol.schema)
+
+    # merge the interpolated segments with the non-interpolated ones
+    final_df = (no_interpol.union(interpolated_df)
+                .drop(seg_group_col, needs_intpl_col))
 
     # return it as a new TSDF
-    return TSDF(interpolated_df, ts_schema=copy.deepcopy(tsdf.ts_schema))
+    return TSDF(final_df, ts_schema=copy.deepcopy(tsdf.ts_schema))
