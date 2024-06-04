@@ -60,6 +60,8 @@ def interpolate(
     interpolation function. The exact size of the leading and trailing margins are
     configurable. The function should not attempt to modify these margin values.
 
+    **Note**: This function may cause the re-ordering of the rows in the resulting TSDF.
+
     :param tsdf: the :class:`TSDF` timeseries dataframe
     :param col: the name of the column to interpolate
     :param fn: the interpolation function
