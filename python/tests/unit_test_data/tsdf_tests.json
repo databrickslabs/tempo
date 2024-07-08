@@ -1057,6 +1057,41 @@
           }
         }
       }
+    },
+    "test_tsdf_interpolate": {
+      "init": {
+        "tsdf": {
+          "ts_col": "event_ts"
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": {
+            "$ref": "#/__SharedData/temp_slice_init_data/df/data"
+          }
+        }
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "event_ts"
+        },
+        "df": {
+          "schema": "event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            ["2020-09-01 00:20:38", 0.0],
+            ["2020-09-01 00:20:39", 0.0],
+            ["2020-09-01 00:20:40", 0.0],
+            ["2020-09-01 00:20:41", 0.0],
+            ["2020-09-01 00:20:42", 762.33]
+          ]
+        }
+
+      }
     }
   },
   "FourierTransformTest": {
