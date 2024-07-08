@@ -193,15 +193,6 @@ class SparkTest(unittest.TestCase):
     # Utility Functions
     #
 
-    # def get_data_as_sdf(self, name: str, convert_ts_col=True):
-    #     td = self.test_data[name]
-    #     ts_cols = []
-    #     if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
-    #         ts_cols = [td["ts_col"]] if "ts_col" in td else []
-    #         ts_cols.extend(td.get("other_ts_cols", []))
-    #     return self.buildTestDF(td["schema"], td["data"], ts_cols)
-    #
-
     def get_data_as_idf(self, name: str, convert_ts_col=True):
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
