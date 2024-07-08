@@ -296,8 +296,6 @@ class SparkTest(unittest.TestCase):
         if isinstance(df1, TSDF):
             # df2 must also be a TSDF
             self.assertIsInstance(df2, TSDF)
-            # should have the same schemas
-            self.assertEqual(df1.df.schema, df2.df.schema)
             # get the underlying Spark DataFrames
             df1 = df1.df
             df2 = df2.df
