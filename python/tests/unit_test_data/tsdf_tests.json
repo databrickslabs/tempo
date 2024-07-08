@@ -66,6 +66,31 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       }
     },
+    "test__validate_ts_string_valid": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validate_ts_string_alt_format_valid": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validate_ts_string_with_microseconds_valid": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validate_ts_string_alt_format_with_microseconds_valid": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
+    "test__validate_ts_string_invalid": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
     "test__validated_column_not_string": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
@@ -138,19 +163,17 @@
             "symbol"
           ]
         },
-        "schema": "symbol string, event_ts int, trade_pr float",
-        "ts_convert": [
-          "event_ts"
-        ],
-        "data": [
-          [
-            "S1",
-            1596240010,
-            349.21
+        "df": {
+          "schema": "symbol string, event_ts int, trade_pr float",
+          "data": [
+            [
+              "S1",
+              1596240010,
+              349.21
+            ]
           ]
-        ]
+        }
       }
-    }
     },
     "test__addPrefixToColumns_non_empty_string": {
       "init": {
@@ -949,7 +972,7 @@
         },
         "df": {
           "schema": "symbol string, event_ts string, trade_pr float",
-          "ts_col": [
+          "ts_convert": [
             "event_ts"
           ],
           "data": [
