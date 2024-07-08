@@ -1,5 +1,4 @@
 import os
-import re
 import unittest
 import warnings
 from typing import Union, Optional
