@@ -1,53 +1,58 @@
 {
   "__SharedData": {
     "temp_slice_init_data": {
-      "schema": "symbol string, event_ts string, trade_pr float",
-      "ts_col": "event_ts",
-      "partition_cols": [
-        "symbol"
-      ],
-      "data": [
-        [
-          "S1",
-          "2020-08-01 00:00:10",
-          349.21
-        ],
-        [
-          "S1",
-          "2020-08-01 00:01:12",
-          351.32
-        ],
-        [
-          "S1",
-          "2020-09-01 00:02:10",
-          361.1
-        ],
-        [
-          "S1",
-          "2020-09-01 00:19:12",
-          362.1
-        ],
-        [
-          "S2",
-          "2020-08-01 00:01:10",
-          743.01
-        ],
-        [
-          "S2",
-          "2020-08-01 00:01:24",
-          751.92
-        ],
-        [
-          "S2",
-          "2020-09-01 00:02:10",
-          761.10
-        ],
-        [
-          "S2",
-          "2020-09-01 00:20:42",
-          762.33
+      "tsdf": {
+        "ts_col": "event_ts",
+        "partition_cols": [
+          "symbol"
         ]
-      ]
+      },
+      "df": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_convert": ["event_ts"],
+        "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
+            "2020-09-01 00:02:10",
+            761.10
+          ],
+          [
+            "S2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
+        ]
+      }
     }
   },
   "TSDFBaseTests": {
@@ -101,18 +106,25 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "right_tsdf": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "event_ts"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "event_ts"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ]
+          ]
+        }
       }
     },
     "test__validateTsColMatch": {
@@ -120,10 +132,15 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "right_tsdf": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
+          ]
+        },
         "schema": "symbol string, event_ts int, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
+        "ts_convert": [
+          "event_ts"
         ],
         "data": [
           [
@@ -133,6 +150,7 @@
           ]
         ]
       }
+    }
     },
     "test__addPrefixToColumns_non_empty_string": {
       "init": {
@@ -164,69 +182,76 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float, ts_partition int, is_original int",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            1596240010,
-            1
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32,
-            1596240070,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            1598918530,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1,
-            1598919550,
-            1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01,
-            1596240070,
-            1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92,
-            1596240080,
-            1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.1,
-            1598918530,
-            1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33,
-            1598919640,
-            1
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float, ts_partition int, is_original int",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21,
+              1596240010,
+              1
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32,
+              1596240070,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1,
+              1598918530,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1,
+              1598919550,
+              1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:10",
+              743.01,
+              1596240070,
+              1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92,
+              1596240080,
+              1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.1,
+              1598918530,
+              1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:20:42",
+              762.33,
+              1598919640,
+              1
+            ]
+          ]
+        }
       }
     },
     "test__getTimePartitions_with_fraction": {
@@ -234,69 +259,76 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float, ts_partition int, is_original int",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            1596240010,
-            1
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32,
-            1596240070,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            1598918530,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1,
-            1598919550,
-            1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01,
-            1596240070,
-            1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92,
-            1596240080,
-            1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.1,
-            1598918530,
-            1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33,
-            1598919640,
-            1
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float, ts_partition int, is_original int",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21,
+              1596240010,
+              1
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32,
+              1596240070,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1,
+              1598918530,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1,
+              1598919550,
+              1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:10",
+              743.01,
+              1596240070,
+              1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92,
+              1596240080,
+              1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.1,
+              1598918530,
+              1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:20:42",
+              762.33,
+              1598919640,
+              1
+            ]
+          ]
+        }
       }
     },
     "test_select_empty": {
@@ -351,10 +383,16 @@
     },
     "test_describe": {
       "init": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
+          ]
+        },
+        "df": {
         "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
+        "ts_convert": [
+          "event_ts"
         ],
         "data": [
           [
@@ -378,6 +416,7 @@
             362.1
           ]
         ]
+        }
       }
     },
     "test__getSparkPlan": {
@@ -387,33 +426,40 @@
     },
     "test__getBytesFromPlan": {
       "init": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ]
+          ]
+        }
       }
     },
     "test__getBytesFromPlan_search_result_is_None": {
@@ -441,23 +487,30 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ]
+          ]
+        }
       }
     },
     "test_at_numeric_timestamp": {
@@ -473,33 +526,38 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:10",
+              743.01
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ]
+          ]
+        }
       }
     },
     "test_before_numeric_timestamp": {
@@ -515,43 +573,50 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:10",
+              743.01
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ]
+          ]
+        }
       }
     },
     "test_atOrBefore_numeric_timestamp": {
@@ -567,23 +632,28 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:20:42",
+              762.33
+            ]
+          ]
+        }
       }
     },
     "test_after_numeric_timestamp": {
@@ -599,33 +669,40 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
+        "tsdf": {
+            "ts_col": "event_ts",
+            "partition_cols": [
+                "symbol"
+            ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
           ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33
+          "data": [
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ],
+            [
+              "S2",
+              "2020-09-01 00:20:42",
+              762.33
+            ]
           ]
-        ]
+        }
       }
     },
     "test_atOrAfter_numeric_timestamp": {
@@ -641,38 +718,45 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:10",
+              743.01
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ]
+          ]
+        }
       }
     },
     "test_between_numeric_timestamp": {
@@ -688,33 +772,41 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "partition_cols": [
+            "symbol"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ]
+          ]
+        }
       }
     },
     "test_between_exclusive_numeric_timestamp": {
@@ -730,43 +822,48 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
-          ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:10",
-            743.01
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:10",
+              743.01
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ]
+          ]
+        }
       }
     },
     "test_earliest_numeric_timestamp": {
@@ -782,43 +879,53 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
-          ],
-          [
-            "S2",
-            "2020-09-01 00:20:42",
-            762.33
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "partition_cols": [
+            "symbol"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ],
+            [
+              "S2",
+              "2020-09-01 00:20:42",
+              762.33
+            ]
+          ]
+        }
       }
     },
     "test_latest_numeric_timestamp": {
@@ -834,23 +941,30 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S2",
-            "2020-08-01 00:01:24",
-            751.92
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_col": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S2",
+              "2020-08-01 00:01:24",
+              751.92
+            ]
+          ]
+        }
       }
     },
     "test_priorTo_numeric_timestamp": {
@@ -866,23 +980,30 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       },
       "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "partition_cols": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S2",
-            "2020-09-01 00:02:10",
-            761.10
+        "tsdf": {
+          "ts_col": "event_ts",
+          "partition_cols": [
+            "symbol"
           ]
-        ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.10
+            ]
+          ]
+        }
       }
     },
     "test_subsequentTo_numeric_timestamp": {
@@ -900,10 +1021,17 @@
     },
     "test_withPartitionCols": {
       "init": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "data": {
-          "$ref": "#/__SharedData/temp_slice_init_data/data"
+        "tsdf": {
+          "ts_col": "event_ts"
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": {
+            "$ref": "#/__SharedData/temp_slice_init_data/df/data"
+          }
         }
       }
     }
