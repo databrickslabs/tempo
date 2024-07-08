@@ -139,7 +139,7 @@ class AsOfJoinTest(SparkTest):
             self.assertDataFrameEquality(joined_df, expected_tolerance)
 
     def test_asof_join_sql_join_opt_and_bytes_threshold(self):
-        """AS-OF Join with out a time-partition test"""
+        """AS-OF Join without a time-partition test"""
         with patch("tempo.tsdf.TSDF._TSDF__getBytesFromPlan", return_value=1000):
             # Construct dataframes
             tsdf_left = self.get_test_df_builder("left").as_tsdf()
