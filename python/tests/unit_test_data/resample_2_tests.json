@@ -1,6 +1,6 @@
 {
   "__SharedData": {
-    "input_data": {
+    "init": {
       "tsdf": {
         "ts_col": "event_ts",
         "partition_cols": [
@@ -9,6 +9,9 @@
       },
       "df": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+        "ts_convert": [
+          "event_ts"
+        ],
         "data": [
           [
             "S1",
@@ -65,41 +68,33 @@
   },
   "ResampleUnitTests": {
     "test_appendAggKey_freq_is_none": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       }
     },
     "test_appendAggKey_freq_microsecond": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       }
     },
     "test_appendAggKey_freq_is_invalid": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       }
     },
     "test_aggregate_floor": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
           "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": [
             [
               "S1",
@@ -116,25 +111,22 @@
               5.0
             ]
           ]
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_average": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
           "schema": "symbol string, event_ts string, trade_pr double, trade_pr_2 double",
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": [
             [
               "S1",
@@ -149,25 +141,24 @@
               4.5
             ]
           ]
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_min": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
-          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "schema": {
+            "$ref": "#/ResampleUnitTests/test_aggregate_floor/expected/df/schema"
+          },
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": [
             [
               "S1",
@@ -184,47 +175,43 @@
               4.0
             ]
           ]
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_min_with_prefix": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
           "schema": "symbol string, event_ts string, min_date string, min_trade_pr float, min_trade_pr_2 float",
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": {
-            "$ref": "#/ResampleUnitTests/test_aggregate_min/expected_data/data"
+            "$ref": "#/ResampleUnitTests/test_aggregate_min/expected/df/data"
           }
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_min_with_fill": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
-          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "schema": {
+            "$ref": "#/ResampleUnitTests/test_aggregate_min/expected/df/schema"
+          },
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": [
             [
               "S1",
@@ -451,25 +438,24 @@
               4.0
             ]
           ]
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_max": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
-          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "schema": {
+            "$ref": "#/ResampleUnitTests/test_aggregate_floor/expected/df/schema"
+          },
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": [
             [
               "S1",
@@ -486,25 +472,24 @@
               5.0
             ]
           ]
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_ceiling": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
-          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "schema": {
+            "$ref": "#/ResampleUnitTests/test_aggregate_floor/expected/df/schema"
+          },
+          "ts_convert": [
+            "event_ts"
+          ],
           "data": [
             [
               "S1",
@@ -521,25 +506,21 @@
               4.0
             ]
           ]
-        },
-        "$ref": null
+        }
       }
     },
     "test_aggregate_invalid_func_arg": {
-      "input_data": {
-        "tsdf": {},
-        "df": {},
-        "$ref": "#/__SharedData/input_data"
+      "init": {
+        "$ref": "#/__SharedData/init"
       },
-      "expected_data": {
+      "expected": {
         "tsdf": {
-          "ts_col": "event_ts",
-          "partition_cols": [
-            "symbol"
-          ]
+          "$ref": "#/__SharedData/init/tsdf"
         },
         "df": {
-          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "schema": {
+            "$ref": "#/ResampleUnitTests/test_aggregate_floor/expected/df/schema"
+          },
           "data": [
             [
               "S1",
@@ -556,9 +537,20 @@
               4.5
             ]
           ]
-        },
-        "$ref": null
+        }
       }
-    }
+    },
+    "test_check_allowable_freq_none": {},
+    "test_check_allowable_freq_microsecond": {},
+    "test_check_allowable_freq_millisecond": {},
+    "test_check_allowable_freq_second": {},
+    "test_check_allowable_freq_minute": {},
+    "test_check_allowable_freq_hour": {},
+    "test_check_allowable_freq_day": {},
+    "test_check_allowable_freq_no_interval": {},
+    "test_check_allowable_freq_exception_not_in_allowable_freqs": {},
+    "test_check_allowable_freq_exception": {},
+    "test_validate_func_exists_type_error": {},
+    "test_validate_func_exists_value_error": {}
   }
 }
