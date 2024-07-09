@@ -869,15 +869,6 @@ class TSDFBaseTests(SparkTest):
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
-    # def test_tsdf_interpolate(self):
-    #     # TODO: remove this test
-    #     init_tsdf = self.get_test_df_builder("init").as_tsdf()
-    #     expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
-    #
-    #     actual_tsdf = init_tsdf.interpolate("zero", "second", "floor")
-    #     actual_tsdf.df.show()
-        # self.assertDataFrameEquality(actual_tsdf, expected_tsdf)
-
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):
