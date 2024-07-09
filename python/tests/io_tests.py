@@ -15,7 +15,7 @@ class DeltaWriteTest(SparkTest):
         table_name = "my_table_no_optimization_col"
 
         # load test data
-        input_tsdf = self.get_data_as_tsdf("input_data")
+        input_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         # test write to delta
         input_tsdf.write(self.spark, table_name)
@@ -30,7 +30,7 @@ class DeltaWriteTest(SparkTest):
         table_name = "my_table_optimization_col"
 
         # load test data
-        input_tsdf = self.get_data_as_tsdf("input_data")
+        input_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         # test write to delta
         input_tsdf.write(self.spark, table_name, ["date"])
@@ -45,7 +45,7 @@ class DeltaWriteTest(SparkTest):
         table_name = "my_table_optimization_col_fails"
 
         # load test data
-        input_tsdf = self.get_data_as_tsdf("input_data")
+        input_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         if pkg_version.parse(DELTA_VERSION) < pkg_version.parse("2.0.0"):
 
