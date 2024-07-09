@@ -158,9 +158,9 @@ class TestDataFrameBuilder:
         """
         sdf = self.as_sdf()
         if self.idf_construct is not None:
-            return getattr(IntervalsDF, self.idf_construct)(sdf, **self.tsdf)
+            return getattr(IntervalsDF, self.idf_construct)(sdf, **self.idf)
         else:
-            return IntervalsDF(self.as_sdf(), **self.tsdf)
+            return IntervalsDF(self.as_sdf(), **self.idf)
 
 
 class SparkTest(unittest.TestCase):
@@ -305,8 +305,8 @@ class SparkTest(unittest.TestCase):
 
     def assertDataFrameEquality(
         self,
-        df1: Union[TSDF, DataFrame],
-        df2: Union[TSDF, DataFrame],
+        df1: Union[TSDF, DataFrame, IntervalsDF],
+        df2: Union[TSDF, DataFrame, IntervalsDF],
         ignore_row_order: bool = False,
         ignore_column_order: bool = True,
         ignore_nullable: bool = True,
@@ -320,6 +320,14 @@ class SparkTest(unittest.TestCase):
         if isinstance(df1, TSDF):
             # df2 must also be a TSDF
             self.assertIsInstance(df2, TSDF)
+            # get the underlying Spark DataFrames
+            df1 = df1.df
+            df2 = df2.df
+
+        # Handle IDFs
+        if isinstance(df1, IntervalsDF):
+            # df2 must also be a IntervalsDF
+            self.assertIsInstance(df2, IntervalsDF)
             # get the underlying Spark DataFrames
             df1 = df1.df
             df2 = df2.df
