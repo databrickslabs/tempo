@@ -1097,6 +1097,7 @@
   "FourierTransformTest": {
     "test_fourier_transform": {
       "init": {
+
         "schema": "group string, time long, val double",
         "ts_col": "time",
         "partition_cols": [

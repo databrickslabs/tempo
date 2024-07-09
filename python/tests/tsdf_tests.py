@@ -869,14 +869,14 @@ class TSDFBaseTests(SparkTest):
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
 
-    # def test_tsdf_interpolate(self):
-    #     # TODO: wicked slow
-    #     init_tsdf = self.get_test_df_builder("init").as_tsdf()
-    #     expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
-    #
-    #     actual_tsdf = init_tsdf.interpolate("zero", "minute", "floor")
-    #
-    #     self.assertDataFrameEquality(actual_tsdf, expected_tsdf)
+    def test_tsdf_interpolate(self):
+        # TODO: wicked slow
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
+
+        actual_tsdf = init_tsdf.interpolate("zero", "second", "floor")
+
+        self.assertDataFrameEquality(actual_tsdf, expected_tsdf)
 
 
 class FourierTransformTest(SparkTest):
@@ -885,57 +885,57 @@ class FourierTransformTest(SparkTest):
 
         # construct dataframes
         tsdf_init = self.get_test_df_builder("init").as_tsdf()
-        dfExpected = self.get_test_df_builder("expected").as_sdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
     def test_fourier_transform_valid_sequence_col_empty_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
         tsdf_init = self.get_test_df_builder("init").as_tsdf()
-        dfExpected = self.get_test_df_builder("expected").as_sdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
     def test_fourier_transform_valid_sequence_col_valid_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
         tsdf_init = self.get_test_df_builder("init").as_tsdf()
-        dfExpected = self.get_test_df_builder("expected").as_sdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
     def test_fourier_transform_no_sequence_col_empty_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
         tsdf_init = self.get_test_df_builder("init").as_tsdf()
-        dfExpected = self.get_test_df_builder("expected").as_sdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
 
 class RangeStatsTest(SparkTest):
     def test_range_stats(self):
-        """Test of range stats for 20 minute rolling window"""
+        """Test of range stats for 20-minute rolling window"""
 
         # construct dataframes
         tsdf_init = self.get_test_df_builder("init").as_tsdf()
