@@ -58,11 +58,25 @@ class TestDataFrameBuilder:
         return self.__test_data.get("tsdf_constructor", None)
 
     @property
+    def idf_construct(self) -> Optional[str]:
+        """
+        :return: the name of the IntervalsDF constructor to use
+        """
+        return self.__test_data.get("idf_constructor", None)
+
+    @property
     def tsdf(self) -> dict:
         """
         :return: the timestamp index metadata component of the test data
         """
         return self.__test_data["tsdf"]
+
+    @property
+    def idf(self) -> dict:
+        """
+        :return: the start and end timestamp index metadata component of the test data
+        """
+        return self.__test_data["idf"]
 
     @property
     def ts_schema(self) -> Optional[dict]:
@@ -137,6 +151,16 @@ class TestDataFrameBuilder:
             return getattr(TSDF, self.tsdf_constructor)(sdf, **self.tsdf)
         else:
             return TSDF(sdf, **self.tsdf)
+
+    def as_idf(self) -> IntervalsDF:
+        """
+        Constructs a IntervalsDF from the test data
+        """
+        sdf = self.as_sdf()
+        if self.idf_construct is not None:
+            return getattr(IntervalsDF, self.idf_construct)(sdf, **self.tsdf)
+        else:
+            return IntervalsDF(self.as_sdf(), **self.tsdf)
 
 
 class SparkTest(unittest.TestCase):
