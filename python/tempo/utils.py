@@ -51,11 +51,11 @@ def _is_capable_of_html_rendering() -> bool:
 
 
 def calculate_time_horizon(
-    df: DataFrame,
-    ts_col: str,
-    freq: str,
-    partition_cols: Optional[List[str]],
-    local_freq_dict: Optional[t_resample.FreqDict] = None,
+        df: DataFrame,
+        ts_col: str,
+        freq: str,
+        partition_cols: Optional[List[str]],
+        local_freq_dict: Optional[t_resample.FreqDict] = None,
 ) -> None:
     # Convert Frequency using resample dictionary
     if local_freq_dict is None:
@@ -63,8 +63,8 @@ def calculate_time_horizon(
     parsed_freq = t_resample.checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
     if t_resample.is_valid_allowed_freq_keys(
-        unit,
-        t_resample.ALLOWED_FREQ_KEYS,
+            unit,
+            t_resample.ALLOWED_FREQ_KEYS,
     ):
         freq = f"{period} {local_freq_dict[unit]}"  # type: ignore[literal-required]
     else:
@@ -175,53 +175,64 @@ def get_display_df(tsdf: t_tsdf.TSDF, k: int) -> DataFrame:
     return tsdf.latest(k).df.orderBy(orderCols)
 
 
+@overload
+def display_improvised(obj: t_tsdf.TSDF) -> None: ...
+
+
+@overload
+def display_improvised(obj: pandasDataFrame) -> None: ...
+
+
+@overload
+def display_improvised(obj: DataFrame) -> None: ...
+
+
+def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
+        method(get_display_df(obj, k=5))
+    else:
+        method(obj)
+
+
+@overload
+def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
+    ...
+
+
+@overload
+def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
+    ...
+
+
+@overload
+def display_html_improvised(obj: Optional[DataFrame]) -> None:
+    ...
+
+
+def display_html_improvised(
+        obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
+        display_html(get_display_df(obj, k=5))
+    else:
+        display_html(obj)
+
+
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
-    IS_DATABRICKS
-    and not (get_ipython() is None)
-    and ("display" in get_ipython().user_ns.keys())
+        IS_DATABRICKS
+        and not (get_ipython() is None)
+        and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
 
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
-    @overload
-    def display_improvised(obj: t_tsdf.TSDF) -> None: ...
-
-    @overload
-    def display_improvised(obj: pandasDataFrame) -> None: ...
-
-    @overload
-    def display_improvised(obj: DataFrame) -> None: ...
-
-    def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
-        if isinstance(obj, t_tsdf.TSDF):
-            method(get_display_df(obj, k=5))
-        else:
-            method(obj)
-
     display = display_improvised
 
 elif ENV_CAN_RENDER_HTML:
-
-    @overload
-    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
-
-    @overload
-    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
-
-    @overload
-    def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
-
-    def display_html_improvised(
-        obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
-    ) -> None:
-        if isinstance(obj, t_tsdf.TSDF):
-            display_html(get_display_df(obj, k=5))
-        else:
-            display_html(obj)
 
     display = display_html_improvised
 
