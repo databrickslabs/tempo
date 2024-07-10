@@ -7,6 +7,7 @@
       },
       "df": {
         "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+        "ts_convert": ["event_ts"],
         "data": [
           [
             "S1",
