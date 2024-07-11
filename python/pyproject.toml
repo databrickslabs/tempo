@@ -1,2 +1,7 @@
 [build-system]
-requires = ["semver"]  # PEP 518 - what is required to build
+# PEP 518 - what is required to build this project
+requires = [
+    "semver>=3,<4",
+    "setuptools>=69,<70",
+    "wheel>=0.37,<1",
+]

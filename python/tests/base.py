@@ -1,18 +1,166 @@
 import os
-import re
 import unittest
 import warnings
-from typing import Union
+from typing import Union, Optional
 
 import jsonref
-from chispa import assert_df_equality
-
 import pyspark.sql.functions as sfn
+from chispa import assert_df_equality
+from delta.pip_utils import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
+
+
+class TestDataFrameBuilder:
+    """
+    A class to hold metadata about a Spark DataFrame
+    """
+
+    def __init__(self, spark: SparkSession, test_data: dict):
+        """
+        :param spark: the SparkSession to use
+        :param test_data: a dictionary containing the test data & metadata
+        """
+        self.spark = spark
+        self.__test_data = test_data
+
+    # Spark DataFrame metadata
+
+    @property
+    def df(self) -> dict:
+        """
+        :return: the DataFrame component of the test data
+        """
+        return self.__test_data["df"]
+
+    @property
+    def df_schema(self) -> str:
+        """
+        :return: the schema component of the test data
+        """
+        return self.df["schema"]
+
+    def df_data(self) -> list:
+        """
+        :return: the data component of the test data
+        """
+        return self.df["data"]
+
+    # TSDF metadata
+
+    @property
+    def tsdf_constructor(self) -> Optional[str]:
+        """
+        :return: the name of the TSDF constructor to use
+        """
+        return self.__test_data.get("tsdf_constructor", None)
+
+    @property
+    def idf_construct(self) -> Optional[str]:
+        """
+        :return: the name of the IntervalsDF constructor to use
+        """
+        return self.__test_data.get("idf_constructor", None)
+
+    @property
+    def tsdf(self) -> dict:
+        """
+        :return: the timestamp index metadata component of the test data
+        """
+        return self.__test_data["tsdf"]
+
+    @property
+    def idf(self) -> dict:
+        """
+        :return: the start and end timestamp index metadata component of the test data
+        """
+        return self.__test_data["idf"]
+
+    @property
+    def ts_schema(self) -> Optional[dict]:
+        """
+        :return: the timestamp index schema component of the test data
+        """
+        return self.tsdf.get("ts_schema", None)
+
+    @property
+    def ts_idx_class(self) -> str:
+        """
+        :return: the timestamp index class component of the test data
+        """
+        return self.ts_schema["ts_idx_class"]
+
+    @property
+    def ts_col(self) -> str:
+        """
+        :return: the timestamp column component of the test data
+        """
+        return self.ts_schema["ts_col"]
+
+    @property
+    def ts_idx(self) -> dict:
+        """
+        :return: the timestamp index data component of the test data
+        """
+        return self.ts_schema["ts_idx"]
+
+    # Builder functions
+
+    def as_sdf(self) -> DataFrame:
+        """
+        Constructs a Spark Dataframe from the test data
+        """
+        # build dataframe
+        df = self.spark.createDataFrame(self.df_data(), self.df_schema)
+
+        # convert timestamp columns
+        if "ts_convert" in self.df:
+            for ts_col in self.df["ts_convert"]:
+                # handle nested columns
+                if "." in ts_col:
+                    col, field = ts_col.split(".")
+                    convert_field_expr = sfn.to_timestamp(sfn.col(col).getField(field))
+                    df = df.withColumn(
+                        col, sfn.col(col).withField(field, convert_field_expr)
+                    )
+                else:
+                    df = df.withColumn(ts_col, sfn.to_timestamp(ts_col))
+        # convert date columns
+        if "date_convert" in self.df:
+            for date_col in self.df["date_convert"]:
+                # handle nested columns
+                if "." in date_col:
+                    col, field = date_col.split(".")
+                    convert_field_expr = sfn.to_timestamp(sfn.col(col).getField(field))
+                    df = df.withColumn(
+                        col, sfn.col(col).withField(field, convert_field_expr)
+                    )
+                else:
+                    df = df.withColumn(date_col, sfn.to_date(date_col))
+
+        return df
+
+    def as_tsdf(self) -> TSDF:
+        """
+        Constructs a TSDF from the test data
+        """
+        sdf = self.as_sdf()
+        if self.tsdf_constructor is not None:
+            return getattr(TSDF, self.tsdf_constructor)(sdf, **self.tsdf)
+        else:
+            return TSDF(sdf, **self.tsdf)
+
+    def as_idf(self) -> IntervalsDF:
+        """
+        Constructs a IntervalsDF from the test data
+        """
+        sdf = self.as_sdf()
+        if self.idf_construct is not None:
+            return getattr(IntervalsDF, self.idf_construct)(sdf, **self.idf)
+        else:
+            return IntervalsDF(self.as_sdf(), **self.idf)
 
 
 class SparkTest(unittest.TestCase):
@@ -28,9 +176,11 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
         cls.spark = (
-            SparkSession.builder.appName("unit-tests")
-            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
+            .config(
+                "spark.sql.extensions",
+                "io.delta.sql.DeltaSparkSessionExtension",
+            )
             .config(
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
@@ -67,25 +217,6 @@ class SparkTest(unittest.TestCase):
     # Utility Functions
     #
 
-    def get_data_as_sdf(self, name: str, convert_ts_col=True):
-        td = self.test_data[name]
-        ts_cols = []
-        if convert_ts_col and (td.get("ts_col", None) or td.get("other_ts_cols", [])):
-            ts_cols = [td["ts_col"]] if "ts_col" in td else []
-            ts_cols.extend(td.get("other_ts_cols", []))
-        return self.buildTestDF(td["schema"], td["data"], ts_cols)
-
-    def get_data_as_tsdf(self, name: str, convert_ts_col=True):
-        df = self.get_data_as_sdf(name, convert_ts_col)
-        td = self.test_data[name]
-        tsdf = TSDF(
-            df,
-            ts_col=td["ts_col"],
-            partition_cols=td.get("partition_cols", None),
-            sequence_col=td.get("sequence_col", None),
-        )
-        return tsdf
-
     def get_data_as_idf(self, name: str, convert_ts_col=True):
         df = self.get_data_as_sdf(name, convert_ts_col)
         td = self.test_data[name]
@@ -111,7 +242,8 @@ class SparkTest(unittest.TestCase):
             dir_path = "./tests"
         elif cwd != "tests":
             raise RuntimeError(
-                f"Cannot locate test data file {test_file_name}, running from dir {os.getcwd()}"
+                f"Cannot locate test data file {test_file_name}, running from dir"
+                f" {os.getcwd()}"
             )
 
         # return appropriate path
@@ -124,7 +256,7 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")
+        file_name, class_name, func_name = test_case_path.split(".")[-3:]
 
         # find our test data file
         test_data_file = self.__getTestDataFilePath(file_name)
@@ -135,40 +267,11 @@ class SparkTest(unittest.TestCase):
         # proces the data file
         with open(test_data_file, "r") as f:
             data_metadata_from_json = jsonref.load(f)
-            # warn if data not present
-            if class_name not in data_metadata_from_json:
-                warnings.warn(f"Could not load test data for {file_name}.{class_name}")
-                return {}
-            if func_name not in data_metadata_from_json[class_name]:
-                warnings.warn(
-                    f"Could not load test data for {file_name}.{class_name}.{func_name}"
-                )
-                return {}
+            # return the data
             return data_metadata_from_json[class_name][func_name]
 
-    def buildTestDF(self, schema, data, ts_cols=["event_ts"]):
-        """
-        Constructs a Spark Dataframe from the given components
-        :param schema: the schema to use for the Dataframe
-        :param data: values to use for the Dataframe
-        :param ts_cols: list of column names to be converted to Timestamp values
-        :return: a Spark Dataframe, constructed from the given schema and values
-        """
-        # build dataframe
-        df = self.spark.createDataFrame(data, schema)
-
-        # check if ts_col follows standard timestamp format, then check if timestamp has micro/nanoseconds
-        for tsc in ts_cols:
-            ts_value = str(df.select(ts_cols).limit(1).collect()[0][0])
-            ts_pattern = r"^\d{4}-\d{2}-\d{2}| \d{2}:\d{2}:\d{2}\.\d*$"
-            decimal_pattern = r"[.]\d+"
-            if re.match(ts_pattern, str(ts_value)) is not None:
-                if (
-                    re.search(decimal_pattern, ts_value) is None
-                    or len(re.search(decimal_pattern, ts_value)[0]) <= 4
-                ):
-                    df = df.withColumn(tsc, sfn.to_timestamp(sfn.col(tsc)))
-        return df
+    def get_test_df_builder(self, name: str) -> TestDataFrameBuilder:
+        return TestDataFrameBuilder(self.spark, self.test_data[name])
 
     #
     # Assertion Functions
@@ -200,12 +303,10 @@ class SparkTest(unittest.TestCase):
         # the attributes of the fields must be equal
         self.assertFieldsEqual(field, schema[field.name])
 
-    @staticmethod
     def assertDataFrameEquality(
-        df1: Union[IntervalsDF, TSDF, DataFrame],
-        df2: Union[IntervalsDF, TSDF, DataFrame],
-        from_tsdf: bool = False,
-        from_idf: bool = False,
+        self,
+        df1: Union[TSDF, DataFrame, IntervalsDF],
+        df2: Union[TSDF, DataFrame, IntervalsDF],
         ignore_row_order: bool = False,
         ignore_column_order: bool = True,
         ignore_nullable: bool = True,
@@ -215,14 +316,28 @@ class SparkTest(unittest.TestCase):
         That is, they have equivalent schemas, and both contain the same values
         """
 
-        if from_tsdf or from_idf:
+        # handle TSDFs
+        if isinstance(df1, TSDF):
+            # df2 must also be a TSDF
+            self.assertIsInstance(df2, TSDF)
+            # get the underlying Spark DataFrames
             df1 = df1.df
             df2 = df2.df
 
+        # Handle IDFs
+        if isinstance(df1, IntervalsDF):
+            # df2 must also be a IntervalsDF
+            self.assertIsInstance(df2, IntervalsDF)
+            # get the underlying Spark DataFrames
+            df1 = df1.df
+            df2 = df2.df
+
+        # handle DataFrames
         assert_df_equality(
             df1,
             df2,
             ignore_row_order=ignore_row_order,
             ignore_column_order=ignore_column_order,
             ignore_nullable=ignore_nullable,
+            ignore_metadata=True,
         )

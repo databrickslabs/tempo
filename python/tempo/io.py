@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import logging
-import os
 from collections import deque
 from typing import Optional
 
 import pyspark.sql.functions as sfn
+import tempo.tsdf as t_tsdf
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
-
-import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +29,6 @@ def write(
     df = tsdf.df
     ts_col = tsdf.ts_col
     partitionCols = tsdf.partitionCols
-    if optimizationCols:
-        optimizationCols = optimizationCols + ["event_time"]
-    else:
-        optimizationCols = ["event_time"]
-
-    useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
     view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(
         "event_time",
@@ -52,11 +44,12 @@ def write(
         tabName
     )
 
-    if useDeltaOpt:
+    if optimizationCols:
         try:
             spark.sql(
                 "optimize {} zorder by {}".format(
-                    tabName, "(" + ",".join(partitionCols + optimizationCols) + ")"
+                    tabName,
+                    "(" + ",".join(partitionCols + optimizationCols + [ts_col]) + ")",
                 )
             )
         except ParseException as e:
@@ -65,8 +58,3 @@ def write(
                     e
                 )
             )
-    else:
-        logger.warning(
-            "Delta optimizations attempted on a non-Databricks platform. "
-            "Switch to use Databricks Runtime to get optimization advantages."
-        )

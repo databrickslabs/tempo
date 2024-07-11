@@ -1,7 +1,7 @@
 import sys
 import unittest
 from io import StringIO
-from unittest import mock
+from unittest.mock import patch, create_autospec, MagicMock
 
 from tempo.utils import *  # noqa: F403
 from tests.tsdf_tests import SparkTest
@@ -20,17 +20,17 @@ class UtilsTest(SparkTest):
         else:
             self.assertEqual(id(display), id(display_unavailable))
 
-    @mock.patch.dict(os.environ, {"TZ": "UTC"})
+    @patch.dict(os.environ, {"TZ": "UTC"})
     def test_calculate_time_horizon(self):
         """Test calculate time horizon warning and number of expected output rows"""
 
         # fetch test data
-        simple_input_tsdf = self.get_data_as_tsdf("simple_input")
+        tsdf = self.get_test_df_builder("init").as_tsdf()
 
         with warnings.catch_warnings(record=True) as w:
             calculate_time_horizon(
-                simple_input_tsdf.df,
-                simple_input_tsdf.ts_col,
+                tsdf.df,
+                tsdf.ts_col,
                 "30 seconds",
                 ["partition_a", "partition_b"],
             )
@@ -49,10 +49,10 @@ class UtilsTest(SparkTest):
             assert warning_message.strip() == str(w[-1].message).strip()
 
     def test_display_html_TSDF(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        tsdf = self.get_test_df_builder("init").as_tsdf()
 
         with self.assertLogs(level="ERROR") as error_captured:
-            display_html(init_tsdf)
+            display_html(tsdf)
 
         self.assertEqual(len(error_captured.records), 1)
         self.assertEqual(
@@ -61,11 +61,11 @@ class UtilsTest(SparkTest):
         )
 
     def test_display_html_dataframe(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        sdf = self.get_test_df_builder("init").as_sdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
-        display_html(init_tsdf.df)
+        display_html(sdf)
         self.assertEqual(
             captured_output.getvalue(),
             (
@@ -87,8 +87,8 @@ class UtilsTest(SparkTest):
         )
 
     def test_display_html_pandas_dataframe(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        pandas_dataframe = init_tsdf.df.toPandas()
+        sdf = self.get_test_df_builder("init").as_sdf()
+        pandas_dataframe = sdf.toPandas()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -120,18 +120,18 @@ class UtilsTest(SparkTest):
         )
 
     def test_get_display_df(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_df = self.get_data_as_sdf("expected")
+        init = self.get_test_df_builder("init").as_tsdf()
+        expected_df = self.get_test_df_builder("expected").as_sdf()
 
-        actual_df = get_display_df(init_tsdf, 2)
+        actual_df = get_display_df(init, 2)
 
         self.assertDataFrameEquality(actual_df, expected_df)
 
     def test_get_display_df_sequence_col(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_df = self.get_data_as_sdf("expected")
+        init = self.get_test_df_builder("init").as_tsdf()
+        expected_df = self.get_test_df_builder("expected").as_sdf()
 
-        actual_df = get_display_df(init_tsdf, 2)
+        actual_df = get_display_df(init, 2)
 
         self.assertDataFrameEquality(actual_df, expected_df)
 

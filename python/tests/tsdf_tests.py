@@ -18,7 +18,8 @@ from tests.base import SparkTest
 
 class TSDFBaseTests(SparkTest):
     def test_TSDF_init(self):
-        tsdf_init = self.get_data_as_tsdf("init")
+
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
 
         self.assertIsInstance(tsdf_init.df, DataFrame)
         self.assertEqual(tsdf_init.ts_col, "event_ts")
@@ -29,7 +30,7 @@ class TSDFBaseTests(SparkTest):
         """AS-OF Join without a time-partition test"""
 
         # Construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
 
         # generate description dataframe
         res = tsdf_init.describe()
@@ -57,7 +58,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__getSparkPlan(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         plan = init_tsdf._TSDF__getSparkPlan(init_tsdf.df, self.spark)
 
@@ -67,7 +68,7 @@ class TSDFBaseTests(SparkTest):
         self.assertIn("sizeInBytes", plan)
 
     def test__getBytesFromPlan(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
 
@@ -77,7 +78,7 @@ class TSDFBaseTests(SparkTest):
     def test__getBytesFromPlan_search_result_is_None(self, mock__getSparkPlan):
         mock__getSparkPlan.return_value = "will not match search value"
 
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertRaises(
             ValueError,
@@ -90,7 +91,7 @@ class TSDFBaseTests(SparkTest):
     def test__getBytesFromPlan_size_in_MiB(self, mock__getSparkPlan):
         mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 MiB) '"
 
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
         expected = 1 * 1024 * 1024
@@ -101,7 +102,7 @@ class TSDFBaseTests(SparkTest):
     def test__getBytesFromPlan_size_in_KiB(self, mock__getSparkPlan):
         mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 KiB) '"
 
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
 
@@ -111,7 +112,7 @@ class TSDFBaseTests(SparkTest):
     def test__getBytesFromPlan_size_in_GiB(self, mock__getSparkPlan):
         mock__getSparkPlan.return_value = "' Statistics(sizeInBytes=1.0 GiB) '"
 
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         _bytes = init_tsdf._TSDF__getBytesFromPlan(init_tsdf.df, self.spark)
 
@@ -130,7 +131,7 @@ class TSDFBaseTests(SparkTest):
         return TSDF(with_double_tscol_df, tsdf.ts_col, tsdf.partitionCols)
 
     def test__add_double_ts(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
         df = init_tsdf._TSDF__add_double_ts()
 
         schema_string = df.schema.simpleString()
@@ -165,12 +166,12 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__validated_column_not_string(self):
-        init_df = self.get_data_as_tsdf("init").df
+        init_df = self.get_test_df_builder("init").as_sdf()
 
         self.assertRaises(TypeError, TSDF._TSDF__validated_column, init_df, 0)
 
     def test__validated_column_not_found(self):
-        init_df = self.get_data_as_tsdf("init").df
+        init_df = self.get_test_df_builder("init").as_sdf()
 
         self.assertRaises(
             ValueError,
@@ -180,7 +181,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__validated_column(self):
-        init_df = self.get_data_as_tsdf("init").df
+        init_df = self.get_test_df_builder("init").as_sdf()
 
         self.assertEqual(
             TSDF._TSDF__validated_column(init_df, "symbol"),
@@ -188,7 +189,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__validated_columns_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertEqual(
             init_tsdf._TSDF__validated_columns(init_tsdf.df, "symbol"),
@@ -196,7 +197,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__validated_columns_none(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertEqual(
             init_tsdf._TSDF__validated_columns(init_tsdf.df, None),
@@ -204,7 +205,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__validated_columns_tuple(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertRaises(
             TypeError,
@@ -214,7 +215,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__validated_columns_list_multiple_elems(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertEqual(
             init_tsdf._TSDF__validated_columns(
@@ -225,19 +226,19 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test__checkPartitionCols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        right_tsdf = self.get_data_as_tsdf("right_tsdf")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        right_tsdf = self.get_test_df_builder("right_tsdf").as_tsdf()
 
         self.assertRaises(ValueError, init_tsdf._TSDF__checkPartitionCols, right_tsdf)
 
     def test__validateTsColMatch(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        right_tsdf = self.get_data_as_tsdf("right_tsdf")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        right_tsdf = self.get_test_df_builder("right_tsdf").as_tsdf()
 
         self.assertRaises(ValueError, init_tsdf._TSDF__validateTsColMatch, right_tsdf)
 
     def test__addPrefixToColumns_non_empty_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "prefix").df
 
@@ -246,7 +247,7 @@ class TSDFBaseTests(SparkTest):
         self.assertIn("prefix_event_ts", schema_string)
 
     def test__addPrefixToColumns_empty_string(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         df = init_tsdf._TSDF__addPrefixToColumns(["event_ts"], "").df
 
@@ -256,7 +257,7 @@ class TSDFBaseTests(SparkTest):
         self.assertIn(",event_ts", schema_string)
 
     def test__addColumnsFromOtherDF(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         df = init_tsdf._TSDF__addColumnsFromOtherDF(["another_col"]).df
 
@@ -265,8 +266,8 @@ class TSDFBaseTests(SparkTest):
         self.assertIn("another_col", schema_string)
 
     def test__combineTSDF(self):
-        init1_tsdf = self.get_data_as_tsdf("init")
-        init2_tsdf = self.get_data_as_tsdf("init")
+        init1_tsdf = self.get_test_df_builder("init").as_tsdf()
+        init2_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         union_tsdf = init1_tsdf._TSDF__combineTSDF(init2_tsdf, "combined_ts_col")
         df = union_tsdf.df
@@ -281,51 +282,43 @@ class TSDFBaseTests(SparkTest):
         pass
 
     def test__getTimePartitions(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         actual_tsdf = init_tsdf._TSDF__getTimePartitions(10)
 
-        self.assertDataFrameEquality(
-            actual_tsdf,
-            expected_tsdf,
-            from_tsdf=True,
-        )
+        self.assertDataFrameEquality(actual_tsdf, expected_tsdf)
 
     def test__getTimePartitions_with_fraction(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         actual_tsdf = init_tsdf._TSDF__getTimePartitions(10, 0.25)
 
-        self.assertDataFrameEquality(
-            actual_tsdf,
-            expected_tsdf,
-            from_tsdf=True,
-        )
+        self.assertDataFrameEquality(actual_tsdf, expected_tsdf)
 
     def test_select_empty(self):
         # TODO: Can we narrow down to types of Exception?
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertRaises(Exception, init_tsdf.select)
 
     def test_select_only_required_cols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         tsdf = init_tsdf.select("event_ts", "symbol")
 
         self.assertEqual(tsdf.df.columns, ["event_ts", "symbol"])
 
     def test_select_all_cols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         tsdf = init_tsdf.select("event_ts", "symbol", "trade_pr")
 
         self.assertEqual(tsdf.df.columns, ["event_ts", "symbol", "trade_pr"])
 
     def test_show(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -350,7 +343,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test_show_n_5(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -373,14 +366,14 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test_show_k_gt_n(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
         self.assertRaises(ValueError, init_tsdf.show, 5, 10)
 
     def test_show_truncate_false(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -405,7 +398,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test_show_vertical_true(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -450,7 +443,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test_show_vertical_true_n_5(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -484,7 +477,7 @@ class TSDFBaseTests(SparkTest):
         )
 
     def test_show_truncate_false_vertical_true(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -532,20 +525,20 @@ class TSDFBaseTests(SparkTest):
         """
         Test of time-slicing at(..) function using a string timestamp
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
         at_tsdf = init_tsdf.at(target_ts)
 
-        self.assertDataFrameEquality(at_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(at_tsdf, expected_tsdf)
 
     def test_at_numeric_timestamp(self):
         """
         Test of time-slicint at(..) function using a numeric timestamp
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -555,23 +548,23 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         at_dbl_tsdf = init_dbl_tsdf.at(target_dbl)
 
-        self.assertDataFrameEquality(at_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(at_dbl_tsdf, expected_dbl_tsdf)
 
     def test_before_string_timestamp(self):
         """
         Test of time-slicing before(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
         before_tsdf = init_tsdf.before(target_ts)
 
-        self.assertDataFrameEquality(before_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(before_tsdf, expected_tsdf)
 
     def test_before_numeric_timestamp(self):
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -581,26 +574,26 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         before_dbl_tsdf = init_dbl_tsdf.before(target_dbl)
 
-        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf)
 
     def test_atOrBefore_string_timestamp(self):
         """
         Test of time-slicing atOrBefore(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
         before_tsdf = init_tsdf.atOrBefore(target_ts)
 
-        self.assertDataFrameEquality(before_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(before_tsdf, expected_tsdf)
 
     def test_atOrBefore_numeric_timestamp(self):
         """
         Test of time-slicing atOrBefore(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
 
@@ -611,26 +604,26 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         before_dbl_tsdf = init_dbl_tsdf.atOrBefore(target_dbl)
 
-        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(before_dbl_tsdf, expected_dbl_tsdf)
 
     def test_after_string_timestamp(self):
         """
         Test of time-slicing after(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
         after_tsdf = init_tsdf.after(target_ts)
 
-        self.assertDataFrameEquality(after_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(after_tsdf, expected_tsdf)
 
     def test_after_numeric_timestamp(self):
         """
         Test of time-slicing after(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
 
@@ -641,26 +634,26 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         after_dbl_tsdf = init_dbl_tsdf.after(target_dbl)
 
-        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf)
 
     def test_atOrAfter_string_timestamp(self):
         """
         Test of time-slicing atOrAfter(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
         after_tsdf = init_tsdf.atOrAfter(target_ts)
 
-        self.assertDataFrameEquality(after_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(after_tsdf, expected_tsdf)
 
     def test_atOrAfter_numeric_timestamp(self):
         """
         Test of time-slicing atOrAfter(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:10"
 
@@ -671,27 +664,27 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         after_dbl_tsdf = init_dbl_tsdf.atOrAfter(target_dbl)
 
-        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(after_dbl_tsdf, expected_dbl_tsdf)
 
     def test_between_string_timestamp(self):
         """
         Test of time-slicing between(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         ts1 = "2020-08-01 00:01:10"
         ts2 = "2020-09-01 00:18:00"
         between_tsdf = init_tsdf.between(ts1, ts2)
 
-        self.assertDataFrameEquality(between_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf)
 
     def test_between_numeric_timestamp(self):
         """
         Test of time-slicing between(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         ts1 = "2020-08-01 00:01:10"
         ts2 = "2020-09-01 00:18:00"
@@ -705,28 +698,28 @@ class TSDFBaseTests(SparkTest):
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl)
 
         self.assertDataFrameEquality(
-            between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+            between_dbl_tsdf, expected_dbl_tsdf
         )
 
     def test_between_exclusive_string_timestamp(self):
         """
         Test of time-slicing between(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         ts1 = "2020-08-01 00:01:10"
         ts2 = "2020-09-01 00:18:00"
         between_tsdf = init_tsdf.between(ts1, ts2, inclusive=False)
 
-        self.assertDataFrameEquality(between_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(between_tsdf, expected_tsdf)
 
     def test_between_exclusive_numeric_timestamp(self):
         """
         Test of time-slicing between(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         ts1 = "2020-08-01 00:01:10"
         ts2 = "2020-09-01 00:18:00"
@@ -740,26 +733,26 @@ class TSDFBaseTests(SparkTest):
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl, inclusive=False)
 
         self.assertDataFrameEquality(
-            between_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+            between_dbl_tsdf, expected_dbl_tsdf
         )
 
     def test_earliest_string_timestamp(self):
         """
         Test of time-slicing earliest(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         earliest_tsdf = init_tsdf.earliest(n=3)
 
-        self.assertDataFrameEquality(earliest_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(earliest_tsdf, expected_tsdf)
 
     def test_earliest_numeric_timestamp(self):
         """
         Test of time-slicing earliest(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -768,28 +761,28 @@ class TSDFBaseTests(SparkTest):
         earliest_dbl_tsdf = init_dbl_tsdf.earliest(n=3)
 
         self.assertDataFrameEquality(
-            earliest_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+            earliest_dbl_tsdf, expected_dbl_tsdf
         )
 
     def test_latest_string_timestamp(self):
         """
         Test of time-slicing latest(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         latest_tsdf = init_tsdf.latest(n=3)
 
         self.assertDataFrameEquality(
-            latest_tsdf, expected_tsdf, ignore_row_order=True, from_tsdf=True
+            latest_tsdf, expected_tsdf, ignore_row_order=True
         )
 
     def test_latest_numeric_timestamp(self):
         """
         Test of time-slicing latest(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         # test with numeric ts_col
         init_dbl_tsdf = self.__tsdf_with_double_tscol(init_tsdf)
@@ -798,27 +791,27 @@ class TSDFBaseTests(SparkTest):
         latest_dbl_tsdf = init_dbl_tsdf.latest(n=3)
 
         self.assertDataFrameEquality(
-            latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True, from_tsdf=True
+            latest_dbl_tsdf, expected_dbl_tsdf, ignore_row_order=True
         )
 
     def test_priorTo_string_timestamp(self):
         """
         Test of time-slicing priorTo(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:00"
         prior_tsdf = init_tsdf.priorTo(target_ts)
 
-        self.assertDataFrameEquality(prior_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(prior_tsdf, expected_tsdf, ignore_column_order=True,)
 
     def test_priorTo_numeric_timestamp(self):
         """
         Test of time-slicing priorTo(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:00"
 
@@ -829,26 +822,26 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         prior_dbl_tsdf = init_dbl_tsdf.priorTo(target_dbl)
 
-        self.assertDataFrameEquality(prior_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(prior_dbl_tsdf, expected_dbl_tsdf, ignore_column_order=True,)
 
     def test_subsequentTo_string_timestamp(self):
         """
         Test of time-slicing subsequentTo(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:00"
         subsequent_tsdf = init_tsdf.subsequentTo(target_ts)
 
-        self.assertDataFrameEquality(subsequent_tsdf, expected_tsdf, from_tsdf=True)
+        self.assertDataFrameEquality(subsequent_tsdf, expected_tsdf)
 
     def test_subsequentTo_numeric_timestamp(self):
         """
         Test of time-slicing subsequentTo(..) function
         """
-        init_tsdf = self.get_data_as_tsdf("init")
-        expected_tsdf = self.get_data_as_tsdf("expected")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+        expected_tsdf = self.get_test_df_builder("expected").as_tsdf()
 
         target_ts = "2020-09-01 00:02:00"
 
@@ -860,24 +853,21 @@ class TSDFBaseTests(SparkTest):
         subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
 
         self.assertDataFrameEquality(
-            subsequent_dbl_tsdf, expected_dbl_tsdf, from_tsdf=True
+            subsequent_dbl_tsdf, expected_dbl_tsdf
         )
 
     def test__rowsBetweenWindow(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         self.assertIsInstance(init_tsdf._TSDF__rowsBetweenWindow(1, 1), WindowSpec)
 
     def test_withPartitionCols(self):
-        init_tsdf = self.get_data_as_tsdf("init")
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
         actual_tsdf = init_tsdf.withPartitionCols(["symbol"])
 
         self.assertEqual(init_tsdf.partitionCols, [])
         self.assertEqual(actual_tsdf.partitionCols, ["symbol"])
-
-    def test_tsdf_interpolate(self):
-        ...
 
 
 class FourierTransformTest(SparkTest):
@@ -885,62 +875,62 @@ class FourierTransformTest(SparkTest):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
     def test_fourier_transform_valid_sequence_col_empty_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
     def test_fourier_transform_valid_sequence_col_valid_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
     def test_fourier_transform_no_sequence_col_empty_partition_cols(self):
         """Test of fourier transform functionality in TSDF objects"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
         result_tsdf = tsdf_init.fourier_transform(1, "val")
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(result_tsdf.df, dfExpected)
+        self.assertDataFrameEquality(result_tsdf.df, df_expected)
 
 
 class RangeStatsTest(SparkTest):
     def test_range_stats(self):
-        """Test of range stats for 20 minute rolling window"""
+        """Test of range stats for 20-minute rolling window"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # convert to TSDF
 
@@ -961,7 +951,7 @@ class RangeStatsTest(SparkTest):
         )
 
         # cast to decimal with precision in cents for simplicity
-        dfExpected = dfExpected.select(
+        df_expected = df_expected.select(
             sfn.col("symbol"),
             sfn.col("event_ts"),
             sfn.col("mean_trade_pr").cast("decimal(5, 2)"),
@@ -974,14 +964,14 @@ class RangeStatsTest(SparkTest):
         )
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(featured_df, dfExpected)
+        self.assertDataFrameEquality(featured_df, df_expected)
 
     def test_group_stats(self):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expected")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
 
         # using lookback of 20 minutes
         featured_df = tsdf_init.withGroupedStats(freq="1 min").df
@@ -999,7 +989,7 @@ class RangeStatsTest(SparkTest):
         )
 
         # cast to decimal with precision in cents for simplicity
-        dfExpected = dfExpected.select(
+        df_expected = df_expected.select(
             sfn.col("symbol"),
             sfn.col("event_ts"),
             sfn.col("mean_trade_pr").cast("decimal(5, 2)"),
@@ -1011,7 +1001,7 @@ class RangeStatsTest(SparkTest):
         )
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(featured_df, dfExpected)
+        self.assertDataFrameEquality(featured_df, df_expected)
 
 
 class ResampleTest(SparkTest):
@@ -1019,10 +1009,10 @@ class ResampleTest(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_input = self.get_data_as_tsdf("input")
-        dfExpected = self.get_data_as_sdf("expected")
-        expected_30s_df = self.get_data_as_sdf("expected30m")
-        barsExpected = self.get_data_as_sdf("expectedbars")
+        tsdf_input = self.get_test_df_builder("input").as_tsdf()
+        df_expected = self.get_test_df_builder("expected").as_sdf()
+        expected_30s_df = self.get_test_df_builder("expected30m").as_sdf()
+        bars_expected = self.get_test_df_builder("expectedbars").as_sdf()
 
         # 1 minute aggregation
         featured_df = tsdf_input.resample(freq="min", func="floor", prefix="floor").df
@@ -1036,33 +1026,33 @@ class ResampleTest(SparkTest):
         ).df
 
         # should be equal to the expected dataframe
-        self.assertDataFrameEquality(featured_df, dfExpected)
+        self.assertDataFrameEquality(featured_df, df_expected)
         self.assertDataFrameEquality(resample_30m, expected_30s_df)
 
         # test bars summary
-        self.assertDataFrameEquality(bars, barsExpected)
+        self.assertDataFrameEquality(bars, bars_expected)
 
     def test_resample_millis(self):
         """Test of resampling for millisecond windows"""
 
         # construct dataframes
-        tsdf_init = self.get_data_as_tsdf("init")
-        dfExpected = self.get_data_as_sdf("expectedms")
+        tsdf_init = self.get_test_df_builder("init").as_tsdf()
+        df_expected = self.get_test_df_builder("expectedms").as_sdf()
 
         # 30 minute aggregation
         resample_ms = tsdf_init.resample(freq="ms", func="mean").df.withColumn(
             "trade_pr", sfn.round(sfn.col("trade_pr"), 2)
         )
 
-        self.assertDataFrameEquality(resample_ms, dfExpected)
+        self.assertDataFrameEquality(resample_ms, df_expected)
 
     def test_upsample(self):
-        """Test of range stats for 20 minute rolling window"""
+        """Test of range stats for 20-minute rolling window"""
 
         # construct dataframes
-        tsdf_input = self.get_data_as_tsdf("input")
-        expected_30s_df = self.get_data_as_sdf("expected30m")
-        barsExpected = self.get_data_as_sdf("expectedbars")
+        tsdf_input = self.get_test_df_builder("input").as_tsdf()
+        expected_30s_df = self.get_test_df_builder("expected30m").as_sdf()
+        bars_expected = self.get_test_df_builder("expectedbars").as_sdf()
 
         resample_30m = tsdf_input.resample(
             freq="5 minutes", func="mean", fill=True
@@ -1085,7 +1075,7 @@ class ResampleTest(SparkTest):
         self.assertDataFrameEquality(upsampled, expected_30s_df)
 
         # test bars summary
-        self.assertDataFrameEquality(bars, barsExpected)
+        self.assertDataFrameEquality(bars, bars_expected)
 
 
 class ExtractStateIntervalsTest(SparkTest):
@@ -1093,8 +1083,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_eq_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_eq_1_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1110,8 +1100,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_eq_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_eq_1_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1127,8 +1117,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_ne_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_ne_0_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1144,8 +1134,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_ne_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_ne_0_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1161,8 +1151,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_gt_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1173,8 +1163,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_gt_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1185,8 +1175,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_lt_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_lt_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1198,8 +1188,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_lt_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_lt_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1211,8 +1201,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_gte_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1223,8 +1213,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_gte_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_gt_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1235,8 +1225,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_lte_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_lte_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1248,8 +1238,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_lte_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # call extractStateIntervals method
         intervals_lte_df: DataFrame = input_tsdf.extractStateIntervals(
@@ -1261,8 +1251,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_threshold_fn(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         # threshold state function
         def threshold_fn(a: Column, b: Column) -> Column:
@@ -1278,8 +1268,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_null_safe_eq_0(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<=>"
@@ -1292,8 +1282,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_null_safe_eq_1(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3", state_definition="<=>"
@@ -1306,8 +1296,8 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_adjacent_intervals(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         intervals_eq_df: DataFrame = input_tsdf.extractStateIntervals(
             "metric_1", "metric_2", "metric_3"
@@ -1318,7 +1308,7 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_invalid_state_definition_str(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
 
         try:
             input_tsdf.extractStateIntervals(
@@ -1329,7 +1319,7 @@ class ExtractStateIntervalsTest(SparkTest):
 
     def test_invalid_state_definition_type(self):
         # construct dataframes
-        input_tsdf: TSDF = self.get_data_as_tsdf("input")
+        input_tsdf: TSDF = self.get_test_df_builder("input").as_tsdf()
 
         try:
             input_tsdf.extractStateIntervals(
