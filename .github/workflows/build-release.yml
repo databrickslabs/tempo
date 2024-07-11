@@ -1,11 +1,10 @@
 name: build-release
 
 on:
+  pull_request:
+    types: [opened, synchronize]
   push:
-    branches:
-      - master
-    tags:
-      - 'v*' # only release a versioned tag, such as v.X.Y.Z
+    branches: ['master']
 
 jobs:
   release:
