@@ -1,17 +1,15 @@
 import os
-import re
 import unittest
 import warnings
 from typing import Union, Optional
 
 import jsonref
-from chispa import assert_df_equality
-
 import pyspark.sql.functions as sfn
+from chispa import assert_df_equality
+from delta.pip_utils import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 
-import tempo.tsschema
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
 
@@ -61,11 +59,25 @@ class TestDataFrameBuilder:
         return self.__test_data.get("tsdf_constructor", None)
 
     @property
+    def idf_construct(self) -> Optional[str]:
+        """
+        :return: the name of the IntervalsDF constructor to use
+        """
+        return self.__test_data.get("idf_constructor", None)
+
+    @property
     def tsdf(self) -> dict:
         """
         :return: the timestamp index metadata component of the test data
         """
         return self.__test_data["tsdf"]
+
+    @property
+    def idf(self) -> dict:
+        """
+        :return: the start and end timestamp index metadata component of the test data
+        """
+        return self.__test_data["idf"]
 
     @property
     def ts_schema(self) -> Optional[dict]:
@@ -138,19 +150,18 @@ class TestDataFrameBuilder:
         sdf = self.as_sdf()
         if self.tsdf_constructor is not None:
             return getattr(TSDF, self.tsdf_constructor)(sdf, **self.tsdf)
-        elif self.ts_schema is not None:
-            # get the timestamp column
-            ts_col = sdf.schema[self.ts_col]
-            # get the timestamp index class
-            ts_idx_class = getattr(tempo.tsschema, self.ts_idx_class)
-            # instantiate the timestamp index
-            ts_idx = ts_idx_class(ts_col, **self.ts_idx)
-            # create the TSDF
-            return TSDF(
-                sdf, ts_schema=tempo.tsschema.TSSchema(ts_idx, self.tsdf["series_ids"])
-            )
         else:
             return TSDF(sdf, **self.tsdf)
+
+    def as_idf(self) -> IntervalsDF:
+        """
+        Constructs a IntervalsDF from the test data
+        """
+        sdf = self.as_sdf()
+        if self.idf_construct is not None:
+            return getattr(IntervalsDF, self.idf_construct)(sdf, **self.idf)
+        else:
+            return IntervalsDF(self.as_sdf(), **self.idf)
 
 
 class SparkTest(unittest.TestCase):
@@ -166,9 +177,11 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # create and configure PySpark Session
         cls.spark = (
-            SparkSession.builder.appName("unit-tests")
-            .config("spark.jars.packages", "io.delta:delta-core_2.12:1.1.0")
-            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
+            .config(
+                "spark.sql.extensions",
+                "io.delta.sql.DeltaSparkSessionExtension",
+            )
             .config(
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
@@ -199,9 +212,23 @@ class SparkTest(unittest.TestCase):
         if self.test_data is None:
             self.test_data = self.__loadTestData(self.id())
 
+    def tearDown(self) -> None:
+        del self.test_data
+
     #
-    # Test Data Loading Functions
+    # Utility Functions
     #
+
+    def get_data_as_idf(self, name: str, convert_ts_col=True):
+        df = self.get_data_as_sdf(name, convert_ts_col)
+        td = self.test_data[name]
+        idf = IntervalsDF(
+            df,
+            start_ts=td["start_ts"],
+            end_ts=td["end_ts"],
+            series_ids=td.get("series", None),
+        )
+        return idf
 
     TEST_DATA_FOLDER = "unit_test_data"
 
@@ -231,7 +258,7 @@ class SparkTest(unittest.TestCase):
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
         :type test_case_path: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")
+        file_name, class_name, func_name = test_case_path.split(".")[-3:]
 
         # find our test data file
         test_data_file = self.__getTestDataFilePath(file_name)
@@ -243,7 +270,7 @@ class SparkTest(unittest.TestCase):
         with open(test_data_file, "r") as f:
             data_metadata_from_json = jsonref.load(f)
             # return the data
-            return data_metadata_from_json
+            return data_metadata_from_json[class_name][func_name]
 
     def get_test_df_builder(self, name: str) -> TestDataFrameBuilder:
         return TestDataFrameBuilder(self.spark, self.test_data[name])
@@ -280,8 +307,8 @@ class SparkTest(unittest.TestCase):
 
     def assertDataFrameEquality(
         self,
-        df1: Union[TSDF, DataFrame],
-        df2: Union[TSDF, DataFrame],
+        df1: Union[TSDF, DataFrame, IntervalsDF],
+        df2: Union[TSDF, DataFrame, IntervalsDF],
         ignore_row_order: bool = False,
         ignore_column_order: bool = True,
         ignore_nullable: bool = True,
@@ -295,8 +322,14 @@ class SparkTest(unittest.TestCase):
         if isinstance(df1, TSDF):
             # df2 must also be a TSDF
             self.assertIsInstance(df2, TSDF)
-            # should have the same schemas
-            self.assertEqual(df1.ts_schema, df2.ts_schema)
+            # get the underlying Spark DataFrames
+            df1 = df1.df
+            df2 = df2.df
+
+        # Handle IDFs
+        if isinstance(df1, IntervalsDF):
+            # df2 must also be a IntervalsDF
+            self.assertIsInstance(df2, IntervalsDF)
             # get the underlying Spark DataFrames
             df1 = df1.df
             df2 = df2.df
@@ -308,4 +341,5 @@ class SparkTest(unittest.TestCase):
             ignore_row_order=ignore_row_order,
             ignore_column_order=ignore_column_order,
             ignore_nullable=ignore_nullable,
+            ignore_metadata=True,
         )

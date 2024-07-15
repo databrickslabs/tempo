@@ -34,6 +34,23 @@ class ResampleWarning(Warning):
     pass
 
 
+def _is_capable_of_html_rendering() -> bool:
+    """
+    This method returns a boolean value signifying whether the environment is a notebook environment
+    capable of rendering HTML or not.
+    """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == "ZMQInteractiveShell":
+            return True  # Jupyter notebook or qtconsole
+        elif shell == "TerminalInteractiveShell":
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False
+
+
 def calculate_time_horizon(
     tsdf: t_tsdf.TSDF,
     freq: str,
@@ -122,31 +139,12 @@ def calculate_time_horizon(
     )
 
 
-def _is_capable_of_html_rendering() -> bool:
-    """
-    This method returns a boolean value signifying whether the environment is a notebook environment
-    capable of rendering HTML or not.
-    """
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == "ZMQInteractiveShell":
-            return True  # Jupyter notebook or qtconsole
-        elif shell == "TerminalInteractiveShell":
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False
+@overload
+def display_html(df: pandasDataFrame) -> None: ...
 
 
 @overload
-def display_html(df: pandasDataFrame) -> None:
-    ...
-
-
-@overload
-def display_html(df: DataFrame) -> None:
-    ...
+def display_html(df: DataFrame) -> None: ...
 
 
 def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
@@ -175,6 +173,46 @@ def get_display_df(tsdf, k):
     return tsdf.latest(k).withNaturalOrdering().df
 
 
+@overload
+def display_improvised(obj: t_tsdf.TSDF) -> None: ...
+
+
+@overload
+def display_improvised(obj: pandasDataFrame) -> None: ...
+
+
+@overload
+def display_improvised(obj: DataFrame) -> None: ...
+
+
+def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
+        method(get_display_df(obj, k=5))
+    else:
+        method(obj)
+
+
+@overload
+def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
+
+
+@overload
+def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
+
+
+@overload
+def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
+
+
+def display_html_improvised(
+    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
+        display_html(get_display_df(obj, k=5))
+    else:
+        display_html(obj)
+
+
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
@@ -187,47 +225,9 @@ if (
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
-    @overload
-    def display_improvised(obj: t_tsdf.TSDF) -> None:
-        ...
-
-    @overload
-    def display_improvised(obj: pandasDataFrame) -> None:
-        ...
-
-    @overload
-    def display_improvised(obj: DataFrame) -> None:
-        ...
-
-    def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
-        if isinstance(obj, t_tsdf.TSDF):
-            method(get_display_df(obj, k=5))
-        else:
-            method(obj)
-
     display = display_improvised
 
 elif ENV_CAN_RENDER_HTML:
-
-    @overload
-    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
-        ...
-
-    @overload
-    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
-        ...
-
-    @overload
-    def display_html_improvised(obj: Optional[DataFrame]) -> None:
-        ...
-
-    def display_html_improvised(
-        obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
-    ) -> None:
-        if isinstance(obj, t_tsdf.TSDF):
-            display_html(get_display_df(obj, k=5))
-        else:
-            display_html(obj)
 
     display = display_html_improvised
 

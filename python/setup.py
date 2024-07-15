@@ -21,7 +21,6 @@ setup(
     long_description_content_type="text/markdown",
     url="https://databrickslabs.github.io/tempo/",
     packages=find_packages(where=".", include=["tempo"]),
-    install_requires=["ipython", "pandas", "scipy"],
     extras_require=dict(tests=["pytest"]),
     classifiers=[
         "Programming Language :: Python :: 3",
