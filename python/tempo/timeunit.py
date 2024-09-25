@@ -8,8 +8,7 @@ class TimeUnit(NamedTuple):
     approx_seconds: float
     """
     Represents a unit of time, with a name,
-    an approximate number of seconds,
-    and a sub-second precision.
+    and the approximate number of seconds in that unit.
     """
 
     def __eq__(self, other):
