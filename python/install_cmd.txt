@@ -1,0 +1,1 @@
+pip install --no-binary pyarrow,pandas,scipy {opts} {packages}

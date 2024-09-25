@@ -1,225 +1,28 @@
 {
   "__SharedData": {
-    "init_data": {
-      "schema": "symbol string, event_ts string, trade_pr float",
-      "ts_col": "event_ts",
-      "series_ids": [
-        "symbol"
-      ],
-      "data": [
-        [
-          "S1",
-          "2020-08-01 00:00:10",
-          349.21
-        ],
-        [
-          "S1",
-          "2020-08-01 00:01:12",
-          351.32
-        ],
-        [
-          "S1",
-          "2020-09-01 00:02:10",
-          361.1
-        ],
-        [
-          "S1",
-          "2020-09-01 00:19:12",
-          362.1
-        ],
-        [
-          "S2",
-          "2020-08-01 00:01:10",
-          743.01
-        ],
-        [
-          "S2",
-          "2020-08-01 00:01:24",
-          751.92
-        ],
-        [
-          "S2",
-          "2020-09-01 00:02:10",
-          761.10
-        ],
-        [
-          "S2",
-          "2020-09-01 00:20:42",
-          762.33
-        ]
-      ]
-    }
-  },
-  "UtilsTest": {
-    "test_calculate_time_horizon": {
-      "simple_input": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:10",
-            0.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:10",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:32",
-            null,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:03",
-            null,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:32",
-            null,
-            7.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:12",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:31",
-            11.0,
-            null
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:00:10",
-            0.0,
-            null
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:01:10",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:01:32",
-            null,
-            null
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:02:03",
-            null,
-            null
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:04:12",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:05:31",
-            11.0,
-            null
-          ],
-          [
-            "B",
-            "A-2",
-            "2020-01-01 00:01:10",
-            2.0,
-            2.0
-          ],
-          [
-            "B",
-            "A-2",
-            "2020-01-01 00:01:32",
-            null,
-            null
-          ],
-          [
-            "B",
-            "A-2",
-            "2020-01-01 00:02:03",
-            null,
-            null
-          ],
-          [
-            "B",
-            "A-2",
-            "2020-01-01 00:03:32",
-            null,
-            7.0
-          ],
-          [
-            "B",
-            "A-2",
-            "2020-01-01 00:04:12",
-            8.0,
-            8.0
-          ]
-        ]
-      }
-    },
-    "test_display_html_TSDF": {
-      "init": {
-        "$ref": "#/__SharedData/init_data"
-      }
-    },
-    "test_display_html_dataframe": {
-      "init": {
-        "$ref": "#/__SharedData/init_data"
-      }
-    },
-    "test_display_html_pandas_dataframe": {
-      "init": {
-        "$ref": "#/__SharedData/init_data"
-      }
-    },
-    "test_display_unavailable": {
-      "init": {
-        "$ref": "#/__SharedData/init_data"
-      }
-    },
-    "test_get_display_df": {
-      "init": {
-        "$ref": "#/__SharedData/init_data"
-      },
-      "expected": {
-        "schema": "symbol string, event_ts string, trade_pr float",
+    "init": {
+      "tsdf": {
         "ts_col": "event_ts",
         "series_ids": [
           "symbol"
+        ]
+      },
+      "df": {
+        "schema": "symbol string, event_ts string, trade_pr float",
+        "ts_convert": [
+          "event_ts"
         ],
         "data": [
+          [
+            "S1",
+            "2020-08-01 00:00:10",
+            349.21
+          ],
+          [
+            "S1",
+            "2020-08-01 00:01:12",
+            351.32
+          ],
           [
             "S1",
             "2020-09-01 00:02:10",
@@ -232,8 +35,18 @@
           ],
           [
             "S2",
+            "2020-08-01 00:01:10",
+            743.01
+          ],
+          [
+            "S2",
+            "2020-08-01 00:01:24",
+            751.92
+          ],
+          [
+            "S2",
             "2020-09-01 00:02:10",
-            761.1
+            761.10
           ],
           [
             "S2",
@@ -242,44 +55,318 @@
           ]
         ]
       }
+    }
+  },
+  "UtilsTest": {
+    "test_display": {},
+    "test_calculate_time_horizon": {
+      "init": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "partition_a",
+            "partition_b"
+          ]
+        },
+        "df": {
+          "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:00:10",
+              0.0,
+              null
+            ],
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:01:10",
+              2.0,
+              2.0
+            ],
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:01:32",
+              null,
+              null
+            ],
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:02:03",
+              null,
+              null
+            ],
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:03:32",
+              null,
+              7.0
+            ],
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:04:12",
+              8.0,
+              8.0
+            ],
+            [
+              "A",
+              "A-1",
+              "2020-01-01 00:05:31",
+              11.0,
+              null
+            ],
+            [
+              "A",
+              "A-2",
+              "2020-01-01 00:00:10",
+              0.0,
+              null
+            ],
+            [
+              "A",
+              "A-2",
+              "2020-01-01 00:01:10",
+              2.0,
+              2.0
+            ],
+            [
+              "A",
+              "A-2",
+              "2020-01-01 00:01:32",
+              null,
+              null
+            ],
+            [
+              "A",
+              "A-2",
+              "2020-01-01 00:02:03",
+              null,
+              null
+            ],
+            [
+              "A",
+              "A-2",
+              "2020-01-01 00:04:12",
+              8.0,
+              8.0
+            ],
+            [
+              "A",
+              "A-2",
+              "2020-01-01 00:05:31",
+              11.0,
+              null
+            ],
+            [
+              "B",
+              "A-2",
+              "2020-01-01 00:01:10",
+              2.0,
+              2.0
+            ],
+            [
+              "B",
+              "A-2",
+              "2020-01-01 00:01:32",
+              null,
+              null
+            ],
+            [
+              "B",
+              "A-2",
+              "2020-01-01 00:02:03",
+              null,
+              null
+            ],
+            [
+              "B",
+              "A-2",
+              "2020-01-01 00:03:32",
+              null,
+              7.0
+            ],
+            [
+              "B",
+              "A-2",
+              "2020-01-01 00:04:12",
+              8.0,
+              8.0
+            ]
+          ]
+        }
+      }
+    },
+    "test_display_html_TSDF": {
+      "init": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_display_html_dataframe": {
+      "init": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_display_html_pandas_dataframe": {
+      "init": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_display_unavailable": {
+      "init": {
+        "$ref": "#/__SharedData/init"
+      }
+    },
+    "test_get_display_df": {
+      "init": {
+        "$ref": "#/__SharedData/init"
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
+          ],
+          "data": [
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:02:10",
+              761.1
+            ],
+            [
+              "S2",
+              "2020-09-01 00:20:42",
+              762.33
+            ]
+          ]
+        }
+      }
     },
     "test_get_display_df_sequence_col": {
       "init": {
-        "schema": "year int, quarter int, symbol string, revenue float",
-        "ts_col": "year",
-        "series_ids": [
-          "symbol"
-        ],
-        "sequence_col": "quarter",
-        "data": [
-          [2000,1,"XXX",114.3196],
-          [2000,2,"XXX",127.6025],
-          [2000,3,"XXX",140.3175],
-          [2000,4,"XXX",151.6989],
-          [2001,1,"XXX",164.4064],
-          [2001,2,"XXX",177.2123],
-          [2001,3,"XXX",190.0815],
-          [2001,4,"XXX",202.6134],
-          [2000,1,"YYY",145.3694],
-          [2000,2,"YYY",240.3823],
-          [2000,3,"YYY",333.2715],
-          [2000,4,"YYY",425.2974],
-          [2001,1,"YYY",521.4599],
-          [2001,2,"YYY",616.8575],
-          [2001,3,"YYY",711.7215],
-          [2001,4,"YYY",805.5553]
-        ]
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ],
+          "sequence_col": "secondary_symbol"
+        },
+        "df": {
+          "schema": "symbol string, secondary_symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            [
+              "S1",
+              "t1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "t1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "t2",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "t3",
+              "2020-09-01 00:19:12",
+              362.1
+            ],
+            [
+              "S2",
+              "t1",
+              "2020-08-01 00:01:10",
+              743.01
+            ],
+            [
+              "S2",
+              "t2",
+              "2020-08-01 00:01:24",
+              751.92
+            ],
+            [
+              "S2",
+              "t2",
+              "2020-09-01 00:02:10",
+              761.10
+            ],
+            [
+              "S2",
+              "t2",
+              "2020-09-01 00:20:42",
+              762.33
+            ]
+          ]
+        }
       },
       "expected": {
-        "schema": "symbol string, revenue float, ts_idx struct<year:int, quarter:int>",
-        "ts_col": "ts_idx",
-        "series_ids": ["symbol"],
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ],
+          "sequence_col": "secondary_symbol"
+        },
+        "df": {
+        "schema": "symbol string, secondary_symbol string, event_ts string, trade_pr float",
+        "ts_convert": ["event_ts"],
         "data": [
-          ["XXX", 190.0815, [2001, 3]],
-          ["XXX", 202.6134, [2001, 4]],
-          ["YYY", 711.7215, [2001, 3]],
-          ["YYY", 805.5553, [2001, 4]]
+          [
+            "S1",
+            "t2",
+            "2020-09-01 00:02:10",
+            361.1
+          ],
+          [
+            "S1",
+            "t3",
+            "2020-09-01 00:19:12",
+            362.1
+          ],
+          [
+            "S2",
+            "t2",
+            "2020-09-01 00:02:10",
+            761.1
+          ],
+          [
+            "S2",
+            "t2",
+            "2020-09-01 00:20:42",
+            762.33
+          ]
         ]
+          }
       }
     }
   }

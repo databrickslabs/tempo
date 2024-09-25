@@ -1,426 +1,410 @@
 {
   "__SharedData": {
     "init": {
-      "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
-      "other_ts_cols": [
-        "start_ts",
-        "end_ts"
-      ],
-      "start_ts": "start_ts",
-      "end_ts": "end_ts",
-      "series": [
-        "series_1"
-      ],
-      "data": [
-        [
-          "2020-08-01 00:00:09",
-          "2020-08-01 00:00:14",
-          "v1",
-          5,
-          null
+      "idf": {
+        "start_ts": "start_ts",
+        "end_ts": "end_ts",
+        "series_ids": ["series_1"]
+      },
+      "df": {
+        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
+        "ts_convert": [
+          "start_ts",
+          "end_ts"
         ],
-        [
-          "2020-08-01 00:00:09",
-          "2020-08-01 00:00:11",
-          "v1",
-          null,
-          0
-        ],
-        [
-          "2020-08-01 00:00:11",
-          "2020-08-01 00:00:12",
-          "v1",
-          null,
-          4
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:14",
+            "v1",
+            5,
+            null
+          ],
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:11",
+            "v1",
+            null,
+            0
+          ],
+          [
+            "2020-08-01 00:00:11",
+            "2020-08-01 00:00:12",
+            "v1",
+            null,
+            4
+          ]
         ]
-      ]
+      }
     }
   },
   "IntervalsDFTests": {
     "test_init_series_str": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_init_series_comma_seperated_str": {
-      "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
-        "other_ts_cols": [
-          "start_ts",
-          "end_ts"
-        ],
-        "start_ts": "start_ts",
-        "end_ts": "end_ts",
-        "series": [
-          "series_1",
-          "series_2"
-        ],
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            "v2",
-            5,
-            null
+      "init": {
+        "df": {
+          "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
+          "ts_convert": [
+            "start_ts",
+            "end_ts"
           ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            "v2",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:12",
-            "v1",
-            "v2",
-            null,
-            4
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              "v2",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              "v2",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:12",
+              "v1",
+              "v2",
+              null,
+              4
+            ]
           ]
-        ]
+        }
       }
     },
     "test_init_series_tuple": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_init_series_list": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_init_series_none": {
-      "input": {
-        "$ref": "#/__SharedData/init"
+      "init": {
+        "idf": {
+          "start_ts": "start_ts",
+          "end_ts": "end_ts",
+          "series_ids": []
+        },
+        "df": {
+          "$ref": "#/__SharedData/init/df"
+        }
       }
     },
     "test_init_series_int": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_window_property": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_init_metric_none": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_fromStackedMetrics_series_str": {
-      "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_name STRING NOT NULL, metric_value INT NOT NULL",
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            "metric_1",
-            5
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            "metric_2",
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:12",
-            "v1",
-            "metric_2",
-            4
+      "init": {
+        "df": {
+          "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_name STRING NOT NULL, metric_value INT NOT NULL",
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              "metric_1",
+              5
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              "metric_2",
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:12",
+              "v1",
+              "metric_2",
+              4
+            ]
           ]
-        ]
+        }
       }
     },
     "test_fromStackedMetrics_series_tuple": {
-      "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_str/input"
+      "init": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_str/init"
       }
     },
     "test_fromStackedMetrics_series_list": {
-      "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_str/input"
+      "init": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_str/init"
       },
       "expected": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
-        "other_ts_cols": [
-          "start_ts",
-          "end_ts"
-        ],
-        "start_ts": "start_ts",
-        "end_ts": "end_ts",
-        "series": [
-          "series_1"
-        ],
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
+        "idf": {
+          "start_ts": "start_ts",
+          "end_ts": "end_ts",
+          "series_ids": ["series_1"]
+        },
+        "df": {
+          "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
+          "ts_convert": [
+            "start_ts",
+            "end_ts"
           ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:12",
-            "v1",
-            null,
-            4
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:12",
+              "v1",
+              null,
+              4
+            ]
           ]
-        ]
+        }
       }
     },
     "test_fromStackedMetrics_metric_names": {
-      "input": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/input"
+      "init": {
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/init"
       },
       "expected": {
         "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/expected"
       }
     },
     "test_make_disjoint": {
-      "input": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            null,
-            0
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              null,
+              0
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:10",
-            "v1",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:11",
-            "v1",
-            5,
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:10",
+              "v1",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:11",
+              "v1",
+              5,
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ]
           ]
-        ]
+        }
       }
     },
     "test_make_disjoint_contains_interval_already_disjoint": {
-      "input": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:13",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:12",
-            "v1",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v1",
-            null,
-            4
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:13",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:12",
+              "v1",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v1",
+              null,
+              4
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:10",
-            "v1",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:12",
-            "v1",
-            5,
-            0
-          ],
-          [
-            "2020-08-01 00:00:12",
-            "2020-08-01 00:00:13",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v1",
-            null,
-            4
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:10",
+              "v1",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:12",
+              "v1",
+              5,
+              0
+            ],
+            [
+              "2020-08-01 00:00:12",
+              "2020-08-01 00:00:13",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v1",
+              null,
+              4
+            ]
           ]
-        ]
+        }
       }
     },
     "test_make_disjoint_contains_intervals_equal": {
-      "input": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:13",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:12",
-            "v1",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v1",
-            null,
-            4
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v1",
-            7,
-            null
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:13",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:12",
+              "v1",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v1",
+              null,
+              4
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v1",
+              7,
+              null
+            ]
           ]
-        ]
+        }
       },
       "expected": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
+        },
+        "df": {
         "schema": {
-          "$ref": "#/__SharedData/init/schema"
+          "$ref": "#/__SharedData/init/df/schema"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
+        "ts_convert": {
+          "$ref": "#/__SharedData/init/df/ts_convert"
         },
         "data": [
           [
@@ -452,637 +436,612 @@
             4
           ]
         ]
+          }
       }
     },
     "test_make_disjoint_intervals_same_start": {
-      "input": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            null,
-            0
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              null,
+              0
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            5,
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              5,
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ]
           ]
-        ]
+        }
       }
     },
     "test_make_disjoint_intervals_same_end": {
-      "input": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            null,
-            0
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              null,
+              0
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            0
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              0
+            ]
           ]
-        ]
+        }
       }
     },
     "test_make_disjoint_multiple_series": {
-      "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": [
-          "series_1",
-          "series_2"
-        ],
-        "data": [
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:14",
-            "v1",
-            "foo",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            "bar",
-            3,
-            2
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            "foo",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:13",
-            "v2",
-            "foo",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:12",
-            "v2",
-            "foo",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v2",
-            "foo",
-            null,
-            4
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v2",
-            "foo",
-            6,
-            3
+      "init": {
+        "idf": {
+          "start_ts": {
+            "$ref": "#/__SharedData/init/idf/start_ts"
+          },
+          "end_ts": {
+            "$ref": "#/__SharedData/init/idf/end_ts"
+          },
+          "series_ids": [
+            "series_1",
+            "series_2"
           ]
-        ]
+        },
+        "df": {
+          "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, series_2 STRING NOT NULL, metric_1 INT, metric_2 INT",
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:14",
+              "v1",
+              "foo",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              "bar",
+              3,
+              2
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              "foo",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:13",
+              "v2",
+              "foo",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:12",
+              "v2",
+              "foo",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v2",
+              "foo",
+              null,
+              4
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v2",
+              "foo",
+              6,
+              3
+            ]
+          ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_multiple_series/input/schema"
+        "idf": {
+          "start_ts": {
+            "$ref": "#/__SharedData/init/idf/start_ts"
+          },
+          "end_ts": {
+            "$ref": "#/__SharedData/init/idf/end_ts"
+          },
+          "series_ids": {
+            "$ref": "#/IntervalsDFTests/test_make_disjoint_multiple_series/init/idf/series_ids"
+          }
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_multiple_series/input/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            "bar",
-            3,
-            2
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:10",
-            "v1",
-            "foo",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:11",
-            "v1",
-            "foo",
-            5,
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            "foo",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:10",
-            "v2",
-            "foo",
-            null,
-            0
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:12",
-            "v2",
-            "foo",
-            5,
-            0
-          ],
-          [
-            "2020-08-01 00:00:12",
-            "2020-08-01 00:00:13",
-            "v2",
-            "foo",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:13",
-            "2020-08-01 00:00:14",
-            "v2",
-            "foo",
-            6,
-            4
+        "df": {
+          "schema": {
+            "$ref": "#/IntervalsDFTests/test_make_disjoint_multiple_series/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              "bar",
+              3,
+              2
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:10",
+              "v1",
+              "foo",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:11",
+              "v1",
+              "foo",
+              5,
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              "foo",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:10",
+              "v2",
+              "foo",
+              null,
+              0
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:12",
+              "v2",
+              "foo",
+              5,
+              0
+            ],
+            [
+              "2020-08-01 00:00:12",
+              "2020-08-01 00:00:13",
+              "v2",
+              "foo",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:13",
+              "2020-08-01 00:00:14",
+              "v2",
+              "foo",
+              6,
+              4
+            ]
           ]
-        ]
+        }
       }
     },
     "test_make_disjoint_single_metric": {
-      "input": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT",
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            5
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            4
+        "df": {
+          "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT",
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              5
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              4
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_single_metric/input/schema"
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_single_metric/input/data"
+        "df": {
+          "schema": {
+            "$ref": "#/IntervalsDFTests/test_make_disjoint_single_metric/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": {
+            "$ref": "#/IntervalsDFTests/test_make_disjoint_single_metric/init/df/data"
+          }
         }
       }
     },
     "test_make_disjoint_interval_is_subset": {
-      "input": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+      "init": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:11",
-            "v1",
-            null,
-            0
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:11",
+              "v1",
+              null,
+              0
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/__SharedData/init/schema"
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/__SharedData/init/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/__SharedData/init/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/__SharedData/init/end_ts"
-        },
-        "series": {
-          "$ref": "#/__SharedData/init/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:10",
-            "v1",
-            5,
-            null
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:11",
-            "v1",
-            5,
-            0
-          ],
-          [
-            "2020-08-01 00:00:11",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null
+        "df": {
+          "schema": {
+            "$ref": "#/__SharedData/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/__SharedData/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:10",
+              "v1",
+              5,
+              null
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:11",
+              "v1",
+              5,
+              0
+            ],
+            [
+              "2020-08-01 00:00:11",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null
+            ]
           ]
-        ]
+        }
       }
     },
     "test_union_other_idf": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_union_other_df": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_union_other_list_dicts": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_unionByName_other_idf": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_unionByName_other_df": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_unionByName_other_list_dicts": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_unionByName_extra_column": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       },
-      "input_extra_col": {
-        "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT, metric_3 INT",
-        "other_ts_cols": [
-          "start_ts",
-          "end_ts"
-        ],
-        "start_ts": "start_ts",
-        "end_ts": "end_ts",
-        "series": [
-          "series_1"
-        ],
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "v1",
-            5,
-            null,
-            1
+      "init_extra_col": {
+        "idf": {
+          "$ref": "#/__SharedData/init/idf"
+        },
+        "df": {
+          "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT, metric_3 INT",
+          "ts_convert": [
+            "start_ts",
+            "end_ts"
           ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "v1",
-            null,
-            0,
-            2
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:12",
-            "v1",
-            null,
-            4,
-            3
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "v1",
+              5,
+              null,
+              1
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "v1",
+              null,
+              0,
+              2
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:12",
+              "v1",
+              null,
+              4,
+              3
+            ]
           ]
-        ]
+        }
       }
     },
     "test_unionByName_other_extra_column": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       },
-      "input_extra_col": {
-        "$ref": "#/IntervalsDFTests/test_unionByName_extra_column/input_extra_col"
+      "init_extra_col": {
+        "$ref": "#/IntervalsDFTests/test_unionByName_extra_column/init_extra_col"
       }
     },
     "test_toDF": {
-      "input": {
+      "init": {
         "$ref": "#/__SharedData/init"
       }
     },
     "test_toDF_stack": {
-      "input": {
+      "init": {
         "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/expected"
       },
       "expected": {
-        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/input"
+        "$ref": "#/IntervalsDFTests/test_fromStackedMetrics_series_list/init"
       }
     },
     "test_make_disjoint_issue_268": {
-      "input": {
-        "schema": "start_timestamp STRING NOT NULL, end_timestamp STRING NOT NULL, id STRING NOT NULL, s1 INT, s2 INT, s3 INT, s4 INT",
-        "other_ts_cols": [
-          "start_timestamp",
-          "end_timestamp"
-        ],
-        "start_ts": "start_timestamp",
-        "end_ts": "end_timestamp",
-        "series": [
-          "id"
-        ],
-        "data": [
-          [
-            "2020-08-01 00:00:14",
-            "2020-08-01 00:00:17",
-            "id123",
-            null,
-            1,
-            null,
-            null
+      "init": {
+        "idf": {
+          "start_ts": "start_timestamp",
+          "end_ts": "end_timestamp",
+          "series_ids": ["id"]
+        },
+        "df": {
+          "schema": "start_timestamp STRING NOT NULL, end_timestamp STRING NOT NULL, id STRING NOT NULL, s1 INT, s2 INT, s3 INT, s4 INT",
+          "ts_convert": [
+            "start_timestamp",
+            "end_timestamp"
           ],
-          [
-            "2020-08-01 00:00:14",
-            "2020-08-01 00:00:16",
-            "id123",
-            null,
-            null,
-            null,
-            1
-          ],
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:11",
-            "id123",
-            1,
-            null,
-            null,
-            null
-          ],
-          [
-            "2020-08-01 00:00:10",
-            "2020-08-01 00:00:16",
-            "id123",
-            1,
-            null,
-            null,
-            null
-          ],
-          [
-            "2020-08-01 00:00:14",
-            "2020-08-01 00:00:21",
-            "id123",
-            null,
-            null,
-            1,
-            null
+          "data": [
+            [
+              "2020-08-01 00:00:14",
+              "2020-08-01 00:00:17",
+              "id123",
+              null,
+              1,
+              null,
+              null
+            ],
+            [
+              "2020-08-01 00:00:14",
+              "2020-08-01 00:00:16",
+              "id123",
+              null,
+              null,
+              null,
+              1
+            ],
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:11",
+              "id123",
+              1,
+              null,
+              null,
+              null
+            ],
+            [
+              "2020-08-01 00:00:10",
+              "2020-08-01 00:00:16",
+              "id123",
+              1,
+              null,
+              null,
+              null
+            ],
+            [
+              "2020-08-01 00:00:14",
+              "2020-08-01 00:00:21",
+              "id123",
+              null,
+              null,
+              1,
+              null
+            ]
           ]
-        ]
+        }
       },
       "expected": {
-        "schema": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/schema"
+        "idf": {
+          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/init/idf"
         },
-        "other_ts_cols": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/other_ts_cols"
-        },
-        "start_ts": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/start_ts"
-        },
-        "end_ts": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/end_ts"
-        },
-        "series": {
-          "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/input/series"
-        },
-        "data": [
-          [
-            "2020-08-01 00:00:09",
-            "2020-08-01 00:00:14",
-            "id123",
-            1,
-            null,
-            null,
-            null
-          ],
-          [
-            "2020-08-01 00:00:14",
-            "2020-08-01 00:00:16",
-            "id123",
-            1,
-            1,
-            1,
-            1
-          ],
-          [
-            "2020-08-01 00:00:16",
-            "2020-08-01 00:00:17",
-            "id123",
-            null,
-            1,
-            1,
-            null
-          ],
-          [
-            "2020-08-01 00:00:17",
-            "2020-08-01 00:00:21",
-            "id123",
-            null,
-            null,
-            1,
-            null
+        "df": {
+          "schema": {
+            "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/init/df/schema"
+          },
+          "ts_convert": {
+            "$ref": "#/IntervalsDFTests/test_make_disjoint_issue_268/init/df/ts_convert"
+          },
+          "data": [
+            [
+              "2020-08-01 00:00:09",
+              "2020-08-01 00:00:14",
+              "id123",
+              1,
+              null,
+              null,
+              null
+            ],
+            [
+              "2020-08-01 00:00:14",
+              "2020-08-01 00:00:16",
+              "id123",
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              "2020-08-01 00:00:16",
+              "2020-08-01 00:00:17",
+              "id123",
+              null,
+              1,
+              1,
+              null
+            ],
+            [
+              "2020-08-01 00:00:17",
+              "2020-08-01 00:00:21",
+              "id123",
+              null,
+              null,
+              1,
+              null
+            ]
           ]
-        ]
+        }
       }
     }
   }
