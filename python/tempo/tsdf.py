@@ -389,7 +389,7 @@ class TSDF:
         pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
 
         :param cols: str or list of strs column names (string). If one of the column names is '*', that
-        column is expanded to include all columns in the current :class:`TSDF`.
+            column is expanded to include all columns in the current :class:`TSDF`.
 
         ## Examples
         .. code-block:: python
@@ -399,6 +399,7 @@ class TSDF:
         [Row(name='Alice', age=2), Row(name='Bob', age=5)]
 
         """
+
         # The columns which will be a mandatory requirement while selecting from TSDFs
         seq_col_stub = [] if bool(self.sequence_col) is False else [self.sequence_col]
         mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
@@ -581,8 +582,8 @@ class TSDF:
 
         :param n: Number of rows to show. (default: 20)
         :param truncate: If set to True, truncate strings longer than 20 chars by default.
-        If set to a number greater than one, truncates long strings to length truncate
-        and align cells right.
+            If set to a number greater than one, truncates long strings to length truncate
+            and align cells right.
         :param vertical: If set to True, print output rows vertically (one line per column value).
 
         ## Example to show usage:
@@ -603,6 +604,7 @@ class TSDF:
         # Call show method here
         phone_accel_tsdf.show()
         """
+
         # validate k <= n
         if k > n:
             raise ValueError(f"Parameter k {k} cannot be greater than parameter n {n}")
