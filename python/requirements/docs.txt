@@ -4,11 +4,3 @@ sphinx
 sphinx-design
 sphinx-panels
 furo
-delta-spark
-ipython
-numpy
-pandas
-pyarrow
-pyspark
-scipy
-semver
