@@ -399,6 +399,7 @@ class TSDF:
         [Row(name='Alice', age=2), Row(name='Bob', age=5)]
 
         """
+
         # The columns which will be a mandatory requirement while selecting from TSDFs
         seq_col_stub = [] if bool(self.sequence_col) is False else [self.sequence_col]
         mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
@@ -603,6 +604,7 @@ class TSDF:
         # Call show method here
         phone_accel_tsdf.show()
         """
+        
         # validate k <= n
         if k > n:
             raise ValueError(f"Parameter k {k} cannot be greater than parameter n {n}")
