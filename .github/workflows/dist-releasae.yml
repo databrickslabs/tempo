@@ -1,4 +1,4 @@
-name: code-release
+name: dist-release
 
 on:
   pull_request:
