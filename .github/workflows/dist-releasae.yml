@@ -5,10 +5,12 @@ on:
     types: [opened, synchronize]
     paths-ignore:
       - 'docs/**'  # Ignore changes in the docs folder for pull requests
+      - '.github'  # Ignore changes in the .github folder for pull requests
   push:
     branches: ['master']
     paths-ignore:
       - 'docs/**'  # Ignore changes in the docs folder for pushes
+      - '.github'  # Ignore changes in the .github folder for pushes
 
 jobs:
   release:
