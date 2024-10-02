@@ -6,7 +6,7 @@ tempo - Time Series Utilities for Data Teams Using Databricks
    :hidden:
    :maxdepth: 3
 
-   Databricks Labs <https://databricks.com/learn/labs>
+   Databricks BLabs <https://databricks.com/learn/labs>
    about/user-guide
    references/api-reference
    about/contributing
