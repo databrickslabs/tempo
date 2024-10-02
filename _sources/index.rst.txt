@@ -7,12 +7,11 @@ tempo - Time Series Utilities for Data Teams Using Databricks
    :maxdepth: 3
 
    Databricks Labs <https://databricks.com/learn/labs>
-   user-guide
-   reference/index
-   contributing
-   tempo-team
-   future-roadmap
-
+   about/user-guide
+   references/api-reference
+   about/contributing
+   about/tempo-team
+   about/future-roadmap
 
 
 .. image:: https://github.com/databrickslabs/tempo/workflows/build/badge.svg
@@ -70,9 +69,9 @@ Alternatively, you can grab the latest source code from `GitHub <https://github.
 Usage
 -----
 
-The :doc:`user-guide` is the place to go to learn how to use the library and accomplish common tasks.
+The :doc:`about/user-guide` is the place to go to learn how to use the library and accomplish common tasks.
 
-The :doc:`reference/index` documentation provides API-level documentation.
+The :doc:`references/api-reference` documentation provides API-level documentation.
 
 .. _who-uses:
 
@@ -101,10 +100,10 @@ The documentation is updated and kept in line with the latest version that has b
 functionality that you get from :ref:`installing tempo directly from the github repo <direct-git-install>` will be
 documented here.
 
-For support on those functionalities please feel free to reach out to the :doc:`tempo-team`.
+For support on those functionalities please feel free to reach out to the :doc:`about/tempo-team`.
 
 
 Contributing
 ------------
 
-We happily welcome contributions, please see :doc:`contributing` for details.
+We happily welcome contributions, please see :doc:`about/contributing` for details.
