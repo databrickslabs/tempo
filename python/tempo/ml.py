@@ -5,27 +5,43 @@ from pyspark.sql import DataFrame
 from pyspark.sql.window import Window, WindowSpec
 from pyspark.sql import functions as sfn
 
-from pyspark.ml.param import Param, Params
+from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.ml.tuning import CrossValidator
 
 
 TMP_SPLIT_COL = "__tmp_split_col"
+TMP_GAP_COL = "__tmp_gap_row"
 
 class TimeSeriesCrossValidator(CrossValidator):
     # some additional parameters
     timeSeriesCol: Param[str] = Param(
         Params._dummy(),
         "timeSeriesCol",
-        "The name of the time series column"
+        "The name of the time series column",
+        typeConverter=TypeConverters.toString
     )
     seriesIdCols: Param[List[str]] = Param(
         Params._dummy(),
         "seriesIdCols",
-        "The name of the series id columns"
+        "The name of the series id columns",
+        typeConverter=TypeConverters.toListString
+    )
+    gap: Param[int] = Param(
+        Params._dummy(),
+        "gap",
+        "The gap between training and test set",
+        typeConverter=TypeConverters.toInt
     )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 *,
+                 timeSeriesCol: str = "event_ts",
+                 seriesIdCols: List[str] = [],
+                 gap: int = 0) -> None:
+        super(TimeSeriesCrossValidator, self).__init__()
+        self._setDefault(timeSeriesCol="event_ts", seriesIdCols=[], gap=0)
+        kwargs = self._input_kwargs
+        self._set(**kwargs)
 
     def getTimeSeriesCol(self) -> str:
         return self.getOrDefault(self.timeSeriesCol)
@@ -33,14 +49,23 @@ class TimeSeriesCrossValidator(CrossValidator):
     def getSeriesIdCols(self) -> List[str]:
         return self.getOrDefault(self.seriesIdCols)
 
+    def getGap(self) -> int:
+        return self.getOrDefault(self.gap)
+
     def setTimeSeriesCol(self, value: str) -> "TimeSeriesCrossValidator":
         return self._set(timeSeriesCol=value)
 
     def setSeriesIdCols(self, value: List[str]) -> "TimeSeriesCrossValidator":
         return self._set(seriesIdCols=value)
 
-    def _get_split_win(self) -> WindowSpec:
-        win = Window.orderBy(self.getTimeSeriesCol())
+    def setGap(self, value: int) -> "TimeSeriesCrossValidator":
+        return self._set(gap=value)
+
+    def _get_split_win(self, desc: bool = False) -> WindowSpec:
+        ts_col_expr = sfn.col(self.getTimeSeriesCol())
+        if desc:
+            ts_col_expr = ts_col_expr.desc()
+        win = Window.orderBy(ts_col_expr)
         series_id_cols = self.getSeriesIdCols()
         if series_id_cols and len(series_id_cols) > 0:
             win = win.partitionBy(*series_id_cols)
@@ -65,4 +90,18 @@ class TimeSeriesCrossValidator(CrossValidator):
         for tv in kFolds:
             assert len(tv) == 2
 
+        # trim out a gap from the training datasets, if specified
+        gap = self.getOrDefault(self.gap)
+        if gap > 0:
+            order_cols = self.getSeriesIdCols() + [self.getTimeSeriesCol()]
+            # trim each training dataset by the specified gap
+            kFolds = [((train_df.withColumn(TMP_GAP_COL,
+                                            sfn.row_number().over(self._get_split_win(desc=True)))
+                        .where(sfn.col(TMP_GAP_COL) > gap)
+                        .drop(TMP_GAP_COL)
+                        .orderBy(*order_cols)),
+                       test_df)
+                      for (train_df, test_df) in kFolds]
+
+        # return the k folds (training, test) datasets
         return kFolds
