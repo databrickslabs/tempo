@@ -34,14 +34,13 @@ class TimeSeriesCrossValidator(CrossValidator):
     )
 
     def __init__(self,
-                 *,
                  timeSeriesCol: str = "event_ts",
                  seriesIdCols: List[str] = [],
-                 gap: int = 0) -> None:
-        super(TimeSeriesCrossValidator, self).__init__()
+                 gap: int = 0,
+                 **other_kwargs) -> None:
+        super(TimeSeriesCrossValidator, self).__init__(**other_kwargs)
         self._setDefault(timeSeriesCol="event_ts", seriesIdCols=[], gap=0)
-        kwargs = self._input_kwargs
-        self._set(**kwargs)
+        self._set(timeSeriesCol=timeSeriesCol, seriesIdCols=seriesIdCols, gap=gap)
 
     def getTimeSeriesCol(self) -> str:
         return self.getOrDefault(self.timeSeriesCol)
