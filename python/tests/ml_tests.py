@@ -3,6 +3,7 @@ import unittest
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 from pyspark.ml.regression import GBTRegressor
 from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.sql import DataFrame
 
 from tempo.ml import TimeSeriesCrossValidator
 
@@ -130,6 +131,25 @@ class TimeSeriesCrossValidatorTests(SparkTest):
         tscv.setGap(2)
         # check the gap
         self.assertEqual(tscv.getGap(), 2)
+
+    def test_kfolds(self):
+        # load test data
+        trades_df = self.get_test_df_builder("trades").as_sdf()
+        # construct with default parameters
+        tscv = TimeSeriesCrossValidator(timeSeriesCol='event_ts',
+                                        seriesIdCols=['symbol'],
+                                        gap=0)
+        # test the k-folds
+        k_folds = tscv._kFold(trades_df)
+        # check the number of folds
+        self.assertEqual(len(k_folds), tscv.getNumFolds())
+        # check each fold
+        for fold in k_folds:
+            self.assertIsInstance(fold, tuple)
+            self.assertEqual(len(fold), 2)
+            self.assertIsInstance(fold[0], DataFrame)
+            self.assertIsInstance(fold[1], DataFrame)
+
 
 # MAIN
 if __name__ == "__main__":
