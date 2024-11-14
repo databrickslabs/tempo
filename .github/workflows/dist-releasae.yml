@@ -11,6 +11,8 @@ on:
     paths-ignore:
       - 'docs/**'  # Ignore changes in the docs folder for pushes
       - '.github'  # Ignore changes in the .github folder for pushes
+    tags:
+      - 'v*' # only release a versioned tag, such as v.X.Y.Z
 
 jobs:
   release:
