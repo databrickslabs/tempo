@@ -1,21 +1,12 @@
-name: dist-release
+name: Release
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    paths-ignore:
-      - 'docs/**'  # Ignore changes in the docs folder for pull requests
-      - '.github'  # Ignore changes in the .github folder for pull requests
   push:
-    branches: ['master']
-    paths-ignore:
-      - 'docs/**'  # Ignore changes in the docs folder for pushes
-      - '.github'  # Ignore changes in the .github folder for pushes
     tags:
-      - 'v*' # only release a versioned tag, such as v.X.Y.Z
+      - 'v*'
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -23,7 +14,6 @@ jobs:
       id-token: write
       # Used to attach signing artifacts to the published release.
       contents: write
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +36,6 @@ jobs:
 
       - name: Publish a Python distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
           packages-dir: python/dist/
+
