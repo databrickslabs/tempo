@@ -1,0 +1,13 @@
+{
+  "TimeSeriesCrossValidatorTests": {
+    "test_kfolds": {
+      "trades": {
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": "trades.csv"
+        }
+      }
+    }
+  }
+}

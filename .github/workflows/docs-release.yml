@@ -5,6 +5,8 @@ on:
     branches: ['master']
     paths:
       - 'docs/**'  # Trigger when files inside docs folder are changed
+    tags:
+      - 'v*' # only release a versioned tag, such as v.X.Y.Z
   pull_request:
     paths:
       - 'docs/**'  # Trigger when docs are changed within a pull request
