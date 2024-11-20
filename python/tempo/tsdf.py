@@ -24,7 +24,6 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import AtomicType, DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
-import tempo.interpol as t_interpolation
 import tempo.io as t_io
 import tempo.resample as t_resample
 import tempo.utils as t_utils
@@ -1521,42 +1520,6 @@ class TSDF(WindowBuilder):
     ) -> None:
         t_io.write(self, spark, tabName, optimizationCols)
 
-    def resample(
-        self,
-        freq: str,
-        func: Union[Callable | str],
-        metricCols: Optional[List[str]] = None,
-        prefix: Optional[str] = None,
-        fill: Optional[bool] = None,
-        perform_checks: bool = True,
-    ) -> "TSDF":
-        """
-        function to upsample based on frequency and aggregate function similar to pandas
-        :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
-        :param func: function used to aggregate input
-        :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
-        :param prefix - supply a prefix for the newly sampled columns
-        :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
-        :param perform_checks: calculate time horizon and warnings if True (default is True)
-        :return: TSDF object with sample data using aggregate function
-        """
-        t_resample.validateFuncExists(func)
-
-        # Throw warning for user to validate that the expected number of output rows is valid.
-        if fill is True and perform_checks is True:
-            t_utils.calculate_time_horizon(self, freq)
-
-        enriched_df: DataFrame = t_resample.aggregate(
-            self, freq, func, metricCols, prefix, fill
-        )
-        return _ResampledTSDF(
-            enriched_df,
-            ts_col=self.ts_col,
-            series_ids=self.series_ids,
-            freq=freq,
-            func=func,
-        )
-
     def extractStateIntervals(
         self,
         *metric_cols: str,
@@ -1677,84 +1640,6 @@ class TSDF(WindowBuilder):
         )
 
         return result
-
-
-class _ResampledTSDF(TSDF):
-    def __init__(
-        self,
-        df: DataFrame,
-        freq: str,
-        func: Union[Callable | str],
-        ts_col: str = "event_ts",
-        series_ids: Optional[List[str]] = None,
-    ):
-        super(_ResampledTSDF, self).__init__(df, ts_col, series_ids)
-        self.__freq = freq
-        self.__func = func
-
-    def interpolate(
-        self,
-        method: str,
-        freq: Optional[str] = None,
-        func: Optional[Union[Callable | str]] = None,
-        target_cols: Optional[List[str]] = None,
-        ts_col: Optional[str] = None,
-        series_ids: Optional[List[str]] = None,
-        show_interpolated: bool = False,
-        perform_checks: bool = True,
-    ) -> "TSDF":
-        """
-        Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
-
-        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
-        :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
-        :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
-        :param perform_checks: calculate time horizon and warnings if True (default is True)
-        :return: new TSDF object containing interpolated data
-        """
-
-        if freq is None:
-            freq = self.__freq
-
-        if func is None:
-            func = self.__func
-
-        if ts_col is None:
-            ts_col = self.ts_col
-
-        if series_ids is None:
-            series_ids = self.series_ids
-
-        # Set defaults for target columns, timestamp column and partition columns when not provided
-        if target_cols is None:
-            prohibited_cols: List[str] = self.series_ids + [self.ts_col]
-            summarizable_types = ["int", "bigint", "float", "double"]
-
-            # get summarizable find summarizable columns
-            target_cols: List[str] = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
-
-        interpolate_service = t_interpolation.Interpolation(is_resampled=True)
-        tsdf_input = TSDF(self.df, ts_col=ts_col, series_ids=series_ids)
-        interpolated_df = interpolate_service.interpolate(
-            tsdf=tsdf_input,
-            ts_col=ts_col,
-            series_ids=series_ids,
-            target_cols=target_cols,
-            freq=freq,
-            func=func,
-            method=method,
-            show_interpolated=show_interpolated,
-            perform_checks=perform_checks,
-        )
-
-        return TSDF(interpolated_df, ts_col=self.ts_col, series_ids=self.series_ids)
 
 
 class Comparable(metaclass=ABCMeta):
