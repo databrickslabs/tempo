@@ -104,7 +104,8 @@ def interpolate(
         explode_exprs = tsdf.df.columns + [sfn.explode(margin_col).alias(seg_group_col)]
 
     # identify segments that need interpolation
-    segment_win = Window.partitionBy("symbol", "gap_group")
+    group_by_cols = tsdf.series_ids + [seg_group_col]
+    segment_win = Window.partitionBy(group_by_cols)
     segments = (segments.select(*explode_exprs)
                 .withColumn(needs_intpl_col,
                             sfn.bool_or(sfn.col(col).isNull()).over(segment_win)))
@@ -120,7 +121,7 @@ def interpolate(
         interpolator = _build_interpolator(col, fn)
 
     # apply the interpolator to each segment
-    interpolated_df = needs_interpol.groupBy(tsdf.series_ids + [seg_group_col]) \
+    interpolated_df = needs_interpol.groupBy(group_by_cols) \
         .applyInPandas(interpolator, needs_interpol.schema)
 
     # merge the interpolated segments with the non-interpolated ones
