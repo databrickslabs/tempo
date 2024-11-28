@@ -3,4 +3,5 @@ chispa>=0.10,<1
 coverage>=7,<8
 jsonref>=1,<2
 packaging>=24,<25
+parameterized>=0.8,<1
 python-dateutil>=2,<3
