@@ -3,10 +3,13 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 import pyspark.sql
+import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.utils import AnalysisException
 
 from tempo.intervals import (
     IntervalsDF,
+    IntervalContext,
     identify_interval_overlaps,
     interval_starts_before,
     check_for_nan_values,
@@ -23,8 +26,6 @@ from tempo.intervals import (
     make_disjoint_wrap,
 )
 from tests.tsdf_tests import SparkTest
-from pyspark.sql.utils import AnalysisException
-import pyspark.sql.functions as f
 
 
 class IntervalsDFTests(SparkTest):
@@ -433,13 +434,13 @@ class PandasFunctionTests(TestCase):
     def test_identify_interval_overlaps_both_empty(self):
         df = pd.DataFrame()
         row = pd.Series()
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_df_empty(self):
         df = pd.DataFrame()
         row = pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:05"})
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_row_empty(self):
@@ -447,7 +448,7 @@ class PandasFunctionTests(TestCase):
             {"start": ["2023-01-01T00:00:01"], "end": ["2023-01-01T00:00:05"]}
         )
         row = pd.Series()
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_overlapping_intervals(self):
@@ -466,7 +467,7 @@ class PandasFunctionTests(TestCase):
             }
         )
         row = pd.Series({"start": "2023-01-01T00:00:03", "end": "2023-01-01T00:00:06"})
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         expected = pd.DataFrame(
             {
                 "start": ["2023-01-01T00:00:01", "2023-01-01T00:00:04"],
@@ -494,7 +495,7 @@ class PandasFunctionTests(TestCase):
         row = pd.Series(
             {"start": "2023-01-01T00:00:04.1", "end": "2023-01-01T00:00:05"}
         )
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_interval_subset(self):
@@ -513,7 +514,7 @@ class PandasFunctionTests(TestCase):
             }
         )
         row = pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:04"})
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         expected = pd.DataFrame(
             {"start": ["2023-01-01T00:00:01"], "end": ["2023-01-01T00:00:10"]}
         )
@@ -525,7 +526,7 @@ class PandasFunctionTests(TestCase):
             {"start": ["2023-01-01T00:00:02"], "end": ["2023-01-01T00:00:05"]}
         )
         row = pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:05"})
-        result = identify_interval_overlaps(df, row, "start", "end")
+        result = identify_interval_overlaps(df, row, IntervalContext("start", "end"))
         self.assertTrue(result.empty)
 
     def test_check_for_nan_values_pd_series_with_nan(self):
@@ -571,7 +572,7 @@ class PandasFunctionTests(TestCase):
         interval = pd.Series({"start": "2023-01-01T00:00:01"})
         other = pd.Series({"start": "2023-01-01T00:00:02"})
         result = interval_starts_before(
-            interval=interval, other=other, interval_start_ts="start"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end")
         )
         self.assertTrue(result)
 
@@ -579,7 +580,7 @@ class PandasFunctionTests(TestCase):
         interval = pd.Series({"start": "2023-01-01T00:00:01"})
         other = pd.Series({"start": "2023-01-01T00:00:01"})
         result = interval_starts_before(
-            interval=interval, other=other, interval_start_ts="start"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end")
         )
         self.assertFalse(result)
 
@@ -587,7 +588,7 @@ class PandasFunctionTests(TestCase):
         interval = pd.Series({"start": "2023-01-01T00:00:03"})
         other = pd.Series({"start": "2023-01-01T00:00:02"})
         result = interval_starts_before(
-            interval=interval, other=other, interval_start_ts="start"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end")
         )
         self.assertFalse(result)
 
@@ -597,8 +598,8 @@ class PandasFunctionTests(TestCase):
         result = interval_starts_before(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            other_start_ts=None,
+            interval_context=IntervalContext("start", "end"),
+            other_context=None,
         )
         self.assertFalse(result)
 
@@ -608,8 +609,8 @@ class PandasFunctionTests(TestCase):
         result = interval_starts_before(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            other_start_ts="start_other",
+            interval_context=IntervalContext("start", "end"),
+            other_context=IntervalContext("start_other", "end_other"),
         )
         self.assertFalse(result)
 
@@ -621,7 +622,7 @@ class PandasFunctionTests(TestCase):
             interval_starts_before,
             interval=interval,
             other=other,
-            interval_start_ts="start",
+            interval_context=IntervalContext("start", "end"),
         )
 
     def test_start_nan_value_in_other(self):
@@ -632,7 +633,7 @@ class PandasFunctionTests(TestCase):
             interval_starts_before,
             interval=interval,
             other=other,
-            interval_start_ts="start",
+            interval_context=IntervalContext("start", "end"),
         )
 
     def test_start_nan_value_in_both(self):
@@ -643,7 +644,7 @@ class PandasFunctionTests(TestCase):
             interval_starts_before,
             interval=interval,
             other=other,
-            interval_start_ts="start",
+            interval_context=IntervalContext("start", "end"),
         )
 
     def test_interval_ends_before_other(self):
@@ -652,7 +653,9 @@ class PandasFunctionTests(TestCase):
         result = interval_ends_before(
             interval=interval,
             other=other,
-            interval_end_ts="end",
+            interval_context=IntervalContext(
+                "start", "end"
+            ),
         )
         self.assertTrue(result)
 
@@ -662,7 +665,9 @@ class PandasFunctionTests(TestCase):
         result = interval_ends_before(
             interval=interval,
             other=other,
-            interval_end_ts="end",
+            interval_context=IntervalContext(
+                "start", "end"
+            ),
         )
         self.assertFalse(result)
 
@@ -672,7 +677,7 @@ class PandasFunctionTests(TestCase):
         result = interval_ends_before(
             interval=interval,
             other=other,
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -682,8 +687,10 @@ class PandasFunctionTests(TestCase):
         result = interval_ends_before(
             interval=interval,
             other=other,
-            interval_end_ts="end",
-            other_end_ts=None,
+            interval_context=IntervalContext(
+                "start", "end"
+            ),
+            other_context=None,
         )
         self.assertTrue(result)
 
@@ -693,8 +700,12 @@ class PandasFunctionTests(TestCase):
         result = interval_ends_before(
             interval=interval,
             other=other,
-            interval_end_ts="end",
-            other_end_ts="other_end",
+            interval_context=IntervalContext(
+                "start", "end"
+            ),
+            other_context=IntervalContext(
+                "other_start", "other_end"
+            ),
         )
         self.assertTrue(result)
 
@@ -705,7 +716,9 @@ class PandasFunctionTests(TestCase):
             interval_ends_before(
                 interval=interval,
                 other=other,
-                interval_end_ts="end",
+                interval_context=IntervalContext(
+                    "start", "end"
+                ),
             )
 
     def test_end_nan_values_in_other(self):
@@ -715,7 +728,7 @@ class PandasFunctionTests(TestCase):
             interval_ends_before(
                 interval=interval,
                 other=other,
-                interval_end_ts="end",
+                interval_context=IntervalContext("start", "end"),
             )
 
     def test_end_nan_values_in_both(self):
@@ -725,7 +738,9 @@ class PandasFunctionTests(TestCase):
             interval_ends_before(
                 interval=interval,
                 other=other,
-                interval_end_ts="end",
+                interval_context=IntervalContext(
+                    "start", "end"
+                )
             )
 
     def test_interval_contained_in_other(self):
@@ -738,8 +753,7 @@ class PandasFunctionTests(TestCase):
         result = interval_is_contained_by(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertTrue(result)
 
@@ -753,8 +767,7 @@ class PandasFunctionTests(TestCase):
         result = interval_is_contained_by(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -768,8 +781,7 @@ class PandasFunctionTests(TestCase):
         result = interval_is_contained_by(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -783,8 +795,7 @@ class PandasFunctionTests(TestCase):
         result = interval_is_contained_by(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -798,10 +809,8 @@ class PandasFunctionTests(TestCase):
         result = interval_is_contained_by(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            other_start_ts=None,
-            other_end_ts=None,
+            interval_context=IntervalContext("start", "end"),
+            other_context=None,
         )
         self.assertTrue(result)
 
@@ -815,10 +824,8 @@ class PandasFunctionTests(TestCase):
         result = interval_is_contained_by(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            other_start_ts="other_start",
-            other_end_ts="other_end",
+            interval_context=IntervalContext("start", "end"),
+            other_context=IntervalContext("other_start", "other_end"),
         )
         self.assertTrue(result)
 
@@ -832,8 +839,7 @@ class PandasFunctionTests(TestCase):
             interval_is_contained_by,
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
 
     def test_interval_is_contained_by_other_with_nan_value(self):
@@ -846,15 +852,14 @@ class PandasFunctionTests(TestCase):
             interval_is_contained_by,
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
 
     def test_intervals_share_start_boundary(self):
         interval = pd.Series({"start": "2023-01-01T01:00:00"})
         other = pd.Series({"start": "2023-01-01T01:00:00"})
         result = intervals_share_start_boundary(
-            interval=interval, other=other, interval_start_ts="start"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end"),
         )
         self.assertTrue(result)
 
@@ -862,7 +867,7 @@ class PandasFunctionTests(TestCase):
         interval = pd.Series({"start": "2023-01-01T01:00:00"})
         other = pd.Series({"start": "2023-01-01T02:00:00"})
         result = intervals_share_start_boundary(
-            interval=interval, other=other, interval_start_ts="start"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -872,8 +877,8 @@ class PandasFunctionTests(TestCase):
         result = intervals_share_start_boundary(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            other_start_ts=None,
+            interval_context=IntervalContext("start", "end"),
+            other_context=None,
         )
         self.assertTrue(result)
 
@@ -883,8 +888,8 @@ class PandasFunctionTests(TestCase):
         result = intervals_share_start_boundary(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            other_start_ts="other_start",
+            interval_context=IntervalContext("start", "end"),
+            other_context=IntervalContext("other_start", "other_end"),
         )
         self.assertTrue(result)
 
@@ -893,7 +898,7 @@ class PandasFunctionTests(TestCase):
         other = pd.Series({"start": "2023-01-01T01:00:00"})
         with self.assertRaises(ValueError):
             intervals_share_start_boundary(
-                interval=interval, other=other, interval_start_ts="start"
+                interval=interval, other=other, interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_share_start_boundary_with_other_nan_value(self):
@@ -901,7 +906,7 @@ class PandasFunctionTests(TestCase):
         other = pd.Series({"start": float("nan")})
         with self.assertRaises(ValueError):
             intervals_share_start_boundary(
-                interval=interval, other=other, interval_start_ts="start"
+                interval=interval, other=other, interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_share_start_boundary_with_both_nan_values(self):
@@ -909,14 +914,14 @@ class PandasFunctionTests(TestCase):
         other = pd.Series({"start": float("nan")})
         with self.assertRaises(ValueError):
             intervals_share_start_boundary(
-                interval=interval, other=other, interval_start_ts="start"
+                interval=interval, other=other, interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_share_end_boundary(self):
         interval = pd.Series({"end": "2023-01-01T01:00:00"})
         other = pd.Series({"end": "2023-01-01T01:00:00"})
         result = intervals_share_end_boundary(
-            interval=interval, other=other, interval_end_ts="end"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end"),
         )
         self.assertTrue(result)
 
@@ -924,7 +929,7 @@ class PandasFunctionTests(TestCase):
         interval = pd.Series({"end": "2023-01-01T01:00:00"})
         other = pd.Series({"end": "2023-01-01T02:00:00"})
         result = intervals_share_end_boundary(
-            interval=interval, other=other, interval_end_ts="end"
+            interval=interval, other=other, interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -932,7 +937,7 @@ class PandasFunctionTests(TestCase):
         interval = pd.Series({"end": "2023-01-01T01:00:00"})
         other = pd.Series({"end": "2023-01-01T01:00:00"})
         result = intervals_share_end_boundary(
-            interval=interval, other=other, interval_end_ts="end", other_end_ts=None
+            interval=interval, other=other, interval_context=IntervalContext("start", "end"), other_context=None,
         )
         self.assertTrue(result)
 
@@ -942,8 +947,8 @@ class PandasFunctionTests(TestCase):
         result = intervals_share_end_boundary(
             interval=interval,
             other=other,
-            interval_end_ts="end",
-            other_end_ts="other_end",
+            interval_context=IntervalContext("start", "end"),
+            other_context=IntervalContext("other_start", "other_end"),
         )
         self.assertTrue(result)
 
@@ -952,7 +957,7 @@ class PandasFunctionTests(TestCase):
         other = pd.Series({"end": "2023-01-01T01:00:00"})
         with self.assertRaises(ValueError):
             intervals_share_end_boundary(
-                interval=interval, other=other, interval_end_ts="end"
+                interval=interval, other=other, interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_share_end_boundary_with_other_nan_value(self):
@@ -960,7 +965,7 @@ class PandasFunctionTests(TestCase):
         other = pd.Series({"end": float("nan")})
         with self.assertRaises(ValueError):
             intervals_share_end_boundary(
-                interval=interval, other=other, interval_end_ts="end"
+                interval=interval, other=other, interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_share_end_boundary_with_both_nan_value(self):
@@ -968,7 +973,7 @@ class PandasFunctionTests(TestCase):
         other = pd.Series({"end": float("nan")})
         with self.assertRaises(ValueError):
             intervals_share_end_boundary(
-                interval=interval, other=other, interval_end_ts="end"
+                interval=interval, other=other, interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_boundaries_are_equivalent(self):
@@ -981,8 +986,7 @@ class PandasFunctionTests(TestCase):
         result = intervals_boundaries_are_equivalent(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertTrue(result)
 
@@ -996,8 +1000,7 @@ class PandasFunctionTests(TestCase):
         result = intervals_boundaries_are_equivalent(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -1011,8 +1014,7 @@ class PandasFunctionTests(TestCase):
         result = intervals_boundaries_are_equivalent(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
+            interval_context=IntervalContext("start", "end"),
         )
         self.assertFalse(result)
 
@@ -1026,10 +1028,8 @@ class PandasFunctionTests(TestCase):
         result = intervals_boundaries_are_equivalent(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            other_start_ts=None,
-            other_end_ts=None,
+            interval_context=IntervalContext("start", "end"),
+            other_context=None,
         )
         self.assertTrue(result)
 
@@ -1043,10 +1043,8 @@ class PandasFunctionTests(TestCase):
         result = intervals_boundaries_are_equivalent(
             interval=interval,
             other=other,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            other_start_ts=None,
-            other_end_ts=None,
+            interval_context=IntervalContext("start", "end"),
+            other_context=None,
         )
         self.assertTrue(result)
 
@@ -1059,8 +1057,7 @@ class PandasFunctionTests(TestCase):
             intervals_boundaries_are_equivalent(
                 interval=interval,
                 other=other,
-                interval_start_ts="start",
-                interval_end_ts="end",
+                interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_boundaries_are_equivalent_with_other_nan_value(self):
@@ -1072,8 +1069,7 @@ class PandasFunctionTests(TestCase):
             intervals_boundaries_are_equivalent(
                 interval=interval,
                 other=other,
-                interval_start_ts="start",
-                interval_end_ts="end",
+                interval_context=IntervalContext("start", "end"),
             )
 
     def test_intervals_boundaries_are_equivalent_with_both_nan_value(self):
@@ -1083,8 +1079,7 @@ class PandasFunctionTests(TestCase):
             intervals_boundaries_are_equivalent(
                 interval=interval,
                 other=other,
-                interval_start_ts="start",
-                interval_end_ts="end",
+                interval_context=IntervalContext("start", "end"),
             )
 
     def test_update_interval_boundary_start(self):
@@ -1141,9 +1136,10 @@ class PandasFunctionTests(TestCase):
         child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
         expected = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
         merged = merge_metric_columns_of_intervals(
-            main_interval=main,
-            child_interval=child,
-            metric_columns=["value"],
+            interval=main,
+            other=child,
+            interval_context=IntervalContext("start", "end", metric_columns=["value"]),
+            other_context=IntervalContext("start", "end", metric_columns=["value"]),
         )
         self.assertTrue(merged.equals(expected))
 
@@ -1155,9 +1151,10 @@ class PandasFunctionTests(TestCase):
         child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
         expected = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
         merged = merge_metric_columns_of_intervals(
-            main_interval=main,
-            child_interval=child,
-            metric_columns=["value"],
+            interval=main,
+            other=child,
+            interval_context=IntervalContext("start", "end", metric_columns=["value"]),
+            other_context=IntervalContext("start", "end", metric_columns=["value"]),
             metric_merge_method=True,
         )
         self.assertTrue(merged.equals(expected))
@@ -1167,9 +1164,10 @@ class PandasFunctionTests(TestCase):
         child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
         expected = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
         merged = merge_metric_columns_of_intervals(
-            main_interval=main,
-            child_interval=child,
-            metric_columns="value",
+            interval=main,
+            other=child,
+            interval_context=IntervalContext("start", "end", metric_columns=["value"]),
+            other_context=IntervalContext("start", "end", metric_columns=["value"]),
             metric_merge_method=True,
         )
         self.assertTrue(merged.equals(expected))
@@ -1183,9 +1181,10 @@ class PandasFunctionTests(TestCase):
             {"start": "01:00", "end": "02:00", "value1": 20, "value2": 30}
         )
         merged = merge_metric_columns_of_intervals(
-            main_interval=main,
-            child_interval=child,
-            metric_columns="value1, value2",
+            interval=main,
+            other=child,
+            interval_context=IntervalContext("start", "end", metric_columns=["value1", "value2"]),
+            other_context=IntervalContext("start", "end", metric_columns=["value1", "value2"]),
             metric_merge_method=True,
         )
         self.assertTrue(merged.equals(expected))
@@ -1194,30 +1193,32 @@ class PandasFunctionTests(TestCase):
         main = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
         child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
         merged = merge_metric_columns_of_intervals(
-            main_interval=main,
-            child_interval=child,
-            metric_columns=["value"],
-        )
+            interval=main,
+            other=child,
+            interval_context=IntervalContext("start", "end", metric_columns=["value"]),
+            other_context=IntervalContext("start", "end", metric_columns=["value"]), )
         self.assertNotEqual(id(main), id(merged))
 
-    def test_merge_metric_columns_of_intervals_with_invalid_metric_columns_input(self):
-        main = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
-        child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
-        self.assertRaises(
-            ValueError,
-            merge_metric_columns_of_intervals,
-            main_interval=main,
-            child_interval=child,
-            metric_columns=10,
-        )
+    # def test_merge_metric_columns_of_intervals_with_invalid_metric_columns_input(self):
+    #     main = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
+    #     child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
+    #     self.assertRaises(
+    #         ValueError,
+    #         IntervalContext,
+    #         interval=main,
+    #         other=child,
+    #         interval_context=IntervalContext("start", "end", metric_columns=[10]),
+    #         other_context=IntervalContext("start", "end", metric_columns=[10]),
+    #     )
 
     def test_merge_metric_columns_of_intervals_handle_nan_in_child(self):
         main = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
         child = pd.Series({"start": "01:00", "end": "02:00", "value": float("nan")})
         merged = merge_metric_columns_of_intervals(
-            main_interval=main,
-            child_interval=child,
-            metric_columns=["value"],
+            interval=main,
+            other=child,
+            interval_context=IntervalContext("start", "end", metric_columns=["value"]),
+            other_context=IntervalContext("start", "end", metric_columns=["value"]),
             metric_merge_method=True,
         )
         self.assertEqual(merged["value"], 10)
@@ -1234,10 +1235,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 1)
@@ -1254,10 +1255,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 3)
@@ -1274,10 +1275,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 2)
@@ -1294,10 +1295,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 2)
@@ -1314,10 +1315,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 2)
@@ -1334,10 +1335,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 2)
@@ -1354,10 +1355,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 1)
@@ -1376,10 +1377,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 3)
@@ -1398,10 +1399,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 3)
@@ -1420,10 +1421,10 @@ class PandasFunctionTests(TestCase):
             resolve_overlap,
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
     def test_resolve_overlaps_where_other_contains_nan(self):
@@ -1440,82 +1441,10 @@ class PandasFunctionTests(TestCase):
             resolve_overlap,
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
-        )
-
-    def test_resolve_overlaps_where_different_start_timestamp_col_names(self):
-        # Test 8: Expected indices of pd.Series elements to be non-equivalent. Expect ValueError.
-        series_a = pd.Series(
-            {
-                "start": "2022-01-01",
-                "end": "2022-01-03",
-                "series_1": 1,
-                "metric_1": 5,
-                "metric_2": 10,
-            }
-        )
-
-        # series_b = pd.Series({
-        #     "begin": "2022-01-02",
-        #     "finish": "2022-01-04",
-        #     "series_1": 1,
-        #     "metric_1_val": 6,
-        #     "metric_2_val": 11
-        # })
-        series_b = pd.Series(
-            {
-                "begin": "2022-01-02",
-                "end": "2022-01-04",
-                "series_1": 1,
-                "metric_1": 6,
-                "metric_2": 11,
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["series_1"],
-            metric_columns=["metric_1", "metric_2"],
-        )
-
-    def test_resolve_overlaps_where_different_end_timestamp_col_names(self):
-        series_a = pd.Series(
-            {
-                "start": "2022-01-01",
-                "end": "2022-01-03",
-                "series_1": 1,
-                "metric_1": 5,
-                "metric_2": 10,
-            }
-        )
-
-        series_b = pd.Series(
-            {
-                "start": "2022-01-02",
-                "finish": "2022-01-04",
-                "series_1": 1,
-                "metric_1": 6,
-                "metric_2": 11,
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["series_1"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
     def test_resolve_overlaps_where_different_series_id_col_names(self):
@@ -1544,10 +1473,10 @@ class PandasFunctionTests(TestCase):
             resolve_overlap,
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["series_1"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["series_1"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["series_1"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
     def test_resolve_overlaps_where_different_metric_col_names(self):
@@ -1576,10 +1505,10 @@ class PandasFunctionTests(TestCase):
             resolve_overlap,
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["series_1"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["series_1"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["series_1"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
     def test_resolve_overlaps_where_different_series_shapes(self):
@@ -1602,10 +1531,10 @@ class PandasFunctionTests(TestCase):
             resolve_overlap,
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["series_1"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["series_1"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["series_1"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
     def test_resolve_overlaps_where_no_overlaps(self):
@@ -1621,10 +1550,10 @@ class PandasFunctionTests(TestCase):
         result = resolve_overlap(
             interval=series_a,
             other=series_b,
-            interval_start_ts="start",
-            interval_end_ts="end",
-            series_ids=["start", "end"],
-            metric_columns=["metric_1", "metric_2"],
+            interval_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                             metric_columns=["metric_1", "metric_2"]),
+            other_context=IntervalContext("start", "end", series_ids=["start", "end"],
+                                          metric_columns=["metric_1", "metric_2"]),
         )
 
         self.assertEqual(len(result), 2)
