@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from itertools import islice
-from typing import Optional, Iterable, cast, Any, Callable
 from functools import cached_property
+from itertools import islice
+from typing import Optional, Iterable, cast, Any, Callable, Sequence
 
+import numpy as np
+import pandas as pd
+import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (
     # NB: NumericType is a non-public object, so we shouldn't import it directly
@@ -17,11 +20,7 @@ from pyspark.sql.types import (
     BooleanType,
     StructField,
 )
-import pyspark.sql.functions as f
 from pyspark.sql.window import Window, WindowSpec
-
-import numpy as np
-import pandas as pd
 
 
 def is_metric_col(col: StructField) -> bool:
@@ -381,11 +380,48 @@ class IntervalsDF:
             return self.df
 
 
+class IntervalContext:
+    def __init__(
+            self,
+            start_ts: Optional[str] = None,
+            end_ts: Optional[str] = None,
+            series_ids: Optional[Sequence[str]] = None,
+            metric_columns: Optional[Sequence[str]] = None,
+    ) -> None:
+        self.start_ts = start_ts
+        self.end_ts = end_ts
+
+        if series_ids is None:
+            self.series_ids = []
+        else:
+            self.series_ids = [series_ids]
+
+        if isinstance(metric_columns, str):
+            metric_columns = metric_columns.split(",")
+            metric_columns = [s.strip() for s in metric_columns]
+        elif isinstance(metric_columns, Sequence):
+            metric_columns = metric_columns
+        elif metric_columns is None:
+            metric_columns = []
+        else:
+            raise ValueError(
+                f"series_ids must be an Iterable or comma seperated string"
+                f" of column names, instead got {type(metric_columns)}"
+            )
+
+        self.metric_columns = metric_columns
+
+        self.validate_metric_columns()
+
+    def validate_metric_columns(self):
+        if not all(isinstance(col, str) for col in self.metric_columns):
+            raise ValueError("All metric columns must be of type str")
+
+
 def identify_interval_overlaps(
     in_pdf: pd.DataFrame,
     with_row: pd.Series,
-    interval_start_ts: str,
-    interval_end_ts: str,
+        interval_context: IntervalContext,
 ) -> pd.DataFrame:
     """
     return the subset of rows in DataFrame `in_pdf` that overlap with row `with_row`
@@ -399,13 +435,13 @@ def identify_interval_overlaps(
 
     # https://stackoverflow.com/questions/19913659/pandas-conditional-creation-of-a-series-dataframe-column
     local_in_pdf["max_start_timestamp"] = [
-        _ if _ >= with_row[interval_start_ts] else with_row[interval_start_ts]
-        for _ in local_in_pdf[interval_start_ts]
+        _ if _ >= with_row[interval_context.start_ts] else with_row[interval_context.start_ts]
+        for _ in local_in_pdf[interval_context.start_ts]
     ]
 
     local_in_pdf["min_end_timestamp"] = [
-        _ if _ <= with_row[interval_end_ts] else with_row[interval_end_ts]
-        for _ in local_in_pdf[interval_end_ts]
+        _ if _ <= with_row[interval_context.end_ts] else with_row[interval_context.end_ts]
+        for _ in local_in_pdf[interval_context.end_ts]
     ]
 
     # https://www.baeldung.com/cs/finding-all-overlapping-intervals
@@ -447,223 +483,211 @@ def interval_starts_before(
     *,
     interval: pd.Series,
     other: pd.Series,
-    interval_start_ts: str,
-    other_start_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
+        # interval_start_ts: str,
+        # other_start_ts: Optional[str] = None,
 ) -> bool:
     """
     return True if interval_a starts before interval_b starts
     """
 
-    if other_start_ts is None:
-        other_start_ts = interval_start_ts
+    if other_context is None:
+        other_context = interval_context
 
-    if check_for_nan_values(interval[interval_start_ts]) or check_for_nan_values(
-        other[other_start_ts]
+    if check_for_nan_values(interval[interval_context.start_ts]) or check_for_nan_values(
+            other[other_context.start_ts]
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
-    return interval[interval_start_ts] < other[other_start_ts]
+    return interval[interval_context.start_ts] < other[other_context.start_ts]
 
 
 def interval_ends_before(
     *,
     interval: pd.Series,
     other: pd.Series,
-    interval_end_ts: str,
-    other_end_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
 ) -> bool:
     """
     return True if interval_a ends before interval_b ends
     """
 
-    if other_end_ts is None:
-        other_end_ts = interval_end_ts
+    if other_context is None:
+        other_context = interval_context
 
-    if check_for_nan_values(interval[interval_end_ts]) or check_for_nan_values(
-        other[other_end_ts]
+    if check_for_nan_values(interval[interval_context.end_ts]) or check_for_nan_values(
+            other[other_context.end_ts]
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
-    return interval[interval_end_ts] < other[other_end_ts]
+    return interval[interval_context.end_ts] < other[other_context.end_ts]
 
 
 def interval_is_contained_by(
     *,
     interval: pd.Series,
     other: pd.Series,
-    interval_start_ts: str,
-    interval_end_ts: str,
-    other_start_ts: Optional[str] = None,
-    other_end_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
+        # interval_start_ts: str,
+        # interval_end_ts: str,
+        # other_start_ts: Optional[str] = None,
+        # other_end_ts: Optional[str] = None,
 ) -> bool:
     """
     return True if interval is contained in other
     """
 
-    if other_start_ts is None:
-        other_start_ts = interval_start_ts
-
-    if other_end_ts is None:
-        other_end_ts = interval_end_ts
+    if other_context is None:
+        other_context = interval_context
 
     if (
-        check_for_nan_values(interval[interval_start_ts])
-        or check_for_nan_values(interval[interval_end_ts])
-        or check_for_nan_values(other[other_start_ts])
-        or check_for_nan_values(other[other_end_ts])
+            check_for_nan_values(interval[interval_context.start_ts])
+            or check_for_nan_values(interval[interval_context.end_ts])
+            or check_for_nan_values(other[other_context.start_ts])
+            or check_for_nan_values(other[other_context.end_ts])
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
     return interval_starts_before(
         interval=other,
         other=interval,
-        interval_start_ts=other_start_ts,
-        other_start_ts=interval_start_ts,
+        interval_context=other_context,
+        other_context=interval_context,
     ) and interval_ends_before(
         interval=interval,
         other=other,
-        interval_end_ts=interval_end_ts,
-        other_end_ts=other_end_ts,
+        interval_context=interval_context,
+        other_context=other_context,
     )
 
 
 def intervals_share_start_boundary(
     interval: pd.Series,
     other: pd.Series,
-    interval_start_ts: str,
-    other_start_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
 ) -> bool:
     """
     return True if interval_a and interval_b share a start boundary
     """
 
-    if other_start_ts is None:
-        other_start_ts = interval_start_ts
+    if other_context is None:
+        other_context = interval_context
 
-    if check_for_nan_values(interval[interval_start_ts]) or check_for_nan_values(
-        other[other_start_ts]
+    if check_for_nan_values(interval[interval_context.start_ts]) or check_for_nan_values(
+            other[other_context.start_ts]
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
-    return interval[interval_start_ts] == other[other_start_ts]
+    return interval[interval_context.start_ts] == other[other_context.start_ts]
 
 
 def intervals_share_end_boundary(
     interval: pd.Series,
     other: pd.Series,
-    interval_end_ts: str,
-    other_end_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
 ) -> bool:
     """
     return True if interval_a and interval_b share an end boundary
     """
 
-    if other_end_ts is None:
-        other_end_ts = interval_end_ts
+    if other_context is None:
+        other_context = interval_context
 
-    if check_for_nan_values(interval[interval_end_ts]) or check_for_nan_values(
-        other[other_end_ts]
+    if check_for_nan_values(interval[interval_context.end_ts]) or check_for_nan_values(
+            other[other_context.end_ts]
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
-    return interval[interval_end_ts] == other[other_end_ts]
+    return interval[interval_context.end_ts] == other[other_context.end_ts]
 
 
 def intervals_boundaries_are_equivalent(
     interval: pd.Series,
     other: pd.Series,
-    interval_start_ts: str,
-    interval_end_ts: str,
-    other_start_ts: Optional[str] = None,
-    other_end_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
 ) -> bool:
     """
     return True if interval_a is equivalent to interval_b
     """
 
-    if other_start_ts is None:
-        other_start_ts = interval_start_ts
-
-    if other_end_ts is None:
-        other_end_ts = interval_end_ts
+    if other_context is None:
+        other_context = interval_context
 
     if (
-        check_for_nan_values(interval[interval_start_ts])
-        or check_for_nan_values(interval[interval_end_ts])
-        or check_for_nan_values(other[other_start_ts])
-        or check_for_nan_values(other[other_end_ts])
+            check_for_nan_values(interval[interval_context.start_ts])
+            or check_for_nan_values(interval[interval_context.end_ts])
+            or check_for_nan_values(other[other_context.start_ts])
+            or check_for_nan_values(other[other_context.end_ts])
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
     return intervals_share_start_boundary(
         interval,
         other,
-        interval_start_ts=interval_start_ts,
-        other_start_ts=other_start_ts,
+        interval_context=interval_context,
+        other_context=other_context,
     ) and intervals_share_end_boundary(
         interval,
         other,
-        interval_end_ts=interval_end_ts,
-        other_end_ts=other_end_ts,
+        interval_context=interval_context,
+        other_context=other_context,
     )
 
 
 def intervals_have_equivalent_metric_columns(
-    interval_a: pd.Series,
-    interval_b: pd.Series,
-    metric_columns: Iterable[str],
+        interval: pd.Series,
+        other: pd.Series,
+        interval_context: IntervalContext,
+        other_context: IntervalContext,
 ) -> bool:
     """
     return True if interval_a and interval_b have identical metrics
     """
-    if isinstance(metric_columns, str):
-        metric_columns = metric_columns.split(",")
-        metric_columns = [s.strip() for s in metric_columns]
-    elif isinstance(metric_columns, Iterable):
-        metric_columns = list(metric_columns)
-    else:
-        raise ValueError(
-            f"series_ids must be an Iterable or comma seperated string"
-            f" of column names, instead got {type(metric_columns)}"
-        )
 
-    interval_a = interval_a.copy().fillna("¯\\_(ツ)_/¯")
-    interval_b = interval_b.copy().fillna("¯\\_(ツ)_/¯")
+    interval = interval.copy().fillna("¯\\_(ツ)_/¯")
+    other = other.copy().fillna("¯\\_(ツ)_/¯")
     return all(
-        interval_a[metric_col] == interval_b[metric_col]
-        for metric_col in metric_columns
+        interval[interval_metric_col] == other[other_metric_col]
+        for interval_metric_col, other_metric_col in zip(interval_context.metric_columns, other_context.metric_columns)
     )
 
 
+# TODO: left off here
 def intervals_do_not_overlap(
     *,
     interval: pd.Series,
     other: pd.Series,
-    interval_start_ts: str,
-    interval_end_ts: str,
-    other_start_ts: Optional[str] = None,
-    other_end_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: Optional[IntervalContext] = None,
+        # interval_start_ts: str,
+        # interval_end_ts: str,
+        # other_start_ts: Optional[str] = None,
+        # other_end_ts: Optional[str] = None,
 ) -> bool:
-    if other_start_ts is None:
-        other_start_ts = interval_start_ts
-
-    if other_end_ts is None:
-        other_end_ts = interval_end_ts
+    if other_context is None:
+        other_context = interval_context
 
     if (
-        check_for_nan_values(interval[interval_start_ts])
-        or check_for_nan_values(interval[interval_end_ts])
-        or check_for_nan_values(other[other_start_ts])
-        or check_for_nan_values(other[other_end_ts])
+            check_for_nan_values(interval[interval_context.start_ts])
+            or check_for_nan_values(interval[interval_context.end_ts])
+            or check_for_nan_values(other[other_context.start_ts])
+            or check_for_nan_values(other[other_context.end_ts])
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
     return (
-        interval[interval_end_ts] < other[other_start_ts]
-        or interval[interval_start_ts] > other[other_end_ts]
+            interval[interval_context.end_ts] < other[other_context.start_ts]
+            or interval[interval_context.start_ts] > other[other_context.end_ts]
     )
 
 
+#TODO: refactor once i move the pd.series interval objects into IntervalContext
 def update_interval_boundary(
     *,
     interval: pd.Series,
@@ -684,32 +708,22 @@ def update_interval_boundary(
 
 def merge_metric_columns_of_intervals(
     *,
-    main_interval: pd.Series,
-    child_interval: pd.Series,
-    metric_columns: Iterable[str],
+        interval: pd.Series,
+        other: pd.Series,
+        interval_context: IntervalContext,
+        other_context: IntervalContext,
     metric_merge_method: bool = False,
 ) -> pd.Series:
     """
-    return the merged metrics of interval_a and interval_b
+    return the merged metrics of interval and other
     """
 
-    if isinstance(metric_columns, str):
-        metric_columns = metric_columns.split(",")
-        metric_columns = [s.strip() for s in metric_columns]
-    elif isinstance(metric_columns, Iterable):
-        metric_columns = list(metric_columns)
-    else:
-        raise ValueError(
-            f"series_ids must be an Iterable or comma seperated string"
-            f" of column names, instead got {type(metric_columns)}"
-        )
-
-    merged_interval = main_interval.copy()
+    merged_interval = interval.copy()
 
     if metric_merge_method:
-        for metric_col in metric_columns:
-            if pd.notna(child_interval[metric_col]):
-                merged_interval[metric_col] = child_interval[metric_col]
+        for interval_metric_col, other_metric_col in zip(interval_context.metric_columns, other_context.metric_columns):
+            if pd.notna(other[other_metric_col]):
+                merged_interval[interval_metric_col] = other[other_metric_col]
 
     return merged_interval
 
@@ -718,80 +732,68 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     #  -> for now, can just take non-null values from both intervals
     interval: pd.Series,
     other: pd.Series,
-    interval_start_ts: str,
-    interval_end_ts: str,
-    series_ids: Iterable[str],
-    metric_columns: Iterable[str],
-    other_start_ts: Optional[str] = None,
-    other_end_ts: Optional[str] = None,
+        interval_context: IntervalContext,
+        other_context: IntervalContext,
+        # interval_start_ts: str,
+        # interval_end_ts: str,
+        # series_ids: Iterable[str],
+        # metric_columns: Iterable[str],
+        # other_context.start_ts: Optional[str] = None,
+        # other_end_ts: Optional[str] = None,
 ) -> list[pd.Series]:
     """
     resolve overlaps between the two given intervals,
     splitting them as necessary into some set of disjoint intervals
     """
 
-    if other_start_ts is None:
+    if other_context.start_ts is None:
         try:
-            _ = other[interval_start_ts]
-            other_start_ts = interval_start_ts
+            _ = other[interval_context.start_ts]
+            other_context.start_ts = interval_context.start_ts
         except KeyError:
             raise ValueError(
-                f"`other_start_ts` must be set or equivalent to `interval_start_ts`, got {other_start_ts}"
+                f"`other_context.start_ts` must be set or equivalent to `interval_start_ts`, got {other_context.start_ts}"
             )
 
-    if other_end_ts is None:
+    if other_context.end_ts is None:
         try:
-            _ = other[interval_end_ts]
-            other_end_ts = interval_end_ts
+            _ = other[interval_context.end_ts]
+            other_context.end_ts = interval_context.end_ts
         except KeyError:
             raise ValueError(
-                f"`other_end_ts` must be set or equivalent to `interval_end_ts`, got {other_end_ts}"
+                f"`other_end_ts` must be set or equivalent to `interval_end_ts`, got {other_context.end_ts}"
             )
 
     if (
-        check_for_nan_values(interval[interval_start_ts])
-        or check_for_nan_values(interval[interval_end_ts])
-        or check_for_nan_values(other[other_start_ts])
-        or check_for_nan_values(other[other_end_ts])
+            check_for_nan_values(interval[interval_context.start_ts])
+            or check_for_nan_values(interval[interval_context.end_ts])
+            or check_for_nan_values(other[other_context.start_ts])
+            or check_for_nan_values(other[other_context.end_ts])
     ):
         raise ValueError("interval and other cannot contain NaN values for timestamps")
 
     interval_index = set(interval.index).difference(
         (
-            interval_start_ts,
-            interval_end_ts,
+            interval_context.start_ts,
+            interval_context.end_ts,
         )
     )
     other_index = set(other.index).difference(
         (
-            other_start_ts,
-            other_end_ts,
+            other_context.start_ts,
+            other_context.end_ts,
         )
     )
 
     if not interval_index == other_index:
         raise ValueError("Expected indices of pd.Series elements to be equivalent.")
 
-    for arg in (series_ids, metric_columns):
-        if isinstance(arg, str):
-            arg = [s.strip() for s in arg.split(",")]
-        elif isinstance(arg, Iterable):
-            arg = list(arg)
-        else:
-            raise ValueError(
-                f"{arg} must be an Iterable or comma seperated string"
-                f" of column names, instead got {type(arg)}"
-            )
-
-    series_ids = cast(list[str], series_ids)
-    metric_columns = cast(list[str], metric_columns)
-
     resolved_intervals = list()
 
     # NB: Checking order of intervals in terms of start time allows
     # us to remove all cases where b precedes a because the interval
     # which opens sooner can always be set to a
-    if interval[interval_start_ts] > other[other_start_ts]:
+    if interval[interval_context.start_ts] > other[other_context.start_ts]:
         interval, other = other, interval
 
     # intervals_do_not_overlap(interval, other, ...) is True
@@ -803,10 +805,14 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if intervals_do_not_overlap(
         interval=interval,
         other=other,
-        interval_start_ts=interval_start_ts,
-        interval_end_ts=interval_end_ts,
-        other_start_ts=other_start_ts,
-        other_end_ts=other_end_ts,
+            interval_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+            ),
+            other_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+            ),
     ):
         return [interval, other]
 
@@ -815,11 +821,16 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     # Results in 1 disjoint interval
     # 1) A.start, B.end, A.metric_columns
 
-    if intervals_have_equivalent_metric_columns(interval, other, metric_columns):
+    if intervals_have_equivalent_metric_columns(interval, other,
+                                                IntervalContext(interval_context.start_ts, interval_context.end_ts,
+                                                                metric_columns=interval_context.metric_columns),
+                                                other_context=IntervalContext(other_context.start_ts,
+                                                                              other_context.end_ts,
+                                                                              metric_columns=other_context.metric_columns)):
         resolved_series = update_interval_boundary(
             interval=interval,
-            boundary_to_update=interval_end_ts,
-            update_value=other[other_end_ts],
+            boundary_to_update=interval_context.end_ts,
+            update_value=other[other_context.end_ts],
         )
 
         resolved_intervals.append(resolved_series)
@@ -836,25 +847,38 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if interval_is_contained_by(
         interval=other,
         other=interval,
-        interval_start_ts=other_start_ts,
-        interval_end_ts=other_end_ts,
-        other_start_ts=interval_start_ts,
-        other_end_ts=interval_end_ts,
+            interval_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+            ),
+            other_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+            ),
     ):
         # 1)
         resolved_series = update_interval_boundary(
             interval=interval,
-            boundary_to_update=interval_end_ts,
-            update_value=other[other_start_ts],
+            boundary_to_update=interval_context.end_ts,
+            update_value=other[other_context.start_ts],
         )
 
         resolved_intervals.append(resolved_series)
 
         # 2)
         resolved_series = merge_metric_columns_of_intervals(
-            main_interval=other,
-            child_interval=interval,
-            metric_columns=metric_columns,
+            interval=other,
+            other=interval,
+            interval_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+                metric_columns=other_context.metric_columns,
+            ),
+            other_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+                metric_columns=interval_context.metric_columns,
+            ),
             metric_merge_method=True,
         )
 
@@ -863,8 +887,8 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
         # 3)
         resolved_series = update_interval_boundary(
             interval=interval,
-            boundary_to_update=interval_start_ts,
-            update_value=other[other_end_ts],
+            boundary_to_update=interval_context.start_ts,
+            update_value=other[other_context.end_ts],
         )
 
         resolved_intervals.append(resolved_series)
@@ -885,22 +909,43 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if intervals_share_start_boundary(
         interval,
         other,
-        interval_start_ts=interval_start_ts,
-        other_start_ts=other_start_ts,
+            interval_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+            ),
+            other_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+            ),
     ) and not intervals_share_end_boundary(
-        interval, other, interval_end_ts=interval_end_ts
+        interval, other, interval_context=IntervalContext(interval_context.start_ts, interval_context.end_ts),
     ):
         if interval_ends_before(
             interval=interval,
             other=other,
-            interval_end_ts=interval_end_ts,
-            other_end_ts=other_end_ts,
+                interval_context=IntervalContext(
+                    interval_context.start_ts,
+                    interval_context.end_ts,
+                ),
+                other_context=IntervalContext(
+                    other_context.start_ts,
+                    other_context.end_ts,
+                ),
         ):
             # 1)
             resolved_series = merge_metric_columns_of_intervals(
-                main_interval=interval,
-                child_interval=other,
-                metric_columns=metric_columns,
+                interval=interval,
+                other=other,
+                interval_context=IntervalContext(
+                    interval_context.start_ts,
+                    interval_context.end_ts,
+                    metric_columns=interval_context.metric_columns,
+                ),
+                other_context=IntervalContext(
+                    other_context.start_ts,
+                    other_context.end_ts,
+                    metric_columns=other_context.metric_columns,
+                ),
                 metric_merge_method=True,
             )
 
@@ -909,8 +954,8 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
             # 2)
             resolved_series = update_interval_boundary(
                 interval=other,
-                boundary_to_update=other_start_ts,
-                update_value=interval[interval_end_ts],
+                boundary_to_update=other_context.start_ts,
+                update_value=interval[interval_context.end_ts],
             )
 
             resolved_intervals.append(resolved_series)
@@ -918,9 +963,18 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
         else:
             # 1)
             resolved_series = merge_metric_columns_of_intervals(
-                main_interval=other,
-                child_interval=interval,
-                metric_columns=metric_columns,
+                interval=other,
+                other=interval,
+                interval_context=IntervalContext(
+                    other_context.start_ts,
+                    other_context.end_ts,
+                    metric_columns=other_context.metric_columns,
+                ),
+                other_context=IntervalContext(
+                    interval_context.start_ts,
+                    interval_context.end_ts,
+                    metric_columns=interval_context.metric_columns,
+                ),
                 metric_merge_method=True,
             )
 
@@ -929,8 +983,8 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
             # 2)
             resolved_series = update_interval_boundary(
                 interval=interval,
-                boundary_to_update=interval_start_ts,
-                update_value=other[other_end_ts],
+                boundary_to_update=interval_context.start_ts,
+                update_value=other[other_context.end_ts],
             )
 
             resolved_intervals.append(resolved_series)
@@ -951,34 +1005,61 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if not intervals_share_start_boundary(
         interval,
         other,
-        interval_start_ts=interval_start_ts,
-        other_start_ts=other_start_ts,
+            interval_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+            ),
+            other_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+            ),
     ) and intervals_share_end_boundary(
         interval,
         other,
-        interval_end_ts=interval_end_ts,
-        other_end_ts=other_end_ts,
+        interval_context=IntervalContext(
+            interval_context.start_ts,
+            interval_context.end_ts,
+        ),
+        other_context=IntervalContext(
+            other_context.start_ts,
+            other_context.end_ts,
+        ),
     ):
         if interval_starts_before(
             interval=interval,
             other=other,
-            interval_start_ts=interval_start_ts,
-            other_start_ts=other_start_ts,
+                interval_context=IntervalContext(
+                    interval_context.start_ts,
+                    interval_context.end_ts
+                ),
+                other_context=IntervalContext(
+                    other_context.start_ts,
+                    other_context.end_ts,
+                )
         ):
             # 1)
             resolved_series = update_interval_boundary(
                 interval=interval,
-                boundary_to_update=interval_end_ts,
-                update_value=other[other_start_ts],
+                boundary_to_update=interval_context.end_ts,
+                update_value=other[other_context.start_ts],
             )
 
             resolved_intervals.append(resolved_series)
 
             # 2)
             resolved_series = merge_metric_columns_of_intervals(
-                main_interval=other,
-                child_interval=interval,
-                metric_columns=metric_columns,
+                interval=other,
+                other=interval,
+                interval_context=IntervalContext(
+                    other_context.start_ts,
+                    other_context.end_ts,
+                    metric_columns=other_context.metric_columns,
+                ),
+                other_context=IntervalContext(
+                    interval_context.start_ts,
+                    interval_context.end_ts,
+                    metric_columns=interval_context.metric_columns,
+                ),
                 metric_merge_method=True,
             )
 
@@ -995,15 +1076,28 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if intervals_boundaries_are_equivalent(
         interval,
         other,
-        interval_start_ts=interval_start_ts,
-        interval_end_ts=interval_end_ts,
-        other_start_ts=other_start_ts,
-        other_end_ts=other_end_ts,
+            interval_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+            ),
+            other_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+            ),
     ):
         resolved_series = merge_metric_columns_of_intervals(
-            main_interval=interval,
-            child_interval=other,
-            metric_columns=metric_columns,
+            interval=interval,
+            other=other,
+            interval_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+                metric_columns=interval_context.metric_columns,
+            ),
+            other_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+                metric_columns=interval_context.metric_columns,
+            ),
             metric_merge_method=True,
         )
 
@@ -1022,19 +1116,31 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if interval_starts_before(
         interval=interval,
         other=other,
-        interval_start_ts=interval_start_ts,
-        other_start_ts=other_start_ts,
+            interval_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+            ),
+            other_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+            )
     ) and interval_ends_before(
         interval=interval,
         other=other,
-        interval_end_ts=interval_end_ts,
-        other_end_ts=other_end_ts,
+        interval_context=IntervalContext(
+            interval_context.start_ts,
+            interval_context.end_ts,
+        ),
+        other_context=IntervalContext(
+            other_context.start_ts,
+            other_context.end_ts,
+        )
     ):
         # 1)
         resolved_series = update_interval_boundary(
             interval=interval,
-            boundary_to_update=interval_end_ts,
-            update_value=other[other_start_ts],
+            boundary_to_update=interval_context.end_ts,
+            update_value=other[other_context.start_ts],
         )
 
         resolved_intervals.append(resolved_series)
@@ -1042,13 +1148,22 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
         # 2)
         updated_series = update_interval_boundary(
             interval=other,
-            boundary_to_update=other_end_ts,
-            update_value=interval[interval_end_ts],
+            boundary_to_update=other_context.end_ts,
+            update_value=interval[interval_context.end_ts],
         )
         resolved_series = merge_metric_columns_of_intervals(
-            main_interval=updated_series,
-            child_interval=interval,
-            metric_columns=metric_columns,
+            interval=updated_series,
+            other=interval,
+            interval_context=IntervalContext(
+                other_context.start_ts,
+                other_context.end_ts,
+                metric_columns=other_context.metric_columns,
+            ),
+            other_context=IntervalContext(
+                interval_context.start_ts,
+                interval_context.end_ts,
+                metric_columns=interval_context.metric_columns,
+            ),
             metric_merge_method=True,
         )
 
@@ -1057,8 +1172,8 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
         # 3)
         resolved_series = update_interval_boundary(
             interval=other,
-            boundary_to_update=other_start_ts,
-            update_value=interval[interval_end_ts],
+            boundary_to_update=other_context.start_ts,
+            update_value=interval[interval_context.end_ts],
         )
 
         resolved_intervals.append(resolved_series)
@@ -1120,12 +1235,18 @@ def resolve_all_overlaps(
     initial_intervals = resolve_overlap(
         with_row,
         first_row,
-        with_row_start_ts,
-        with_row_end_ts,
-        series_ids,
-        metric_columns,
-        overlap_start_ts,
-        overlap_end_ts,
+        interval_context=IntervalContext(
+            with_row_start_ts,
+            with_row_end_ts,
+            series_ids,
+            metric_columns,
+        ),
+        other_context=IntervalContext(
+            overlap_start_ts,
+            overlap_end_ts,
+            series_ids,
+            metric_columns,
+        ),
     )
     local_disjoint_df = pd.DataFrame(initial_intervals)
 
@@ -1135,12 +1256,18 @@ def resolve_all_overlaps(
         resolved_intervals = resolve_overlap(
             with_row,
             row,
-            with_row_start_ts,
-            with_row_end_ts,
-            series_ids,
-            metric_columns,
-            overlap_start_ts,
-            overlap_end_ts,
+            interval_context=IntervalContext(
+                with_row_start_ts,
+                with_row_end_ts,
+                series_ids,
+                metric_columns,
+            ),
+            other_context=IntervalContext(
+                overlap_start_ts,
+                overlap_end_ts,
+                series_ids,
+                metric_columns,
+            ),
         )
         for interval in resolved_intervals:
             local_disjoint_df = add_as_disjoint(
@@ -1206,8 +1333,10 @@ def add_as_disjoint(
     overlapping_subset_df = identify_interval_overlaps(
         in_pdf=disjoint_set,
         with_row=interval,
-        interval_start_ts=start_ts,
-        interval_end_ts=end_ts,
+        interval_context=IntervalContext(
+            start_ts=start_ts,
+            end_ts=end_ts,
+        ),
     )
 
     # if there are no overlaps, add the interval to disjoint_set
@@ -1245,10 +1374,18 @@ def add_as_disjoint(
             resolve_overlap(
                 interval,
                 overlapping_subset_df.iloc[0],
-                start_ts,
-                end_ts,
-                series_ids,
-                metric_columns,
+                interval_context=IntervalContext(
+                    start_ts,
+                    end_ts,
+                    series_ids,
+                    metric_columns,
+                ),
+                other_context=IntervalContext(
+                    start_ts,
+                    end_ts,
+                    series_ids,
+                    metric_columns,
+                ),
             )
         )
 
@@ -1269,10 +1406,18 @@ def add_as_disjoint(
                     resolve_overlap(
                         interval,
                         overlapping_subset_df.iloc[0],
-                        start_ts,
-                        end_ts,
-                        series_ids,
-                        metric_columns,
+                        interval_context=IntervalContext(
+                            start_ts,
+                            end_ts,
+                            series_ids,
+                            metric_columns,
+                        ),
+                        other_context=IntervalContext(
+                            start_ts,
+                            end_ts,
+                            series_ids,
+                            metric_columns,
+                        ),
                     )
                 ),
                 non_overlapping_subset_df,
