@@ -394,9 +394,9 @@ class Interval:
         self.end_ts = end_ts
 
         if series_ids is None:
-            self.series_ids = []
+            self.series_ids: Sequence[str] = []
         else:
-            self.series_ids = series_ids
+            self.series_ids: Sequence[str] = series_ids
 
         if isinstance(metric_columns, str):
             metric_columns = metric_columns.split(",")
@@ -415,7 +415,7 @@ class Interval:
 
         self.validate_metric_columns()
 
-    def validate_metric_columns(self):
+    def validate_metric_columns(self) -> None:
         if not all(isinstance(col, str) for col in self.metric_columns):
             raise ValueError("All metric columns must be of type str")
 
@@ -454,15 +454,20 @@ def identify_interval_overlaps(
     overlapping_intervals_copy = overlapping_intervals.copy()
 
     # Calculate the latest possible start timestamp for overlap comparison.
-    overlapping_intervals_copy[MAX_START] = overlapping_intervals_copy[interval.start_ts].where(
-        overlapping_intervals_copy[interval.start_ts] >= interval.data[interval.start_ts],
-        interval.data[interval.start_ts]
+    overlapping_intervals_copy[MAX_START] = overlapping_intervals_copy[
+        interval.start_ts
+    ].where(
+        overlapping_intervals_copy[interval.start_ts]
+        >= interval.data[interval.start_ts],
+        interval.data[interval.start_ts],
     )
 
     # Calculate the earliest possible end timestamp for overlap comparison.
-    overlapping_intervals_copy[MAX_END] = overlapping_intervals_copy[interval.end_ts].where(
+    overlapping_intervals_copy[MAX_END] = overlapping_intervals_copy[
+        interval.end_ts
+    ].where(
         overlapping_intervals_copy[interval.end_ts] <= interval.data[interval.end_ts],
-        interval.data[interval.end_ts]
+        interval.data[interval.end_ts],
     )
 
     # https://www.baeldung.com/cs/finding-all-overlapping-intervals
@@ -472,9 +477,7 @@ def identify_interval_overlaps(
 
     # Remove intermediate columns used for interval overlap calculation.
     cols_to_drop = [MAX_START, MAX_END]
-    overlapping_intervals_copy = overlapping_intervals_copy.drop(
-        columns=cols_to_drop
-    )
+    overlapping_intervals_copy = overlapping_intervals_copy.drop(columns=cols_to_drop)
 
     # Remove rows that are identical to `interval.data`
     remove_with_row_mask = ~(
@@ -510,7 +513,9 @@ def check_for_nan_values(to_check: Any) -> bool:
 
     def _check_scalar(value: Any) -> bool:
         """Handle NaN check for scalar values."""
-        return np.isnan(value) if isinstance(value, (np.generic, float)) else value is None
+        return (
+            np.isnan(value) if isinstance(value, (np.generic, float)) else value is None
+        )
 
     # Map types to their corresponding check functions
     type_handlers = {
@@ -577,9 +582,13 @@ def is_interval_contained_by(
     def _validate_no_nan_in_interval(interval: Interval):
         """Ensure an interval's start and end timestamps are not NaN."""
         if check_for_nan_values(interval.data[interval.start_ts]):
-            raise ValueError(f"Start timestamp of interval contains NaN: {interval.start_ts}")
+            raise ValueError(
+                f"Start timestamp of interval contains NaN: {interval.start_ts}"
+            )
         if check_for_nan_values(interval.data[interval.end_ts]):
-            raise ValueError(f"End timestamp of interval contains NaN: {interval.end_ts}")
+            raise ValueError(
+                f"End timestamp of interval contains NaN: {interval.end_ts}"
+            )
 
     # Validate both intervals
     _validate_no_nan_in_interval(interval)
@@ -669,10 +678,9 @@ def are_intervals_boundaries_are_equivalent(
     _validate_no_nan_in_interval(other)
 
     # Check for boundary equivalence
-    return (
-            do_intervals_share_start_boundary(interval=interval, other=other)
-            and do_intervals_share_end_boundary(interval=interval, other=other)
-    )
+    return do_intervals_share_start_boundary(
+        interval=interval, other=other
+    ) and do_intervals_share_end_boundary(interval=interval, other=other)
 
 
 def do_intervals_have_equivalent_metric_columns(
@@ -692,7 +700,6 @@ def do_intervals_have_equivalent_metric_columns(
 
     # Compare metric columns for equality
     return interval_data_filled.equals(other_data_filled)
-
 
 
 def intervals_do_not_overlap(
@@ -724,6 +731,7 @@ def intervals_do_not_overlap(
             or interval.data[interval.start_ts] > other.data[other.end_ts]
     )
 
+
 def update_interval_boundary(
     *,
     interval: pd.Series,
@@ -749,13 +757,14 @@ def update_interval_boundary(
         raise TypeError("Expected `interval` to be a Pandas Series.")
 
     if boundary_key not in interval.keys():
-        raise KeyError(f"boundary_key '{boundary_key}' must exist in {list(interval.keys())}")
+        raise KeyError(
+            f"boundary_key '{boundary_key}' must exist in {list(interval.keys())}"
+        )
 
     updated_interval = interval.copy()
     updated_interval[boundary_key] = update_value
 
     return updated_interval
-
 
 
 def merge_metric_columns_of_intervals(
@@ -779,13 +788,17 @@ def merge_metric_columns_of_intervals(
     """
     # Validate that metric columns align
     if len(interval.metric_columns) != len(other.metric_columns):
-        raise ValueError("Metric columns of `interval` and `other` must have the same length.")
+        raise ValueError(
+            "Metric columns of `interval` and `other` must have the same length."
+        )
 
     # Create a copy of interval's data
     merged_interval = interval.data.copy()
 
     if metric_merge_method:
-        for interval_metric_col, other_metric_col in zip(interval.metric_columns, other.metric_columns):
+        for interval_metric_col, other_metric_col in zip(
+                interval.metric_columns, other.metric_columns
+        ):
             # Overwrite with non-NaN values from `other`
             merged_interval[interval_metric_col] = (
                 other.data[other_metric_col]
@@ -794,7 +807,6 @@ def merge_metric_columns_of_intervals(
             )
 
     return merged_interval
-
 
 
 def resolve_overlap(  # TODO: need to implement proper metric merging
@@ -820,22 +832,33 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
         if set(interval.data.index) != set(other.data.index):
             raise ValueError("Expected indices of interval elements to be equivalent.")
 
-    def _swap_intervals_if_needed(interval: Interval, other: Interval) -> tuple[Interval, Interval]:
+    def _swap_intervals_if_needed(
+            interval: Interval, other: Interval
+    ) -> tuple[Interval, Interval]:
         """Ensure the interval with the earlier start comes first."""
-        return (interval, other) if interval.data[interval.start_ts] <= other.data[other.start_ts] else (
-            other, interval)
+        return (
+            (interval, other)
+            if interval.data[interval.start_ts] <= other.data[other.start_ts]
+            else (other, interval)
+        )
 
-    def _resolve_intervals_do_not_overlap(interval: Interval, other: Interval) -> list[pd.Series]:
+    def _resolve_intervals_do_not_overlap(
+            interval: Interval, other: Interval
+    ) -> list[pd.Series]:
         return [interval.data, other.data]
 
-    def _resolve_do_intervals_have_equivalent_metric_columns(interva: Interval, other: Interval) -> pd.Series:
+    def _resolve_do_intervals_have_equivalent_metric_columns(
+            interva: Interval, other: Interval
+    ) -> pd.Series:
         return update_interval_boundary(
             interval=interval.data,
             boundary_key=interval.end_ts,
             update_value=other.data[other.end_ts],
         )
 
-    def _resolve_is_interval_contained_by(interval: Interval, other: Interval) -> list[pd.Series]:
+    def _resolve_is_interval_contained_by(
+            interval: Interval, other: Interval
+    ) -> list[pd.Series]:
         resolved_intervals = []
         # 1)
         resolved_series = update_interval_boundary(
@@ -939,7 +962,9 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
 
         return resolved_intervals
 
-    def _resolve_interval_boundaries_are_equivalent(interval: Interval, other: Interval):
+    def _resolve_interval_boundaries_are_equivalent(
+            interval: Interval, other: Interval
+    ):
         resolved_intervals = []
 
         resolved_series = merge_metric_columns_of_intervals(
@@ -970,7 +995,12 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
             update_value=interval.data[interval.end_ts],
         )
         resolved_series = merge_metric_columns_of_intervals(
-            interval=Interval(updated_series, other.start_ts, other.end_ts, metric_columns=other.metric_columns),
+            interval=Interval(
+                updated_series,
+                other.start_ts,
+                other.end_ts,
+                metric_columns=other.metric_columns,
+            ),
             other=interval,
             metric_merge_method=True,
         )
@@ -1015,7 +1045,9 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     # 1) A.start, B.end, A.metric_columns
 
     if do_intervals_have_equivalent_metric_columns(interval, other):
-        resolved_intervals.append(_resolve_do_intervals_have_equivalent_metric_columns(interval, other))
+        resolved_intervals.append(
+            _resolve_do_intervals_have_equivalent_metric_columns(interval, other)
+        )
 
         return resolved_intervals
 
@@ -1026,10 +1058,7 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     # 2) B.start, B.end, merge(A.metric_columns, B.metric_columns)
     # 3) B.end, A.end, A.metric_columns
 
-    if is_interval_contained_by(
-            interval=other,
-            other=interval
-    ):
+    if is_interval_contained_by(interval=other, other=interval):
         resolved_intervals.extend(_resolve_is_interval_contained_by(interval, other))
 
         return resolved_intervals
@@ -1048,10 +1077,10 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
     if do_intervals_share_start_boundary(
             interval,
             other,
-    ) and not do_intervals_share_end_boundary(
-        interval, other
-    ):
-        resolved_intervals.extend(_resolve_intervals_share_start_boundary(interval, other))
+    ) and not do_intervals_share_end_boundary(interval, other):
+        resolved_intervals.extend(
+            _resolve_intervals_share_start_boundary(interval, other)
+        )
 
         return resolved_intervals
 
@@ -1073,7 +1102,9 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
         interval,
         other,
     ):
-        resolved_intervals.extend(_resolve_intervals_share_end_boundary(interval, other))
+        resolved_intervals.extend(
+            _resolve_intervals_share_end_boundary(interval, other)
+        )
 
         return resolved_intervals
 
@@ -1087,7 +1118,9 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
             interval,
             other,
     ):
-        resolved_intervals.extend(_resolve_interval_boundaries_are_equivalent(interval, other))
+        resolved_intervals.extend(
+            _resolve_interval_boundaries_are_equivalent(interval, other)
+        )
 
         return resolved_intervals
 
@@ -1135,9 +1168,13 @@ def resolve_all_overlaps(
             ValueError: If `start_col` or `end_col` in `interval` do not match with `overlaps`.
         """
         if interval.start_ts not in overlaps.columns:
-            raise ValueError(f"The `start` column '{interval.start_ts}' does not exist in overlaps.")
+            raise ValueError(
+                f"The `start` column '{interval.start_ts}' does not exist in overlaps."
+            )
         if interval.end_ts not in overlaps.columns:
-            raise ValueError(f"The `end` column '{interval.end_ts}' does not exist in overlaps.")
+            raise ValueError(
+                f"The `end` column '{interval.end_ts}' does not exist in overlaps."
+            )
 
     _validate_interval_columns(interval, overlaps)
 
@@ -1236,14 +1273,14 @@ def add_as_disjoint(
         return pd.DataFrame([interval.data])
 
     overlapping_subset_df = identify_interval_overlaps(
-        overlapping_intervals=disjoint_set,
-        interval=interval
+        overlapping_intervals=disjoint_set, interval=interval
     )
 
     # if there are no overlaps, add the interval to disjoint_set
     if overlapping_subset_df.empty:
         element_wise_comparison = (
-                disjoint_set.fillna("¯\\_(ツ)_/¯") == interval.data.fillna("¯\\_(ツ)_/¯").values
+                disjoint_set.fillna("¯\\_(ツ)_/¯")
+                == interval.data.fillna("¯\\_(ツ)_/¯").values
         )
         row_wise_comparison = element_wise_comparison.all(axis=1)
         # NB: because of the nested iterations, we need to check that the
@@ -1301,7 +1338,6 @@ def add_as_disjoint(
             (
                 pd.DataFrame(
                     resolve_overlap(
-
                         interval=Interval(
                             interval.data,
                             start_ts,

@@ -30,6 +30,7 @@ def is_time_format(ts_fmt: str) -> bool:
     """
     return any(c in ts_fmt for c in __time_pattern_components)
 
+
 def identify_fractional_second_separator(ts_fmt: str) -> str:
     """
     Returns the separator character between the integer and fractional part
@@ -46,9 +47,10 @@ def identify_fractional_second_separator(ts_fmt: str) -> str:
     # find the sub-second precision digits
     match = re.search(fract_secs_char_ptrn, ts_fmt)
     if match is None:
-        return ''
+        return ""
     else:
         return match.group(1)
+
 
 def sub_seconds_precision_digits(ts_fmt: str) -> int:
     """
@@ -230,8 +232,9 @@ class TSIndex(ABC):
 
         :return: A boolean expression
         """
-        return self.comparableExpr().between(_unpack_comparable(lowerBound),
-                                             _unpack_comparable(upperBound))
+        return self.comparableExpr().between(
+            _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
+        )
 
     # other expression builder methods
 
@@ -502,7 +505,9 @@ class CompositeTSIndex(TSIndex, ABC):
         # if other is a CompositeTSIndex,
         if isinstance(other, CompositeTSIndex):
             # then we compare the types of the component fields
-            other_comp_types = [other.schema[f].dataType for f in other.component_fields]
+            other_comp_types = [
+                other.schema[f].dataType for f in other.component_fields
+            ]
             return my_comp_types == other_comp_types
         else:
             # otherwise, we compare to a single type
@@ -615,9 +620,11 @@ class CompositeTSIndex(TSIndex, ABC):
     def between(self, lowerBound, upperBound) -> "Column":
         # match each component field with its
         # corresponding lower and upper bound values
-        comps = zip(self.comparableExpr(),
-                    self._expand_comps(lowerBound),
-                    self._expand_comps(upperBound))
+        comps = zip(
+            self.comparableExpr(),
+            self._expand_comps(lowerBound),
+            self._expand_comps(upperBound),
+        )
         # build comparison expressions for each triple
         comp_exprs = [(c.between(lb, ub)) for (c, lb, ub) in comps]
         # conjunction of all expressions (AND)
@@ -625,6 +632,7 @@ class CompositeTSIndex(TSIndex, ABC):
             return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
+
 
 #
 # Parsed TS Index types
@@ -938,25 +946,30 @@ class TSSchema(WindowBuilder):
         return f"{self.__class__.__name__}(ts_idx={self.ts_idx}, series_ids={self.series_ids})"
 
     @classmethod
-    def fromDFSchema(cls,
-                     df_schema: StructType,
-                     ts_col: str,
-                     series_ids: Optional[Collection[str]] = None) -> "TSSchema":
+    def fromDFSchema(
+            cls,
+            df_schema: StructType,
+            ts_col: str,
+            series_ids: Optional[Collection[str]] = None,
+    ) -> "TSSchema":
         # construct a TSIndex for the given ts_col
         ts_idx = SimpleTSIndex.fromTSCol(df_schema[ts_col])
         return cls(ts_idx, series_ids)
 
     @classmethod
-    def fromParsedTimestamp(cls,
-                            df_schema: StructType,
-                            ts_col: str,
-                            parsed_field: str,
-                            src_str_field: str,
-                            series_ids: Optional[Collection[str]] = None,
-                            secondary_parsed_field: Optional[str] = None) -> "TSSchema":
+    def fromParsedTimestamp(
+            cls,
+            df_schema: StructType,
+            ts_col: str,
+            parsed_field: str,
+            src_str_field: str,
+            series_ids: Optional[Collection[str]] = None,
+            secondary_parsed_field: Optional[str] = None,
+    ) -> "TSSchema":
         ts_idx_schema = df_schema[ts_col].dataType
-        assert isinstance(ts_idx_schema, StructType), \
-            f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
+        assert isinstance(
+            ts_idx_schema, StructType
+        ), f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
         # construct the TSIndex
         parsed_type = ts_idx_schema[parsed_field].dataType
         if isinstance(parsed_type, DoubleType):
