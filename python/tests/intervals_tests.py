@@ -1824,7 +1824,9 @@ class PandasFunctionTests(TestCase):
 
         expected = df  # Still an empty DataFrame
 
-        self.assertEqual(result.empty, expected.empty)
+        # Check that result is empty
+        self.assertTrue(result.empty, "The resulting DataFrame should be empty")
+        self.assertListEqual(result.columns.tolist(), expected.columns.tolist())
 
     def test_make_disjoint_wrap_where_no_overlaps(self):
         start_ts = "start"

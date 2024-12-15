@@ -432,6 +432,21 @@ class Interval:
     def boundaries(self):
         return self.start_ts, self.end_ts
 
+    @classmethod
+    def create(cls, row: pd.Series, start_ts: str, end_ts: str, series_ids: Sequence[str],
+               metric_columns: Sequence[str]) -> Interval:
+        """
+        Create an Interval object from a DataFrame row.
+
+        :param row: A Pandas Series representing a row in the DataFrame.
+        :param start_ts: Name of the column for interval start timestamp.
+        :param end_ts: Name of the column for interval end timestamp.
+        :param series_ids: List of column names representing series identifiers.
+        :param metric_columns: List of column names representing metrics.
+        :return: An Interval object.
+        """
+        return Interval(row, start_ts, end_ts, series_ids, metric_columns)
+
     def validate_metric_columns(self) -> None:
         if not all(isinstance(col, str) for col in self.metric_columns):
             raise ValueError("All metric columns must be of type str")
@@ -1340,8 +1355,7 @@ def add_as_disjoint(interval: Interval, disjoint_set: Optional[pd.DataFrame]) ->
         )
 
     # if we get here, something went wrong
-    raise NotImplementedError
-
+    raise NotImplementedError("Interval resolution not implemented")
 
 def make_disjoint_wrap(
     start_ts: str,
@@ -1349,30 +1363,48 @@ def make_disjoint_wrap(
         series_ids: Sequence[str],
         metric_columns: Sequence[str],
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
-    def make_disjoint_inner(
-        pdf: pd.DataFrame,
-    ) -> pd.DataFrame:
+    """
+     Creates a Pandas UDF to process overlapping intervals and resolve them into disjoint intervals.
+
+     Parameters:
+         start_ts (str): Column name for the start timestamp.
+         end_ts (str): Column name for the end timestamp.
+         series_ids (Sequence[str]): Columns identifying unique series.
+         metric_columns (Sequence[str]): Metric columns to process.
+
+     Returns:
+         Callable[[pd.DataFrame], pd.DataFrame]: Function to apply on grouped Pandas DataFrames in Spark.
+     """
+
+    def make_disjoint_inner(pdf: pd.DataFrame) -> pd.DataFrame:
         """
-        function will process all intervals in the input, and break down overlapping intervals into a fully disjoint set
-        https://stackoverflow.com/questions/13784192/creating-an-empty-pandas-dataframe-and-then-filling-it
-        https://stackoverflow.com/questions/55478191/list-of-series-to-dataframe
-        https://pandas.pydata.org/pandas-docs/version/0.21/generated/pandas.DataFrame.append.html
+        Processes a grouped Pandas DataFrame to resolve overlapping intervals into disjoint intervals.
+
+        Args:
+            pdf (pd.DataFrame): Pandas DataFrame grouped by Spark.
+
+        Returns:
+            pd.DataFrame: Disjoint intervals as a Pandas DataFrame.
         """
+        # Handle empty input DataFrame explicitly
+        if pdf.empty:
+            return pdf
 
-        global_disjoint_df = pd.DataFrame(columns=pdf.columns)
+        # Ensure intervals are sorted by start and end timestamps
+        sorted_intervals = pdf.sort_values(by=[start_ts, end_ts]).reset_index(drop=True)
 
-        sorted_pdf = pdf.sort_values([start_ts, end_ts])
+        # Initialize an empty DataFrame to store disjoint intervals
+        disjoint_intervals = pd.DataFrame(columns=pdf.columns)
 
-        for _, row in sorted_pdf.iterrows():
-            row = Interval(
-                row,
-                start_ts,
-                end_ts,
-                series_ids,
-                metric_columns,
-            )
-            global_disjoint_df = add_as_disjoint(row, global_disjoint_df)
+        # Define a function to process each row and update disjoint intervals
+        def process_row(row):
+            nonlocal disjoint_intervals
+            interval = Interval.create(row, start_ts, end_ts, series_ids, metric_columns)
+            disjoint_intervals = add_as_disjoint(interval, disjoint_intervals)
 
-        return global_disjoint_df
+        # Apply the processing function to each row
+        sorted_intervals.apply(process_row, axis=1)
+
+        return disjoint_intervals
 
     return make_disjoint_inner
