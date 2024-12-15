@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import cached_property
-from itertools import islice
 from typing import Optional, Iterable, Any, Callable, Sequence
 
 import numpy as np
@@ -1208,9 +1207,7 @@ def resolve_all_overlaps(
     )
     local_disjoint_df = pd.DataFrame(initial_intervals)
 
-    # NB: using `itertools.islice` to build a generator that skips the first
-    # row of overlaps
-    for _, row in islice(overlaps.iterrows(), 1, None):
+    def resolve_and_add(row):
         resolved_intervals = resolve_overlap(
             interval=interval,
             other=Interval(
@@ -1229,7 +1226,10 @@ def resolve_all_overlaps(
                 interval.series_ids,
                 interval.metric_columns,
             )
+            nonlocal local_disjoint_df
             local_disjoint_df = add_as_disjoint(interval_inner, local_disjoint_df)
+
+    overlaps.iloc[1:].apply(resolve_and_add, axis=1)
 
     return local_disjoint_df
 
