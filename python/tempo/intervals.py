@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from itertools import islice
-from typing import Optional, Iterable, cast, Any, Callable, Sequence
+from typing import Optional, Iterable, Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -393,6 +393,19 @@ class Interval:
         self.start_ts = start_ts
         self.end_ts = end_ts
 
+        if isinstance(series_ids, str):
+            series_ids = series_ids.split(",")
+            series_ids = [s.strip() for s in series_ids]
+        elif isinstance(metric_columns, Sequence):
+            series_ids = series_ids
+        elif series_ids is None:
+            series_ids = []
+        else:
+            raise ValueError(
+                "series_ids must be a Sequence or comma seperated string"
+                f" of column names, instead got {type(series_ids)}"
+            )
+
         if series_ids is None:
             self.series_ids: Sequence[str] = []
         else:
@@ -407,13 +420,17 @@ class Interval:
             metric_columns = []
         else:
             raise ValueError(
-                f"series_ids must be an Iterable or comma seperated string"
+                "metric_columns must be a Sequence or comma seperated string"
                 f" of column names, instead got {type(metric_columns)}"
             )
 
         self.metric_columns = metric_columns
 
         self.validate_metric_columns()
+
+    @property
+    def boundaries(self):
+        return self.start_ts, self.end_ts
 
     def validate_metric_columns(self) -> None:
         if not all(isinstance(col, str) for col in self.metric_columns):
@@ -1148,7 +1165,7 @@ def resolve_overlap(  # TODO: need to implement proper metric merging
 
 def resolve_all_overlaps(
         interval: Interval,
-    overlaps: pd.DataFrame,
+        overlaps: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     resolve the interval `x` against all overlapping intervals in `overlapping`,
@@ -1212,64 +1229,17 @@ def resolve_all_overlaps(
                 interval.series_ids,
                 interval.metric_columns,
             )
-            local_disjoint_df = add_as_disjoint(
-                interval_inner,
-                local_disjoint_df,
-                (interval.start_ts, interval.end_ts),
-                interval.series_ids,
-                interval.metric_columns,
-            )
+            local_disjoint_df = add_as_disjoint(interval_inner, local_disjoint_df)
 
     return local_disjoint_df
 
 
-def add_as_disjoint(
-        interval: Interval,
-    disjoint_set: Optional[pd.DataFrame],
-    interval_boundaries: Iterable[str],
-    series_ids: Iterable[str],
-    metric_columns: Iterable[str],
-) -> pd.DataFrame:
+def add_as_disjoint(interval: Interval, disjoint_set: Optional[pd.DataFrame]) -> pd.DataFrame:
     """
     returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
     """
 
-    if isinstance(interval_boundaries, str):
-        _ = interval_boundaries.split(",")
-        interval_boundaries = [s.strip() for s in _]
-    elif isinstance(interval_boundaries, Iterable):
-        interval_boundaries = list(interval_boundaries)
-    else:
-        raise ValueError(
-            f"series_ids must be an Iterable or comma seperated string"
-            f" of column names, instead got {type(interval_boundaries)}"
-        )
-
-    if len(interval_boundaries) != 2:
-        raise ValueError(
-            f"interval_boundaries must be an Iterable of length 2, instead got {len(interval_boundaries)}"
-        )
-
-    start_ts, end_ts = interval_boundaries
-
-    for arg in (series_ids, metric_columns):
-        if isinstance(arg, str):
-            arg = [s.strip() for s in arg.split(",")]
-        elif isinstance(arg, Iterable):
-            arg = list(arg)
-        else:
-            raise ValueError(
-                f"{arg} must be an Iterable or comma seperated string"
-                f" of column names, instead got {type(arg)}"
-            )
-
-    series_ids = cast(list[str], series_ids)
-    metric_columns = cast(list[str], metric_columns)
-
-    if disjoint_set is None:
-        return pd.DataFrame([interval.data])
-
-    if disjoint_set.empty:
+    if disjoint_set is None or disjoint_set.empty:
         return pd.DataFrame([interval.data])
 
     overlapping_subset_df = identify_interval_overlaps(
@@ -1293,8 +1263,8 @@ def add_as_disjoint(
     # identify all intervals which do not overlap with the given interval to
     # concatenate them to the disjoint set after resolving overlaps
     non_overlapping_subset_df = disjoint_set[
-        ~disjoint_set.set_index(interval_boundaries).index.isin(
-            overlapping_subset_df.set_index(interval_boundaries).index
+        ~disjoint_set.set_index(*interval.boundaries).index.isin(
+            overlapping_subset_df.set_index(*interval.boundaries).index
         )
     ]
 
@@ -1312,17 +1282,17 @@ def add_as_disjoint(
             resolve_overlap(
                 interval=Interval(
                     interval.data,
-                    start_ts,
-                    end_ts,
-                    series_ids,
-                    metric_columns,
+                    interval.start_ts,
+                    interval.end_ts,
+                    interval.series_ids,
+                    interval.metric_columns,
                 ),
                 other=Interval(
                     overlapping_subset_df.iloc[0],
-                    start_ts,
-                    end_ts,
-                    series_ids,
-                    metric_columns,
+                    interval.start_ts,
+                    interval.end_ts,
+                    interval.series_ids,
+                    interval.metric_columns,
                 ),
             )
         )
@@ -1340,17 +1310,17 @@ def add_as_disjoint(
                     resolve_overlap(
                         interval=Interval(
                             interval.data,
-                            start_ts,
-                            end_ts,
-                            series_ids,
-                            metric_columns,
+                            interval.start_ts,
+                            interval.end_ts,
+                            interval.series_ids,
+                            interval.metric_columns,
                         ),
                         other=Interval(
                             overlapping_subset_df.iloc[0],
-                            start_ts,
-                            end_ts,
-                            series_ids,
-                            metric_columns,
+                            interval.start_ts,
+                            interval.end_ts,
+                            interval.series_ids,
+                            interval.metric_columns,
                         ),
                     )
                 ),
@@ -1401,13 +1371,7 @@ def make_disjoint_wrap(
                 series_ids,
                 metric_columns,
             )
-            global_disjoint_df = add_as_disjoint(
-                row,
-                global_disjoint_df,
-                (start_ts, end_ts),
-                series_ids,
-                metric_columns,
-            )
+            global_disjoint_df = add_as_disjoint(row, global_disjoint_df)
 
         return global_disjoint_df
 

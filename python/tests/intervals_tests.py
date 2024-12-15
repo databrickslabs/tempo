@@ -1607,7 +1607,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_basic_overlap(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end")
+        ), "start", "end", series_ids="id", metric_columns="value")
         disjoint_set = pd.DataFrame(
             {
                 "start": ["2023-01-01 03:00:00"],
@@ -1616,9 +1616,7 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(
-            interval, disjoint_set, ["start", "end"], ["id"], ["value"]
-        )
+        result = add_as_disjoint(interval, disjoint_set)
 
         expected = pd.DataFrame(
             {
@@ -1650,57 +1648,11 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(
-            interval, disjoint_set, "start, end", ["id"], ["value"]
-        )
+        result = add_as_disjoint(interval, disjoint_set)
 
         expected = pd.concat([disjoint_set, pd.DataFrame([interval.data])])
 
         self.assertTrue(np.array_equal(result, expected))
-
-    def test_add_as_disjoint_where_invalid_boundary_length(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end")
-        disjoint_set = pd.DataFrame(
-            {
-                "start": ["2023-01-01 06:00:00"],
-                "end": ["2023-01-01 07:00:00"],
-                "value": [5],
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            add_as_disjoint,
-            interval,
-            disjoint_set,
-            "start",
-            ["id"],
-            ["value"],
-        )
-
-    def test_add_as_disjoint_where_invalid_arg_type(self):
-        interval = pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        )
-        disjoint_set = pd.DataFrame(
-            {
-                "start": ["2023-01-01 06:00:00"],
-                "end": ["2023-01-01 07:00:00"],
-                "value": [5],
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            add_as_disjoint,
-            interval,
-            disjoint_set,
-            ["start", "end"],
-            123,  # Invalid type
-            ["value"],
-        )
 
     def test_add_as_disjoint_where_empty_disjoint_set(self):
         interval = Interval(pd.Series(
@@ -1708,9 +1660,7 @@ class PandasFunctionTests(TestCase):
         ), "start", "end", metric_columns="value")
         disjoint_set = pd.DataFrame()
 
-        result = add_as_disjoint(
-            interval, disjoint_set, ["start", "end"], ["id"], ["value"]
-        )
+        result = add_as_disjoint(interval, disjoint_set)
 
         expected = pd.DataFrame([interval.data])
 
@@ -1721,7 +1671,7 @@ class PandasFunctionTests(TestCase):
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
         ), "start", "end", metric_columns="value")
 
-        result = add_as_disjoint(interval, None, ["start", "end"], ["id"], ["value"])
+        result = add_as_disjoint(interval, None)
 
         expected = pd.DataFrame([interval.data])
 
@@ -1739,9 +1689,7 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(
-            interval, disjoint_set, ["start", "end"], ["id"], ["value"]
-        )
+        result = add_as_disjoint(interval, disjoint_set)
 
         self.assertTrue(np.array_equal(result.values, disjoint_set.values))
 
@@ -1765,9 +1713,7 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(
-            interval, disjoint_set, ["start", "end"], ["id"], ["value"]
-        )
+        result = add_as_disjoint(interval, disjoint_set)
 
         expected = pd.DataFrame(
             {
@@ -1812,9 +1758,7 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(
-            interval, disjoint_set, ["start", "end"], ["id"], ["value"]
-        )
+        result = add_as_disjoint(interval, disjoint_set)
 
         expected = pd.DataFrame(
             {
