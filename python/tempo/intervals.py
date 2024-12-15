@@ -432,21 +432,6 @@ class Interval:
     def boundaries(self):
         return self.start_ts, self.end_ts
 
-    @classmethod
-    def create(cls, row: pd.Series, start_ts: str, end_ts: str, series_ids: Sequence[str],
-               metric_columns: Sequence[str]) -> Interval:
-        """
-        Create an Interval object from a DataFrame row.
-
-        :param row: A Pandas Series representing a row in the DataFrame.
-        :param start_ts: Name of the column for interval start timestamp.
-        :param end_ts: Name of the column for interval end timestamp.
-        :param series_ids: List of column names representing series identifiers.
-        :param metric_columns: List of column names representing metrics.
-        :return: An Interval object.
-        """
-        return Interval(row, start_ts, end_ts, series_ids, metric_columns)
-
     def validate_metric_columns(self) -> None:
         if not all(isinstance(col, str) for col in self.metric_columns):
             raise ValueError("All metric columns must be of type str")
@@ -1399,7 +1384,7 @@ def make_disjoint_wrap(
         # Define a function to process each row and update disjoint intervals
         def process_row(row):
             nonlocal disjoint_intervals
-            interval = Interval.create(row, start_ts, end_ts, series_ids, metric_columns)
+            interval = Interval(row, start_ts, end_ts, series_ids, metric_columns)
             disjoint_intervals = add_as_disjoint(interval, disjoint_intervals)
 
         # Apply the processing function to each row
