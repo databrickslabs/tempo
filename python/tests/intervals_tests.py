@@ -12,7 +12,6 @@ from tempo.intervals import (
     IntervalsDF,
     OverlapResolver,
     identify_interval_overlaps,
-    merge_metric_columns_of_intervals,
     resolve_all_overlaps,
     add_as_disjoint,
     make_disjoint_wrap,
@@ -913,93 +912,82 @@ class PandasFunctionTests(TestCase):
     # NB: `mertric_merge_method = False` is a placeholder to allow
     # user-defined merge methods in the future and is currently a
     # no-op.
-    def test_merge_metric_columns_of_intervals_with_list_metric_merge_false(self):
-        main = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
-        child = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end")
+    def test_merge_metrics_with_list_metric_merge_false(self):
+        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
+        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end")
         expected = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
-        merged = merge_metric_columns_of_intervals(
-            interval=main,
-            other=child,
 
-        )
+        resolver = OverlapResolver(interval, other)
+        merged = resolver.merge_metrics()
+
         self.assertTrue(merged.equals(expected))
 
     # NB: `mertric_merge_method = True` is a placeholder to allow
     # user-defined merge methods in the future and currently takes
     # metrics from the `child_interval` if they are not null or nan.
-    def test_merge_metric_columns_of_intervals_with_list_metric_merge_true(self):
-        main = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end",
+    def test_merge_metrics_with_list_metric_merge_true(self):
+        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end",
                         metric_columns=["value"])
-        child = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end",
+        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end",
                          metric_columns=["value"])
         expected = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
-        merged = merge_metric_columns_of_intervals(
-            interval=main,
-            other=child,
 
+        resolver = OverlapResolver(interval, other)
+
+        merged = resolver.merge_metrics(
+            metric_merge_method=True,
+        )
+
+        self.assertTrue(merged.equals(expected))
+
+    def test_merge_metrics_with_string_metric_column(self):
+        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end",
+                        metric_columns=["value"])
+        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end",
+                         metric_columns=["value"])
+        expected = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
+
+        resolver = OverlapResolver(interval, other)
+
+        merged = resolver.merge_metrics(
             metric_merge_method=True,
         )
         self.assertTrue(merged.equals(expected))
 
-    def test_merge_metric_columns_of_intervals_with_string_metric_column(self):
-        main = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end",
-                        metric_columns=["value"])
-        child = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end",
-                         metric_columns=["value"])
-        expected = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
-        merged = merge_metric_columns_of_intervals(
-            interval=main,
-            other=child,
-
-            metric_merge_method=True,
-        )
-        self.assertTrue(merged.equals(expected))
-
-    def test_merge_metric_columns_of_intervals_with_string_metric_columns(self):
-        main = Interval(pd.Series({"start": "01:00", "end": "02:00", "value1": 10, "value2": 20}), "start", "end",
+    def test_merge_metrics_with_string_metric_columns(self):
+        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value1": 10, "value2": 20}), "start", "end",
                         metric_columns=["value1", "value2"])
-        child = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "01:00", "end": "02:00", "value1": 20, "value2": 30}
         ), "start", "end", metric_columns=["value1", "value2"])
         expected = pd.Series(
             {"start": "01:00", "end": "02:00", "value1": 20, "value2": 30}
         )
-        merged = merge_metric_columns_of_intervals(
-            interval=main,
-            other=child,
 
+        resolver = OverlapResolver(interval, other)
+
+        merged = resolver.merge_metrics(
             metric_merge_method=True,
         )
+
         self.assertTrue(merged.equals(expected))
 
-    def test_merge_metric_columns_of_intervals_return_new_copy(self):
-        main = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
-        child = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end")
-        merged = merge_metric_columns_of_intervals(
-            interval=main,
-            other=child,
-        )
-        self.assertNotEqual(id(main), id(merged))
+    def test_merge_metrics_return_new_copy(self):
+        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
+        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end")
 
-    # def test_merge_metric_columns_of_intervals_with_invalid_metric_columns_input(self):
-    #     main = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
-    #     child = pd.Series({"start": "01:00", "end": "02:00", "value": 20})
-    #     self.assertRaises(
-    #         ValueError,
-    #         IntervalContext,
-    #         interval=main,
-    #         other=child,
-    #         interval_context=IntervalContext("start", "end", metric_columns=[10]),
-    #         other_context=IntervalContext("start", "end", metric_columns=[10]),
-    #     )
+        resolver = OverlapResolver(interval, other)
 
-    def test_merge_metric_columns_of_intervals_handle_nan_in_child(self):
-        main = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
-        child = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": float("nan")}), "start", "end")
-        merged = merge_metric_columns_of_intervals(
-            interval=main,
-            other=child,
+        merged = resolver.merge_metrics()
+        self.assertNotEqual(id(interval), id(merged))
 
+    def test_merge_metrics_handle_nan_in_child(self):
+        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
+        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": float("nan")}), "start", "end")
+
+        resolver = OverlapResolver(interval, other)
+
+        merged = resolver.merge_metrics(
             metric_merge_method=True,
         )
         self.assertEqual(merged["value"], 10)

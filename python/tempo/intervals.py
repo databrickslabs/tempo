@@ -581,9 +581,7 @@ class OverlapResolver:
 
         resolved_intervals.append(resolved_series)
 
-        resolved_series = merge_metric_columns_of_intervals(
-            interval=self.other,
-            other=self.interval,
+        resolved_series = self.merge_metrics(
             metric_merge_method=True,
         )
 
@@ -609,9 +607,7 @@ class OverlapResolver:
 
         resolved_intervals.append(resolved_series)
 
-        resolved_series = merge_metric_columns_of_intervals(
-            interval=self.other,
-            other=self.interval,
+        resolved_series = self.merge_metrics(
             metric_merge_method=True,
         )
 
@@ -644,9 +640,7 @@ class OverlapResolver:
 
         if self.check_interval_ends_first():
             # 1)
-            resolved_series = merge_metric_columns_of_intervals(
-                interval=self.interval,
-                other=self.other,
+            resolved_series = self.merge_metrics(
                 metric_merge_method=True,
             )
 
@@ -662,9 +656,7 @@ class OverlapResolver:
 
         else:
             # 1)
-            resolved_series = merge_metric_columns_of_intervals(
-                interval=self.other,
-                other=self.interval,
+            resolved_series = self.merge_metrics(
                 metric_merge_method=True,
             )
 
@@ -705,9 +697,7 @@ class OverlapResolver:
             resolved_intervals.append(resolved_series)
 
             # 2)
-            resolved_series = merge_metric_columns_of_intervals(
-                interval=self.other,
-                other=self.interval,
+            resolved_series = self.merge_metrics(
                 metric_merge_method=True,
             )
 
@@ -729,9 +719,7 @@ class OverlapResolver:
     def resolve_boundaries_equivalent(self):
         resolved_intervals = []
 
-        resolved_series = merge_metric_columns_of_intervals(
-            interval=self.interval,
-            other=self.other,
+        resolved_series = self.merge_metrics(
             metric_merge_method=True,
         )
 
@@ -775,14 +763,14 @@ class OverlapResolver:
             boundary_key=self.other.end_ts,
             update_value=self.interval.data[self.interval.end_ts],
         )
-        resolved_series = merge_metric_columns_of_intervals(
-            interval=Interval(
+        resolved_series = self.merge_metrics(
+            new_interval=Interval(
                 updated_series,
                 self.other.start_ts,
                 self.other.end_ts,
                 metric_columns=self.other.metric_columns,
             ),
-            other=self.interval,
+            new_other=self.interval,
             metric_merge_method=True,
         )
 
@@ -978,6 +966,50 @@ class OverlapResolver:
 
         return updated_other_data
 
+    def merge_metrics(
+            self,
+            new_interval: Optional[Interval] = None,
+            new_other: Optional[Interval] = None,
+            metric_merge_method: bool = False,
+    ) -> pd.Series:
+        """
+        Return a merged set of metrics from `interval` and `other`.
+    
+        Parameters:
+            metric_merge_method (bool): If True, non-NaN metrics from `other` will overwrite metrics in `interval`.
+    
+        Returns:
+            pd.Series: A merged set of metrics as a Pandas Series.
+    
+        Raises:
+            ValueError: If `interval.metric_columns` and `other.metric_columns` are not aligned.
+        """
+        # Determine which intervals to use
+        interval_to_use = new_interval if new_interval else self.interval
+        other_to_use = new_other if new_other else self.other
+    
+        # Validate that metric columns align
+        if len(interval_to_use.metric_columns) != len(other_to_use.metric_columns):
+            raise ValueError(
+                "Metric columns must have the same length."
+            )
+        
+        # Create a copy of interval's data
+        merged_interval = interval_to_use.data.copy()
+    
+        if metric_merge_method:
+            for interval_metric_col, other_metric_col in zip(
+                    interval_to_use.metric_columns, other_to_use.metric_columns
+            ):
+                # Overwrite with non-NaN values from `other`
+                merged_interval[interval_metric_col] = (
+                    other_to_use.data[other_metric_col]
+                    if pd.notna(other_to_use.data[other_metric_col])
+                    else merged_interval[interval_metric_col]
+                )
+    
+        return merged_interval
+
 def identify_interval_overlaps(
         overlapping_intervals: pd.DataFrame,
         interval: Interval,
@@ -1047,47 +1079,6 @@ def identify_interval_overlaps(
 
     return overlapping_intervals_copy
 
-def merge_metric_columns_of_intervals(
-        interval: Interval,
-        other: Interval,
-        metric_merge_method: bool = False,
-) -> pd.Series:
-    """
-    Return a merged set of metrics from `interval` and `other`.
-
-    Parameters:
-        interval (Interval): The primary interval whose metrics are to be updated.
-        other (Interval): The secondary interval providing metrics to merge.
-        metric_merge_method (bool): If True, non-NaN metrics from `other` will overwrite metrics in `interval`.
-
-    Returns:
-        pd.Series: A merged set of metrics as a Pandas Series.
-
-    Raises:
-        ValueError: If `interval.metric_columns` and `other.metric_columns` are not aligned.
-    """
-    # Validate that metric columns align
-    if len(interval.metric_columns) != len(other.metric_columns):
-        raise ValueError(
-            "Metric columns of `interval` and `other` must have the same length."
-        )
-
-    # Create a copy of interval's data
-    merged_interval = interval.data.copy()
-
-    if metric_merge_method:
-        for interval_metric_col, other_metric_col in zip(
-                interval.metric_columns, other.metric_columns
-        ):
-            # Overwrite with non-NaN values from `other`
-            merged_interval[interval_metric_col] = (
-                other.data[other_metric_col]
-                if pd.notna(other.data[other_metric_col])
-                else merged_interval[interval_metric_col]
-            )
-
-    return merged_interval
-
 def resolve_all_overlaps(
         interval: Interval,
         overlaps: pd.DataFrame,
@@ -1117,8 +1108,8 @@ def resolve_all_overlaps(
                 interval.series_ids,
                 interval.metric_columns,
         )
-        resolver = OverlapResolver(interval, row_interval)
-        resolved_intervals = resolver.resolve_overlap()
+        local_resolver = OverlapResolver(interval, row_interval)
+        resolved_intervals = local_resolver.resolve_overlap()
         for interval_data in resolved_intervals:
             interval_inner = Interval(
                 interval_data,
