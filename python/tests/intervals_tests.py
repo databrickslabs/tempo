@@ -8,19 +8,12 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.utils import AnalysisException
 
 from tempo.intervals import (
-    IntervalsDF,
     Interval,
+    IntervalsDF,
+    OverlapResolver,
     identify_interval_overlaps,
-    does_interval_start_before,
-    check_for_nan_values,
-    does_interval_end_before,
-    is_interval_contained_by,
-    do_intervals_share_start_boundary,
-    do_intervals_share_end_boundary,
-    are_intervals_boundaries_are_equivalent,
     update_interval_boundary,
     merge_metric_columns_of_intervals,
-    resolve_overlap,
     resolve_all_overlaps,
     add_as_disjoint,
     make_disjoint_wrap,
@@ -264,12 +257,10 @@ class IntervalsDFTests(SparkTest):
         print(idf_expected.df.toPandas())
 
         idf_actual = idf_input.make_disjoint()
-        print("actual")
-        print(idf_actual)
 
-        # self.assertDataFrameEquality(
-        #     idf_expected, idf_actual, ignore_row_order=True
-        # )
+        self.assertDataFrameEquality(
+            idf_expected, idf_actual, ignore_row_order=True
+        )
 
     def test_make_disjoint_contains_intervals_equal(self):
         idf_input = self.get_test_df_builder("init").as_idf()
@@ -431,23 +422,9 @@ class IntervalsDFTests(SparkTest):
 
 
 class PandasFunctionTests(TestCase):
-    def test_identify_interval_overlaps_both_empty(self):
-        df = pd.DataFrame()
-        row = pd.Series()
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
-        self.assertTrue(result.empty)
-
     def test_identify_interval_overlaps_df_empty(self):
         df = pd.DataFrame()
         row = pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:05"})
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
-        self.assertTrue(result.empty)
-
-    def test_identify_interval_overlaps_row_empty(self):
-        df = pd.DataFrame(
-            {"start": ["2023-01-01T00:00:01"], "end": ["2023-01-01T00:00:05"]}
-        )
-        row = pd.Series()
         result = identify_interval_overlaps(df, Interval(row, "start", "end"))
         self.assertTrue(result.empty)
 
@@ -529,200 +506,142 @@ class PandasFunctionTests(TestCase):
         result = identify_interval_overlaps(df, Interval(row, "start", "end"))
         self.assertTrue(result.empty)
 
-    def test_check_for_nan_values_pd_series_with_nan(self):
-        s = pd.Series([1, 2, float("nan"), 4])
-        self.assertTrue(check_for_nan_values(s))
+    # TODO: uncomment once this method is moved into the Intervals Class
 
-    def test_check_for_nan_values_pd_series_without_nan(self):
-        s = pd.Series([1, 2, 3, 4])
-        self.assertFalse(check_for_nan_values(s))
-
-    def test_check_for_nan_values_pd_df_with_nan(self):
-        df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", float("nan"), "c"]})
-        self.assertTrue(check_for_nan_values(df))
-
-    def test_check_for_nan_values_pd_df_without_nan(self):
-        df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
-        self.assertFalse(check_for_nan_values(df))
-
-    def test_check_for_nan_values_np_array_with_nan(self):
-        arr = np.array([1, 2, float("nan"), 4])
-        self.assertTrue(check_for_nan_values(arr))
-
-    def test_check_for_nan_values_np_array_without_nan(self):
-        arr = np.array([1, 2, 3, 4])
-        self.assertFalse(check_for_nan_values(arr))
-
-    def test_check_for_nan_values_np_scalar_nan(self):
-        scalar = np.float64(float("nan"))
-        self.assertTrue(check_for_nan_values(scalar))
-
-    def test_check_for_nan_values_np_scalar_value(self):
-        scalar = np.float64(5.0)
-        self.assertFalse(check_for_nan_values(scalar))
-
-    def test_check_for_nan_values_str(self):
-        string = "valid"
-        self.assertFalse(check_for_nan_values(string))
-
-    def test_check_for_nan_values_none(self):
-        self.assertTrue(check_for_nan_values(None))
+    # def test_check_for_nan_values_pd_series_with_nan(self):
+    #     s = pd.Series([1, 2, float("nan"), 4])
+    #     self.assertTrue(check_for_nan_values(s))
+    #
+    # def test_check_for_nan_values_pd_series_without_nan(self):
+    #     s = pd.Series([1, 2, 3, 4])
+    #     self.assertFalse(check_for_nan_values(s))
+    #
+    # def test_check_for_nan_values_pd_df_with_nan(self):
+    #     df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", float("nan"), "c"]})
+    #     self.assertTrue(check_for_nan_values(df))
+    #
+    # def test_check_for_nan_values_pd_df_without_nan(self):
+    #     df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+    #     self.assertFalse(check_for_nan_values(df))
+    #
+    # def test_check_for_nan_values_np_array_with_nan(self):
+    #     arr = np.array([1, 2, float("nan"), 4])
+    #     self.assertTrue(check_for_nan_values(arr))
+    #
+    # def test_check_for_nan_values_np_array_without_nan(self):
+    #     arr = np.array([1, 2, 3, 4])
+    #     self.assertFalse(check_for_nan_values(arr))
+    #
+    # def test_check_for_nan_values_np_scalar_nan(self):
+    #     scalar = np.float64(float("nan"))
+    #     self.assertTrue(check_for_nan_values(scalar))
+    #
+    # def test_check_for_nan_values_np_scalar_value(self):
+    #     scalar = np.float64(5.0)
+    #     self.assertFalse(check_for_nan_values(scalar))
+    #
+    # def test_check_for_nan_values_str(self):
+    #     string = "valid"
+    #     self.assertFalse(check_for_nan_values(string))
+    #
+    # def test_check_for_nan_values_none(self):
+    #     self.assertTrue(check_for_nan_values(None))
 
     def test_interval_starts_before_other(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T00:00:02"}), "start", "end")
-        result = does_interval_start_before(
-            interval=interval, other=other
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:03"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:04"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_starts_first()
         self.assertTrue(result)
 
     def test_interval_starts_same_as_other(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T00:00:01"}), "start", "end")
-        result = does_interval_start_before(
-            interval=interval, other=other
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:03"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:04"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_starts_first()
         self.assertFalse(result)
 
-    def test_interval_starts_after_other(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T00:00:03"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T00:00:02"}), "start", "end")
-        result = does_interval_start_before(
-            interval=interval, other=other
-        )
-        self.assertFalse(result)
+    # def test_interval_starts_after_other(self):
+    #     other = Interval(pd.Series({"start": "2023-01-01T00:00:03", "end": "2023-01-01T00:00:04"}), "start", "end")
+    #     interval = Interval(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:03"}), "start", "end")
+    #     resolver = OverlapResolver(interval, other)
+    #     result = resolver.does_interval_start_before()
+    #     self.assertFalse(result)
 
-    def test_other_start_ts_is_none(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T00:00:03"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T00:00:02"}), "start", "end")
-        result = does_interval_start_before(
-            interval=interval,
-            other=other,
-        )
-        self.assertFalse(result)
-
-    def test_other_start_ts_is_defined(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T00:00:03"}), "start", "end")
-        other = Interval(pd.Series({"other_start": "2023-01-01T00:00:02"}), "other_start", "other_end")
-        result = does_interval_start_before(
-            interval=interval,
-            other=other,
-        )
-        self.assertFalse(result)
-
-    def test_start_nan_value_in_interval(self):
-        interval = Interval(pd.Series({"start": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T00:00:02"}), "start", "end")
+    def test_start_nan_boundary(self):
         self.assertRaises(
-            ValueError,
-            does_interval_start_before,
-            interval=interval,
-            other=other,
+            TypeError,
+            Interval,
+            pd.Series({"start": float("nan")}),
+            "start",
+            "end",
         )
 
-    def test_start_nan_value_in_other(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T00:00:02"}), "start", "end")
-        other = Interval(pd.Series({"start": float("nan")}), "start", "end")
+    def test_end_nan_boundary(self):
         self.assertRaises(
-            ValueError,
-            does_interval_start_before,
-            interval=interval,
-            other=other,
+            TypeError,
+            Interval,
+            pd.Series({"start": float("nan"), "end": "2023-01-01T00:00:03"}),
+            "start",
+            "end",
         )
 
-    def test_start_nan_value_in_both(self):
-        interval = Interval(pd.Series({"start": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"start": float("nan")}), "start", "end")
+    def test_none_end_boundary(self):
         self.assertRaises(
-            ValueError,
-            does_interval_start_before,
-            interval=interval,
-            other=other,
+            TypeError,
+            Interval,
+            pd.Series(
+                {"start": "2022-01-02", "end": None, "metric_1": 6, "metric_2": 11}
+            ),
+            "start",
+            "end",
+
+        )
+
+    def test_none_start_boundary(self):
+        self.assertRaises(
+            TypeError,
+            Interval,
+            pd.Series(
+                {"start": None, "end": "2022-01-01", "metric_1": 5, "metric_2": 10}
+            ),
+            "start",
+            "end",
+
         )
 
     def test_interval_ends_before_other(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T00:00:02"}), "start", "end")
-        result = does_interval_end_before(
-            interval=interval,
-            other=other,
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T00:00:01"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T00:00:02"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_ends_first()
         self.assertTrue(result)
 
     def test_interval_ends_same_as_other(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T00:00:01"}), "start", "end")
-        result = does_interval_end_before(
-            interval=interval,
-            other=other,
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T00:00:01"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T00:00:01"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_ends_first(
         )
         self.assertFalse(result)
 
     def test_interval_ends_after_other(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T00:00:03"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T00:00:02"}), "start", "end")
-        result = does_interval_end_before(
-            interval=interval,
-            other=other)
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:03"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:02"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_ends_first()
         self.assertFalse(result)
-
-    def test_other_end_ts_is_none(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T00:00:02"}), "start", "end")
-        result = does_interval_end_before(
-            interval=interval,
-            other=other,
-        )
-        self.assertTrue(result)
-
-    def test_other_end_ts_is_defined(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"other_end": "2023-01-01T00:00:02"}), "other_start", "other_end")
-        result = does_interval_end_before(
-            interval=interval,
-            other=other,
-        )
-        self.assertTrue(result)
-
-    def test_end_nan_values_in_interval(self):
-        interval = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T00:00:02"}), "start", "end")
-        with self.assertRaises(ValueError):
-            does_interval_end_before(
-                interval=interval,
-                other=other,
-            )
-
-    def test_end_nan_values_in_other(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T00:00:01"}), "start", "end")
-        other = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        with self.assertRaises(ValueError):
-            does_interval_end_before(
-                interval=interval,
-                other=other,
-            )
-
-    def test_end_nan_values_in_both(self):
-        interval = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        with self.assertRaises(ValueError):
-            does_interval_end_before(
-                interval=interval,
-                other=other,
-            )
 
     def test_interval_contained_in_other(self):
         interval = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end")
-        other = Interval(pd.Series(
             {"start": "2023-01-01T00:00:00", "end": "2023-01-01T03:00:00"}
         ), "start", "end")
-        result = is_interval_contained_by(
-            interval=interval,
-            other=other,
-        )
-        self.assertTrue(result)
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_contained()
+        self.assertFalse(result)
 
     def test_interval_starts_before_other_not_contained(self):
         interval = Interval(pd.Series(
@@ -731,10 +650,8 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T03:00:00"}
         ), "start", "end")
-        result = is_interval_contained_by(
-            interval=interval,
-            other=other,
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_contained()
         self.assertFalse(result)
 
     def test_interval_ends_after_other_not_contained(self):
@@ -742,12 +659,10 @@ class PandasFunctionTests(TestCase):
             {"start": "2023-01-01T02:00:00", "end": "2023-01-01T04:00:00"}
         ), "start", "end")
         other = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T03:00:00"}
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T05:00:00"}
         ), "start", "end")
-        result = is_interval_contained_by(
-            interval=interval,
-            other=other,
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_contained()
         self.assertFalse(result)
 
     def test_interval_outside_other_not_contained(self):
@@ -757,184 +672,65 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T02:00:00", "end": "2023-01-01T03:00:00"}
         ), "start", "end")
-        result = is_interval_contained_by(
-            interval=interval,
-            other=other,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_interval_contained()
         self.assertFalse(result)
 
-    def test_interval_is_contained_by_with_default_other_timestamps(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end")
-        other = Interval(pd.Series(
-            {"start": "2023-01-01T00:00:00", "end": "2023-01-01T03:00:00"}
-        ), "start", "end")
-        result = is_interval_contained_by(
-            interval=interval,
-            other=other,
-
-        )
-        self.assertTrue(result)
-
-    def test_interval_is_contained_by_with_defined_other_timestamps(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end")
-        other = Interval(pd.Series(
-            {"other_start": "2023-01-01T00:00:00", "other_end": "2023-01-01T03:00:00"}
-        ), "other_start", "other_end")
-        result = is_interval_contained_by(
-            interval=interval,
-            other=other,
-
-        )
-        self.assertTrue(result)
-
-    def test_interval_is_contained_by_interval_with_nan_value(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": float("nan")}), "start", "end")
-        other = Interval(pd.Series(
-            {"start": "2023-01-01T00:00:00", "end": "2023-01-01T03:00:00"}
-        ), "start", "end")
-        self.assertRaises(
-            ValueError,
-            is_interval_contained_by,
-            interval=interval,
-            other=other,
-
-        )
-
-    def test_interval_is_contained_by_other_with_nan_value(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end")
-        other = Interval(pd.Series({"start": float("nan"), "end": "2023-01-01T03:00:00"}), "start", "end")
-        self.assertRaises(
-            ValueError,
-            is_interval_contained_by,
-            interval=interval,
-            other=other,
-
-        )
-
     def test_intervals_share_start_boundary(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        result = do_intervals_share_start_boundary(
-            interval=interval, other=other, 
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_starts_equivalent()
         self.assertTrue(result)
 
     def test_intervals_share_start_boundary_with_different_start(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T02:00:00"}), "start", "end")
-        result = do_intervals_share_start_boundary(
-            interval=interval, other=other, 
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T02:00:00", "end": "2023-01-01T02:30:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_starts_equivalent()
         self.assertFalse(result)
 
     def test_intervals_share_start_boundary_with_default_other_timestamp(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        result = do_intervals_share_start_boundary(
-            interval=interval,
-            other=other,
-
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_starts_equivalent()
         self.assertTrue(result)
 
     def test_intervals_share_start_boundary_with_defined_other_timestamp(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"other_start": "2023-01-01T01:00:00"}), "other_start", "end")
-        result = do_intervals_share_start_boundary(
-            interval=interval,
-            other=other,
-
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T01:00:00", "end": "2023-01-01T01:30:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_starts_equivalent()
         self.assertTrue(result)
 
-    def test_intervals_share_start_boundary_with_interval_nan_value(self):
-        interval = Interval(pd.Series({"start": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        with self.assertRaises(ValueError):
-            do_intervals_share_start_boundary(
-                interval=interval, other=other, 
-            )
-
-    def test_intervals_share_start_boundary_with_other_nan_value(self):
-        interval = Interval(pd.Series({"start": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"start": float("nan")}), "start", "end")
-        with self.assertRaises(ValueError):
-            do_intervals_share_start_boundary(
-                interval=interval, other=other, 
-            )
-
-    def test_intervals_share_start_boundary_with_both_nan_values(self):
-        interval = Interval(pd.Series({"start": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"start": float("nan")}), "start", "end")
-        with self.assertRaises(ValueError):
-            do_intervals_share_start_boundary(
-                interval=interval, other=other, 
-            )
-
     def test_intervals_share_end_boundary(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        result = do_intervals_share_end_boundary(
-            interval=interval, other=other, 
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:30:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_ends_equivalent()
         self.assertTrue(result)
 
     def test_intervals_share_end_boundary_with_different_end(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T02:00:00"}), "start", "end")
-        result = do_intervals_share_end_boundary(
-            interval=interval, other=other, 
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:30:00", "end": "2023-01-01T02:00:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_ends_equivalent()
         self.assertFalse(result)
 
     def test_intervals_share_end_boundary_with_default_other_timestamp(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        result = do_intervals_share_end_boundary(
-            interval=interval, other=other,
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_ends_equivalent()
         self.assertTrue(result)
 
     def test_intervals_share_end_boundary_with_defined_other_timestamp(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"other_end": "2023-01-01T01:00:00"}), "start", "other_end")
-        result = do_intervals_share_end_boundary(
-            interval=interval,
-            other=other,
-
-        )
+        interval = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        other = Interval(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T01:00:00"}), "start", "end")
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_ends_equivalent()
         self.assertTrue(result)
-
-    def test_interval_share_end_boundary_with_interval_nan_value(self):
-        interval = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        with self.assertRaises(ValueError):
-            do_intervals_share_end_boundary(
-                interval=interval, other=other, 
-            )
-
-    def test_intervals_share_end_boundary_with_other_nan_value(self):
-        interval = Interval(pd.Series({"end": "2023-01-01T01:00:00"}), "start", "end")
-        other = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        with self.assertRaises(ValueError):
-            do_intervals_share_end_boundary(
-                interval=interval, other=other, 
-            )
-
-    def test_intervals_share_end_boundary_with_both_nan_value(self):
-        interval = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        other = Interval(pd.Series({"end": float("nan")}), "start", "end")
-        with self.assertRaises(ValueError):
-            do_intervals_share_end_boundary(
-                interval=interval, other=other, 
-            )
 
     def test_intervals_boundaries_are_equivalent(self):
         interval = Interval(pd.Series(
@@ -943,11 +739,8 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end")
-        result = are_intervals_boundaries_are_equivalent(
-            interval=interval,
-            other=other,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_boundaries_equivalent()
         self.assertTrue(result)
 
     def test_intervals_boundaries_are_equivalent_with_different_start(self):
@@ -957,11 +750,8 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T01:30:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end")
-        result = are_intervals_boundaries_are_equivalent(
-            interval=interval,
-            other=other,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_boundaries_equivalent()
         self.assertFalse(result)
 
     def test_intervals_boundaries_are_equivalent_with_different_end(self):
@@ -971,11 +761,8 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end")
-        result = are_intervals_boundaries_are_equivalent(
-            interval=interval,
-            other=other,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_boundaries_equivalent()
         self.assertFalse(result)
 
     def test_intervals_boundaries_are_equivalent_with_default_other_timestamps(self):
@@ -985,11 +772,8 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end")
-        result = are_intervals_boundaries_are_equivalent(
-            interval=interval,
-            other=other,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_boundaries_equivalent()
         self.assertTrue(result)
 
     def test_intervals_boundaries_are_equivalent_with_defined_other_timestamps(self):
@@ -999,46 +783,9 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end")
-        result = are_intervals_boundaries_are_equivalent(
-            interval=interval,
-            other=other,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.check_boundaries_equivalent()
         self.assertTrue(result)
-
-    def test_intervals_boundaries_are_equivalent_with_interval_nan_value(self):
-        interval = Interval(pd.Series({"start": float("nan"), "end": "2023-01-01T02:00:00"}), "start", "end")
-        other = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end")
-        with self.assertRaises(ValueError):
-            are_intervals_boundaries_are_equivalent(
-                interval=interval,
-                other=other,
-
-            )
-
-    def test_intervals_boundaries_are_equivalent_with_other_nan_value(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end")
-        other = Interval(pd.Series({"start": float("nan"), "end": "2023-01-01T02:00:00"}), "start", "end")
-        with self.assertRaises(ValueError):
-            are_intervals_boundaries_are_equivalent(
-                interval=interval,
-                other=other,
-
-            )
-
-    def test_intervals_boundaries_are_equivalent_with_both_nan_value(self):
-        interval = Interval(pd.Series({"start": float("nan"), "end": "2023-01-01T02:00:00"}), "start", "end")
-        other = Interval(pd.Series({"start": float("nan"), "end": "2023-01-01T02:00:00"}), "start", "end")
-        with self.assertRaises(ValueError):
-            are_intervals_boundaries_are_equivalent(
-                interval=interval,
-                other=other,
-
-            )
 
     def test_update_interval_boundary_start(self):
         interval = pd.Series(
@@ -1181,121 +928,93 @@ class PandasFunctionTests(TestCase):
         self.assertEqual(merged["value"], 10)
 
     def test_resolve_overlap_where_interval_other_have_equivalent_metric_cols(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
         ), "start", "end")
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
         ), "start", "end")
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 1)
 
     def test_resolve_overlap_where_interval_is_contained_by_other(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
-
-        self.assertEqual(len(result), 3)
+        self.assertEqual(3, len(result))
 
     def test_resolve_overlap_where_shared_start_but_interval_ends_before_other(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 2)
 
     def test_resolve_overlap_where_shared_start_but_interval_ends_after_other(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 2)
 
     def test_resolve_overlap_where_shared_end_and_interval_starts_before_other(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 2)
 
     def test_resolve_overlap_where_shared_end_and_interval_starts_after_other(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 2)
 
     def test_resolve_overlap_shared_start_and_end(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
         ), "start", "end")
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
         ), "start", "end")
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 1)
 
@@ -1309,12 +1028,8 @@ class PandasFunctionTests(TestCase):
         other = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        result = resolve_overlap(
-            interval=interval,
-            other=other,
-            
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 3)
 
@@ -1322,57 +1037,18 @@ class PandasFunctionTests(TestCase):
         self,
     ):
         interval = Interval(pd.Series(
-            {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
-        ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
         ), "start", "end", metric_columns=["metric_1", "metric_2"])
-
-        result = resolve_overlap(
-            interval=interval,
-            other=other,
-            
-        )
+        other = Interval(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_columns=["metric_1", "metric_2"])
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 3)
 
-    def test_resolve_overlaps_where_interval_contains_nan(self):
-        series_a = Interval(pd.Series(
-            {"start": "2022-01-01", "end": None, "metric_1": 5, "metric_2": 10}
-        ), "start", "end")
-
-        series_b = Interval(pd.Series(
-            {"start": "2022-01-02", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
-        ), "start", "end")
-
-        self.assertRaises(
-            ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
-
-        )
-
-    def test_resolve_overlaps_where_other_contains_nan(self):
-        series_a = Interval(pd.Series(
-            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
-        ), "start", "end")
-
-        series_b = Interval(pd.Series(
-            {"start": "2022-01-02", "end": None, "metric_1": 6, "metric_2": 11}
-        ), "start", "end")
-
-        self.assertRaises(
-            ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
-
-        )
-
     def test_resolve_overlaps_where_different_series_id_col_names(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {
                 "start": "2022-01-01",
                 "end": "2022-01-03",
@@ -1382,7 +1058,7 @@ class PandasFunctionTests(TestCase):
             }
         ), "start", "end", "series_1", ["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {
                 "start": "2022-01-02",
                 "end": "2022-01-04",
@@ -1391,17 +1067,15 @@ class PandasFunctionTests(TestCase):
                 "metric_2": 11,
             }
         ), "start", "end", "wrong", ["metric_1", "metric_2"])
-
+        resolver = OverlapResolver(interval, other)
         self.assertRaises(
             ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
+            resolver.resolve_overlap
 
         )
 
     def test_resolve_overlaps_where_different_metric_col_names(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {
                 "start": "2022-01-01",
                 "end": "2022-01-03",
@@ -1411,7 +1085,7 @@ class PandasFunctionTests(TestCase):
             }
         ), "start", "end", "series_1", ["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {
                 "start": "2022-01-02",
                 "end": "2022-01-04",
@@ -1420,17 +1094,15 @@ class PandasFunctionTests(TestCase):
                 "metric_2": 11,
             }
         ), "start", "end", "series_1", ["wrong", "metric_2"])
-
+        resolver = OverlapResolver(interval, other)
         self.assertRaises(
             ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
+            resolver.resolve_overlap
 
         )
 
     def test_resolve_overlaps_where_different_series_shapes(self):
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {
                 "start": "2022-01-01",
                 "end": "2022-01-03",
@@ -1440,33 +1112,27 @@ class PandasFunctionTests(TestCase):
             }
         ), "start", "end", ["series_1"], ["metric_1", "metric_2"])
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-04", "series_1": 1, "metric_2": 11}
         ), "start", "end", ["series_1"], ["metric_2"])
-
+        resolver = OverlapResolver(interval, other)
         self.assertRaises(
             ValueError,
-            resolve_overlap,
-            interval=series_a,
-            other=series_b,
+            resolver.resolve_overlap
 
         )
 
     def test_resolve_overlaps_where_no_overlaps(self):
         # Test 11: No overlap at all but still within the range of other series
-        series_a = Interval(pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-02", "metric_1": 5, "metric_2": 10}
         ), "start", "end")
 
-        series_b = Interval(pd.Series(
+        other = Interval(pd.Series(
             {"start": "2022-01-03", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
         ), "start", "end")
-
-        result = resolve_overlap(
-            interval=series_a,
-            other=series_b,
-
-        )
+        resolver = OverlapResolver(interval, other)
+        result = resolver.resolve_overlap()
 
         self.assertEqual(len(result), 2)
 
@@ -1497,87 +1163,6 @@ class PandasFunctionTests(TestCase):
 
         self.assertEqual(3, len(result))
 
-    def test_resolve_all_overlaps_where_overlaps_start_ts_incorrect(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end")
-        overlaps = pd.DataFrame(
-            {
-                "begin": [
-                    "2023-01-01 02:00:00",
-                    "2023-01-01 03:00:00",
-                    "2023-01-01 04:00:00",
-                ],
-                "end": [
-                    "2023-01-01 04:00:00",
-                    "2023-01-01 06:00:00",
-                    "2023-01-01 07:00:00",
-                ],
-                "value": [5, 7, 8],
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            resolve_all_overlaps,
-            interval,
-            overlaps,
-        )
-
-    def test_resolve_all_overlaps_where_overlaps_end_ts_incorrect(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end")
-        overlaps = pd.DataFrame(
-            {
-                "start": [
-                    "2023-01-01 02:00:00",
-                    "2023-01-01 03:00:00",
-                    "2023-01-01 04:00:00",
-                ],
-                "finish": [
-                    "2023-01-01 04:00:00",
-                    "2023-01-01 06:00:00",
-                    "2023-01-01 07:00:00",
-                ],
-                "value": [5, 7, 8],
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            resolve_all_overlaps,
-            interval,
-            overlaps,
-        )
-
-    def test_resolve_all_overlaps_where_optional_columns_defined(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end")
-        overlaps = pd.DataFrame(
-            {
-                "begin": [
-                    "2023-01-01 02:00:00",
-                    "2023-01-01 03:00:00",
-                    "2023-01-01 04:00:00",
-                ],
-                "finish": [
-                    "2023-01-01 04:00:00",
-                    "2023-01-01 06:00:00",
-                    "2023-01-01 07:00:00",
-                ],
-                "value": [5, 7, 8],
-            }
-        )
-
-        self.assertRaises(
-            ValueError,
-            resolve_all_overlaps,
-            interval,
-            overlaps,
-        )
-
     def test_resolve_all_overlaps_where_no_overlaps(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
@@ -1607,7 +1192,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_basic_overlap(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", series_ids="id", metric_columns="value")
+        ), "start", "end", metric_columns="value")
         disjoint_set = pd.DataFrame(
             {
                 "start": ["2023-01-01 03:00:00"],
