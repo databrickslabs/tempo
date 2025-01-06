@@ -5,7 +5,6 @@ from typing import Optional, Iterable, Callable, Sequence
 
 import pandas as pd
 import pyspark.sql.functions as f
-from pandas import Timestamp
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (
     # NB: NumericType is a non-public object, so we shouldn't import it directly
@@ -393,9 +392,11 @@ class Interval:
 
         if data.empty:
             raise ValueError("Data must not be empty.")
+        if not isinstance(data, pd.Series):
+            raise TypeError("Expected `data` to be a Pandas Series.")
         self.data = data
         # Validate that start_ts and end_ts are strings
-        if not isinstance(data[start_ts], (str, Timestamp)) or not isinstance(data[end_ts], (str, Timestamp)):
+        if not isinstance(data[start_ts], (str, pd.Timestamp)) or not isinstance(data[end_ts], (str, pd.Timestamp)):
             raise TypeError(
                 "start_ts and end_ts values must both be timestamp formatted strings or pandas.Timestamp type."
             )
@@ -573,8 +574,7 @@ class OverlapResolver:
     def resolve_interval_contained(self) -> list[pd.Series]:
         resolved_intervals = []
         # 1)
-        resolved_series = update_interval_boundary(
-            interval=self.interval.data,
+        resolved_series = self.update_interval_boundary(
             boundary_key=self.interval.end_ts,
             update_value=self.other.data[self.other.start_ts],
         )
@@ -590,8 +590,7 @@ class OverlapResolver:
         resolved_intervals.append(resolved_series)
 
         # 2)
-        resolved_series = update_interval_boundary(
-            interval=self.interval.data,
+        resolved_series = self.update_interval_boundary(
             boundary_key=self.interval.start_ts,
             update_value=self.other.data[self.other.end_ts],
         )
@@ -603,8 +602,7 @@ class OverlapResolver:
     def resolve_other_contained(self) -> list[pd.Series]:
         resolved_intervals = []
         # 1)
-        resolved_series = update_interval_boundary(
-            interval=self.interval.data,
+        resolved_series = self.update_interval_boundary(
             boundary_key=self.interval.end_ts,
             update_value=self.other.data[self.other.start_ts],
         )
@@ -620,8 +618,7 @@ class OverlapResolver:
         resolved_intervals.append(resolved_series)
 
         # 2)
-        resolved_series = update_interval_boundary(
-            interval=self.interval.data,
+        resolved_series = self.update_interval_boundary(
             boundary_key=self.interval.start_ts,
             update_value=self.other.data[self.other.end_ts],
         )
@@ -656,8 +653,7 @@ class OverlapResolver:
             resolved_intervals.append(resolved_series)
 
             # 2)
-            resolved_series = update_interval_boundary(
-                interval=self.other.data,
+            resolved_series = self.update_other_boundary(
                 boundary_key=self.other.start_ts,
                 update_value=self.interval.data[self.interval.end_ts],
             )
@@ -675,8 +671,7 @@ class OverlapResolver:
             resolved_intervals.append(resolved_series)
 
             # 2)
-            resolved_series = update_interval_boundary(
-                interval=self.interval.data,
+            resolved_series = self.update_interval_boundary(
                 boundary_key=self.interval.start_ts,
                 update_value=self.other.data[self.other.end_ts],
             )
@@ -702,8 +697,7 @@ class OverlapResolver:
 
         if self.check_interval_starts_first():
             # 1)
-            resolved_series = update_interval_boundary(
-                interval=self.interval.data,
+            resolved_series = self.update_interval_boundary(
                 boundary_key=self.interval.end_ts,
                 update_value=self.other.data[self.other.start_ts],
             )
@@ -761,8 +755,7 @@ class OverlapResolver:
         return interval_data_filled.equals(other_data_filled)
 
     def resolve_metrics_equivalent(self) -> pd.Series:
-        return update_interval_boundary(
-            interval=self.interval.data,
+        return self.update_interval_boundary(
             boundary_key=self.interval.end_ts,
             update_value=self.other.data[self.other.end_ts],
         )
@@ -770,8 +763,7 @@ class OverlapResolver:
     def resolve_interval_partial_overlap(self):
         resolved_intervals = []
         # 1)
-        resolved_series = update_interval_boundary(
-            interval=self.interval.data,
+        resolved_series = self.update_interval_boundary(
             boundary_key=self.interval.end_ts,
             update_value=self.other.data[self.other.start_ts],
         )
@@ -779,8 +771,7 @@ class OverlapResolver:
         resolved_intervals.append(resolved_series)
 
         # 2)
-        updated_series = update_interval_boundary(
-            interval=self.other.data,
+        updated_series = self.update_other_boundary(
             boundary_key=self.other.end_ts,
             update_value=self.interval.data[self.interval.end_ts],
         )
@@ -798,8 +789,7 @@ class OverlapResolver:
         resolved_intervals.append(resolved_series)
 
         # 3)
-        resolved_series = update_interval_boundary(
-            interval=self.other.data,
+        resolved_series = self.update_other_boundary(
             boundary_key=self.other.start_ts,
             update_value=self.interval.data[self.interval.end_ts],
         )
@@ -928,6 +918,65 @@ class OverlapResolver:
 
         raise NotImplementedError("Interval resolution not implemented")
 
+    def update_interval_boundary(
+            self,
+            boundary_key: str,
+            update_value: str,
+    ) -> pd.Series:
+        """
+        Return a new copy of `interval` with the specified boundary updated.
+
+        Parameters:
+            boundary_key (str): The key of the boundary to update (e.g., "start" or "end").
+            update_value (str): The new value for the specified boundary.
+
+        Returns:
+            pd.Series: A copy of the interval with the updated boundary.
+
+        Raises:
+            KeyError: If `boundary_key` does not exist in the interval.
+            TypeError: If `interval` is not a Pandas Series.
+        """
+
+        if boundary_key not in self.interval.data.keys():
+            raise KeyError(
+                f"boundary_key '{boundary_key}' must exist in {list(self.interval.data.keys())}"
+            )
+
+        updated_interval_data = self.interval.data.copy()
+        updated_interval_data[boundary_key] = update_value
+
+        return updated_interval_data
+
+    def update_other_boundary(
+            self,
+            boundary_key: str,
+            update_value: str,
+    ) -> pd.Series:
+        """
+        Return a new copy of `interval` with the specified boundary updated.
+
+        Parameters:
+            boundary_key (str): The key of the boundary to update (e.g., "start" or "end").
+            update_value (str): The new value for the specified boundary.
+
+        Returns:
+            pd.Series: A copy of the interval with the updated boundary.
+
+        Raises:
+            KeyError: If `boundary_key` does not exist in the interval.
+            TypeError: If `interval` is not a Pandas Series.
+        """
+
+        if boundary_key not in self.other.data.keys():
+            raise KeyError(
+                f"boundary_key '{boundary_key}' must exist in {list(self.other.data.keys())}"
+            )
+
+        updated_other_data = self.other.data.copy()
+        updated_other_data[boundary_key] = update_value
+
+        return updated_other_data
 
 def identify_interval_overlaps(
         overlapping_intervals: pd.DataFrame,
@@ -997,42 +1046,6 @@ def identify_interval_overlaps(
     overlapping_intervals_copy = overlapping_intervals_copy[remove_with_row_mask]
 
     return overlapping_intervals_copy
-
-
-def update_interval_boundary(
-        *,
-        interval: pd.Series,
-        boundary_key: str,
-        update_value: str,
-) -> pd.Series:
-    """
-    Return a new copy of `interval` with the specified boundary updated.
-
-    Parameters:
-        interval (pd.Series): A Pandas Series representing the interval data.
-        boundary_key (str): The key of the boundary to update (e.g., "start" or "end").
-        update_value (str): The new value for the specified boundary.
-
-    Returns:
-        pd.Series: A copy of the interval with the updated boundary.
-
-    Raises:
-        KeyError: If `boundary_key` does not exist in the interval.
-        TypeError: If `interval` is not a Pandas Series.
-    """
-    if not isinstance(interval, pd.Series):
-        raise TypeError("Expected `interval` to be a Pandas Series.")
-
-    if boundary_key not in interval.keys():
-        raise KeyError(
-            f"boundary_key '{boundary_key}' must exist in {list(interval.keys())}"
-        )
-
-    updated_interval = interval.copy()
-    updated_interval[boundary_key] = update_value
-
-    return updated_interval
-
 
 def merge_metric_columns_of_intervals(
         interval: Interval,

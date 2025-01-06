@@ -12,7 +12,6 @@ from tempo.intervals import (
     IntervalsDF,
     OverlapResolver,
     identify_interval_overlaps,
-    update_interval_boundary,
     merge_metric_columns_of_intervals,
     resolve_all_overlaps,
     add_as_disjoint,
@@ -788,47 +787,125 @@ class PandasFunctionTests(TestCase):
         self.assertTrue(result)
 
     def test_update_interval_boundary_start(self):
-        interval = pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        )
-        updated = update_interval_boundary(
-            interval=interval,
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        updated = resolver.update_interval_boundary(
             boundary_key="start",
             update_value="2023-01-01T01:30:00",
         )
         self.assertEqual(updated["start"], "2023-01-01T01:30:00")
 
     def test_update_interval_boundary_end(self):
-        interval = pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        )
-        updated = update_interval_boundary(
-            interval=interval,
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        updated = resolver.update_interval_boundary(
             boundary_key="end",
             update_value="2023-01-01T02:30:00",
         )
         self.assertEqual(updated["end"], "2023-01-01T02:30:00")
 
     def test_update_interval_boundary_return_new_copy(self):
-        interval = pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        )
-        updated = update_interval_boundary(
-            interval=interval,
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        updated = resolver.update_interval_boundary(
             boundary_key="start",
             update_value="2023-01-01T01:30:00",
         )
         self.assertNotEqual(id(interval), id(updated))
-        self.assertEqual(interval["start"], "2023-01-01T01:00:00")
+        self.assertEqual(interval.data["start"], "2023-01-01T01:00:00")
 
     def test_update_interval_boundary_non_existent_boundary(self):
-        interval = pd.Series(
+        interval = Interval(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        )
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
         self.assertRaises(
             KeyError,
-            update_interval_boundary,
-            interval=interval,
+            resolver.update_interval_boundary,
+            boundary_key="not_a_boundary",
+            update_value="2023-01-01T01:30:00",
+        )
+
+    def test_update_other_boundary_start(self):
+        interval = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        updated = resolver.update_other_boundary(
+            boundary_key="start",
+            update_value="2023-01-01T01:30:00",
+        )
+        self.assertEqual(updated["start"], "2023-01-01T01:30:00")
+
+    def test_update_other_boundary_end(self):
+        interval = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        updated = resolver.update_other_boundary(
+            boundary_key="end",
+            update_value="2023-01-01T02:30:00",
+        )
+        self.assertEqual(updated["end"], "2023-01-01T02:30:00")
+
+    def test_update_other_boundary_return_new_copy(self):
+        interval = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        updated = resolver.update_other_boundary(
+            boundary_key="start",
+            update_value="2023-01-01T01:30:00",
+        )
+        self.assertNotEqual(id(interval), id(updated))
+        self.assertEqual(interval.data["start"], "2023-01-01T01:00:00")
+
+    def test_update_other_boundary_non_existent_boundary(self):
+        interval = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+        other = Interval(pd.Series(
+            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
+        ), "start", "end", )
+
+        resolver = OverlapResolver(interval, other)
+        self.assertRaises(
+            KeyError,
+            resolver.update_other_boundary,
             boundary_key="not_a_boundary",
             update_value="2023-01-01T01:30:00",
         )
