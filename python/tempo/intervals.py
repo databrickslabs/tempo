@@ -582,6 +582,8 @@ class OverlapResolver:
         resolved_intervals.append(resolved_series)
 
         resolved_series = self.merge_metrics(
+            new_interval=self.other,
+            new_other=self.interval,
             metric_merge_method=True,
         )
 
@@ -608,6 +610,8 @@ class OverlapResolver:
         resolved_intervals.append(resolved_series)
 
         resolved_series = self.merge_metrics(
+            new_interval=self.other,
+            new_other=self.interval,
             metric_merge_method=True,
         )
 
@@ -657,6 +661,8 @@ class OverlapResolver:
         else:
             # 1)
             resolved_series = self.merge_metrics(
+                new_interval=self.other,
+                new_other=self.interval,
                 metric_merge_method=True,
             )
 
@@ -698,6 +704,8 @@ class OverlapResolver:
 
             # 2)
             resolved_series = self.merge_metrics(
+                new_interval=self.other,
+                new_other=self.interval,
                 metric_merge_method=True,
             )
 
