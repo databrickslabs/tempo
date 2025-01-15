@@ -189,6 +189,14 @@ class TSIndex(ABC):
     # with other columns, expressions or values
 
     @abstractmethod
+    def has_types(self, *types: DataType) -> bool:
+        """
+        :param types: The data types to check for
+
+        :return: whether the index comprises the given data types (in order of precedence)
+        """
+
+    @abstractmethod
     def comparableExpr(self) -> Union[Column, List[Column]]:
         """
         :return: an expression that can be used to compare an index with
@@ -300,6 +308,11 @@ class SimpleTSIndex(TSIndex, ABC):
     def renamed(self, new_name: str) -> "TSIndex":
         self.__name = new_name
         return self
+
+    def has_types(self, *types: DataType) -> bool:
+        if len(types) != 1:
+            return False
+        return self.dataType == types[0]
 
     def comparableExpr(self) -> Column:
         return sfn.col(self.colname)
@@ -478,6 +491,17 @@ class CompositeTSIndex(TSIndex, ABC):
         ), f"Field {field} does not exist in the TSIndex schema {self.schema}"
         return f"{self.colname}.{field}"
 
+    def fieldType(self, field: str) -> DataType:
+        """
+        :param field: The name of a field within the TSIndex column
+
+        :return: The data type of the given field within the TSIndex column
+        """
+        assert (
+            field in self.fieldNames
+        ), f"Field {field} does not exist in the TSIndex schema {self.schema}"
+        return self.schema[field].dataType
+
     def validate(self, df_schema: StructType) -> None:
         # validate that the composite field exists
         assert (
@@ -492,6 +516,13 @@ class CompositeTSIndex(TSIndex, ABC):
         )
 
     # expression builder methods
+
+    def has_types(self, *types: DataType) -> bool:
+        if len(types) != len(self.component_fields):
+            return False
+        return all(
+            self.fieldType(f) == t for f, t in zip(self.component_fields, types)
+        )
 
     def comparableExpr(self) -> List[Column]:
         return [sfn.col(self.fieldPath(comp)) for comp in self.component_fields]
