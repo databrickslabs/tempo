@@ -16,7 +16,7 @@ class AsOfJoinTest(SparkTest):
 
     def setUp(self) -> None:
         super().setUp()
-        cur_test_case = self.test_data[self.test_name]
+        cur_test_case = self.test_data_file[self.test_name]
         self.left_tsdf = TestDataFrameBuilder(self.spark,
                                               cur_test_case["left"]).as_tsdf()
         self.right_tsdf = TestDataFrameBuilder(self.spark,
