@@ -310,15 +310,6 @@ class SparkTest(unittest.TestCase):
 
         return test_data
 
-    def get_function_data_keys(self, element: Optional[str] = None) -> list:
-        """
-        Get the keys for the test data associated with the current test function
-        """
-        function_keys = [self.class_name, self.func_name]
-        if element:
-            return function_keys + [element]
-        return function_keys
-
     def get_test_df_builder(self, *data_keys: str) -> TestDataFrameBuilder:
         # unpack the test data by keys
         data = self.test_case_data
@@ -327,11 +318,12 @@ class SparkTest(unittest.TestCase):
         # return the builder
         return TestDataFrameBuilder(self.spark, data)
 
-    def get_test_function_df_builder(self, element: Optional[str] = None) -> TestDataFrameBuilder:
+    def get_test_function_df_builder(self, *sub_elements: str) -> TestDataFrameBuilder:
         """
         Get the test data builder for the current test function
         """
-        return self.get_test_df_builder(*self.get_function_data_keys(element))
+        function_data_keys = [self.class_name, self.func_name] + list(sub_elements)
+        return self.get_test_df_builder(*function_data_keys)
 
     #
     # Assertion Functions
