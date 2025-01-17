@@ -199,7 +199,6 @@ class SparkTest(unittest.TestCase):
     spark = None
 
     # test data
-    test_data_file = None
     test_case_data = None
 
     @classmethod
@@ -238,10 +237,20 @@ class SparkTest(unittest.TestCase):
         cls.spark.stop()
 
     def setUp(self) -> None:
-        self.test_case_data = self.__loadTestData(self.id())
+        # parse out components of the test case path
+        file_name, class_name, func_name = self.id().split(".")[-3:]
+        self.file_name = file_name
+        self.class_name = class_name
+        self.func_name = func_name
+
+        # load the test data file if it hasn't been loaded yet
+        if self.test_case_data is None:
+            self.test_case_data = self.__loadTestData(file_name)
 
     def tearDown(self) -> None:
-        del self.test_case_data
+        del self.file_name
+        del self.class_name
+        del self.func_name
 
     #
     # Utility Functions
@@ -280,40 +289,49 @@ class SparkTest(unittest.TestCase):
         return os.path.join(cls.getTestDataDirPath(),
                             f"{test_file_name}{extension}")
 
-    def __loadTestData(self, test_case_path: str) -> dict:
+    def __loadTestData(self, file_name: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
         format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs)
-        :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
-        :type test_case_path: str
+        :param file_name: base name of the test data file
+        :type file_name: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")[-3:]
 
-        # load the test data file if it hasn't been loaded yet
-        if self.test_data_file is None:
-            # find our test data file
-            test_data_filename = self.getTestDataFilePath(file_name)
-            if not os.path.isfile(test_data_filename):
-                warnings.warn(f"Could not load test data file {test_data_filename}")
-                self.test_data_file = {}
+        # find our test data file
+        test_data_filename = self.getTestDataFilePath(file_name)
+        if not os.path.isfile(test_data_filename):
+            warnings.warn(f"Could not load test data file {test_data_filename}")
+            return {}
 
-            # proces the data file
-            with open(test_data_filename, "r") as f:
-                base_path = "file://"+ self.getTestDataDirPath() + "/"
-                self.test_data_file = jsonref.load(f, base_uri=base_path)
+        # proces the data file
+        with open(test_data_filename, "r") as f:
+            base_path = "file://"+ self.getTestDataDirPath() + "/"
+            test_data = jsonref.load(f, base_uri=base_path)
 
-        # return the data if it exists
-        class_data = prefix_value(class_name, self.test_data_file)
-        if class_data:
-            func_data = prefix_value(func_name, class_data)
-            if func_data:
-                return func_data
+        return test_data
 
-        # return empty dictionary if no data found
-        return {}
+    def get_function_data_keys(self, element: Optional[str] = None) -> list:
+        """
+        Get the keys for the test data associated with the current test function
+        """
+        function_keys = [self.class_name, self.func_name]
+        if element:
+            return function_keys + [element]
+        return function_keys
 
-    def get_test_df_builder(self, name: str) -> TestDataFrameBuilder:
-        return TestDataFrameBuilder(self.spark, self.test_case_data[name])
+    def get_test_df_builder(self, *data_keys: str) -> TestDataFrameBuilder:
+        # unpack the test data by keys
+        data = self.test_case_data
+        for key in data_keys:
+            data = prefix_value(key, data)
+        # return the builder
+        return TestDataFrameBuilder(self.spark, data)
+
+    def get_test_function_df_builder(self, element: Optional[str] = None) -> TestDataFrameBuilder:
+        """
+        Get the test data builder for the current test function
+        """
+        return self.get_test_df_builder(*self.get_function_data_keys(element))
 
     #
     # Assertion Functions

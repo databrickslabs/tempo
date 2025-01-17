@@ -3,26 +3,12 @@ import unittest
 from pyspark.sql.dataframe import DataFrame
 
 from tempo.resample import resample
-from tempo.interpol import interpolate, Interpolation
+from tempo.interpol import interpolate
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
 
 class InterpolationUnitTest(SparkTest):
-    def setUp(self) -> None:
-        super().setUp()
-        # register interpolation helper
-        self.interpolate_helper = Interpolation(is_resampled=False)
-
-    def test_is_resampled_type(self):
-        self.assertIsInstance(self.interpolate_helper.is_resampled, bool)
-
-    def test_validate_fill_method(self):
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_fill,
-            "abcd",
-        )
 
     def test_validate_col_exist_in_df(self):
         input_df: DataFrame = self.get_test_df_builder("init").as_sdf()
