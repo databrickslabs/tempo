@@ -17,6 +17,19 @@ from delta.pip_utils import configure_spark_with_delta_pip
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
 
+# helper functions
+
+def prefix_value(key: str, d: dict):
+    # look for an exact match
+    if key in d:
+        return d[key]
+    # scan for a prefix-match
+    for k in d.keys():
+        if key.startswith(k):
+            return d[k]
+    return None
+
+# test classes
 
 class TestDataFrameBuilder:
     """
@@ -248,7 +261,7 @@ class SparkTest(unittest.TestCase):
     TEST_DATA_FOLDER = "unit_test_data"
 
     @classmethod
-    def getTestDataFilePath(cls, test_file_name: str, extension: str = '.json') -> str:
+    def getTestDataDirPath(cls) -> str:
         # what folder are we running from?
         cwd = os.path.basename(os.getcwd())
 
@@ -259,13 +272,13 @@ class SparkTest(unittest.TestCase):
         elif cwd == "python":
             dir_path = "./tests"
         elif cwd != "tests":
-            raise RuntimeError(
-                f"Cannot locate test data file {test_file_name}, running from dir"
-                f" {os.getcwd()}"
-            )
+            raise RuntimeError(f"Cannot locate test dir, running from dir {os.getcwd()}")
+        return os.path.abspath(os.path.join(dir_path, cls.TEST_DATA_FOLDER))
 
-        # return appropriate path
-        return f"{dir_path}/{cls.TEST_DATA_FOLDER}/{test_file_name}{extension}"
+    @classmethod
+    def getTestDataFilePath(cls, test_file_name: str, extension: str = '.json') -> str:
+        return os.path.join(cls.getTestDataDirPath(),
+                            f"{test_file_name}{extension}")
 
     def __loadTestData(self, test_case_path: str) -> dict:
         """
@@ -286,12 +299,15 @@ class SparkTest(unittest.TestCase):
 
             # proces the data file
             with open(test_data_filename, "r") as f:
-                self.test_data_file = jsonref.load(f)
+                base_path = "file://"+ self.getTestDataDirPath() + "/"
+                self.test_data_file = jsonref.load(f, base_uri=base_path)
 
         # return the data if it exists
-        if class_name in self.test_data_file:
-            if func_name in self.test_data_file[class_name]:
-                return self.test_data_file[class_name][func_name]
+        class_data = prefix_value(class_name, self.test_data_file)
+        if class_data:
+            func_data = prefix_value(func_name, class_data)
+            if func_data:
+                return func_data
 
         # return empty dictionary if no data found
         return {}
