@@ -31,7 +31,7 @@ def backward_fill(null_series: pd.Series) -> pd.Series:
 
 def _build_interpolator(
     interpol_cols: List[str],
-    interpol_fn: Callable[[pd.Series], pd.Series],
+    interpol_fn: Union[Callable[[pd.Series], pd.Series], str],
     ts_col: Optional[str] = None
   ) -> Callable[[pd.DataFrame], pd.DataFrame]:
   def interpolator_fn(pdf: pd.DataFrame) -> pd.DataFrame:
@@ -46,7 +46,10 @@ def _build_interpolator(
       # those rows that need interpolation
       any_interpol_mask = any_interpol_mask | pdf[interpol_col].isna()
       # otherwise we interpolate the missing values
-      pdf[interpol_col] = interpol_fn(pdf[interpol_col])
+      if isinstance(interpol_fn, str):
+        pdf[interpol_col] = pdf[interpol_col].interpolate(method=interpol_fn)
+      else:
+        pdf[interpol_col] = interpol_fn(pdf[interpol_col])
     # return only the rows that were missing (others are margins)
     return pdf[any_interpol_mask]
 
@@ -92,8 +95,6 @@ def interpolate(
     # parameter normalization & validation
     if isinstance(cols, str):
         cols = [cols]
-    if isinstance(fn, str):
-        fn = lambda x: x.interpolate(method=fn)
     for col in cols:
         assert col in tsdf.columns, f"Column to be interpolated '{col}' not found in the DataFrame"
 
