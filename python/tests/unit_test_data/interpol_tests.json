@@ -1,1604 +1,186 @@
 {
   "__SharedData": {
-    "input_data": {
-      "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
-      "ts_col": "event_ts",
-      "series_ids": [
-        "partition_a",
-        "partition_b"
-      ],
-      "data": [
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:01:10",
-          349.21,
-          null
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:02:03",
-          null,
-          4.0
-        ],
-        [
-          "A",
-          "A-2",
-          "2020-01-01 00:01:15",
-          340.21,
-          9.0
-        ],
-        [
-          "B",
-          "B-1",
-          "2020-01-01 00:01:15",
-          362.1,
-          4.0
-        ],
-        [
-          "A",
-          "A-2",
-          "2020-01-01 00:01:17",
-          353.32,
-          8.0
-        ],
-        [
-          "B",
-          "B-2",
-          "2020-01-01 00:02:14",
-          null,
-          6.0
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:03:02",
-          351.32,
-          7.0
-        ],
-        [
-          "B",
-          "B-2",
-          "2020-01-01 00:01:12",
-          361.1,
-          5.0
+    "simple_ts_idx": {
+      "tsdf": {
+        "ts_col": "event_ts",
+        "series_ids": ["symbol"]
+      },
+      "df": {
+        "schema": "symbol string, event_ts string, open double, high double, low double, close double, num_trades long",
+        "ts_convert": ["event_ts"],
+        "data": [
+          ["AAN", "2017-08-31 03:45:00", 349.958, 349.958, 348.715, 348.715, 2],
+          ["AAN", "2017-08-31 04:00:00", 348.213, 348.213, 348.213, 348.213, 1],
+          ["AAN", "2017-08-31 04:15:00", null, null, null, null, null],
+          ["AAN", "2017-08-31 04:30:00", null, null, null, null, null],
+          ["AAN", "2017-08-31 04:45:00", null, null, null, null, null],
+          ["AAN", "2017-08-31 05:00:00", 347.322, 347.322, 347.322, 347.322, 1],
+          ["AAN", "2017-08-31 05:15:00", 349.795, 349.795, 347.039, 347.039, 2],
+          ["IBM", "2017-08-31 04:30:00", null, null, null, null, null],
+          ["IBM", "2017-08-31 04:45:00", null, null, null, null, null],
+          ["IBM", "2017-08-31 05:00:00", 347.603, 347.603, 347.603, 347.603, 1],
+          ["IBM", "2017-08-31 05:15:00", 348.285, 348.285, 348.285, 348.285, 1],
+          ["IBM", "2017-08-31 05:30:00", 347.881, 347.881, 347.881, 347.881, 1],
+          ["IBM", "2017-08-31 05:45:00", 348.371, 348.371, 348.371, 348.371, 1],
+          ["TBB", "2017-08-31 01:15:00", 347.816, 347.816, 346.781, 346.781, 2],
+          ["TBB", "2017-08-31 01:30:00", 347.207, 347.207, 347.207, 347.207, 1],
+          ["TBB", "2017-08-31 01:45:00", null, null, null, null, null],
+          ["TBB", "2017-08-31 02:00:00", null, null, null, null, null],
+          ["TBB", "2017-08-31 02:15:00", 347.415, 347.415, 347.415, 347.415, 1],
+          ["TBB", "2017-08-31 02:30:00", null, null, null, null, null],
+          ["TBB", "2017-08-31 02:45:00", null, null, null, null, null]
         ]
-      ]
+      }
     },
-    "simple_input_data": {
-      "schema": "partition_a string, partition_b string, event_ts string, value_a float, value_b float",
-      "ts_col": "event_ts",
-      "series_ids": [
-        "partition_a",
-        "partition_b"
-      ],
-      "data": [
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:00:10",
-          0.0,
-          null
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:01:10",
-          2.0,
-          2.0
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:01:32",
-          null,
-          null
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:02:03",
-          null,
-          null
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:03:32",
-          null,
-          7.0
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:04:12",
-          8.0,
-          8.0
-        ],
-        [
-          "A",
-          "A-1",
-          "2020-01-01 00:05:31",
-          11.0,
-          null
+    "simple_ts_no_series": {
+      "tsdf": {
+        "ts_col": "event_ts",
+        "series_ids": []
+      },
+      "df": {
+        "schema": "event_ts string, trade_pr float",
+        "ts_convert": ["event_ts"],
+        "data": [
+          ["2020-08-01 00:00:10", 349.21],
+          ["2020-08-01 00:01:10", 743.01],
+          ["2020-08-01 00:01:12", null],
+          ["2020-08-01 00:01:24", null],
+          ["2020-09-01 00:02:10", 361.1],
+          ["2020-09-01 00:19:12", 362.1],
+          ["2020-09-01 00:20:42", 762.33]
         ]
-      ]
+      }
     }
   },
-  "InterpolationUnitTest": {
-    "test_validate_col_exist_in_df": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      }
-    },
-    "test_validate_col_target_cols_data_type": {
-      "input_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, string_target string, float_target float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:10",
-            349.21,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:03",
-            null,
-            4.0
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:01:15",
-            340.21,
-            9.0
-          ],
-          [
-            "B",
-            "B-1",
-            "2020-01-01 00:01:15",
-            362.1,
-            4.0
-          ],
-          [
-            "A",
-            "A-2",
-            "2020-01-01 00:01:17",
-            353.32,
-            8.0
-          ],
-          [
-            "B",
-            "B-2",
-            "2020-01-01 00:02:14",
-            null,
-            6.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:02",
-            351.32,
-            7.0
-          ],
-          [
-            "B",
-            "B-2",
-            "2020-01-01 00:01:12",
-            361.1,
-            5.0
-          ]
-        ]
-      }
-    },
-    "test_fill_validation": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      }
-    },
-    "test_target_column_validation": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      }
-    },
-    "test_partition_column_validation": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      }
-    },
-    "test_ts_column_validation": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      }
-    },
-    "test_zero_fill_interpolation": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            0.0,
-            false,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            0.0,
-            0.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            0.0,
-            0.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            0.0,
-            0.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            0.0,
-            0.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            0.0,
-            0.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            0.0,
-            7.0,
-            false,
-            true,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            0.0,
-            0.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            0.0,
-            0.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            0.0,
-            false,
-            false,
-            true
-          ]
-        ]
-      }
-    },
-    "test_zero_fill_interpolation_no_perform_checks": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "$ref": "#/InterpolationUnitTest/test_zero_fill_interpolation/expected_data"
-      }
-    },
-    "test_null_fill_interpolation": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null,
-            false,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            null,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            null,
-            null,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            null,
-            null,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            null,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            null,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            null,
-            7.0,
-            false,
-            true,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            null,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            null,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            null,
-            false,
-            false,
-            true
-          ]
-        ]
-      }
-    },
-    "test_back_fill_interpolation": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            2.0,
-            false,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            2.0,
-            2.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            8.0,
-            7.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            8.0,
-            7.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            8.0,
-            7.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            8.0,
-            7.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            8.0,
-            7.0,
-            false,
-            true,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            11.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            11.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            null,
-            false,
-            false,
-            true
-          ]
-        ]
-      }
-    },
-    "test_forward_fill_interpolation": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null,
-            false,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            0.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            2.0,
-            2.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            2.0,
-            2.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            2.0,
-            2.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            2.0,
-            2.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            2.0,
-            7.0,
-            false,
-            true,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            8.0,
-            8.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            8.0,
-            8.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            8.0,
-            false,
-            false,
-            true
-          ]
-        ]
-      }
-    },
-    "test_linear_fill_interpolation": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null,
-            false,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            1.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            3.0,
-            3.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            4.0,
-            4.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            5.0,
-            5.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            6.0,
-            6.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            7.0,
-            7.0,
-            false,
-            true,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            9.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            10.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            null,
-            false,
-            false,
-            true
-          ]
-        ]
-      }
-    },
-    "test_different_freq_abbreviations": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double, is_ts_interpolated boolean, is_interpolated_value_a boolean, is_interpolated_value_b boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null,
-            false,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            1.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            3.0,
-            3.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            4.0,
-            4.0,
-            false,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            5.0,
-            5.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            6.0,
-            6.0,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            7.0,
-            7.0,
-            false,
-            true,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0,
-            false,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            9.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            10.0,
-            null,
-            true,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            null,
-            false,
-            false,
-            true
-          ]
-        ]
-      }
-    },
-    "test_show_interpolated": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected_data": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            1.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            3.0,
-            3.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            4.0,
-            4.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            5.0,
-            5.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            6.0,
-            6.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            7.0,
-            7.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            9.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            10.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            null
-          ]
-        ]
-      }
-    },
-    "test_validate_ts_col_data_type_is_not_timestamp": {
-        "input_data": {
-            "$ref": "#/__SharedData/input_data"
+  "InterpolationTests": {
+    "test_zero_fill": {
+      "simple_ts_idx": {
+        "init": {
+          "$ref": "#/__SharedData/simple_ts_idx"
+        },
+        "expected": {
+          "tsdf": {
+            "ts_col": "event_ts",
+            "series_ids": ["symbol"]
+          },
+          "df": {
+            "schema": "symbol string, event_ts string, open double, high double, low double, close double, num_trades long",
+            "ts_convert": [
+              "event_ts"
+            ],
+            "data": [
+              ["AAN", "2017-08-31 03:45:00", 349.958, 349.958, 348.715, 348.715, 2],
+              ["AAN", "2017-08-31 04:00:00", 348.213, 348.213, 348.213, 348.213, 1],
+              ["AAN", "2017-08-31 04:15:00", 0.0, null, null, 0.0, null],
+              ["AAN", "2017-08-31 04:30:00", 0.0, null, null, 0.0, null],
+              ["AAN", "2017-08-31 04:45:00", 0.0, null, null, 0.0, null],
+              ["AAN", "2017-08-31 05:00:00", 347.322, 347.322, 347.322, 347.322, 1],
+              ["AAN", "2017-08-31 05:15:00", 349.795, 349.795, 347.039, 347.039, 2],
+              ["IBM", "2017-08-31 04:30:00", 0.0, null, null, 0.0, null],
+              ["IBM", "2017-08-31 04:45:00", 0.0, null, null, 0.0, null],
+              ["IBM", "2017-08-31 05:00:00", 347.603, 347.603, 347.603, 347.603, 1],
+              ["IBM", "2017-08-31 05:15:00", 348.285, 348.285, 348.285, 348.285, 1],
+              ["IBM", "2017-08-31 05:30:00", 347.881, 347.881, 347.881, 347.881, 1],
+              ["IBM", "2017-08-31 05:45:00", 348.371, 348.371, 348.371, 348.371, 1],
+              ["TBB", "2017-08-31 01:15:00", 347.816, 347.816, 346.781, 346.781, 2],
+              ["TBB", "2017-08-31 01:30:00", 347.207, 347.207, 347.207, 347.207, 1],
+              ["TBB", "2017-08-31 01:45:00", 0.0, null, null, 0.0, null],
+              ["TBB", "2017-08-31 02:00:00", 0.0, null, null, 0.0, null],
+              ["TBB", "2017-08-31 02:15:00", 347.415, 347.415, 347.415, 347.415, 1],
+              ["TBB", "2017-08-31 02:30:00", 0.0, null, null, 0.0, null],
+              ["TBB", "2017-08-31 02:45:00", 0.0, null, null, 0.0, null]
+            ]
+          }
         }
-    },
-    "test_interpolation_freq_is_none": {
-        "input_data": {
-            "$ref": "#/__SharedData/input_data"
-        }
-    },
-    "test_interpolation_func_is_none": {
-        "input_data": {
-            "$ref": "#/__SharedData/input_data"
-        }
-    },
-    "test_interpolation_func_is_callable": {
-        "input_data": {
-            "$ref": "#/__SharedData/input_data"
-        }
-    },
-    "test_interpolation_freq_is_not_supported_type": {
-        "input_data": {
-            "$ref": "#/__SharedData/input_data"
-        }
-    }
-  },
-  "InterpolationIntegrationTest": {
-    "test_interpolation_using_default_tsdf_params": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
       },
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            1.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            3.0,
-            3.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            4.0,
-            4.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            5.0,
-            5.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            6.0,
-            6.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            7.0,
-            7.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            9.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            10.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            null
-          ]
-        ]
+      "simple_ts_no_series": {
+        "init": {
+          "$ref": "#/__SharedData/simple_ts_no_series"
+        },
+        "expected": {
+          "tsdf": {
+            "ts_col": "event_ts",
+            "series_ids": []
+          },
+          "df": {
+            "schema": "event_ts string, trade_pr float",
+            "ts_convert": ["event_ts"],
+            "data": [
+              ["2020-08-01 00:00:10", 349.21],
+              ["2020-08-01 00:01:10", 743.01],
+              ["2020-08-01 00:01:12", 0.0],
+              ["2020-08-01 00:01:24", 0.0],
+              ["2020-09-01 00:02:10", 361.1],
+              ["2020-09-01 00:19:12", 362.1],
+              ["2020-09-01 00:20:42", 762.33]
+            ]
+          }
+        }
       }
     },
-    "test_interpolation_using_custom_params": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
+    "test_linear": {
+      "simple_ts_idx": {
+        "init": {
+          "$ref": "#/__SharedData/simple_ts_idx"
+        },
+        "expected": {
+          "tsdf": {
+            "ts_col": "event_ts",
+            "series_ids": ["symbol"]
+          },
+          "df": {
+            "schema": "symbol string, event_ts string, open double, high double, low double, close double, num_trades long",
+            "ts_convert": [
+              "event_ts"
+            ],
+            "data": [
+              ["AAN", "2017-08-31 03:45:00", 349.958, 349.958, 348.715, 348.715, 2],
+              ["AAN", "2017-08-31 04:00:00", 348.213, 348.213, 348.213, 348.213, 1],
+              ["AAN", "2017-08-31 04:15:00", 347.99025, null, null, 347.99025, null],
+              ["AAN", "2017-08-31 04:30:00", 347.76750000000004, null, null, 347.76750000000004, null],
+              ["AAN", "2017-08-31 04:45:00", 347.54475, null, null, 347.54475, null],
+              ["AAN", "2017-08-31 05:00:00", 347.322, 347.322, 347.322, 347.322, 1],
+              ["AAN", "2017-08-31 05:15:00", 349.795, 349.795, 347.039, 347.039, 2],
+              ["IBM", "2017-08-31 04:30:00", null, null, null, null, null],
+              ["IBM", "2017-08-31 04:45:00", null, null, null, null, null],
+              ["IBM", "2017-08-31 05:00:00", 347.603, 347.603, 347.603, 347.603, 1],
+              ["IBM", "2017-08-31 05:15:00", 348.285, 348.285, 348.285, 348.285, 1],
+              ["IBM", "2017-08-31 05:30:00", 347.881, 347.881, 347.881, 347.881, 1],
+              ["IBM", "2017-08-31 05:45:00", 348.371, 348.371, 348.371, 348.371, 1],
+              ["TBB", "2017-08-31 01:15:00", 347.816, 347.816, 346.781, 346.781, 2],
+              ["TBB", "2017-08-31 01:30:00", 347.207, 347.207, 347.207, 347.207, 1],
+              ["TBB", "2017-08-31 01:45:00", 347.27633333333335, null, null, 347.27633333333335, null],
+              ["TBB", "2017-08-31 02:00:00", 347.34566666666666, null, null, 347.34566666666666, null],
+              ["TBB", "2017-08-31 02:15:00", 347.415, 347.415, 347.415, 347.415, 1],
+              ["TBB", "2017-08-31 02:30:00", 347.415, null, null, 347.415, null],
+              ["TBB", "2017-08-31 02:45:00", 347.415, null, null, 347.415, null]
+            ]
+          }
+        }
       },
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected": {
-        "schema": "partition_a string, partition_b string, other_ts_col string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
-        "ts_col": "other_ts_col",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            1.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            3.0,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            4.0,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            5.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            6.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            7.0,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            9.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            10.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            false,
-            false
-          ]
-        ]
-      }
-    },
-    "test_interpolation_on_sampled_data": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      },
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, is_ts_interpolated boolean, is_interpolated_value_a boolean",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            1.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            3.0,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            4.0,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            5.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            6.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            7.0,
-            false,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            false,
-            false
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            9.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            10.0,
-            true,
-            true
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            false,
-            false
-          ]
-        ]
-      }
-    },
-    "test_defaults_with_resampled_df": {
-      "input_data": {
-        "$ref": "#/__SharedData/input_data"
-      },
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
-      },
-      "expected": {
-        "schema": "partition_a string, partition_b string, event_ts string, value_a double, value_b double",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "partition_a",
-          "partition_b"
-        ],
-        "data": [
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:00",
-            0.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:00:30",
-            0.0,
-            null
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:00",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:01:30",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:00",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:02:30",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:00",
-            2.0,
-            2.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:03:30",
-            2.0,
-            7.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:00",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:04:30",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:00",
-            8.0,
-            8.0
-          ],
-          [
-            "A",
-            "A-1",
-            "2020-01-01 00:05:30",
-            11.0,
-            8.0
-          ]
-        ]
-      }
-    },
-    "test_tsdf_constructor_params_are_updated": {
-      "simple_input_data": {
-        "$ref": "#/__SharedData/simple_input_data"
+      "simple_ts_no_series": {
+        "init": {
+          "$ref": "#/__SharedData/simple_ts_no_series"
+        },
+        "expected": {
+          "tsdf": {
+            "ts_col": "event_ts",
+            "series_ids": []
+          },
+          "df": {
+            "schema": "event_ts string, trade_pr float",
+            "ts_convert": ["event_ts"],
+            "data": [
+              ["2020-08-01 00:00:10", 349.21],
+              ["2020-08-01 00:01:10", 743.01],
+              ["2020-08-01 00:01:12", 615.7066650390625],
+              ["2020-08-01 00:01:24", 488.4033508300781],
+              ["2020-09-01 00:02:10", 361.1],
+              ["2020-09-01 00:19:12", 362.1],
+              ["2020-09-01 00:20:42", 762.33]
+            ]
+          }
+        }
       }
     }
   }

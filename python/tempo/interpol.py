@@ -108,8 +108,8 @@ def interpolate(
     seg_trans_col = "__tmp_seg_transition"
     all_win = tsdf.baseWindow()
     segments = need_intpl.withColumn(seg_trans_col,
-                                     sfn.lag(needs_intpl_col, 1, False).over(all_win).isNull()
-                                     != sfn.col(needs_intpl_col).isNull())
+                                     sfn.lag(needs_intpl_col, 1, False).over(all_win)
+                                     != sfn.col(needs_intpl_col))
 
     # assign a group number to each segment
     seg_group_col = "__tmp_seg_group"
@@ -174,7 +174,7 @@ def interpolate(
 
     # merge the interpolated segments with the non-interpolated ones
     final_df = (no_interpol.union(interpolated_df)
-                .drop(seg_group_col, needs_intpl_col))
+                .drop(seg_group_col, needs_intpl_col, seg_trans_col))
 
     # return it as a new TSDF
     return TSDF(final_df, ts_schema=copy.deepcopy(tsdf.ts_schema))

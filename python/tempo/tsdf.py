@@ -757,7 +757,8 @@ class TSDF(WindowBuilder):
             ipydisplay(
                 HTML("<style>pre { white-space: pre !important; }</style>")
             )  # pragma: no cover
-        t_utils.get_display_df(self, k).show(n, truncate, vertical)
+        # t_utils.get_display_df(self, k).show(n, truncate, vertical)
+        self.df.show(n, truncate, vertical)
 
     # def describe(self) -> DataFrame:
     #     """
