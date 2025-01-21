@@ -13,7 +13,6 @@ from tempo.intervals import (
     IntervalsUtils,
     OverlapResolver,
     make_disjoint_wrap,
-    resolve_all_overlaps,
 )
 from tests.tsdf_tests import SparkTest
 
@@ -425,7 +424,7 @@ class PandasFunctionTests(TestCase):
             pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:05"}), "start", "end"
         )
 
-        result = IntervalsUtils(df).identify_interval_overlaps(row)
+        result = IntervalsUtils(df).find_overlaps(row)
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_overlapping_intervals(self):
@@ -447,7 +446,7 @@ class PandasFunctionTests(TestCase):
             pd.Series({"start": "2023-01-01T00:00:03", "end": "2023-01-01T00:00:06"}), "start", "end"
         )
 
-        result = IntervalsUtils(df).identify_interval_overlaps(row)
+        result = IntervalsUtils(df).find_overlaps(row)
         expected = pd.DataFrame(
             {
                 "start": ["2023-01-01T00:00:01", "2023-01-01T00:00:04"],
@@ -474,7 +473,7 @@ class PandasFunctionTests(TestCase):
         )
         row = Interval(pd.Series({"start": "2023-01-01T00:00:04.1", "end": "2023-01-01T00:00:05"}), "start", "end")
 
-        result = IntervalsUtils(df).identify_interval_overlaps(row)
+        result = IntervalsUtils(df).find_overlaps(row)
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_interval_subset(self):
@@ -494,7 +493,7 @@ class PandasFunctionTests(TestCase):
         )
         row = Interval(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:04"}), "start", "end")
 
-        result = IntervalsUtils(df).identify_interval_overlaps(row)
+        result = IntervalsUtils(df).find_overlaps(row)
         expected = pd.DataFrame(
             {"start": ["2023-01-01T00:00:01"], "end": ["2023-01-01T00:00:10"]}
         )
@@ -507,7 +506,7 @@ class PandasFunctionTests(TestCase):
         )
         row = Interval(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:05"}), "start", "end")
 
-        result = IntervalsUtils(df).identify_interval_overlaps(row)
+        result = IntervalsUtils(df).find_overlaps(row)
         self.assertTrue(result.empty)
 
     # TODO: uncomment once this method is moved into the Intervals Class
@@ -1228,9 +1227,7 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = resolve_all_overlaps(
-            interval, overlaps
-        )
+        result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
 
         self.assertEqual(3, len(result))
 
@@ -1254,9 +1251,7 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = resolve_all_overlaps(
-            interval, overlaps,
-        )
+        result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
 
         self.assertEqual(4, len(result))
 
