@@ -10,11 +10,10 @@ from pyspark.sql.utils import AnalysisException
 from tempo.intervals import (
     Interval,
     IntervalsDF,
+    IntervalsUtils,
     OverlapResolver,
-    identify_interval_overlaps,
-    resolve_all_overlaps,
-    add_as_disjoint,
     make_disjoint_wrap,
+    resolve_all_overlaps,
 )
 from tests.tsdf_tests import SparkTest
 
@@ -422,8 +421,11 @@ class IntervalsDFTests(SparkTest):
 class PandasFunctionTests(TestCase):
     def test_identify_interval_overlaps_df_empty(self):
         df = pd.DataFrame()
-        row = pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:05"})
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
+        row = Interval(
+            pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:05"}), "start", "end"
+        )
+
+        result = IntervalsUtils(df).identify_interval_overlaps(row)
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_overlapping_intervals(self):
@@ -441,8 +443,11 @@ class PandasFunctionTests(TestCase):
                 ],
             }
         )
-        row = pd.Series({"start": "2023-01-01T00:00:03", "end": "2023-01-01T00:00:06"})
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
+        row = Interval(
+            pd.Series({"start": "2023-01-01T00:00:03", "end": "2023-01-01T00:00:06"}), "start", "end"
+        )
+
+        result = IntervalsUtils(df).identify_interval_overlaps(row)
         expected = pd.DataFrame(
             {
                 "start": ["2023-01-01T00:00:01", "2023-01-01T00:00:04"],
@@ -467,10 +472,9 @@ class PandasFunctionTests(TestCase):
                 ],
             }
         )
-        row = pd.Series(
-            {"start": "2023-01-01T00:00:04.1", "end": "2023-01-01T00:00:05"}
-        )
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
+        row = Interval(pd.Series({"start": "2023-01-01T00:00:04.1", "end": "2023-01-01T00:00:05"}), "start", "end")
+
+        result = IntervalsUtils(df).identify_interval_overlaps(row)
         self.assertTrue(result.empty)
 
     def test_identify_interval_overlaps_interval_subset(self):
@@ -488,8 +492,9 @@ class PandasFunctionTests(TestCase):
                 ],
             }
         )
-        row = pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:04"})
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
+        row = Interval(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:04"}), "start", "end")
+
+        result = IntervalsUtils(df).identify_interval_overlaps(row)
         expected = pd.DataFrame(
             {"start": ["2023-01-01T00:00:01"], "end": ["2023-01-01T00:00:10"]}
         )
@@ -500,8 +505,9 @@ class PandasFunctionTests(TestCase):
         df = pd.DataFrame(
             {"start": ["2023-01-01T00:00:02"], "end": ["2023-01-01T00:00:05"]}
         )
-        row = pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:05"})
-        result = identify_interval_overlaps(df, Interval(row, "start", "end"))
+        row = Interval(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:05"}), "start", "end")
+
+        result = IntervalsUtils(df).identify_interval_overlaps(row)
         self.assertTrue(result.empty)
 
     # TODO: uncomment once this method is moved into the Intervals Class
@@ -909,7 +915,7 @@ class PandasFunctionTests(TestCase):
             update_value="2023-01-01T01:30:00",
         )
 
-    # NB: `mertric_merge_method = False` is a placeholder to allow
+    # NB: `metric_merge_method = False` is a placeholder to allow
     # user-defined merge methods in the future and is currently a
     # no-op.
     def test_merge_metrics_with_list_metric_merge_false(self):
@@ -922,7 +928,7 @@ class PandasFunctionTests(TestCase):
 
         self.assertTrue(merged.equals(expected))
 
-    # NB: `mertric_merge_method = True` is a placeholder to allow
+    # NB: `metric_merge_method = True` is a placeholder to allow
     # user-defined merge methods in the future and currently takes
     # metrics from the `child_interval` if they are not null or nan.
     def test_merge_metrics_with_list_metric_merge_true(self):
@@ -1252,7 +1258,7 @@ class PandasFunctionTests(TestCase):
             interval, overlaps,
         )
 
-        self.assertEqual(len(result), 4)
+        self.assertEqual(4, len(result))
 
     def test_add_as_disjoint_where_basic_overlap(self):
         interval = Interval(pd.Series(
@@ -1266,7 +1272,10 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(interval, disjoint_set)
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
 
         expected = pd.DataFrame(
             {
@@ -1298,7 +1307,10 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(interval, disjoint_set)
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
 
         expected = pd.concat([disjoint_set, pd.DataFrame([interval.data])])
 
@@ -1310,18 +1322,10 @@ class PandasFunctionTests(TestCase):
         ), "start", "end", metric_columns="value")
         disjoint_set = pd.DataFrame()
 
-        result = add_as_disjoint(interval, disjoint_set)
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
 
-        expected = pd.DataFrame([interval.data])
-
-        self.assertTrue(np.array_equal(result.values, expected.values))
-
-    def test_add_as_disjoint_where_none_disjoint_set(self):
-        interval = Interval(pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
-
-        result = add_as_disjoint(interval, None)
+        result = interval_utils.add_as_disjoint(interval)
 
         expected = pd.DataFrame([interval.data])
 
@@ -1339,7 +1343,10 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(interval, disjoint_set)
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
 
         self.assertTrue(np.array_equal(result.values, disjoint_set.values))
 
@@ -1363,7 +1370,10 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(interval, disjoint_set)
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
 
         expected = pd.DataFrame(
             {
@@ -1408,7 +1418,10 @@ class PandasFunctionTests(TestCase):
             }
         )
 
-        result = add_as_disjoint(interval, disjoint_set)
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
 
         expected = pd.DataFrame(
             {
