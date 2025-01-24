@@ -1,30 +1,28 @@
+import unittest
 from typing import List
 
-import unittest
-from parameterized import parameterized
-
-from pyspark.sql.dataframe import DataFrame
+from parameterized import parameterized, parameterized_class
 
 from tempo.interpol import interpolate, zero_fill
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
-
+@parameterized_class(("data_type", "interpol_cols"),[
+    ('simple_ts_idx', ["open", "close"] ),
+    ('simple_ts_no_series', ["trade_pr"])
+])
 class InterpolationTests(SparkTest):
-    @parameterized.expand([
-        ('simple_ts_idx', ["open", "close"] ),
-        ('simple_ts_no_series', ["trade_pr"])
-    ])
-    def test_zero_fill(self,
-                       init_tsdf_id: str,
-                       interpol_cols: List[str]):
+
+    def test_zero_fill(self):
         # load the initial & expected dataframes
-        init_tsdf: TSDF = self.get_test_function_df_builder(init_tsdf_id, "init").as_tsdf()
-        expected_tsdf: TSDF = self.get_test_function_df_builder(init_tsdf_id, "expected").as_tsdf()
+        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                            "init").as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                                "expected").as_tsdf()
 
         # interpolate
         actual_tsdf: TSDF = interpolate(init_tsdf,
-                                        interpol_cols,
+                                        self.interpol_cols,
                                         zero_fill,
                                         0,
                                         0)
@@ -34,21 +32,16 @@ class InterpolationTests(SparkTest):
         self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
                                      actual_tsdf.withNaturalOrdering())
 
-    @parameterized.expand([
-        ('simple_ts_idx', ["open", "close"]),
-        ('simple_ts_no_series', ["trade_pr"])
-    ])
-    def test_linear(self,
-                    init_tsdf_id: str,
-                    interpol_cols: List[str]):
+    def test_linear(self):
         # load the initial & expected dataframes
-        init_tsdf: TSDF = self.get_test_function_df_builder(init_tsdf_id,
+        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
                                                             "init").as_tsdf()
-        expected_tsdf: TSDF = self.get_test_function_df_builder(init_tsdf_id, "expected").as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                                "expected").as_tsdf()
 
         # interpolate
         actual_tsdf: TSDF = interpolate(init_tsdf,
-                                        interpol_cols,
+                                        self.interpol_cols,
                                         "linear",
                                         1,
                                         1)
