@@ -724,8 +724,8 @@ class NoOverlapResolver(OverlapResolver):
 
 
 class EquivalentMetricsResolver(OverlapResolver):
-    def resolve(self, interval: Interval, other: Interval) -> pd.Series:
-        return interval.update_end_boundary(other.data[other.end_ts]).data
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        return [interval.update_end_boundary(other.data[other.end_ts]).data]
 
 
 class ContainedResolverBase(OverlapResolver):
@@ -972,57 +972,15 @@ class IntervalTransformer:
 
         self.validate_intervals()
 
-        resolved = list()
+        overlap_result = self.overlap_detector.detect_overlap_type()
+        if overlap_result is None:
+            raise NotImplementedError("Unable to determine overlap type")
 
-        if self.checkers[OverlapType.NO_OVERLAP].check(self.interval, self.other):
-            return self.resolvers[OverlapType.NO_OVERLAP].resolve(self.interval, self.other)
+        resolver = self.resolvers.get(overlap_result.type)
+        if resolver is None:
+            raise NotImplementedError(f"No resolver for overlap type {overlap_result.type}")
 
-        if self.checkers[OverlapType.METRICS_EQUIVALENT].check(self.interval, self.other):
-            resolved.append(
-                self.resolvers[OverlapType.METRICS_EQUIVALENT].resolve(self.interval, self.other)
-            )
-
-            return resolved
-
-        if self.checkers[OverlapType.INTERVAL_CONTAINED].check(self.interval, self.other):
-            resolved.extend(
-                self.resolvers[OverlapType.INTERVAL_CONTAINED].resolve(self.interval, self.other)
-            )
-
-            return resolved
-
-        if self.checkers[OverlapType.OTHER_CONTAINED].check(self.interval, self.other):
-            resolved.extend(self.resolvers[OverlapType.OTHER_CONTAINED].resolve(self.interval, self.other))
-
-            return resolved
-
-        if self.checkers[OverlapType.COMMON_START].check(self.interval, self.other):
-            resolved.extend(
-                self.resolvers[OverlapType.COMMON_START].resolve(self.interval, self.other)
-            )
-
-            return resolved
-
-        if self.checkers[OverlapType.COMMON_END].check(self.interval, self.other):
-            resolved.extend(
-                self.resolvers[OverlapType.COMMON_END].resolve(self.interval, self.other)
-            )
-
-            return resolved
-
-        if self.checkers[OverlapType.BOUNDARY_EQUAL].check(self.interval, self.other):
-            resolved.extend(
-                self.resolvers[OverlapType.BOUNDARY_EQUAL].resolve(self.interval, self.other)
-            )
-
-            return resolved
-
-        if self.checkers[OverlapType.PARTIAL_OVERLAP].check(self.interval, self.other):
-            resolved.extend(self.resolvers[OverlapType.PARTIAL_OVERLAP].resolve(self.interval, self.other))
-
-            return resolved
-
-        raise NotImplementedError("Interval resolution not implemented")
+        return resolver.resolve(self.interval, self.other)
 
     def merge_metrics(
             self,
