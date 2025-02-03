@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod, ABC
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum, auto
 from functools import cached_property
-from typing import Optional, Iterable, Callable, Sequence
+from typing import Optional, Iterable, Callable, Sequence, Dict, Type
 
 import pandas as pd
 import pyspark.sql.functions as f
@@ -471,6 +472,66 @@ class IntervalValidator:
         return IntervalValidator._validate_columns(metric_columns, "metric columns")
 
 
+@dataclass
+class OverlapResult:
+    type: OverlapType
+    details: Optional[Dict] = None
+
+
+class IntervalOverlapDetector:
+    """
+       Detects type of overlap between two intervals using strategy pattern.
+       Checks are ordered from most specific to most general:
+       1. NO_OVERLAP - Basic disqualification
+       2. METRICS_EQUIVALENT - Complete equality case
+       3. BOUNDARY_EQUAL - Exact boundary matches
+       4. START/END_BOUNDARY_EQUAL - Partial boundary matches
+       5. INTERVAL/OTHER_CONTAINED - Full containment cases
+       6. PARTIAL_OVERLAP - Most general case
+   """
+
+    def __init__(
+            self,
+            interval: Interval,
+            other: Interval,
+    ) -> None:
+        self.interval = interval
+        self.other = other
+        self._checkers = self._init_checkers()
+
+    def detect_overlap_type(self) -> Optional[OverlapResult]:
+        """Returns the most specific type of overlap found"""
+        for overlap_type, checker in self._checkers.items():
+            if checker.check(self.interval, self.other):
+                return OverlapResult(overlap_type)
+        return None
+
+    def _init_checkers(self) -> Dict[OverlapType, OverlapChecker]:
+        """
+        Initializes ordered checkers from most specific to most general.
+        To add new checks:
+        1. Create new OverlapChecker implementation
+        2. Add new type to OverlapType enum
+        3. Add checker instance here in appropriate order
+        """
+        return OrderedDict([
+            (OverlapType.NO_OVERLAP, NoOverlapChecker()),
+            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
+            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
+            (OverlapType.COMMON_START, CommonStartChecker()),
+            (OverlapType.COMMON_END, CommonEndChecker()),
+            (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
+            (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
+            # (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
+        ])
+
+    def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
+        """Adds a new checker type at runtime"""
+        self._checkers[overlap_type] = checker()
+
+
+
+
 class Interval:
     def __init__(
             self,
@@ -628,6 +689,21 @@ class BoundaryEqualityChecker(OverlapChecker):
         )
 
 
+class CommonStartChecker(OverlapChecker):
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (
+                StartBoundaryEqualityChecker().check(interval, other)
+                and not EndBoundaryEqualityChecker().check(interval, other)
+        )
+
+
+class CommonEndChecker(OverlapChecker):
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (
+                not StartBoundaryEqualityChecker().check(interval, other)
+                and EndBoundaryEqualityChecker().check(interval, other)
+        )
+
 class OverlapResolver(ABC):
     @abstractmethod
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
@@ -674,7 +750,7 @@ class OtherContainedResolver(ContainedResolverBase):
         return NonNullOverwriteMetricMerger().merge(other, interval)
 
 
-class StartBoundaryEqualityResolver(OverlapResolver):
+class CommonStartResolver(OverlapResolver):
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         resolved = []
 
@@ -703,7 +779,7 @@ class StartBoundaryEqualityResolver(OverlapResolver):
         return resolved
 
 
-class EndBoundaryEqualityResolver(OverlapResolver):
+class CommonEndResolver(OverlapResolver):
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         resolved = []
 
@@ -791,10 +867,22 @@ class NonNullOverwriteMetricMerger(MetricMerger):
         return merged_data
 
 
+# Here are the main interval relationship types in interval algebra:
+#
+# Before (b): A ends before B starts
+# Meets (m): A ends exactly when B starts
+# Overlaps (o): A starts before B and they overlap, but A ends before B
+# Starts (s): A and B start together, but A ends before B
+# During (d): A starts after B and ends before B
+# Finishes (f): A starts after B but they end together
+# Equals (e): A and B have the same start and end
+
+
 class OverlapType(Enum):
     """Enumeration of possible interval overlap types"""
     BOUNDARY_EQUAL = auto()
-    END_BOUNDARY_EQUAL = auto()
+    COMMON_END = auto()
+    COMMON_START = auto()
     INTERVAL_CONTAINED = auto()
     INTERVAL_ENDS_FIRST = auto()
     INTERVAL_STARTS_FIRST = auto()
@@ -804,8 +892,6 @@ class OverlapType(Enum):
     OTHER_ENDS_FIRST = auto()
     OTHER_STARTS_FIRST = auto()
     PARTIAL_OVERLAP = auto()
-    START_BOUNDARY_EQUAL = auto()
-
 
 class IntervalTransformer:
     def __init__(
@@ -832,7 +918,8 @@ class IntervalTransformer:
         self.checkers = {
 
             OverlapType.BOUNDARY_EQUAL: BoundaryEqualityChecker(),
-            OverlapType.END_BOUNDARY_EQUAL: EndBoundaryEqualityChecker(),
+            OverlapType.COMMON_END: CommonEndChecker(),
+            OverlapType.COMMON_START: CommonStartChecker(),
             OverlapType.INTERVAL_CONTAINED: IntervalContainedChecker(),
             OverlapType.INTERVAL_ENDS_FIRST: IntervalEndsFirstChecker(),
             OverlapType.INTERVAL_STARTS_FIRST: IntervalStartsFirstChecker(),
@@ -841,20 +928,19 @@ class IntervalTransformer:
             OverlapType.OTHER_CONTAINED: OtherContainedChecker(),
             OverlapType.OTHER_ENDS_FIRST: OtherEndsFirstChecker(),
             OverlapType.OTHER_STARTS_FIRST: OtherStartsFirstChecker(),
-            OverlapType.START_BOUNDARY_EQUAL: StartBoundaryEqualityChecker(),
 
         }
 
         self.resolvers = {
 
             OverlapType.BOUNDARY_EQUAL: BoundaryEqualityResolver(),
-            OverlapType.END_BOUNDARY_EQUAL: EndBoundaryEqualityResolver(),
+            OverlapType.COMMON_END: CommonEndResolver(),
             OverlapType.INTERVAL_CONTAINED: IntervalContainedResolver(),
             OverlapType.METRICS_EQUIVALENT: EquivalentMetricsResolver(),
             OverlapType.NO_OVERLAP: NoOverlapResolver(),
             OverlapType.OTHER_CONTAINED: OtherContainedResolver(),
             OverlapType.PARTIAL_OVERLAP: PartialOverlapResolver(),
-            OverlapType.START_BOUNDARY_EQUAL: StartBoundaryEqualityResolver(),
+            OverlapType.COMMON_START: CommonStartResolver(),
 
         }
 
@@ -862,34 +948,6 @@ class IntervalTransformer:
 
         if set(self.interval.data.index) != set(self.other.data.index):
             raise ValueError("Expected indices of interval elements to be equivalent.")
-
-    def resolve_interval_partial_overlap(self):
-        resolved = []
-        # 1)
-        resolved_series = self.interval.update_end_boundary(self.other.data[self.other.start_ts]).data
-
-        resolved.append(resolved_series)
-
-        # 2)
-        updated_series = self.other.update_end_boundary(self.interval.data[self.interval.end_ts]).data
-        resolved_series = NonNullOverwriteMetricMerger().merge(
-            Interval(
-                updated_series,
-                self.other.start_ts,
-                self.other.end_ts,
-                metric_columns=self.other.metric_columns,
-            ),
-            self.interval,
-        )
-
-        resolved.append(resolved_series)
-
-        # 3)
-        resolved_series = self.other.update_start_boundary(self.interval.data[self.interval.end_ts]).data
-
-        resolved.append(resolved_series)
-
-        return resolved
 
     def resolve_overlap(  # TODO: need to implement proper metric merging
             #  -> for now, can just take non-null values from both intervals
@@ -926,18 +984,16 @@ class IntervalTransformer:
 
             return resolved
 
-        if self.checkers[OverlapType.START_BOUNDARY_EQUAL].check(self.interval, self.other) and not self.checkers[
-            OverlapType.END_BOUNDARY_EQUAL].check(self.interval, self.other):
+        if self.checkers[OverlapType.COMMON_START].check(self.interval, self.other):
             resolved.extend(
-                self.resolvers[OverlapType.START_BOUNDARY_EQUAL].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.COMMON_START].resolve(self.interval, self.other)
             )
 
             return resolved
 
-        if not self.checkers[OverlapType.START_BOUNDARY_EQUAL].check(self.interval, self.other) and self.checkers[
-            OverlapType.END_BOUNDARY_EQUAL].check(self.interval, self.other):
+        if self.checkers[OverlapType.COMMON_END].check(self.interval, self.other):
             resolved.extend(
-                self.resolvers[OverlapType.END_BOUNDARY_EQUAL].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.COMMON_END].resolve(self.interval, self.other)
             )
 
             return resolved
