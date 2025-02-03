@@ -479,17 +479,6 @@ class OverlapResult:
 
 
 class OverlapDetector:
-    """
-       Detects type of overlap between two intervals using strategy pattern.
-       Checks are ordered from most specific to most general:
-       1. NO_OVERLAP - Basic disqualification
-       2. METRICS_EQUIVALENT - Complete equality case
-       3. BOUNDARY_EQUAL - Exact boundary matches
-       4. START/END_BOUNDARY_EQUAL - Partial boundary matches
-       5. INTERVAL/OTHER_CONTAINED - Full containment cases
-       6. PARTIAL_OVERLAP - Most general case
-   """
-
     def __init__(
             self,
             interval: Interval,
