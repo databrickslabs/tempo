@@ -476,8 +476,8 @@ class Interval:
     def __init__(
             self,
             data: pd.Series,
-            start_ts: Optional[str] = None,
-            end_ts: Optional[str] = None,
+            start_ts: str,
+            end_ts: str,
             series_ids: Optional[Sequence[str]] = None,
             metric_columns: Optional[Sequence[str]] = None,
     ):
@@ -998,10 +998,6 @@ class IntervalTransformer:
         overlap_result = self.overlap_detector.detect_overlap_type()
         if overlap_result is None:
             raise NotImplementedError("Unable to determine overlap type")
-
-        resolver = self.resolvers.get(overlap_result.type)
-        if resolver is None:
-            raise NotImplementedError(f"No resolver for overlap type {overlap_result.type}")
 
         resolution_result = self.resolution_manager.resolve(
             overlap_result.type,
