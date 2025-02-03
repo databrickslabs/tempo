@@ -478,7 +478,7 @@ class OverlapResult:
     details: Optional[Dict] = None
 
 
-class IntervalOverlapDetector:
+class OverlapDetector:
     """
        Detects type of overlap between two intervals using strategy pattern.
        Checks are ordered from most specific to most general:
@@ -517,12 +517,12 @@ class IntervalOverlapDetector:
         return OrderedDict([
             (OverlapType.NO_OVERLAP, NoOverlapChecker()),
             (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
-            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
-            (OverlapType.COMMON_START, CommonStartChecker()),
-            (OverlapType.COMMON_END, CommonEndChecker()),
             (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
             (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
-            # (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
+            (OverlapType.COMMON_START, CommonStartChecker()),
+            (OverlapType.COMMON_END, CommonEndChecker()),
+            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
+            (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
         ])
 
     def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
@@ -702,6 +702,14 @@ class CommonEndChecker(OverlapChecker):
         return (
                 not StartBoundaryEqualityChecker().check(interval, other)
                 and EndBoundaryEqualityChecker().check(interval, other)
+        )
+
+
+class PartialOverlapChecker(OverlapChecker):
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (
+                IntervalStartsFirstChecker().check(interval, other)
+                and IntervalEndsFirstChecker().check(interval, other)
         )
 
 class OverlapResolver(ABC):
@@ -915,6 +923,8 @@ class IntervalTransformer:
             self.interval = other
             self.other = interval
 
+        self.overlap_detector = OverlapDetector(self.interval, self.other)
+
         self.checkers = {
 
             OverlapType.BOUNDARY_EQUAL: BoundaryEqualityChecker(),
@@ -928,6 +938,7 @@ class IntervalTransformer:
             OverlapType.OTHER_CONTAINED: OtherContainedChecker(),
             OverlapType.OTHER_ENDS_FIRST: OtherEndsFirstChecker(),
             OverlapType.OTHER_STARTS_FIRST: OtherStartsFirstChecker(),
+            OverlapType.PARTIAL_OVERLAP: PartialOverlapChecker(),
 
         }
 
@@ -935,12 +946,13 @@ class IntervalTransformer:
 
             OverlapType.BOUNDARY_EQUAL: BoundaryEqualityResolver(),
             OverlapType.COMMON_END: CommonEndResolver(),
+            OverlapType.COMMON_START: CommonStartResolver(),
             OverlapType.INTERVAL_CONTAINED: IntervalContainedResolver(),
             OverlapType.METRICS_EQUIVALENT: EquivalentMetricsResolver(),
             OverlapType.NO_OVERLAP: NoOverlapResolver(),
             OverlapType.OTHER_CONTAINED: OtherContainedResolver(),
             OverlapType.PARTIAL_OVERLAP: PartialOverlapResolver(),
-            OverlapType.COMMON_START: CommonStartResolver(),
+
 
         }
 
@@ -1005,9 +1017,7 @@ class IntervalTransformer:
 
             return resolved
 
-        if self.checkers[OverlapType.INTERVAL_STARTS_FIRST].check(self.interval, self.other) and self.checkers[
-            OverlapType.INTERVAL_ENDS_FIRST].check(
-            self.interval, self.other):
+        if self.checkers[OverlapType.PARTIAL_OVERLAP].check(self.interval, self.other):
             resolved.extend(self.resolvers[OverlapType.PARTIAL_OVERLAP].resolve(self.interval, self.other))
 
             return resolved
