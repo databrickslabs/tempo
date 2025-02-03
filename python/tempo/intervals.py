@@ -914,23 +914,6 @@ class IntervalTransformer:
 
         self.overlap_detector = OverlapDetector(self.interval, self.other)
 
-        self.checkers = {
-
-            OverlapType.BOUNDARY_EQUAL: BoundaryEqualityChecker(),
-            OverlapType.COMMON_END: CommonEndChecker(),
-            OverlapType.COMMON_START: CommonStartChecker(),
-            OverlapType.INTERVAL_CONTAINED: IntervalContainedChecker(),
-            OverlapType.INTERVAL_ENDS_FIRST: IntervalEndsFirstChecker(),
-            OverlapType.INTERVAL_STARTS_FIRST: IntervalStartsFirstChecker(),
-            OverlapType.METRICS_EQUIVALENT: MetricsEquivalentChecker(),
-            OverlapType.NO_OVERLAP: NoOverlapChecker(),
-            OverlapType.OTHER_CONTAINED: OtherContainedChecker(),
-            OverlapType.OTHER_ENDS_FIRST: OtherEndsFirstChecker(),
-            OverlapType.OTHER_STARTS_FIRST: OtherStartsFirstChecker(),
-            OverlapType.PARTIAL_OVERLAP: PartialOverlapChecker(),
-
-        }
-
         self.resolvers = {
 
             OverlapType.BOUNDARY_EQUAL: BoundaryEqualityResolver(),
