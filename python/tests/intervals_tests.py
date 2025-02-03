@@ -14,8 +14,7 @@ from tempo.intervals import (
     IntervalTransformer,
     make_disjoint_wrap,
     IntervalStartsFirstChecker, IntervalEndsFirstChecker, IntervalContainedChecker, StartBoundaryEqualityChecker,
-    EndBoundaryEqualityChecker, BoundaryEqualityChecker,
-)
+    EndBoundaryEqualityChecker, BoundaryEqualityChecker, InvalidTimestampError, )
 from tests.tsdf_tests import SparkTest
 
 
@@ -574,7 +573,7 @@ class PandasFunctionTests(TestCase):
 
     def test_start_nan_boundary(self):
         self.assertRaises(
-            TypeError,
+            InvalidTimestampError,
             Interval,
             pd.Series({"start": float("nan")}),
             "start",
@@ -583,7 +582,7 @@ class PandasFunctionTests(TestCase):
 
     def test_end_nan_boundary(self):
         self.assertRaises(
-            TypeError,
+            InvalidTimestampError,
             Interval,
             pd.Series({"start": float("nan"), "end": "2023-01-01T00:00:03"}),
             "start",
@@ -592,7 +591,7 @@ class PandasFunctionTests(TestCase):
 
     def test_none_end_boundary(self):
         self.assertRaises(
-            TypeError,
+            InvalidTimestampError,
             Interval,
             pd.Series(
                 {"start": "2022-01-02", "end": None, "metric_1": 6, "metric_2": 11}
@@ -604,7 +603,7 @@ class PandasFunctionTests(TestCase):
 
     def test_none_start_boundary(self):
         self.assertRaises(
-            TypeError,
+            InvalidTimestampError,
             Interval,
             pd.Series(
                 {"start": None, "end": "2022-01-01", "metric_1": 5, "metric_2": 10}
@@ -809,8 +808,18 @@ class PandasFunctionTests(TestCase):
     # user-defined merge methods in the future and is currently a
     # no-op.
     def test_merge_metrics_with_list_metric_merge_false(self):
-        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
-        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end")
+        interval = Interval(
+            pd.Series({"start": "01:00", "end": "02:00", "value": 10}),
+            "start",
+            "end",
+            [], ["value"],
+        )
+        other = Interval(
+            pd.Series({"start": "01:00", "end": "02:00", "value": 20}),
+            "start",
+            "end",
+            [], ["value"],
+        )
         expected = pd.Series({"start": "01:00", "end": "02:00", "value": 10})
 
         resolver = IntervalTransformer(interval, other)
@@ -869,8 +878,14 @@ class PandasFunctionTests(TestCase):
         self.assertTrue(merged.equals(expected))
 
     def test_merge_metrics_return_new_copy(self):
-        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
-        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 20}), "start", "end")
+        interval = Interval(
+            pd.Series({"start": "01:00", "end": "02:00", "value": 10}),
+            "start",
+            "end", [], ["value"])
+        other = Interval(
+            pd.Series({"start": "01:00", "end": "02:00", "value": 20}),
+            "start",
+            "end", [], ["value"])
 
         resolver = IntervalTransformer(interval, other)
 
@@ -878,8 +893,18 @@ class PandasFunctionTests(TestCase):
         self.assertNotEqual(id(interval), id(merged))
 
     def test_merge_metrics_handle_nan_in_child(self):
-        interval = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": 10}), "start", "end")
-        other = Interval(pd.Series({"start": "01:00", "end": "02:00", "value": float("nan")}), "start", "end")
+        interval = Interval(
+            pd.Series({"start": "01:00", "end": "02:00", "value": 10}),
+            "start",
+            "end",
+            [], ["value"]
+        )
+        other = Interval(
+            pd.Series({"start": "01:00", "end": "02:00", "value": float("nan")}),
+            "start",
+            "end",
+            [], ["value"]
+        )
 
         resolver = IntervalTransformer(interval, other)
 
@@ -891,11 +916,11 @@ class PandasFunctionTests(TestCase):
     def test_resolve_overlap_where_interval_other_have_equivalent_metric_cols(self):
         interval = Interval(pd.Series(
             {"start": "2022-01-02", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
-        ), "start", "end")
+        ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
         other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
-        ), "start", "end")
+        ), "start", "end", metric_columns=["metric_1", "metric_2"])
         resolver = IntervalTransformer(interval, other)
         result = resolver.resolve_overlap()
 
@@ -969,11 +994,11 @@ class PandasFunctionTests(TestCase):
     def test_resolve_overlap_shared_start_and_end(self):
         interval = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
-        ), "start", "end")
+        ), "start", "end", metric_columns=["metric_1", "metric_2"])
 
         other = Interval(pd.Series(
             {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
-        ), "start", "end")
+        ), "start", "end", metric_columns=["metric_1", "metric_2"])
         resolver = IntervalTransformer(interval, other)
         result = resolver.resolve_overlap()
 
@@ -1017,7 +1042,7 @@ class PandasFunctionTests(TestCase):
                 "metric_1": 5,
                 "metric_2": 10,
             }
-        ), "start", "end", "series_1", ["metric_1", "metric_2"])
+        ), "start", "end", ["series_1"], ["metric_1", "metric_2"])
 
         other = Interval(pd.Series(
             {
@@ -1027,7 +1052,7 @@ class PandasFunctionTests(TestCase):
                 "metric_1": 6,
                 "metric_2": 11,
             }
-        ), "start", "end", "wrong", ["metric_1", "metric_2"])
+        ), "start", "end", ["wrong"], ["metric_1", "metric_2"])
         resolver = IntervalTransformer(interval, other)
         self.assertRaises(
             ValueError,
@@ -1044,7 +1069,7 @@ class PandasFunctionTests(TestCase):
                 "metric_1": 5,
                 "metric_2": 10,
             }
-        ), "start", "end", "series_1", ["metric_1", "metric_2"])
+        ), "start", "end", ["series_1"], ["metric_1", "metric_2"])
 
         other = Interval(pd.Series(
             {
@@ -1054,7 +1079,7 @@ class PandasFunctionTests(TestCase):
                 "wrong": 6,
                 "metric_2": 11,
             }
-        ), "start", "end", "series_1", ["wrong", "metric_2"])
+        ), "start", "end", ["series_1"], ["wrong", "metric_2"])
         resolver = IntervalTransformer(interval, other)
         self.assertRaises(
             ValueError,
@@ -1101,7 +1126,7 @@ class PandasFunctionTests(TestCase):
     def test_resolve_all_overlaps_basic(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
+        ), "start", "end", metric_columns=["value"])
         overlaps = pd.DataFrame(
             {
                 "start": [
@@ -1125,7 +1150,7 @@ class PandasFunctionTests(TestCase):
     def test_resolve_all_overlaps_where_no_overlaps(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "end", "start")
+        ), "start", "end")
         overlaps = pd.DataFrame(
             {
                 "start": [
@@ -1149,7 +1174,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_basic_overlap(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
+        ), "start", "end", metric_columns=["value"])
         disjoint_set = pd.DataFrame(
             {
                 "start": ["2023-01-01 03:00:00"],
@@ -1184,7 +1209,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_no_overlap(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
+        ), "start", "end", metric_columns=["value"])
         disjoint_set = pd.DataFrame(
             {
                 "start": ["2023-01-01 06:00:00"],
@@ -1205,7 +1230,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_empty_disjoint_set(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
+        ), "start", "end", metric_columns=["value"])
         disjoint_set = pd.DataFrame()
 
         interval_utils = IntervalsUtils(disjoint_set)
@@ -1239,7 +1264,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_multiple_overlaps(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 01:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
+        ), "start", "end", metric_columns=["value"])
         disjoint_set = pd.DataFrame(
             {
                 "start": [
@@ -1295,7 +1320,7 @@ class PandasFunctionTests(TestCase):
     def test_add_as_disjoint_where_all_records_overlap(self):
         interval = Interval(pd.Series(
             {"start": "2023-01-01 01:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end", metric_columns="value")
+        ), "start", "end", metric_columns=["value"])
         disjoint_set = pd.DataFrame(
             {
                 "start": ["2023-01-01 01:30:00", "2023-01-01 02:30:00"],
@@ -1328,8 +1353,8 @@ class PandasFunctionTests(TestCase):
     def test_make_disjoint_wrap_basic(self):
         start_ts = "start"
         end_ts = "end"
-        series_ids = "id"
-        metric_columns = "value"
+        series_ids = ["id"]
+        metric_columns = ["value"]
 
         df = pd.DataFrame(
             {
@@ -1380,8 +1405,8 @@ class PandasFunctionTests(TestCase):
     def test_make_disjoint_wrap_where_no_overlaps(self):
         start_ts = "start"
         end_ts = "end"
-        series_ids = "id"
-        metric_columns = "value"
+        series_ids = ["id"]
+        metric_columns = ["value"]
 
         df = pd.DataFrame(
             {
@@ -1404,8 +1429,8 @@ class PandasFunctionTests(TestCase):
     def test_make_disjoint_duplicate_rows(self):
         start_ts = "start"
         end_ts = "end"
-        series_ids = "id"
-        metric_columns = "value"
+        series_ids = ["id"]
+        metric_columns = ["value"]
 
         df = pd.DataFrame(
             {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod, ABC
+from dataclasses import dataclass
 from enum import Enum, auto
 from functools import cached_property
 from typing import Optional, Iterable, Callable, Sequence
@@ -382,6 +383,94 @@ class IntervalsDF:
             return self.df
 
 
+class IntervalValidationError(Exception):
+    """Base exception for interval validation errors"""
+    pass
+
+
+class EmptyIntervalError(IntervalValidationError):
+    """Raised when interval data is empty"""
+    pass
+
+
+class InvalidDataTypeError(IntervalValidationError):
+    """Raised when data is not of expected type"""
+    pass
+
+
+class InvalidTimestampError(IntervalValidationError):
+    """Raised when timestamps are invalid"""
+    pass
+
+
+class InvalidMetricColumnError(IntervalValidationError):
+    """Raised when metric columns are invalid"""
+    pass
+
+
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    error: Optional[str] = None
+
+
+class IntervalValidator:
+    """Validates interval data and properties"""
+
+    @staticmethod
+    def validate_data(data: pd.Series) -> ValidationResult:
+        if data.empty:
+            raise EmptyIntervalError("Data must not be empty")
+
+        if not isinstance(data, pd.Series):
+            raise InvalidDataTypeError("Expected data to be a Pandas Series")
+
+        return ValidationResult(is_valid=True)
+
+    @staticmethod
+    def validate_timestamps(data: pd.Series, start_ts: str, end_ts: str) -> ValidationResult:
+        if not isinstance(data[start_ts], (str, pd.Timestamp)):
+            raise InvalidTimestampError(
+                f"start_ts must be string or Timestamp, got {type(data[start_ts])}"
+            )
+
+        if not isinstance(data[end_ts], (str, pd.Timestamp)):
+            raise InvalidTimestampError(
+                f"end_ts must be string or Timestamp, got {type(data[end_ts])}"
+            )
+
+        if data[start_ts] > data[end_ts]:
+            raise InvalidTimestampError(
+                f"start_ts ({data[start_ts]}) must be <= end_ts ({data[end_ts]})"
+            )
+
+        return ValidationResult(is_valid=True)
+
+    @staticmethod
+    def _validate_columns(columns: Optional[Sequence[str]], column_type: str) -> ValidationResult:
+        if columns is None:
+            return ValidationResult(is_valid=True)
+
+        if not (isinstance(columns, Sequence) and not isinstance(columns, str)):
+            raise InvalidMetricColumnError(f"{column_type} must be a sequence")
+
+        if not all(isinstance(col, str) for col in columns):
+            raise InvalidMetricColumnError(f"All {column_type} must be of type str")
+
+        if len(set(columns)) != len(columns):
+            raise InvalidMetricColumnError(f"Duplicate {column_type} found")
+
+        return ValidationResult(is_valid=True)
+
+    @staticmethod
+    def validate_series_id_columns(series_ids: Optional[Sequence[str]]) -> ValidationResult:
+        return IntervalValidator._validate_columns(series_ids, "series ID columns")
+
+    @staticmethod
+    def validate_metric_columns(metric_columns: Optional[Sequence[str]]) -> ValidationResult:
+        return IntervalValidator._validate_columns(metric_columns, "metric columns")
+
+
 class Interval:
     def __init__(
             self,
@@ -390,64 +479,58 @@ class Interval:
             end_ts: Optional[str] = None,
             series_ids: Optional[Sequence[str]] = None,
             metric_columns: Optional[Sequence[str]] = None,
-    ) -> None:
+    ):
 
-        if data.empty:
-            raise ValueError("Data must not be empty.")
-        if not isinstance(data, pd.Series):
-            raise TypeError("Expected `data` to be a Pandas Series.")
+        self.validator = IntervalValidator()
+
+        # Validate all components
+        self.validator.validate_data(data)
+        self.validator.validate_timestamps(data, start_ts, end_ts)
+        self.validator.validate_series_id_columns(series_ids)
+        self.validator.validate_metric_columns(metric_columns)
+
         self.data = data
-        # Validate that start_ts and end_ts are strings
-        if not isinstance(data[start_ts], (str, pd.Timestamp)) or not isinstance(data[end_ts], (str, pd.Timestamp)):
-            raise TypeError(
-                "start_ts and end_ts values must both be timestamp formatted strings or pandas.Timestamp type."
-            )
-
         self.start_ts = start_ts
         self.end_ts = end_ts
-
-        if isinstance(series_ids, str):
-            series_ids = series_ids.split(",")
-            series_ids = [s.strip() for s in series_ids]
-        elif isinstance(series_ids, Sequence):
-            series_ids = series_ids
-        elif series_ids is None:
-            series_ids = []
-        else:
-            raise ValueError(
-                "series_ids must be a Sequence or comma seperated string"
-                f" of column names, instead got {type(series_ids)}"
-            )
-
-        if series_ids is None:
-            self.series_ids: Sequence[str] = []
-        else:
-            self.series_ids: Sequence[str] = series_ids
-
-        if isinstance(metric_columns, str):
-            metric_columns = metric_columns.split(",")
-            metric_columns = [s.strip() for s in metric_columns]
-        elif isinstance(metric_columns, Sequence):
-            metric_columns = metric_columns
-        elif metric_columns is None:
-            metric_columns = []
-        else:
-            raise ValueError(
-                "metric_columns must be a Sequence or comma seperated string"
-                f" of column names, instead got {type(metric_columns)}"
-            )
-
+        self.series_ids = series_ids
         self.metric_columns = metric_columns
 
-        self.validate_metric_columns()
+    def _validate_column_alignment(
+            self,
+            self_columns: Sequence[str],
+            other_columns: Sequence[str],
+            column_type: str
+    ) -> ValidationResult:
+        """Generic validator for column alignment between intervals"""
+        if len(self_columns) != len(other_columns):
+            raise InvalidMetricColumnError(
+                f"{column_type} count mismatch: {len(self_columns)} vs {len(other_columns)}"
+            )
+
+        if set(self_columns) != set(other_columns):
+            raise InvalidMetricColumnError(
+                f"{column_type} don't match: {self_columns} vs {other_columns}"
+            )
+
+        return ValidationResult(is_valid=True)
+
+    def validate_series_alignment(self, other: 'Interval') -> ValidationResult:
+        return self._validate_column_alignment(
+            self.series_ids,
+            other.series_ids,
+            "Series IDs"
+        )
+
+    def validate_metrics_alignment(self, other: 'Interval') -> ValidationResult:
+        return self._validate_column_alignment(
+            self.metric_columns,
+            other.metric_columns,
+            "Metric columns"
+        )
 
     @property
     def boundaries(self):
         return self.start_ts, self.end_ts
-
-    def validate_metric_columns(self) -> None:
-        if not all(isinstance(col, str) for col in self.metric_columns):
-            raise ValueError("All metric columns must be of type str")
 
     def update_start_boundary(self, update_value: str) -> 'Interval':
         updated_data = self.data.copy()
