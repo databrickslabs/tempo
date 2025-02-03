@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod, ABC
+from enum import Enum, auto
 from functools import cached_property
 from typing import Optional, Iterable, Callable, Sequence
 
@@ -707,6 +708,22 @@ class NonNullOverwriteMetricMerger(MetricMerger):
         return merged_data
 
 
+class OverlapType(Enum):
+    """Enumeration of possible interval overlap types"""
+    BOUNDARY_EQUAL = auto()
+    END_BOUNDARY_EQUAL = auto()
+    INTERVAL_CONTAINED = auto()
+    INTERVAL_ENDS_FIRST = auto()
+    INTERVAL_STARTS_FIRST = auto()
+    METRICS_EQUIVALENT = auto()
+    NO_OVERLAP = auto()
+    OTHER_CONTAINED = auto()
+    OTHER_ENDS_FIRST = auto()
+    OTHER_STARTS_FIRST = auto()
+    PARTIAL_OVERLAP = auto()
+    START_BOUNDARY_EQUAL = auto()
+
+
 class IntervalTransformer:
     def __init__(
             self,
@@ -721,10 +738,6 @@ class IntervalTransformer:
             other (Interval): The second interval.
         """
 
-        # TODO: get tests to pass but I need to duplicate all methods to handle scnearios for interval and other
-        #  instead of swapping intervals. ie (interval_starts_first & other_starts_first). swapping intervals will be confusing for the user
-        #  and is actually making the code more complicated than it needs to be
-
         # Ensure intervals are ordered by start time
         if interval.data[interval.start_ts] <= other.data[other.start_ts]:
             self.interval = interval
@@ -734,29 +747,32 @@ class IntervalTransformer:
             self.other = interval
 
         self.checkers = {
-            "no_overlap": NoOverlapChecker(),
-            "metrics_equivalent": MetricsEquivalentChecker(),
-            "interval_contained": IntervalContainedChecker(),
-            "other_contained": OtherContainedChecker(),
-            "start_boundary_equality": StartBoundaryEqualityChecker(),
-            "interval_starts_first": IntervalStartsFirstChecker(),
-            "other_starts_first": OtherStartsFirstChecker(),
-            "interval_ends_first": IntervalEndsFirstChecker(),
-            "other_ends_first": OtherEndsFirstChecker(),
-            "end_boundary_equality": EndBoundaryEqualityChecker(),
-            "boundary_equality": BoundaryEqualityChecker(),
+
+            OverlapType.BOUNDARY_EQUAL: BoundaryEqualityChecker(),
+            OverlapType.END_BOUNDARY_EQUAL: EndBoundaryEqualityChecker(),
+            OverlapType.INTERVAL_CONTAINED: IntervalContainedChecker(),
+            OverlapType.INTERVAL_ENDS_FIRST: IntervalEndsFirstChecker(),
+            OverlapType.INTERVAL_STARTS_FIRST: IntervalStartsFirstChecker(),
+            OverlapType.METRICS_EQUIVALENT: MetricsEquivalentChecker(),
+            OverlapType.NO_OVERLAP: NoOverlapChecker(),
+            OverlapType.OTHER_CONTAINED: OtherContainedChecker(),
+            OverlapType.OTHER_ENDS_FIRST: OtherEndsFirstChecker(),
+            OverlapType.OTHER_STARTS_FIRST: OtherStartsFirstChecker(),
+            OverlapType.START_BOUNDARY_EQUAL: StartBoundaryEqualityChecker(),
 
         }
 
         self.resolvers = {
-            "no_overlap": NoOverlapResolver(),
-            "metrics_equivalent": EquivalentMetricsResolver(),
-            "interval_contained": IntervalContainedResolver(),
-            "other_contained": OtherContainedResolver(),
-            "start_boundary_equality": StartBoundaryEqualityResolver(),
-            "end_boundary_equality": EndBoundaryEqualityResolver(),
-            "boundary_equality": BoundaryEqualityResolver(),
-            "partial_overlap": PartialOverlapResolver(),
+
+            OverlapType.BOUNDARY_EQUAL: BoundaryEqualityResolver(),
+            OverlapType.END_BOUNDARY_EQUAL: EndBoundaryEqualityResolver(),
+            OverlapType.INTERVAL_CONTAINED: IntervalContainedResolver(),
+            OverlapType.METRICS_EQUIVALENT: EquivalentMetricsResolver(),
+            OverlapType.NO_OVERLAP: NoOverlapResolver(),
+            OverlapType.OTHER_CONTAINED: OtherContainedResolver(),
+            OverlapType.PARTIAL_OVERLAP: PartialOverlapResolver(),
+            OverlapType.START_BOUNDARY_EQUAL: StartBoundaryEqualityResolver(),
+
         }
 
     def validate_intervals(self):
@@ -805,55 +821,55 @@ class IntervalTransformer:
 
         resolved = list()
 
-        if self.checkers["no_overlap"].check(self.interval, self.other):
-            return self.resolvers["no_overlap"].resolve(self.interval, self.other)
+        if self.checkers[OverlapType.NO_OVERLAP].check(self.interval, self.other):
+            return self.resolvers[OverlapType.NO_OVERLAP].resolve(self.interval, self.other)
 
-        if self.checkers["metrics_equivalent"].check(self.interval, self.other):
+        if self.checkers[OverlapType.METRICS_EQUIVALENT].check(self.interval, self.other):
             resolved.append(
-                self.resolvers["metrics_equivalent"].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.METRICS_EQUIVALENT].resolve(self.interval, self.other)
             )
 
             return resolved
 
-        if self.checkers["interval_contained"].check(self.interval, self.other):
+        if self.checkers[OverlapType.INTERVAL_CONTAINED].check(self.interval, self.other):
             resolved.extend(
-                self.resolvers["interval_contained"].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.INTERVAL_CONTAINED].resolve(self.interval, self.other)
             )
 
             return resolved
 
-        if self.checkers["other_contained"].check(self.interval, self.other):
-            resolved.extend(self.resolvers["other_contained"].resolve(self.interval, self.other))
+        if self.checkers[OverlapType.OTHER_CONTAINED].check(self.interval, self.other):
+            resolved.extend(self.resolvers[OverlapType.OTHER_CONTAINED].resolve(self.interval, self.other))
 
             return resolved
 
-        if self.checkers["start_boundary_equality"].check(self.interval, self.other) and not self.checkers[
-            "end_boundary_equality"].check(self.interval, self.other):
+        if self.checkers[OverlapType.START_BOUNDARY_EQUAL].check(self.interval, self.other) and not self.checkers[
+            OverlapType.END_BOUNDARY_EQUAL].check(self.interval, self.other):
             resolved.extend(
-                self.resolvers["start_boundary_equality"].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.START_BOUNDARY_EQUAL].resolve(self.interval, self.other)
             )
 
             return resolved
 
-        if not self.checkers["start_boundary_equality"].check(self.interval, self.other) and self.checkers[
-            "end_boundary_equality"].check(self.interval, self.other):
+        if not self.checkers[OverlapType.START_BOUNDARY_EQUAL].check(self.interval, self.other) and self.checkers[
+            OverlapType.END_BOUNDARY_EQUAL].check(self.interval, self.other):
             resolved.extend(
-                self.resolvers["end_boundary_equality"].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.END_BOUNDARY_EQUAL].resolve(self.interval, self.other)
             )
 
             return resolved
 
-        if self.checkers["boundary_equality"].check(self.interval, self.other):
+        if self.checkers[OverlapType.BOUNDARY_EQUAL].check(self.interval, self.other):
             resolved.extend(
-                self.resolvers["boundary_equality"].resolve(self.interval, self.other)
+                self.resolvers[OverlapType.BOUNDARY_EQUAL].resolve(self.interval, self.other)
             )
 
             return resolved
 
-        if self.checkers["interval_starts_first"].check(self.interval, self.other) and self.checkers[
-            "interval_ends_first"].check(
+        if self.checkers[OverlapType.INTERVAL_STARTS_FIRST].check(self.interval, self.other) and self.checkers[
+            OverlapType.INTERVAL_ENDS_FIRST].check(
             self.interval, self.other):
-            resolved.extend(self.resolvers["partial_overlap"].resolve(self.interval, self.other))
+            resolved.extend(self.resolvers[OverlapType.PARTIAL_OVERLAP].resolve(self.interval, self.other))
 
             return resolved
 
