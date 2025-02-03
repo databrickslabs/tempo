@@ -979,20 +979,6 @@ class IntervalTransformer:
         self.overlap_detector = OverlapDetector(self.interval, self.other)
         self.resolution_manager = ResolutionManager()
 
-        self.resolvers = {
-
-            OverlapType.BOUNDARY_EQUAL: BoundaryEqualityResolver(),
-            OverlapType.COMMON_END: CommonEndResolver(),
-            OverlapType.COMMON_START: CommonStartResolver(),
-            OverlapType.INTERVAL_CONTAINED: IntervalContainedResolver(),
-            OverlapType.METRICS_EQUIVALENT: EquivalentMetricsResolver(),
-            OverlapType.NO_OVERLAP: NoOverlapResolver(),
-            OverlapType.OTHER_CONTAINED: OtherContainedResolver(),
-            OverlapType.PARTIAL_OVERLAP: PartialOverlapResolver(),
-
-
-        }
-
     def validate_intervals(self):
 
         if set(self.interval.data.index) != set(self.other.data.index):
