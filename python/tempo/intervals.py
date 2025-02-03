@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
-from typing import Optional, Iterable, Callable, Sequence, Dict, Type
+from typing import Optional, Iterable, Callable, Sequence, Dict, Type, List
 
 import pandas as pd
 import pyspark.sql.functions as f
@@ -472,55 +472,6 @@ class IntervalValidator:
         return IntervalValidator._validate_columns(metric_columns, "metric columns")
 
 
-@dataclass
-class OverlapResult:
-    type: OverlapType
-    details: Optional[Dict] = None
-
-
-class OverlapDetector:
-    def __init__(
-            self,
-            interval: Interval,
-            other: Interval,
-    ) -> None:
-        self.interval = interval
-        self.other = other
-        self._checkers = self._init_checkers()
-
-    def detect_overlap_type(self) -> Optional[OverlapResult]:
-        """Returns the most specific type of overlap found"""
-        for overlap_type, checker in self._checkers.items():
-            if checker.check(self.interval, self.other):
-                return OverlapResult(overlap_type)
-        return None
-
-    def _init_checkers(self) -> Dict[OverlapType, OverlapChecker]:
-        """
-        Initializes ordered checkers from most specific to most general.
-        To add new checks:
-        1. Create new OverlapChecker implementation
-        2. Add new type to OverlapType enum
-        3. Add checker instance here in appropriate order
-        """
-        return OrderedDict([
-            (OverlapType.NO_OVERLAP, NoOverlapChecker()),
-            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
-            (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
-            (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
-            (OverlapType.COMMON_START, CommonStartChecker()),
-            (OverlapType.COMMON_END, CommonEndChecker()),
-            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
-            (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
-        ])
-
-    def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
-        """Adds a new checker type at runtime"""
-        self._checkers[overlap_type] = checker()
-
-
-
-
 class Interval:
     def __init__(
             self,
@@ -890,6 +841,119 @@ class OverlapType(Enum):
     OTHER_STARTS_FIRST = auto()
     PARTIAL_OVERLAP = auto()
 
+
+@dataclass
+class OverlapResult:
+    type: OverlapType
+    details: Optional[Dict] = None
+
+
+class OverlapDetector:
+    def __init__(
+            self,
+            interval: Interval,
+            other: Interval,
+    ) -> None:
+        self.interval = interval
+        self.other = other
+        self._checkers = self._init_checkers()
+
+    def detect_overlap_type(self) -> Optional[OverlapResult]:
+        """Returns the most specific type of overlap found"""
+        for overlap_type, checker in self._checkers.items():
+            if checker.check(self.interval, self.other):
+                return OverlapResult(overlap_type)
+        return None
+
+    def _init_checkers(self) -> Dict[OverlapType, OverlapChecker]:
+        """
+        Initializes ordered checkers from most specific to most general.
+        To add new checks:
+        1. Create new OverlapChecker implementation
+        2. Add new type to OverlapType enum
+        3. Add checker instance here in appropriate order
+        """
+        return OrderedDict([
+            (OverlapType.NO_OVERLAP, NoOverlapChecker()),
+            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
+            (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
+            (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
+            (OverlapType.COMMON_START, CommonStartChecker()),
+            (OverlapType.COMMON_END, CommonEndChecker()),
+            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
+            (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
+        ])
+
+    def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
+        """Adds a new checker type at runtime"""
+        self._checkers[overlap_type] = checker()
+
+
+@dataclass
+class ResolutionResult:
+    """Represents the result of interval resolution"""
+    resolved_intervals: List[pd.Series]
+    metadata: Optional[Dict] = None
+    warnings: List[str] = field(default_factory=list)
+
+
+class ResolutionManager:
+    """
+    Manages resolution strategies for different types of interval overlaps.
+    Handles resolver initialization, execution and error handling.
+    """
+
+    def __init__(self):
+        self._resolvers = self._init_resolvers()
+
+    def _init_resolvers(self) -> Dict[OverlapType, OverlapResolver]:
+        """
+        Initializes mapping of overlap types to their resolvers.
+        Order matches overlap detection hierarchy.
+        """
+        return OrderedDict([
+            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityResolver()),
+            (OverlapType.COMMON_END, CommonEndResolver()),
+            (OverlapType.COMMON_START, CommonStartResolver()),
+            (OverlapType.INTERVAL_CONTAINED, IntervalContainedResolver()),
+            (OverlapType.METRICS_EQUIVALENT, EquivalentMetricsResolver()),
+            (OverlapType.NO_OVERLAP, NoOverlapResolver()),
+            (OverlapType.OTHER_CONTAINED, OtherContainedResolver()),
+            (OverlapType.PARTIAL_OVERLAP, PartialOverlapResolver()),
+        ])
+
+    def resolve(self, overlap_type: OverlapType, interval: Interval, other: Interval) -> ResolutionResult:
+        """
+        Resolves overlap between intervals using appropriate strategy
+
+        Args:
+            overlap_type: Type of overlap detected
+            interval: First interval
+            other: Second interval
+
+        Returns:
+            ResolutionResult containing resolved intervals and metadata
+
+        Raises:
+            ValueError: If no resolver exists for overlap type
+        """
+        resolver = self._resolvers.get(overlap_type)
+        if not resolver:
+            raise ValueError(f"No resolver registered for overlap type: {overlap_type}")
+
+        try:
+            resolved = resolver.resolve(interval, other)
+            return ResolutionResult(resolved_intervals=resolved)
+        except Exception as e:
+            raise ValueError(f"Resolution failed for {overlap_type}: {str(e)}")
+
+    def register_resolver(self, overlap_type: OverlapType, resolver: Type[OverlapResolver]) -> None:
+        """Registers a new resolver for given overlap type"""
+        if overlap_type in self._resolvers:
+            raise ValueError(f"Resolver already registered for {overlap_type}")
+        self._resolvers[overlap_type] = resolver()
+
+
 class IntervalTransformer:
     def __init__(
             self,
@@ -913,6 +977,7 @@ class IntervalTransformer:
             self.other = interval
 
         self.overlap_detector = OverlapDetector(self.interval, self.other)
+        self.resolution_manager = ResolutionManager()
 
         self.resolvers = {
 
@@ -952,7 +1017,13 @@ class IntervalTransformer:
         if resolver is None:
             raise NotImplementedError(f"No resolver for overlap type {overlap_result.type}")
 
-        return resolver.resolve(self.interval, self.other)
+        resolution_result = self.resolution_manager.resolve(
+            overlap_result.type,
+            self.interval,
+            self.other
+        )
+
+        return resolution_result.resolved_intervals
 
     def merge_metrics(
             self,
