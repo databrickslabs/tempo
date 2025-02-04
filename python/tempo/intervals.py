@@ -1,3 +1,7 @@
+"""
+Provides functionality for handling and analyzing time series interval
+data with support for overlap detection and resolution
+"""
 from __future__ import annotations
 
 from abc import abstractmethod, ABC
@@ -140,8 +144,8 @@ class IntervalOperations(ABC):
         pass
 
     @abstractmethod
-    def get_boundaries(self) -> tuple[str, str]:
-        """Returns start and end boundaries"""
+    def get_boundary_columns(self) -> tuple[str, str]:
+        "Returns the start and end timestamps that define this interval's boundaries"
         pass
 
 
@@ -698,7 +702,7 @@ class Interval(IntervalOperations):
         return Interval(updated_data, self.start_ts, self.end_ts,
                         self.series_ids, self.metric_columns)
 
-    def get_boundaries(self) -> tuple[str, str]:
+    def get_boundary_columns(self) -> tuple[str, str]:
         """Returns the start and end timestamp column names"""
         return self.start_ts, self.end_ts
 
@@ -847,7 +851,8 @@ class IntervalValidator:
 @dataclass
 class ValidationResult:
     is_valid: bool
-    error: Optional[str] = None
+    severity: str
+    message: Optional[str] = None
 
 
 # Metric Processing
@@ -1007,7 +1012,7 @@ class OverlapDetector:
     ) -> None:
         self.interval = interval
         self.other = other
-        self._checkers = self._init_checkers()
+        self._checkers = self._initialize_overlap_checkers()
 
     def detect_overlap_type(self) -> Optional[OverlapResult]:
         """Returns the most specific type of overlap found"""
@@ -1016,7 +1021,7 @@ class OverlapDetector:
                 return OverlapResult(overlap_type)
         return None
 
-    def _init_checkers(self) -> Dict[OverlapType, OverlapChecker]:
+    def _initialize_overlap_checkers(self) -> Dict[OverlapType, OverlapChecker]:
         """
         Initializes ordered checkers from most specific to most general.
         To add new checks:
@@ -1164,8 +1169,7 @@ class PartialOverlapResolver(OverlapResolver):
 
 class ResolutionManager:
     """
-    Manages resolution strategies for different types of interval overlaps.
-    Handles resolver initialization, execution and error handling.
+    Handles the coordination of overlap resolution between intervals using registered resolution strategies
     """
 
     def __init__(self):
