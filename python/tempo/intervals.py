@@ -24,6 +24,13 @@ from pyspark.sql.types import (
 )
 from pyspark.sql.window import Window, WindowSpec
 
+ERROR_MESSAGE_INVALID_SERIES_IDS = "series_ids must be an Iterable or comma seperated string of column names, instead got {}"
+ERROR_MESSAGE_NO_RESOLVER = "No resolver registered for overlap type: {}"
+ERROR_MESSAGE_RESOLUTION_FAILED = "Resolution failed for {}: {}"
+ERROR_MESSAGE_RESOLVER_REGISTERED = "Resolver already registered for {}"
+ERROR_MESSAGE_EXPECTED_INTERVAL_INDICES = "Expected indices of interval elements to be equivalent."
+ERROR_MESSAGE_METRIC_COLUMNS_LENGTH = "Metric columns must have the same length."
+
 
 def is_metric_col(col: StructField) -> bool:
     return isinstance(
@@ -112,11 +119,8 @@ class IntervalsDF:
             self.series_ids = list(series_ids)
         else:
             raise ValueError(
-                f"series_ids must be an Iterable or comma seperated string"
-                f" of column names, instead got {type(series_ids)}"
+                ERROR_MESSAGE_INVALID_SERIES_IDS.format(type(series_ids))
             )
-
-        # self.make_disjoint = MakeDisjointBuilder()
 
     @cached_property
     def interval_boundaries(self) -> list[str]:
@@ -472,7 +476,50 @@ class IntervalValidator:
         return IntervalValidator._validate_columns(metric_columns, "metric columns")
 
 
-class Interval:
+class IntervalOperations(ABC):
+    """
+    Defines standard operations that can be performed on intervals.
+    Provides a consistent interface for manipulating interval boundaries,
+    checking relationships between intervals, and handling metrics.
+    """
+
+    @abstractmethod
+    def update_start(self, new_start: str) -> 'IntervalOperations':
+        """Creates new interval with updated start boundary"""
+        pass
+
+    @abstractmethod
+    def update_end(self, new_end: str) -> 'IntervalOperations':
+        """Creates new interval with updated end boundary"""
+        pass
+
+    @abstractmethod
+    def contains(self, other: 'IntervalOperations') -> bool:
+        """Checks if this interval fully contains other interval"""
+        pass
+
+    @abstractmethod
+    def overlaps_with(self, other: 'IntervalOperations') -> bool:
+        """Checks if this interval overlaps with other interval"""
+        pass
+
+    @abstractmethod
+    def merge_metrics(self, other: 'IntervalOperations') -> pd.Series:
+        """Combines metrics between intervals according to merging strategy"""
+        pass
+
+    @abstractmethod
+    def get_boundaries(self) -> tuple[str, str]:
+        """Returns start and end boundaries"""
+        pass
+
+    @abstractmethod
+    def validate(self) -> bool:
+        """Validates interval properties and data"""
+        pass
+
+
+class Interval(IntervalOperations):
     def __init__(
             self,
             data: pd.Series,
@@ -533,15 +580,40 @@ class Interval:
     def boundaries(self):
         return self.start_ts, self.end_ts
 
-    def update_start_boundary(self, update_value: str) -> 'Interval':
+    def update_start(self, update_value: str) -> 'Interval':
         updated_data = self.data.copy()
         updated_data[self.start_ts] = update_value
         return Interval(updated_data, self.start_ts, self.end_ts, self.metric_columns)
 
-    def update_end_boundary(self, update_value: str) -> 'Interval':
+    def update_end(self, update_value: str) -> 'Interval':
         updated_data = self.data.copy()
         updated_data[self.end_ts] = update_value
         return Interval(updated_data, self.start_ts, self.end_ts, self.metric_columns)
+
+    def contains(self, other: 'Interval') -> bool:
+        return (self.data[self.start_ts] <= other.data[other.start_ts] and
+                self.data[self.end_ts] >= other.data[other.end_ts])
+
+    def overlaps_with(self, other: 'Interval') -> bool:
+        return (self.data[self.start_ts] < other.data[other.end_ts] and
+                self.data[self.end_ts] > other.data[other.start_ts])
+
+    def merge_metrics(self, other: 'Interval') -> pd.Series:
+        merger = NonNullOverwriteMetricMerger()
+        return merger.merge(self, other)
+
+    def get_boundaries(self) -> tuple[str, str]:
+        return self.boundaries
+
+    def validate(self) -> bool:
+        try:
+            self.validator.validate_data(self.data)
+            self.validator.validate_timestamps(self.data, self.start_ts, self.end_ts)
+            self.validator.validate_series_id_columns(self.series_ids)
+            self.validator.validate_metric_columns(self.metric_columns)
+            return True
+        except IntervalValidationError:
+            return False
 
 
 class MetricNormalizer(ABC):
@@ -665,7 +737,7 @@ class NoOverlapResolver(OverlapResolver):
 
 class EquivalentMetricsResolver(OverlapResolver):
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        return [interval.update_end_boundary(other.data[other.end_ts]).data]
+        return [interval.update_end(other.data[other.end_ts]).data]
 
 
 class ContainedResolverBase(OverlapResolver):
@@ -674,11 +746,11 @@ class ContainedResolverBase(OverlapResolver):
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         resolved = [
             # First interval - update end boundary
-            interval.update_end_boundary(other.data[other.start_ts]).data,
+            interval.update_end(other.data[other.start_ts]).data,
             # Middle interval - merge metrics
             self._merge_metrics(interval, other),
             # Last interval - update start boundary
-            interval.update_start_boundary(other.data[other.end_ts]).data]
+            interval.update_start(other.data[other.end_ts]).data]
 
         return resolved
 
@@ -709,7 +781,7 @@ class CommonStartResolver(OverlapResolver):
             resolved.append(resolved_series)
 
             # 2)
-            resolved_series = other.update_start_boundary(interval.data[interval.end_ts]).data
+            resolved_series = other.update_start(interval.data[interval.end_ts]).data
 
             resolved.append(resolved_series)
 
@@ -720,7 +792,7 @@ class CommonStartResolver(OverlapResolver):
             resolved.append(resolved_series)
 
             # 2)
-            resolved_series = interval.update_start_boundary(other.data[other.end_ts]).data
+            resolved_series = interval.update_start(other.data[other.end_ts]).data
 
             resolved.append(resolved_series)
 
@@ -733,7 +805,7 @@ class CommonEndResolver(OverlapResolver):
 
         if IntervalStartsFirstChecker().check(interval, other):
             # 1)
-            resolved_series = interval.update_end_boundary(other.data[other.start_ts]).data
+            resolved_series = interval.update_end(other.data[other.start_ts]).data
 
             resolved.append(resolved_series)
 
@@ -754,12 +826,12 @@ class PartialOverlapResolver(OverlapResolver):
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         resolved = []
         # 1)
-        resolved_series = interval.update_end_boundary(other.data[other.start_ts]).data
+        resolved_series = interval.update_end(other.data[other.start_ts]).data
 
         resolved.append(resolved_series)
 
         # 2)
-        updated_series = other.update_end_boundary(interval.data[interval.end_ts]).data
+        updated_series = other.update_end(interval.data[interval.end_ts]).data
         resolved_series = NonNullOverwriteMetricMerger().merge(
             Interval(
                 updated_series,
@@ -773,7 +845,7 @@ class PartialOverlapResolver(OverlapResolver):
         resolved.append(resolved_series)
 
         # 3)
-        resolved_series = other.update_start_boundary(interval.data[interval.end_ts]).data
+        resolved_series = other.update_start(interval.data[interval.end_ts]).data
 
         resolved.append(resolved_series)
 
@@ -792,7 +864,7 @@ class MetricMerger(ABC):
     def _validate_metric_columns(interval: Interval, other: Interval) -> None:
         """Validate that metric columns are aligned between intervals"""
         if len(interval.metric_columns) != len(other.metric_columns):
-            raise ValueError("Metric columns must have the same length.")
+            raise ValueError(ERROR_MESSAGE_METRIC_COLUMNS_LENGTH)
 
 
 class NonNullOverwriteMetricMerger(MetricMerger):
@@ -939,21 +1011,22 @@ class ResolutionManager:
         """
         resolver = self._resolvers.get(overlap_type)
         if not resolver:
-            raise ValueError(f"No resolver registered for overlap type: {overlap_type}")
+            raise ValueError(ERROR_MESSAGE_NO_RESOLVER.format(overlap_type))
 
         try:
             resolved = resolver.resolve(interval, other)
             return ResolutionResult(resolved_intervals=resolved)
         except Exception as e:
-            raise ValueError(f"Resolution failed for {overlap_type}: {str(e)}")
+            raise ValueError(ERROR_MESSAGE_RESOLUTION_FAILED.format(overlap_type, str(e)))
 
     def register_resolver(self, overlap_type: OverlapType, resolver: Type[OverlapResolver]) -> None:
         """Registers a new resolver for given overlap type"""
         if overlap_type in self._resolvers:
-            raise ValueError(f"Resolver already registered for {overlap_type}")
+            raise ValueError(ERROR_MESSAGE_RESOLVER_REGISTERED.format(overlap_type))
         self._resolvers[overlap_type] = resolver()
 
 
+# TODO: does it make sense to move this to inside of the Interval class?
 class IntervalTransformer:
     def __init__(
             self,
@@ -982,7 +1055,7 @@ class IntervalTransformer:
     def validate_intervals(self):
 
         if set(self.interval.data.index) != set(self.other.data.index):
-            raise ValueError("Expected indices of interval elements to be equivalent.")
+            raise ValueError(ERROR_MESSAGE_EXPECTED_INTERVAL_INDICES)
 
     def resolve_overlap(  # TODO: need to implement proper metric merging
             #  -> for now, can just take non-null values from both intervals
@@ -1032,7 +1105,7 @@ class IntervalTransformer:
         # Validate that metric columns align
         if len(interval_to_use.metric_columns) != len(other_to_use.metric_columns):
             raise ValueError(
-                "Metric columns must have the same length."
+                ERROR_MESSAGE_METRIC_COLUMNS_LENGTH
             )
 
         # Create a copy of interval's data

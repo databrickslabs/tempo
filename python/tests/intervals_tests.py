@@ -775,7 +775,7 @@ class PandasFunctionTests(TestCase):
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end", )
 
-        updated = interval.update_start_boundary(
+        updated = interval.update_start(
             update_value="2023-01-01T01:30:00",
         )
         self.assertEqual(updated.data["start"], "2023-01-01T01:30:00")
@@ -788,7 +788,7 @@ class PandasFunctionTests(TestCase):
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end", )
 
-        updated = interval.update_end_boundary(
+        updated = interval.update_end(
             update_value="2023-01-01T02:30:00",
         )
         self.assertEqual(updated.data["end"], "2023-01-01T02:30:00")
@@ -798,7 +798,7 @@ class PandasFunctionTests(TestCase):
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end", )
 
-        updated = interval.update_start_boundary(
+        updated = interval.update_start(
             update_value="2023-01-01T01:30:00",
         )
         self.assertNotEqual(id(interval), id(updated))
