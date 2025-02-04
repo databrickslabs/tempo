@@ -776,7 +776,7 @@ class PandasFunctionTests(TestCase):
         ), "start", "end", )
 
         updated = interval.update_start(
-            update_value="2023-01-01T01:30:00",
+            "2023-01-01T01:30:00",
         )
         self.assertEqual(updated.data["start"], "2023-01-01T01:30:00")
 
@@ -789,7 +789,7 @@ class PandasFunctionTests(TestCase):
         ), "start", "end", )
 
         updated = interval.update_end(
-            update_value="2023-01-01T02:30:00",
+            "2023-01-01T02:30:00",
         )
         self.assertEqual(updated.data["end"], "2023-01-01T02:30:00")
 
@@ -799,7 +799,7 @@ class PandasFunctionTests(TestCase):
         ), "start", "end", )
 
         updated = interval.update_start(
-            update_value="2023-01-01T01:30:00",
+            "2023-01-01T01:30:00",
         )
         self.assertNotEqual(id(interval), id(updated))
         self.assertEqual(interval.data["start"], "2023-01-01T01:00:00")

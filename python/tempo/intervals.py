@@ -5,7 +5,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import cached_property
-from typing import Optional, Iterable, Callable, Sequence, Dict, Type, List
+from typing import Optional, Iterable, Callable, Sequence, Dict, Type, List, Union
 
 import pandas as pd
 import pyspark.sql.functions as f
@@ -144,11 +144,6 @@ class IntervalOperations(ABC):
         """Returns start and end boundaries"""
         pass
 
-    @abstractmethod
-    def validate(self) -> bool:
-        """Validates interval properties and data"""
-        pass
-
 
 class MetricNormalizer(ABC):
     @abstractmethod
@@ -266,6 +261,9 @@ class IntervalsDF:
         self.start_ts = start_ts
         self.end_ts = end_ts
 
+        self._validate_series_ids(series_ids)
+
+    def _validate_series_ids(self, series_ids):
         if not series_ids:
             self.series_ids = []
         elif isinstance(series_ids, str):
@@ -385,34 +383,74 @@ class IntervalsDF:
     def make_disjoint(self) -> "IntervalsDF":
         """
         Returns a new :class:`IntervalsDF` where metrics of overlapping time intervals
-        are correlated and merged prior to constructing new time interval boundaries (
-        start and end timestamp) so that all intervals are disjoint.
+        are correlated and merged prior to constructing new time interval boundaries.
 
-        The merge process assumes that two overlapping intervals cannot simultaneously
-        report two different values for the same metric unless recorded in a data type
-        which supports multiple elements (such as ArrayType, etc.).
+        The following examples demonstrate each type of overlap case and its resolution:
 
-        This is often used after :meth:`fromStackedMetrics` to reduce the number of
-        metrics with `null` values and helps when constructing filter predicates to
-        retrieve specific metric values across all instances.
+        1. No Overlap:
+            Input:
+                Row1: start='2020-01-01', end='2020-01-05', metric=10
+                Row2: start='2020-01-06', end='2020-01-10', metric=20
+            Output: Same as input (no changes needed)
 
-        :return: A new :class:`IntervalsDF` containing disjoint time intervals
+        2. Boundary Equal (exact same interval):
+            Input:
+                Row1: start='2020-01-01', end='2020-01-05', metric1=10, metric2=null
+                Row2: start='2020-01-01', end='2020-01-05', metric1=null, metric2=20
+            Output:
+                Row1: start='2020-01-01', end='2020-01-05', metric1=10, metric2=20
 
-        :Example:
+        3. Common Start:
+            Input:
+                Row1: start='2020-01-01', end='2020-01-05', metric=10
+                Row2: start='2020-01-01', end='2020-01-07', metric=20
+            Output:
+                Row1: start='2020-01-01', end='2020-01-05', metric=10
+                Row2: start='2020-01-05', end='2020-01-07', metric=20
 
-        .. code-block::
+        4. Common End:
+            Input:
+                Row1: start='2020-01-01', end='2020-01-07', metric=10
+                Row2: start='2020-01-03', end='2020-01-07', metric=20
+            Output:
+                Row1: start='2020-01-01', end='2020-01-03', metric=10
+                Row2: start='2020-01-03', end='2020-01-07', metric=20
 
-            df = spark.createDataFrame(
-                [["2020-08-01 00:00:10", "2020-08-01 00:00:14", "v1", 5, null],
-                 ["2020-08-01 00:00:09", "2020-08-01 00:00:11", "v1", null, 0]],
-                "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 STRING, metric_2 INT",
-            )
-            idf = IntervalsDF(df, "start_ts", "end_ts", ["series_1"], ["metric_1", "metric_2"])
-            idf.disjoint().df.collect()
-            [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:10', series_1='v1', metric_1=null, metric_2=0),
-             Row(start_ts='2020-08-01 00:00:10', end_ts='2020-08-01 00:00:11', series_1='v1', metric_1=5, metric_2=0),
-             Row(start_ts='2020-08-01 00:00:11', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=null)]
+        5. Interval Contained:
+            Input:
+                Row1: start='2020-01-01', end='2020-01-07', metric=10
+                Row2: start='2020-01-03', end='2020-01-05', metric=20
+            Output:
+                Row1: start='2020-01-01', end='2020-01-03', metric=10
+                Row2: start='2020-01-03', end='2020-01-05', metric=20
+                Row3: start='2020-01-05', end='2020-01-07', metric=10
 
+        6. Partial Overlap:
+            Input:
+                Row1: start='2020-01-01', end='2020-01-05', metric=10
+                Row2: start='2020-01-03', end='2020-01-07', metric=20
+            Output:
+                Row1: start='2020-01-01', end='2020-01-03', metric=10
+                Row2: start='2020-01-03', end='2020-01-05', metric=20
+                Row3: start='2020-01-05', end='2020-01-07', metric=20
+
+        7. Metrics Equivalent (overlapping intervals with same metrics):
+            Input:
+                Row1: start='2020-01-01', end='2020-01-05', metric=10
+                Row2: start='2020-01-03', end='2020-01-07', metric=10
+            Output:
+                Row1: start='2020-01-01', end='2020-01-07', metric=10
+
+        Parameters:
+            None
+
+        Returns:
+            IntervalsDF: A new IntervalsDF containing disjoint time intervals
+
+        Note:
+            The resolution process assumes that two overlapping intervals cannot
+            simultaneously report different values for the same metric unless recorded
+            in a data type which supports multiple elements.
         """
         # NB: creating local copies of class and instance attributes to be
         # referenced by UDF because complex python objects, like classes,
@@ -545,6 +583,21 @@ class IntervalsDF:
 
 
 class Interval(IntervalOperations):
+    """
+    Represents a single point in a time series with start/end boundaries and associated metrics.
+
+    An Interval is the fundamental unit of time series data in this system, containing:
+    - Time boundaries (start and end timestamps)
+    - Series identifiers (dimensional values that identify this series)
+    - Metric values (measurements or observations for this time point)
+
+    The class provides operations for:
+    - Validating interval data and structure
+    - Comparing and manipulating time boundaries
+    - Managing metric data
+    - Checking relationships with other intervals
+    """
+
     def __init__(
             self,
             data: pd.Series,
@@ -553,20 +606,138 @@ class Interval(IntervalOperations):
             series_ids: Optional[Sequence[str]] = None,
             metric_columns: Optional[Sequence[str]] = None,
     ):
+        """
+        Initialize an interval with its data and metadata.
 
-        self.validator = IntervalValidator()
-
-        # Validate all components
-        self.validator.validate_data(data)
-        self.validator.validate_timestamps(data, start_ts, end_ts)
-        self.validator.validate_series_id_columns(series_ids)
-        self.validator.validate_metric_columns(metric_columns)
+        Args:
+            data: Series containing the interval's data
+            start_ts: Name of start timestamp column
+            end_ts: Name of end timestamp column
+            series_ids: Names of columns that identify the series
+            metric_columns: Names of columns containing metric values
+        """
+        self._validate_initialization(data, start_ts, end_ts, series_ids, metric_columns)
 
         self.data = data
         self.start_ts = start_ts
         self.end_ts = end_ts
-        self.series_ids = series_ids
-        self.metric_columns = metric_columns
+        self.series_ids = series_ids or []
+        self.metric_columns = metric_columns or []
+
+    # Validation Methods
+    # -----------------
+
+    def _validate_initialization(
+            self,
+            data: pd.Series,
+            start_ts: str,
+            end_ts: str,
+            series_ids: Optional[Sequence[str]],
+            metric_columns: Optional[Sequence[str]]
+    ) -> None:
+        """Validates all components during initialization"""
+        self._validate_data(data)
+        self._validate_timestamps(data, start_ts, end_ts)
+        self._validate_series_ids(series_ids)
+        self._validate_metric_columns(metric_columns)
+
+    @property
+    def boundaries(self):
+        """Returns the start and end timestamps as a Series"""
+        return self.start_ts, self.end_ts
+
+    def _validate_data(self, data: pd.Series) -> None:
+        """Validates the basic data structure"""
+        if not isinstance(data, pd.Series):
+            raise InvalidDataTypeError("Data must be a pandas Series")
+        if data.empty:
+            raise EmptyIntervalError("Data cannot be empty")
+
+    def _validate_timestamps(self, data: pd.Series, start_ts: str, end_ts: str) -> None:
+        """Validates timestamp columns and values"""
+        for ts_col in [start_ts, end_ts]:
+            if not isinstance(data[ts_col], (str, pd.Timestamp)):
+                raise InvalidTimestampError(
+                    f"{ts_col} must be string or Timestamp, got {type(data[ts_col])}"
+                )
+        if data[start_ts] > data[end_ts]:
+            raise InvalidTimestampError(
+                f"start_ts ({data[start_ts]}) must be <= end_ts ({data[end_ts]})"
+            )
+
+    def _validate_series_ids(self, series_ids: Optional[Sequence[str]]) -> None:
+        """Validates series identifier columns"""
+        if series_ids is not None:
+            if not isinstance(series_ids, Sequence) or isinstance(series_ids, str):
+                raise InvalidMetricColumnError("series_ids must be a sequence")
+            if not all(isinstance(col, str) for col in series_ids):
+                raise InvalidMetricColumnError("All series_ids must be strings")
+
+    def _validate_metric_columns(self, metric_columns: Optional[Sequence[str]]) -> None:
+        """Validates metric column names"""
+        if metric_columns is not None:
+            if not isinstance(metric_columns, Sequence) or isinstance(metric_columns, str):
+                raise InvalidMetricColumnError("metric_columns must be a sequence")
+            if not all(isinstance(col, str) for col in metric_columns):
+                raise InvalidMetricColumnError("All metric_columns must be strings")
+
+    # Time Operations
+    # --------------
+
+    def update_start(self, new_start: Union[str, pd.Timestamp]) -> 'Interval':
+        """Creates new interval with updated start timestamp"""
+        updated_data = self.data.copy()
+        updated_data[self.start_ts] = new_start
+        return Interval(updated_data, self.start_ts, self.end_ts,
+                        self.series_ids, self.metric_columns)
+
+    def update_end(self, new_end: Union[str, pd.Timestamp]) -> 'Interval':
+        """Creates new interval with updated end timestamp"""
+        updated_data = self.data.copy()
+        updated_data[self.end_ts] = new_end
+        return Interval(updated_data, self.start_ts, self.end_ts,
+                        self.series_ids, self.metric_columns)
+
+    def get_boundaries(self) -> tuple[str, str]:
+        """Returns the start and end timestamp column names"""
+        return self.start_ts, self.end_ts
+
+    # Interval Relationships
+    # ---------------------
+
+    def contains(self, other: 'Interval') -> bool:
+        """Checks if this interval fully contains another interval"""
+        return (self.data[self.start_ts] <= other.data[other.start_ts] and
+                self.data[self.end_ts] >= other.data[other.end_ts])
+
+    def overlaps_with(self, other: 'Interval') -> bool:
+        """Checks if this interval overlaps with another interval"""
+        return (self.data[self.start_ts] < other.data[other.end_ts] and
+                self.data[self.end_ts] > other.data[other.start_ts])
+
+    # Metric Operations
+    # ----------------
+
+    def merge_metrics(self, other: 'Interval') -> pd.Series:
+        """Combines metrics between intervals according to merging strategy"""
+        merger = NonNullOverwriteMetricMerger()
+        return merger.merge(self, other)
+
+    def validate_metrics_alignment(self, other: 'Interval') -> ValidationResult:
+        """Validates that metric columns align between intervals"""
+        return self._validate_column_alignment(
+            self.metric_columns,
+            other.metric_columns,
+            "Metric columns"
+        )
+
+    def validate_series_alignment(self, other: 'Interval') -> ValidationResult:
+        """Validates that series identifiers align between intervals"""
+        return self._validate_column_alignment(
+            self.series_ids,
+            other.series_ids,
+            "Series IDs"
+        )
 
     def _validate_column_alignment(
             self,
@@ -579,66 +750,11 @@ class Interval(IntervalOperations):
             raise InvalidMetricColumnError(
                 f"{column_type} count mismatch: {len(self_columns)} vs {len(other_columns)}"
             )
-
         if set(self_columns) != set(other_columns):
             raise InvalidMetricColumnError(
                 f"{column_type} don't match: {self_columns} vs {other_columns}"
             )
-
         return ValidationResult(is_valid=True)
-
-    def validate_series_alignment(self, other: 'Interval') -> ValidationResult:
-        return self._validate_column_alignment(
-            self.series_ids,
-            other.series_ids,
-            "Series IDs"
-        )
-
-    def validate_metrics_alignment(self, other: 'Interval') -> ValidationResult:
-        return self._validate_column_alignment(
-            self.metric_columns,
-            other.metric_columns,
-            "Metric columns"
-        )
-
-    @property
-    def boundaries(self):
-        return self.start_ts, self.end_ts
-
-    def update_start(self, update_value: str) -> 'Interval':
-        updated_data = self.data.copy()
-        updated_data[self.start_ts] = update_value
-        return Interval(updated_data, self.start_ts, self.end_ts, self.metric_columns)
-
-    def update_end(self, update_value: str) -> 'Interval':
-        updated_data = self.data.copy()
-        updated_data[self.end_ts] = update_value
-        return Interval(updated_data, self.start_ts, self.end_ts, self.metric_columns)
-
-    def contains(self, other: 'Interval') -> bool:
-        return (self.data[self.start_ts] <= other.data[other.start_ts] and
-                self.data[self.end_ts] >= other.data[other.end_ts])
-
-    def overlaps_with(self, other: 'Interval') -> bool:
-        return (self.data[self.start_ts] < other.data[other.end_ts] and
-                self.data[self.end_ts] > other.data[other.start_ts])
-
-    def merge_metrics(self, other: 'Interval') -> pd.Series:
-        merger = NonNullOverwriteMetricMerger()
-        return merger.merge(self, other)
-
-    def get_boundaries(self) -> tuple[str, str]:
-        return self.boundaries
-
-    def validate(self) -> bool:
-        try:
-            self.validator.validate_data(self.data)
-            self.validator.validate_timestamps(self.data, self.start_ts, self.end_ts)
-            self.validator.validate_series_id_columns(self.series_ids)
-            self.validator.validate_metric_columns(self.metric_columns)
-            return True
-        except IntervalValidationError:
-            return False
 
 
 # Validation Classes
