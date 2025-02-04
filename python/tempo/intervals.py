@@ -47,6 +47,162 @@ def is_metric_col(col: StructField) -> bool:
     ) or isinstance(col.dataType, BooleanType)
 
 
+def make_disjoint_wrap(
+        start_ts: str,
+        end_ts: str,
+        series_ids: Sequence[str],
+        metric_columns: Sequence[str],
+) -> Callable[[pd.DataFrame], pd.DataFrame]:
+    """
+     Creates a Pandas UDF to process overlapping intervals and resolve them into disjoint intervals.
+
+     Parameters:
+         start_ts (str): Column name for the start timestamp.
+         end_ts (str): Column name for the end timestamp.
+         series_ids (Sequence[str]): Columns identifying unique series.
+         metric_columns (Sequence[str]): Metric columns to process.
+
+     Returns:
+         Callable[[pd.DataFrame], pd.DataFrame]: Function to apply on grouped Pandas DataFrames in Spark.
+     """
+
+    def make_disjoint_inner(pdf: pd.DataFrame) -> pd.DataFrame:
+        """
+        Processes a grouped Pandas DataFrame to resolve overlapping intervals into disjoint intervals.
+
+        Args:
+            pdf (pd.DataFrame): Pandas DataFrame grouped by Spark.
+
+        Returns:
+            pd.DataFrame: Disjoint intervals as a Pandas DataFrame.
+        """
+        # Handle empty input DataFrame explicitly
+        if pdf.empty:
+            return pdf
+
+        # Ensure intervals are sorted by start and end timestamps
+        sorted_intervals = pdf.sort_values(by=[start_ts, end_ts]).reset_index(drop=True)
+
+        # Initialize an empty DataFrame to store disjoint intervals
+        disjoint_intervals = pd.DataFrame(columns=pdf.columns)
+
+        # Define a function to process each row and update disjoint intervals
+        def process_row(row):
+            nonlocal disjoint_intervals
+            interval = Interval(row, start_ts, end_ts, series_ids, metric_columns)
+            local_utils = IntervalsUtils(disjoint_intervals)
+            local_utils.disjoint_set = disjoint_intervals
+            disjoint_intervals = local_utils.add_as_disjoint(interval)
+
+        # Apply the processing function to each row
+        sorted_intervals.apply(process_row, axis=1)
+
+        return disjoint_intervals
+
+    return make_disjoint_inner
+
+
+# Abstract Base Classes & Interfaces
+# ---------------------------------
+# Abstract classes defining core interfaces and operations
+
+
+class IntervalOperations(ABC):
+    """
+    Defines standard operations that can be performed on intervals.
+    Provides a consistent interface for manipulating interval boundaries,
+    checking relationships between intervals, and handling metrics.
+    """
+
+    @abstractmethod
+    def update_start(self, new_start: str) -> 'IntervalOperations':
+        """Creates new interval with updated start boundary"""
+        pass
+
+    @abstractmethod
+    def update_end(self, new_end: str) -> 'IntervalOperations':
+        """Creates new interval with updated end boundary"""
+        pass
+
+    @abstractmethod
+    def contains(self, other: 'IntervalOperations') -> bool:
+        """Checks if this interval fully contains other interval"""
+        pass
+
+    @abstractmethod
+    def overlaps_with(self, other: 'IntervalOperations') -> bool:
+        """Checks if this interval overlaps with other interval"""
+        pass
+
+    @abstractmethod
+    def merge_metrics(self, other: 'IntervalOperations') -> pd.Series:
+        """Combines metrics between intervals according to merging strategy"""
+        pass
+
+    @abstractmethod
+    def get_boundaries(self) -> tuple[str, str]:
+        """Returns start and end boundaries"""
+        pass
+
+    @abstractmethod
+    def validate(self) -> bool:
+        """Validates interval properties and data"""
+        pass
+
+
+class MetricNormalizer(ABC):
+    @abstractmethod
+    def normalize(self, interval: Interval) -> pd.Series:
+        pass
+
+
+class OverlapChecker(ABC):
+    """Abstract base class for overlap checking strategies"""
+
+    @abstractmethod
+    def check(self, interval: Interval, other: Interval) -> bool:
+        pass
+
+
+@dataclass
+class OverlapResult:
+    type: OverlapType
+    details: Optional[Dict] = None
+
+
+class OverlapResolver(ABC):
+    @abstractmethod
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        pass
+
+
+@dataclass
+class ResolutionResult:
+    """Represents the result of interval resolution"""
+    resolved_intervals: List[pd.Series]
+    metadata: Optional[Dict] = None
+    warnings: List[str] = field(default_factory=list)
+
+
+class MetricMerger(ABC):
+    """Abstract base class defining metric merging strategy"""
+
+    @abstractmethod
+    def merge(self, interval: Interval, other: Interval) -> pd.Series:
+        """Merge metrics from two intervals according to strategy"""
+        pass
+
+    @staticmethod
+    def _validate_metric_columns(interval: Interval, other: Interval) -> None:
+        """Validate that metric columns are aligned between intervals"""
+        if len(interval.metric_columns) != len(other.metric_columns):
+            raise ValueError(ERROR_MESSAGE_METRIC_COLUMNS_LENGTH)
+
+
+# Core Interval Classes
+# ----------------------
+# Main classes for interval data handling and DataFrame operations
+
 class IntervalsDF:
     """
     This object is the main wrapper over a `Spark DataFrame`_ which allows a
@@ -388,137 +544,6 @@ class IntervalsDF:
             return self.df
 
 
-class IntervalValidationError(Exception):
-    """Base exception for interval validation errors"""
-    pass
-
-
-class EmptyIntervalError(IntervalValidationError):
-    """Raised when interval data is empty"""
-    pass
-
-
-class InvalidDataTypeError(IntervalValidationError):
-    """Raised when data is not of expected type"""
-    pass
-
-
-class InvalidTimestampError(IntervalValidationError):
-    """Raised when timestamps are invalid"""
-    pass
-
-
-class InvalidMetricColumnError(IntervalValidationError):
-    """Raised when metric columns are invalid"""
-    pass
-
-
-@dataclass
-class ValidationResult:
-    is_valid: bool
-    error: Optional[str] = None
-
-
-class IntervalValidator:
-    """Validates interval data and properties"""
-
-    @staticmethod
-    def validate_data(data: pd.Series) -> ValidationResult:
-        if data.empty:
-            raise EmptyIntervalError("Data must not be empty")
-
-        if not isinstance(data, pd.Series):
-            raise InvalidDataTypeError("Expected data to be a Pandas Series")
-
-        return ValidationResult(is_valid=True)
-
-    @staticmethod
-    def validate_timestamps(data: pd.Series, start_ts: str, end_ts: str) -> ValidationResult:
-        if not isinstance(data[start_ts], (str, pd.Timestamp)):
-            raise InvalidTimestampError(
-                f"start_ts must be string or Timestamp, got {type(data[start_ts])}"
-            )
-
-        if not isinstance(data[end_ts], (str, pd.Timestamp)):
-            raise InvalidTimestampError(
-                f"end_ts must be string or Timestamp, got {type(data[end_ts])}"
-            )
-
-        if data[start_ts] > data[end_ts]:
-            raise InvalidTimestampError(
-                f"start_ts ({data[start_ts]}) must be <= end_ts ({data[end_ts]})"
-            )
-
-        return ValidationResult(is_valid=True)
-
-    @staticmethod
-    def _validate_columns(columns: Optional[Sequence[str]], column_type: str) -> ValidationResult:
-        if columns is None:
-            return ValidationResult(is_valid=True)
-
-        if not (isinstance(columns, Sequence) and not isinstance(columns, str)):
-            raise InvalidMetricColumnError(f"{column_type} must be a sequence")
-
-        if not all(isinstance(col, str) for col in columns):
-            raise InvalidMetricColumnError(f"All {column_type} must be of type str")
-
-        if len(set(columns)) != len(columns):
-            raise InvalidMetricColumnError(f"Duplicate {column_type} found")
-
-        return ValidationResult(is_valid=True)
-
-    @staticmethod
-    def validate_series_id_columns(series_ids: Optional[Sequence[str]]) -> ValidationResult:
-        return IntervalValidator._validate_columns(series_ids, "series ID columns")
-
-    @staticmethod
-    def validate_metric_columns(metric_columns: Optional[Sequence[str]]) -> ValidationResult:
-        return IntervalValidator._validate_columns(metric_columns, "metric columns")
-
-
-class IntervalOperations(ABC):
-    """
-    Defines standard operations that can be performed on intervals.
-    Provides a consistent interface for manipulating interval boundaries,
-    checking relationships between intervals, and handling metrics.
-    """
-
-    @abstractmethod
-    def update_start(self, new_start: str) -> 'IntervalOperations':
-        """Creates new interval with updated start boundary"""
-        pass
-
-    @abstractmethod
-    def update_end(self, new_end: str) -> 'IntervalOperations':
-        """Creates new interval with updated end boundary"""
-        pass
-
-    @abstractmethod
-    def contains(self, other: 'IntervalOperations') -> bool:
-        """Checks if this interval fully contains other interval"""
-        pass
-
-    @abstractmethod
-    def overlaps_with(self, other: 'IntervalOperations') -> bool:
-        """Checks if this interval overlaps with other interval"""
-        pass
-
-    @abstractmethod
-    def merge_metrics(self, other: 'IntervalOperations') -> pd.Series:
-        """Combines metrics between intervals according to merging strategy"""
-        pass
-
-    @abstractmethod
-    def get_boundaries(self) -> tuple[str, str]:
-        """Returns start and end boundaries"""
-        pass
-
-    @abstractmethod
-    def validate(self) -> bool:
-        """Validates interval properties and data"""
-        pass
-
-
 class Interval(IntervalOperations):
     def __init__(
             self,
@@ -616,10 +641,102 @@ class Interval(IntervalOperations):
             return False
 
 
-class MetricNormalizer(ABC):
-    @abstractmethod
-    def normalize(self, interval: Interval) -> pd.Series:
-        pass
+# Validation Classes
+# ------------------
+# Classes handling data validation and error checking
+
+
+class IntervalValidationError(Exception):
+    """Base exception for interval validation errors"""
+    pass
+
+
+class EmptyIntervalError(IntervalValidationError):
+    """Raised when interval data is empty"""
+    pass
+
+
+class InvalidDataTypeError(IntervalValidationError):
+    """Raised when data is not of expected type"""
+    pass
+
+
+class InvalidTimestampError(IntervalValidationError):
+    """Raised when timestamps are invalid"""
+    pass
+
+
+class InvalidMetricColumnError(IntervalValidationError):
+    """Raised when metric columns are invalid"""
+    pass
+
+
+class IntervalValidator:
+    """Validates interval data and properties"""
+
+    @staticmethod
+    def validate_data(data: pd.Series) -> ValidationResult:
+        if data.empty:
+            raise EmptyIntervalError("Data must not be empty")
+
+        if not isinstance(data, pd.Series):
+            raise InvalidDataTypeError("Expected data to be a Pandas Series")
+
+        return ValidationResult(is_valid=True)
+
+    @staticmethod
+    def validate_timestamps(data: pd.Series, start_ts: str, end_ts: str) -> ValidationResult:
+        if not isinstance(data[start_ts], (str, pd.Timestamp)):
+            raise InvalidTimestampError(
+                f"start_ts must be string or Timestamp, got {type(data[start_ts])}"
+            )
+
+        if not isinstance(data[end_ts], (str, pd.Timestamp)):
+            raise InvalidTimestampError(
+                f"end_ts must be string or Timestamp, got {type(data[end_ts])}"
+            )
+
+        if data[start_ts] > data[end_ts]:
+            raise InvalidTimestampError(
+                f"start_ts ({data[start_ts]}) must be <= end_ts ({data[end_ts]})"
+            )
+
+        return ValidationResult(is_valid=True)
+
+    @staticmethod
+    def _validate_columns(columns: Optional[Sequence[str]], column_type: str) -> ValidationResult:
+        if columns is None:
+            return ValidationResult(is_valid=True)
+
+        if not (isinstance(columns, Sequence) and not isinstance(columns, str)):
+            raise InvalidMetricColumnError(f"{column_type} must be a sequence")
+
+        if not all(isinstance(col, str) for col in columns):
+            raise InvalidMetricColumnError(f"All {column_type} must be of type str")
+
+        if len(set(columns)) != len(columns):
+            raise InvalidMetricColumnError(f"Duplicate {column_type} found")
+
+        return ValidationResult(is_valid=True)
+
+    @staticmethod
+    def validate_series_id_columns(series_ids: Optional[Sequence[str]]) -> ValidationResult:
+        return IntervalValidator._validate_columns(series_ids, "series ID columns")
+
+    @staticmethod
+    def validate_metric_columns(metric_columns: Optional[Sequence[str]]) -> ValidationResult:
+        return IntervalValidator._validate_columns(metric_columns, "metric columns")
+
+
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    error: Optional[str] = None
+
+
+# Metric Processing
+# -----------------
+# Classes for handling metric operations and transformations
 
 
 class NullMetricNormalizer(MetricNormalizer):
@@ -627,12 +744,53 @@ class NullMetricNormalizer(MetricNormalizer):
         return interval.data[interval.metric_columns].fillna(pd.NA)
 
 
-class OverlapChecker(ABC):
-    """Abstract base class for overlap checking strategies"""
+class NonNullOverwriteMetricMerger(MetricMerger):
+    """Implementation that overwrites with non-null values from other interval"""
 
-    @abstractmethod
-    def check(self, interval: Interval, other: Interval) -> bool:
-        pass
+    def merge(self, interval: Interval, other: Interval) -> pd.Series:
+        self._validate_metric_columns(interval, other)
+
+        # Create a copy of interval's data
+        merged_data = interval.data.copy()
+
+        # Overwrite with non-NaN values from other
+        for interval_col, other_col in zip(interval.metric_columns, other.metric_columns):
+            merged_data[interval_col] = (
+                other.data[other_col]
+                if pd.notna(other.data[other_col])
+                else merged_data[interval_col]
+            )
+
+        return merged_data
+
+
+# Overlap Detection & Resolution
+# -----------------------------
+# Classes handling overlap detection and resolution logic
+
+# TODO: The main interval relationship types in interval algebra:
+#
+# Before (b): A ends before B starts
+# Meets (m): A ends exactly when B starts
+# Overlaps (o): A starts before B and they overlap, but A ends before B
+# Starts (s): A and B start together, but A ends before B
+# During (d): A starts after B and ends before B
+# Finishes (f): A starts after B but they end together
+# Equals (e): A and B have the same start and end
+class OverlapType(Enum):
+    """Enumeration of possible interval overlap types"""
+    BOUNDARY_EQUAL = auto()
+    COMMON_END = auto()
+    COMMON_START = auto()
+    INTERVAL_CONTAINED = auto()
+    INTERVAL_ENDS_FIRST = auto()
+    INTERVAL_STARTS_FIRST = auto()
+    METRICS_EQUIVALENT = auto()
+    NO_OVERLAP = auto()
+    OTHER_CONTAINED = auto()
+    OTHER_ENDS_FIRST = auto()
+    OTHER_STARTS_FIRST = auto()
+    PARTIAL_OVERLAP = auto()
 
 
 class NoOverlapChecker(OverlapChecker):
@@ -724,10 +882,46 @@ class PartialOverlapChecker(OverlapChecker):
                 and IntervalEndsFirstChecker().check(interval, other)
         )
 
-class OverlapResolver(ABC):
-    @abstractmethod
-    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        pass
+
+class OverlapDetector:
+    def __init__(
+            self,
+            interval: Interval,
+            other: Interval,
+    ) -> None:
+        self.interval = interval
+        self.other = other
+        self._checkers = self._init_checkers()
+
+    def detect_overlap_type(self) -> Optional[OverlapResult]:
+        """Returns the most specific type of overlap found"""
+        for overlap_type, checker in self._checkers.items():
+            if checker.check(self.interval, self.other):
+                return OverlapResult(overlap_type)
+        return None
+
+    def _init_checkers(self) -> Dict[OverlapType, OverlapChecker]:
+        """
+        Initializes ordered checkers from most specific to most general.
+        To add new checks:
+        1. Create new OverlapChecker implementation
+        2. Add new type to OverlapType enum
+        3. Add checker instance here in appropriate order
+        """
+        return OrderedDict([
+            (OverlapType.NO_OVERLAP, NoOverlapChecker()),
+            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
+            (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
+            (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
+            (OverlapType.COMMON_START, CommonStartChecker()),
+            (OverlapType.COMMON_END, CommonEndChecker()),
+            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
+            (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
+        ])
+
+    def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
+        """Adds a new checker type at runtime"""
+        self._checkers[overlap_type] = checker()
 
 
 class NoOverlapResolver(OverlapResolver):
@@ -852,123 +1046,6 @@ class PartialOverlapResolver(OverlapResolver):
         return resolved
 
 
-class MetricMerger(ABC):
-    """Abstract base class defining metric merging strategy"""
-
-    @abstractmethod
-    def merge(self, interval: Interval, other: Interval) -> pd.Series:
-        """Merge metrics from two intervals according to strategy"""
-        pass
-
-    @staticmethod
-    def _validate_metric_columns(interval: Interval, other: Interval) -> None:
-        """Validate that metric columns are aligned between intervals"""
-        if len(interval.metric_columns) != len(other.metric_columns):
-            raise ValueError(ERROR_MESSAGE_METRIC_COLUMNS_LENGTH)
-
-
-class NonNullOverwriteMetricMerger(MetricMerger):
-    """Implementation that overwrites with non-null values from other interval"""
-
-    def merge(self, interval: Interval, other: Interval) -> pd.Series:
-        self._validate_metric_columns(interval, other)
-
-        # Create a copy of interval's data
-        merged_data = interval.data.copy()
-
-        # Overwrite with non-NaN values from other
-        for interval_col, other_col in zip(interval.metric_columns, other.metric_columns):
-            merged_data[interval_col] = (
-                other.data[other_col]
-                if pd.notna(other.data[other_col])
-                else merged_data[interval_col]
-            )
-
-        return merged_data
-
-
-# Here are the main interval relationship types in interval algebra:
-#
-# Before (b): A ends before B starts
-# Meets (m): A ends exactly when B starts
-# Overlaps (o): A starts before B and they overlap, but A ends before B
-# Starts (s): A and B start together, but A ends before B
-# During (d): A starts after B and ends before B
-# Finishes (f): A starts after B but they end together
-# Equals (e): A and B have the same start and end
-
-
-class OverlapType(Enum):
-    """Enumeration of possible interval overlap types"""
-    BOUNDARY_EQUAL = auto()
-    COMMON_END = auto()
-    COMMON_START = auto()
-    INTERVAL_CONTAINED = auto()
-    INTERVAL_ENDS_FIRST = auto()
-    INTERVAL_STARTS_FIRST = auto()
-    METRICS_EQUIVALENT = auto()
-    NO_OVERLAP = auto()
-    OTHER_CONTAINED = auto()
-    OTHER_ENDS_FIRST = auto()
-    OTHER_STARTS_FIRST = auto()
-    PARTIAL_OVERLAP = auto()
-
-
-@dataclass
-class OverlapResult:
-    type: OverlapType
-    details: Optional[Dict] = None
-
-
-class OverlapDetector:
-    def __init__(
-            self,
-            interval: Interval,
-            other: Interval,
-    ) -> None:
-        self.interval = interval
-        self.other = other
-        self._checkers = self._init_checkers()
-
-    def detect_overlap_type(self) -> Optional[OverlapResult]:
-        """Returns the most specific type of overlap found"""
-        for overlap_type, checker in self._checkers.items():
-            if checker.check(self.interval, self.other):
-                return OverlapResult(overlap_type)
-        return None
-
-    def _init_checkers(self) -> Dict[OverlapType, OverlapChecker]:
-        """
-        Initializes ordered checkers from most specific to most general.
-        To add new checks:
-        1. Create new OverlapChecker implementation
-        2. Add new type to OverlapType enum
-        3. Add checker instance here in appropriate order
-        """
-        return OrderedDict([
-            (OverlapType.NO_OVERLAP, NoOverlapChecker()),
-            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
-            (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
-            (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
-            (OverlapType.COMMON_START, CommonStartChecker()),
-            (OverlapType.COMMON_END, CommonEndChecker()),
-            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
-            (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
-        ])
-
-    def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
-        """Adds a new checker type at runtime"""
-        self._checkers[overlap_type] = checker()
-
-
-@dataclass
-class ResolutionResult:
-    """Represents the result of interval resolution"""
-    resolved_intervals: List[pd.Series]
-    metadata: Optional[Dict] = None
-    warnings: List[str] = field(default_factory=list)
-
-
 class ResolutionManager:
     """
     Manages resolution strategies for different types of interval overlaps.
@@ -1026,103 +1103,9 @@ class ResolutionManager:
         self._resolvers[overlap_type] = resolver()
 
 
-# TODO: does it make sense to move this to inside of the Interval class?
-class IntervalTransformer:
-    def __init__(
-            self,
-            interval: Interval,
-            other: Interval,
-    ) -> None:
-        """
-        Initialize OverlapResolver with two intervals, ensuring the one with the earlier start comes first.
-
-        Args:
-            interval (Interval): The first interval.
-            other (Interval): The second interval.
-        """
-
-        # Ensure intervals are ordered by start time
-        if interval.data[interval.start_ts] <= other.data[other.start_ts]:
-            self.interval = interval
-            self.other = other
-        else:
-            self.interval = other
-            self.other = interval
-
-        self.overlap_detector = OverlapDetector(self.interval, self.other)
-        self.resolution_manager = ResolutionManager()
-
-    def validate_intervals(self):
-
-        if set(self.interval.data.index) != set(self.other.data.index):
-            raise ValueError(ERROR_MESSAGE_EXPECTED_INTERVAL_INDICES)
-
-    def resolve_overlap(  # TODO: need to implement proper metric merging
-            #  -> for now, can just take non-null values from both intervals
-            self
-    ) -> list[pd.Series]:
-        """
-        resolve overlaps between the two given intervals,
-        splitting them as necessary into some set of disjoint intervals
-        """
-
-        self.validate_intervals()
-
-        overlap_result = self.overlap_detector.detect_overlap_type()
-        if overlap_result is None:
-            raise NotImplementedError("Unable to determine overlap type")
-
-        resolution_result = self.resolution_manager.resolve(
-            overlap_result.type,
-            self.interval,
-            self.other
-        )
-
-        return resolution_result.resolved_intervals
-
-    def merge_metrics(
-            self,
-            new_interval: Optional[Interval] = None,
-            new_other: Optional[Interval] = None,
-            metric_merge_method: bool = False,
-    ) -> pd.Series:
-        """
-        Return a merged set of metrics from `interval` and `other`.
-    
-        Parameters:
-            metric_merge_method (bool): If True, non-NaN metrics from `other` will overwrite metrics in `interval`.
-    
-        Returns:
-            pd.Series: A merged set of metrics as a Pandas Series.
-    
-        Raises:
-            ValueError: If `interval.metric_columns` and `other.metric_columns` are not aligned.
-        """
-        # Determine which intervals to use
-        interval_to_use = new_interval if new_interval else self.interval
-        other_to_use = new_other if new_other else self.other
-
-        # Validate that metric columns align
-        if len(interval_to_use.metric_columns) != len(other_to_use.metric_columns):
-            raise ValueError(
-                ERROR_MESSAGE_METRIC_COLUMNS_LENGTH
-            )
-
-        # Create a copy of interval's data
-        merged_interval = interval_to_use.data.copy()
-
-        if metric_merge_method:
-            for interval_metric_col, other_metric_col in zip(
-                    interval_to_use.metric_columns, other_to_use.metric_columns
-            ):
-                # Overwrite with non-NaN values from `other`
-                merged_interval[interval_metric_col] = (
-                    other_to_use.data[other_metric_col]
-                    if pd.notna(other_to_use.data[other_metric_col])
-                    else merged_interval[interval_metric_col]
-                )
-
-        return merged_interval
+# Utility Classes
+# ---------------
+# Supporting utility classes and helpers
 
 
 class IntervalsUtils:
@@ -1356,56 +1339,100 @@ class IntervalsUtils:
         return disjoint_intervals
 
 
-def make_disjoint_wrap(
-        start_ts: str,
-        end_ts: str,
-        series_ids: Sequence[str],
-        metric_columns: Sequence[str],
-) -> Callable[[pd.DataFrame], pd.DataFrame]:
-    """
-     Creates a Pandas UDF to process overlapping intervals and resolve them into disjoint intervals.
-
-     Parameters:
-         start_ts (str): Column name for the start timestamp.
-         end_ts (str): Column name for the end timestamp.
-         series_ids (Sequence[str]): Columns identifying unique series.
-         metric_columns (Sequence[str]): Metric columns to process.
-
-     Returns:
-         Callable[[pd.DataFrame], pd.DataFrame]: Function to apply on grouped Pandas DataFrames in Spark.
-     """
-
-    def make_disjoint_inner(pdf: pd.DataFrame) -> pd.DataFrame:
+# TODO: does it make sense to move this to inside of the Interval class?
+class IntervalTransformer:
+    def __init__(
+            self,
+            interval: Interval,
+            other: Interval,
+    ) -> None:
         """
-        Processes a grouped Pandas DataFrame to resolve overlapping intervals into disjoint intervals.
+        Initialize OverlapResolver with two intervals, ensuring the one with the earlier start comes first.
 
         Args:
-            pdf (pd.DataFrame): Pandas DataFrame grouped by Spark.
+            interval (Interval): The first interval.
+            other (Interval): The second interval.
+        """
+
+        # Ensure intervals are ordered by start time
+        if interval.data[interval.start_ts] <= other.data[other.start_ts]:
+            self.interval = interval
+            self.other = other
+        else:
+            self.interval = other
+            self.other = interval
+
+        self.overlap_detector = OverlapDetector(self.interval, self.other)
+        self.resolution_manager = ResolutionManager()
+
+    def validate_intervals(self):
+
+        if set(self.interval.data.index) != set(self.other.data.index):
+            raise ValueError(ERROR_MESSAGE_EXPECTED_INTERVAL_INDICES)
+
+    def resolve_overlap(  # TODO: need to implement proper metric merging
+            #  -> for now, can just take non-null values from both intervals
+            self
+    ) -> list[pd.Series]:
+        """
+        resolve overlaps between the two given intervals,
+        splitting them as necessary into some set of disjoint intervals
+        """
+
+        self.validate_intervals()
+
+        overlap_result = self.overlap_detector.detect_overlap_type()
+        if overlap_result is None:
+            raise NotImplementedError("Unable to determine overlap type")
+
+        resolution_result = self.resolution_manager.resolve(
+            overlap_result.type,
+            self.interval,
+            self.other
+        )
+
+        return resolution_result.resolved_intervals
+
+    def merge_metrics(
+            self,
+            new_interval: Optional[Interval] = None,
+            new_other: Optional[Interval] = None,
+            metric_merge_method: bool = False,
+    ) -> pd.Series:
+        """
+        Return a merged set of metrics from `interval` and `other`.
+
+        Parameters:
+            metric_merge_method (bool): If True, non-NaN metrics from `other` will overwrite metrics in `interval`.
 
         Returns:
-            pd.DataFrame: Disjoint intervals as a Pandas DataFrame.
+            pd.Series: A merged set of metrics as a Pandas Series.
+
+        Raises:
+            ValueError: If `interval.metric_columns` and `other.metric_columns` are not aligned.
         """
-        # Handle empty input DataFrame explicitly
-        if pdf.empty:
-            return pdf
+        # Determine which intervals to use
+        interval_to_use = new_interval if new_interval else self.interval
+        other_to_use = new_other if new_other else self.other
 
-        # Ensure intervals are sorted by start and end timestamps
-        sorted_intervals = pdf.sort_values(by=[start_ts, end_ts]).reset_index(drop=True)
+        # Validate that metric columns align
+        if len(interval_to_use.metric_columns) != len(other_to_use.metric_columns):
+            raise ValueError(
+                ERROR_MESSAGE_METRIC_COLUMNS_LENGTH
+            )
 
-        # Initialize an empty DataFrame to store disjoint intervals
-        disjoint_intervals = pd.DataFrame(columns=pdf.columns)
+        # Create a copy of interval's data
+        merged_interval = interval_to_use.data.copy()
 
-        # Define a function to process each row and update disjoint intervals
-        def process_row(row):
-            nonlocal disjoint_intervals
-            interval = Interval(row, start_ts, end_ts, series_ids, metric_columns)
-            local_utils = IntervalsUtils(disjoint_intervals)
-            local_utils.disjoint_set = disjoint_intervals
-            disjoint_intervals = local_utils.add_as_disjoint(interval)
+        if metric_merge_method:
+            for interval_metric_col, other_metric_col in zip(
+                    interval_to_use.metric_columns, other_to_use.metric_columns
+            ):
+                # Overwrite with non-NaN values from `other`
+                merged_interval[interval_metric_col] = (
+                    other_to_use.data[other_metric_col]
+                    if pd.notna(other_to_use.data[other_metric_col])
+                    else merged_interval[interval_metric_col]
+                )
 
-        # Apply the processing function to each row
-        sorted_intervals.apply(process_row, axis=1)
-
-        return disjoint_intervals
-
-    return make_disjoint_inner
+        return merged_interval
