@@ -617,12 +617,12 @@ class Interval:
         return self._boundaries.end
 
     @property
-    def end_field(self):
+    def end_field(self) -> str:
 
         return self.boundary_accessor.end_field
 
     @property
-    def boundaries(self):
+    def boundaries(self) -> tuple[IntervalBoundary, IntervalBoundary]:
         """Returns the start and end timestamps as a Series"""
         return self._boundaries.start, self._boundaries.end
 
@@ -1293,8 +1293,8 @@ class IntervalsUtils:
 
         # if there are no overlaps, add the interval to disjoint_set
         if overlapping_subset_df.empty:
-            element_wise_comparison = self.disjoint_set.copy().fillna("¯\\_(ツ)_/¯") == interval.data.fillna(
-                "¯\\_(ツ)_/¯").values
+            element_wise_comparison = self.disjoint_set.copy().fillna(pd.NA) == interval.data.fillna(
+                pd.NA).values
 
             row_wise_comparison = element_wise_comparison.all(axis=1)
             # NB: because of the nested iterations, we need to check that the
