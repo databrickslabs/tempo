@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from functools import cached_property
-from typing import Optional, Iterable, Callable, Sequence, Dict, Type, List, Union, TypeVar, Protocol
+from typing import Optional, Iterable, Callable, Sequence, Dict, Type, List, Union, TypeVar, Protocol, Generic
 
 import pandas as pd
 import pyspark.sql.functions as f
@@ -46,6 +46,7 @@ class ErrorMessages:
 IntervalData = TypeVar('IntervalData', bound=pd.Series)
 IntervalBoundary = Union[str, int, float, pd.Timestamp, datetime]
 MetricValue = Union[int, float, bool]
+T = TypeVar('T')
 
 
 # Abstract Base Classes & Interfaces
@@ -107,6 +108,84 @@ class MetricMerger(ABC):
         """Validate that metric columns are aligned between intervals"""
         if len(interval.metric_fields) != len(other.metric_fields):
             raise ValueError(ErrorMessages.METRIC_COLUMNS_LENGTH)
+
+
+@dataclass
+class BoundaryConverter(Generic[T]):
+    """
+    Handles conversion between user-provided boundary types and internal pd.Timestamp.
+    Maintains original format for converting back to user format.
+    """
+    to_timestamp: Callable[[T], pd.Timestamp]
+    from_timestamp: Callable[[pd.Timestamp], T]
+    original_type: type
+    original_format: Optional[str] = None  # Store original string format if applicable
+
+    @classmethod
+    def for_type(cls, sample_value: IntervalBoundary) -> 'BoundaryConverter':
+        """Factory method to create appropriate converter based on input type"""
+        if isinstance(sample_value, str):
+            return cls(
+                to_timestamp=lambda x: pd.Timestamp(x),
+                from_timestamp=lambda x: x.strftime(infer_datetime_format(sample_value)),
+                original_type=str,
+                original_format=sample_value  # Store complete original string
+            )
+        elif isinstance(sample_value, (int, float)) or sample_value is None:
+            return cls(
+                to_timestamp=lambda x: pd.Timestamp(x, unit='s'),
+                from_timestamp=lambda x: x.timestamp(),
+                original_type=type(sample_value)
+            )
+        elif isinstance(sample_value, datetime):
+            return cls(
+                to_timestamp=lambda x: pd.Timestamp(x),
+                from_timestamp=lambda x: x.to_pydatetime(),
+                original_type=datetime
+            )
+        elif isinstance(sample_value, pd.Timestamp):
+            return cls(
+                to_timestamp=lambda x: x,
+                from_timestamp=lambda x: x,
+                original_type=pd.Timestamp
+            )
+        else:
+            raise ValueError(f"Unsupported boundary type: {type(sample_value)}")
+
+
+@dataclass
+class BoundaryValue:
+    """
+    Wrapper class that maintains both internal timestamp and original format.
+    """
+    _timestamp: pd.Timestamp
+    _converter: BoundaryConverter
+
+    @classmethod
+    def from_user_value(cls, value: IntervalBoundary) -> BoundaryValue:
+        converter = BoundaryConverter.for_type(value)
+        return cls(
+            _timestamp=converter.to_timestamp(value),
+            _converter=converter
+        )
+
+    @property
+    def internal_value(self) -> pd.Timestamp:
+        """Get the internal timestamp representation"""
+        return self._timestamp
+
+    def to_user_value(self) -> IntervalBoundary:
+        """Convert back to the original user format"""
+        return self._converter.from_timestamp(self._timestamp)
+
+    def __eq__(self, other: 'BoundaryValue') -> bool:
+        return self._timestamp == other._timestamp
+
+    def __lt__(self, other: 'BoundaryValue') -> bool:
+        return self._timestamp < other._timestamp
+
+    def __le__(self, other: 'BoundaryValue') -> bool:
+        return self._timestamp <= other._timestamp
 
 
 # Core Interval Classes
@@ -479,16 +558,35 @@ class IntervalsDF:
 
 @dataclass
 class IntervalBoundaries:
-    start: IntervalBoundary
-    end: IntervalBoundary
+    _start: pd.Timestamp
+    _end: pd.Timestamp
 
-    def __post_init__(self):
-        if type(self.start) is not type(self.end):
-            raise TypeError("Start and end must be of the same subtype of IntervalBoundary.")
+    @classmethod
+    def create(cls, start: IntervalBoundary, end: IntervalBoundary) -> 'IntervalBoundaries':
+        return cls(
+            _start=BoundaryValue.from_user_value(start),
+            _end=BoundaryValue.from_user_value(end)
+        )
 
-    # TODO: cleaner to move these checks here?
-    # def contains(self, other: 'IntervalBoundaries') -> bool:
-    #     return self.start <= other.start and self.end >= other.end
+    @property
+    def start(self) -> IntervalBoundary:
+        """Get start boundary in user format"""
+        return self._start.to_user_value()
+
+    @property
+    def end(self) -> IntervalBoundary:
+        """Get end boundary in user format"""
+        return self._end.to_user_value()
+
+    @property
+    def internal_start(self) -> pd.Timestamp:
+        """Get internal timestamp representation of start"""
+        return self._start
+
+    @property
+    def internal_end(self) -> pd.Timestamp:
+        """Get internal timestamp representation of end"""
+        return self._end
 
 
 # This class handles the mapping between user-provided field names and our internal structure
@@ -508,7 +606,7 @@ class _BoundaryAccessor:
 
     def get_boundaries(self, data: pd.Series) -> IntervalBoundaries:
         """Extract boundary values from data using configured field names"""
-        return IntervalBoundaries(
+        return IntervalBoundaries.create(
             start=data[self.start_field],
             end=data[self.end_field],
         )
@@ -554,6 +652,9 @@ class Interval:
         """
         # Create the accessor internally - users never need to know about it
         boundary_accessor = _BoundaryAccessor(start_field, end_field)
+
+        if start_field is None or end_field is None:
+            raise ValueError("start_field and end_field cannot be None")
 
         return cls(
             data=data,
@@ -658,7 +759,7 @@ class Interval:
         Creates a new interval with updated start time while maintaining
         the user's field mapping structure
         """
-        new_boundaries = IntervalBoundaries(start=new_start, end=self.end)
+        new_boundaries = IntervalBoundaries.create(start=new_start, end=self.end)
         new_data = self.boundary_accessor.set_boundaries(self.data, new_boundaries)
 
         return Interval(
@@ -673,7 +774,7 @@ class Interval:
         Creates a new interval with updated end time while maintaining
         the user's field mapping structure
         """
-        new_boundaries = IntervalBoundaries(start=self.start, end=new_end)
+        new_boundaries = IntervalBoundaries.create(start=self.start, end=new_end)
         new_data = self.boundary_accessor.set_boundaries(self.data, new_boundaries)
 
         return Interval(
@@ -1594,3 +1695,31 @@ def make_disjoint_wrap(
         return disjoint_intervals
 
     return make_disjoint_inner
+
+
+def infer_datetime_format(date_string: str) -> str:
+    """
+    Extracts the exact format from a sample datetime string.
+    This preserves the exact format of the input string.
+    """
+    # Replace all date/time components with their format codes
+    replacements = [
+        # Order matters - replace longer patterns first
+        (r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[-+]\d{4}', '%Y-%m-%dT%H:%M:%S.%f%z'),
+        (r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}', '%Y-%m-%dT%H:%M:%S.%f'),
+        (r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+]\d{4}', '%Y-%m-%dT%H:%M:%S%z'),
+        (r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', '%Y-%m-%dT%H:%M:%S'),
+        (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}', '%Y-%m-%d %H:%M:%S.%f'),
+        (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', '%Y-%m-%d %H:%M:%S'),
+        (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}', '%Y-%m-%d %H:%M'),  # Added this format
+        (r'\d{4}-\d{2}-\d{2}', '%Y-%m-%d'),
+        (r'\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}', '%m/%d/%Y %H:%M:%S'),
+        (r'\d{2}/\d{2}/\d{4}', '%m/%d/%Y'),
+    ]
+
+    for pattern, repl in replacements:
+        if pd.Timestamp(date_string).strftime(repl) == date_string:
+            return repl
+
+    # If no exact match found, parse it with pandas and get its format
+    return '%Y-%m-%d %H:%M:%S'  # Default format if no match

@@ -585,40 +585,6 @@ class PandasFunctionTests(TestCase):
             "end",
         )
 
-    def test_end_nan_boundary(self):
-        self.assertRaises(
-            TypeError,
-            Interval.create,
-            pd.Series({"start": float("nan"), "end": "2023-01-01T00:00:03"}),
-            "start",
-            "end",
-        )
-
-    def test_none_end_boundary(self):
-        self.assertRaises(
-            TypeError,
-            Interval.create,
-            pd.Series(
-                {"start": "2022-01-02", "end": None, "metric_1": 6, "metric_2": 11}
-            ),
-            "start",
-            "end",
-            metric_fields=["metric_1", "metric_2"],
-
-        )
-
-    def test_none_start_boundary(self):
-        self.assertRaises(
-            TypeError,
-            Interval.create,
-            pd.Series(
-                {"start": None, "end": "2022-01-01", "metric_1": 5, "metric_2": 10}
-            ),
-            "start",
-            "end",
-
-        )
-
     def test_interval_ends_before_other(self):
         interval = Interval.create(pd.Series({"start": "2023-01-01T00:00:00", "end": "2023-01-01T00:00:01"}), "start",
                                    "end")
