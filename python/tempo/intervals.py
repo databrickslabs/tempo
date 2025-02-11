@@ -558,15 +558,20 @@ class IntervalsDF:
 
 @dataclass
 class IntervalBoundaries:
-    _start: pd.Timestamp
-    _end: pd.Timestamp
+    _start: BoundaryValue
+    _end: BoundaryValue
 
     @classmethod
     def create(cls, start: IntervalBoundary, end: IntervalBoundary) -> 'IntervalBoundaries':
+        # Convert only if not already a BoundaryValue
+        start_boundary = start if isinstance(start, BoundaryValue) else BoundaryValue.from_user_value(start)
+        end_boundary = end if isinstance(end, BoundaryValue) else BoundaryValue.from_user_value(end)
+
         return cls(
-            _start=BoundaryValue.from_user_value(start),
-            _end=BoundaryValue.from_user_value(end)
+            _start=start_boundary,
+            _end=end_boundary
         )
+
 
     @property
     def start(self) -> IntervalBoundary:
@@ -706,7 +711,7 @@ class Interval:
     @property
     def start(self) -> IntervalBoundary:
         """Returns the start timestamp of the interval"""
-        return self._boundaries.start
+        return self._boundaries.internal_start
 
     @property
     def start_field(self):
@@ -715,7 +720,7 @@ class Interval:
     @property
     def end(self) -> IntervalBoundary:
         """Returns the end timestamp of the interval"""
-        return self._boundaries.end
+        return self._boundaries.internal_end
 
     @property
     def end_field(self) -> str:
@@ -725,7 +730,7 @@ class Interval:
     @property
     def boundaries(self) -> tuple[IntervalBoundary, IntervalBoundary]:
         """Returns the start and end timestamps as a Series"""
-        return self._boundaries.start, self._boundaries.end
+        return self._boundaries.internal_start, self._boundaries.internal_end
 
     def _validate_data(self, data: pd.Series) -> None:
         """Validates the basic data structure"""
