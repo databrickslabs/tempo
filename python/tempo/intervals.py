@@ -562,7 +562,11 @@ class IntervalBoundaries:
     _end: BoundaryValue
 
     @classmethod
-    def create(cls, start: IntervalBoundary, end: IntervalBoundary) -> 'IntervalBoundaries':
+    def create(
+            cls,
+            start: Union[IntervalBoundary, BoundaryValue],
+            end: Union[IntervalBoundary, BoundaryValue],
+    ) -> 'IntervalBoundaries':
         # Convert only if not already a BoundaryValue
         start_boundary = start if isinstance(start, BoundaryValue) else BoundaryValue.from_user_value(start)
         end_boundary = end if isinstance(end, BoundaryValue) else BoundaryValue.from_user_value(end)
@@ -774,7 +778,7 @@ class Interval:
             self.metric_fields
         )
 
-    def update_end(self, new_end: IntervalBoundary) -> 'Interval':
+    def update_end(self, new_end: Union[IntervalBoundary, BoundaryValue]) -> 'Interval':
         """
         Creates a new interval with updated end time while maintaining
         the user's field mapping structure
@@ -882,25 +886,6 @@ class IntervalValidator:
 
         if not isinstance(data, pd.Series):
             raise InvalidDataTypeError("Expected data to be a Pandas Series")
-
-        return ValidationResult(is_valid=True)
-
-    @staticmethod
-    def validate_timestamps(data: pd.Series, start_ts: str, end_ts: str) -> ValidationResult:
-        if not isinstance(data[start_ts], (str, pd.Timestamp)):
-            raise InvalidTimestampError(
-                f"start_ts must be string or Timestamp, got {type(data[start_ts])}"
-            )
-
-        if not isinstance(data[end_ts], (str, pd.Timestamp)):
-            raise InvalidTimestampError(
-                f"end_ts must be string or Timestamp, got {type(data[end_ts])}"
-            )
-
-        if data[start_ts] > data[end_ts]:
-            raise InvalidTimestampError(
-                f"start_ts ({data[start_ts]}) must be <= end_ts ({data[end_ts]})"
-            )
 
         return ValidationResult(is_valid=True)
 
