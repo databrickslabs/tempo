@@ -987,12 +987,10 @@ class MetricsEquivalentChecker(OverlapChecker):
     """Checks if intervals have equivalent metrics and have any overlap or containment"""
 
     def check(self, interval: Interval, other: Interval) -> bool:
-        # First check if metrics are equal
-        metrics_equal = True
-        for _field in interval.metric_fields:
-            if interval.data[_field] != other.data[_field]:
-                metrics_equal = False
-                break
+        # First check if metrics are equal using pandas equals() for proper NULL handling
+        interval_metrics = interval.data[interval.metric_fields]
+        other_metrics = other.data[interval.metric_fields]
+        metrics_equal = interval_metrics.equals(other_metrics)
 
         if not metrics_equal:
             return False
