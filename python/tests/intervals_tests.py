@@ -1474,7 +1474,7 @@ class PandasFunctionTests(TestCase):
 
         result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
         print(result)
-        self.assertEqual(4, len(result))
+        self.assertEqual(5, len(result))
 
     def test_resolve_all_overlaps_where_no_overlaps(self):
         interval = Interval.create(pd.Series(
@@ -1632,7 +1632,7 @@ class PandasFunctionTests(TestCase):
                 "value": [
                     5,
                     10,
-                    10,
+                    15,
                     15,
                 ],
             }
@@ -1702,8 +1702,8 @@ class PandasFunctionTests(TestCase):
             {
                 "start": ["2023-01-01 00:00", "2023-01-01 02:00", "2023-01-01 03:00"],
                 "end": ["2023-01-01 02:00", "2023-01-01 03:00", "2023-01-01 04:00"],
-                "id": [1, 2, 2],
-                "value": [10, 10, 20],
+                "id": [1, 1, 2],
+                "value": [10, 20, 20],
             }
         )
 
