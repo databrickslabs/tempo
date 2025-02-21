@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from functools import cached_property
-from typing import Optional, Iterable, Callable, Sequence, Dict, Type, List, Union, TypeVar, Protocol, Generic
+from typing import Optional, Iterable, Callable, Sequence, Dict, List, Union, TypeVar, Protocol, Generic
 
 import pandas as pd
 import pyspark.sql.functions as f
@@ -588,12 +588,12 @@ class IntervalBoundaries:
         return self._end.to_user_value()
 
     @property
-    def internal_start(self) -> pd.Timestamp:
+    def internal_start(self) -> BoundaryValue:
         """Get internal timestamp representation of start"""
         return self._start
 
     @property
-    def internal_end(self) -> pd.Timestamp:
+    def internal_end(self) -> BoundaryValue:
         """Get internal timestamp representation of end"""
         return self._end
 
@@ -713,18 +713,26 @@ class Interval:
         self._validate_metric_columns(metric_columns)
 
     @property
-    def start(self) -> IntervalBoundary:
+    def start(self) -> BoundaryValue:
         """Returns the start timestamp of the interval"""
         return self._boundaries.internal_start
+
+    @property
+    def user_start(self):
+        return self._boundaries.start
 
     @property
     def start_field(self):
         return self.boundary_accessor.start_field
 
     @property
-    def end(self) -> IntervalBoundary:
+    def end(self) -> BoundaryValue:
         """Returns the end timestamp of the interval"""
         return self._boundaries.internal_end
+
+    @property
+    def user_end(self):
+        return self._boundaries.end
 
     @property
     def end_field(self) -> str:
@@ -732,7 +740,7 @@ class Interval:
         return self.boundary_accessor.end_field
 
     @property
-    def boundaries(self) -> tuple[IntervalBoundary, IntervalBoundary]:
+    def boundaries(self) -> tuple[BoundaryValue, BoundaryValue]:
         """Returns the start and end timestamps as a Series"""
         return self._boundaries.internal_start, self._boundaries.internal_end
 
@@ -763,7 +771,7 @@ class Interval:
     # Time Operations
     # --------------
 
-    def update_start(self, new_start: IntervalBoundary) -> 'Interval':
+    def update_start(self, new_start: Union[IntervalBoundary, BoundaryValue]) -> 'Interval':
         """
         Creates a new interval with updated start time while maintaining
         the user's field mapping structure
@@ -954,336 +962,333 @@ class NonNullOverwriteMetricMerger(MetricMerger):
 # -----------------------------
 # Classes handling overlap detection and resolution logic
 
-# TODO: The main interval relationship types in interval algebra:
-#
-# Before (b): A ends before B starts
-# Meets (m): A ends exactly when B starts
-# Overlaps (o): A starts before B and they overlap, but A ends before B
-# Starts (s): A and B start together, but A ends before B
-# During (d): A starts after B and ends before B
-# Finishes (f): A starts after B but they end together
-# Equals (e): A and B have the same start and end
 class OverlapType(Enum):
-    """Enumeration of possible interval overlap types"""
-    BOUNDARY_EQUAL = auto()
-    COMMON_END = auto()
-    COMMON_START = auto()
-    INTERVAL_CONTAINED = auto()
-    INTERVAL_ENDS_FIRST = auto()
-    INTERVAL_STARTS_FIRST = auto()
-    METRICS_EQUIVALENT = auto()
-    NO_OVERLAP = auto()
-    OTHER_CONTAINED = auto()
-    OTHER_ENDS_FIRST = auto()
-    OTHER_STARTS_FIRST = auto()
-    PARTIAL_OVERLAP = auto()
-
-
-class NoOverlapChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return interval.end < other.start or interval.start > other.end
+    """
+    Comprehensive classification of possible interval relationships.
+    Based on Allen's interval algebra.
+    """
+    METRICS_EQUIVALENT = auto()  # Overlapping intervals with same metrics; this is a special case
+    BEFORE = auto()  # X completely before Y
+    MEETS = auto()  # X ends where Y starts
+    OVERLAPS = auto()  # X overlaps start of Y
+    STARTS = auto()  # X and Y start together
+    DURING = auto()  # X completely inside Y
+    FINISHES = auto()  # X and Y end together
+    EQUALS = auto()  # X and Y are identical
+    CONTAINS = auto()  # X completely contains Y
+    STARTED_BY = auto()  # Y starts at X start
+    FINISHED_BY = auto()  # Y ends at X end
+    OVERLAPPED_BY = auto()  # Y overlaps start of X
+    MET_BY = auto()  # Y ends where X starts
+    AFTER = auto()  # X completely after Y
 
 
 class MetricsEquivalentChecker(OverlapChecker):
-    def __init__(self, normalizer: MetricNormalizer = NullMetricNormalizer()):
-        self.normalizer = normalizer
+    """Checks if intervals have equivalent metrics and have any overlap or containment"""
 
     def check(self, interval: Interval, other: Interval) -> bool:
-        interval_metrics = self.normalizer.normalize(interval)
-        other_metrics = self.normalizer.normalize(other)
-        return interval_metrics.equals(other_metrics)
+        # First check if metrics are equal
+        metrics_equal = True
+        for _field in interval.metric_fields:
+            if interval.data[_field] != other.data[_field]:
+                metrics_equal = False
+                break
 
+        if not metrics_equal:
+            return False
 
-class IntervalStartsFirstChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return interval.start < other.start
-
-
-class OtherStartsFirstChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return other.start < interval.start
-
-
-class IntervalEndsFirstChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return interval.end < other.end
-
-
-class OtherEndsFirstChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return other.end < interval.end
-
-
-class IntervalContainedChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return OtherStartsFirstChecker().check(interval, other) and IntervalEndsFirstChecker().check(interval, other)
-
-
-class OtherContainedChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return IntervalStartsFirstChecker().check(interval, other) and OtherEndsFirstChecker().check(interval, other)
-
-
-class StartBoundaryEqualityChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return interval.start == other.start
-
-
-class EndBoundaryEqualityChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return interval.end == other.end
-
-
-class BoundaryEqualityChecker(OverlapChecker):
-    def check(self, interval: Interval, other: Interval) -> bool:
-        return (
-                StartBoundaryEqualityChecker().check(interval, other)
-                and EndBoundaryEqualityChecker().check(interval, other)
+        # Then check if intervals overlap or one contains the other
+        has_overlap = (
+            # Overlap cases
+                (interval.start.internal_value < other.end.internal_value and
+                 interval.end.internal_value > other.start.internal_value) or
+                # Containment cases
+                (interval.start.internal_value <= other.start.internal_value and
+                 interval.end.internal_value >= other.end.internal_value) or
+                (other.start.internal_value <= interval.start.internal_value and
+                 other.end.internal_value >= interval.end.internal_value)
         )
 
+        return metrics_equal and has_overlap
 
-class CommonStartChecker(OverlapChecker):
+
+class BeforeChecker(OverlapChecker):
+    """Checks if interval is completely before other"""
     def check(self, interval: Interval, other: Interval) -> bool:
-        return (
-                StartBoundaryEqualityChecker().check(interval, other)
-                and not EndBoundaryEqualityChecker().check(interval, other)
-        )
+        return interval.end <= other.start
 
 
-class CommonEndChecker(OverlapChecker):
+class MeetsChecker(OverlapChecker):
+    """Checks if interval ends exactly where other starts"""
     def check(self, interval: Interval, other: Interval) -> bool:
-        return (
-                not StartBoundaryEqualityChecker().check(interval, other)
-                and EndBoundaryEqualityChecker().check(interval, other)
-        )
+        return interval.end == other.start
 
 
-class PartialOverlapChecker(OverlapChecker):
+class OverlapsChecker(OverlapChecker):
+    """Checks if interval overlaps the start of other"""
     def check(self, interval: Interval, other: Interval) -> bool:
-        return (
-                IntervalStartsFirstChecker().check(interval, other)
-                and IntervalEndsFirstChecker().check(interval, other)
-        )
+        return interval.start < other.start < interval.end < other.end
 
 
-class OverlapDetector:
-    def __init__(
-            self,
-            interval: Interval,
-            other: Interval,
-    ) -> None:
-        self.interval = interval
-        self.other = other
-        self._checkers = self._initialize_overlap_checkers()
-
-    def detect_overlap_type(self) -> Optional[OverlapResult]:
-        """Returns the most specific type of overlap found"""
-        for overlap_type, checker in self._checkers.items():
-            if checker.check(self.interval, self.other):
-                return OverlapResult(overlap_type)
-        return None
-
-    def _initialize_overlap_checkers(self) -> Dict[OverlapType, OverlapChecker]:
-        """
-        Initializes ordered checkers from most specific to most general.
-        To add new checks:
-        1. Create new OverlapChecker implementation
-        2. Add new type to OverlapType enum
-        3. Add checker instance here in appropriate order
-        """
-        return OrderedDict([
-            (OverlapType.NO_OVERLAP, NoOverlapChecker()),
-            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentChecker()),
-            (OverlapType.INTERVAL_CONTAINED, IntervalContainedChecker()),
-            (OverlapType.OTHER_CONTAINED, OtherContainedChecker()),
-            (OverlapType.COMMON_START, CommonStartChecker()),
-            (OverlapType.COMMON_END, CommonEndChecker()),
-            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityChecker()),
-            (OverlapType.PARTIAL_OVERLAP, PartialOverlapChecker())
-        ])
-
-    def register_checker(self, overlap_type: OverlapType, checker: Type[OverlapChecker]) -> None:
-        """Adds a new checker type at runtime"""
-        self._checkers[overlap_type] = checker()
+class StartsChecker(OverlapChecker):
+    """Checks if interval starts together with other but ends earlier"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.start == other.start and
+                interval.end < other.end)
 
 
-class NoOverlapResolver(OverlapResolver):
+class DuringChecker(OverlapChecker):
+    """Checks if interval is completely contained within other"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.start > other.start and
+                interval.end < other.end)
+
+
+class FinishesChecker(OverlapChecker):
+    """Checks if interval ends together with other but starts later"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.start > other.start and
+                interval.end == other.end)
+
+
+class EqualsChecker(OverlapChecker):
+    """Checks if interval is identical to other"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.start == other.start and
+                interval.end == other.end)
+
+
+class ContainsChecker(OverlapChecker):
+    """Checks if interval completely contains other"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.start < other.start and
+                interval.end > other.end)
+
+
+class StartedByChecker(OverlapChecker):
+    """Checks if other starts together with interval but ends earlier"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.start == other.start and
+                interval.end > other.end)
+
+
+class FinishedByChecker(OverlapChecker):
+    """Checks if other ends together with interval but starts later"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return (interval.end == other.end and
+                interval.start < other.start)
+
+
+class OverlappedByChecker(OverlapChecker):
+    """Checks if other overlaps the start of interval"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return other.start < interval.start < other.end < interval.end
+
+
+class MetByChecker(OverlapChecker):
+    """Checks if other ends exactly where interval starts"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return other.end == interval.start
+
+
+class AfterChecker(OverlapChecker):
+    """Checks if interval is completely after other"""
+    def check(self, interval: Interval, other: Interval) -> bool:
+        return interval.start >= other.end
+
+
+class MetricsEquivalentResolver(OverlapResolver):
+    """
+    Resolver for intervals with equivalent metrics that overlap.
+    Returns a single interval spanning the total time range.
+    """
+
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # Create a new interval spanning the entire range
+        earliest = interval if interval.start <= other.start else other
+        latest = interval if interval.end >= other.end else other
+
+        # Use interval's data as base since metrics are equivalent
+        result = interval.data.copy()
+        result[interval.start_field] = earliest.user_start
+        result[interval.end_field] = latest.user_end
+
+        return [result]
+
+
+class BeforeResolver(OverlapResolver):
+    """Resolver for intervals that are completely before one another"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # No resolution needed - intervals are already disjoint
         return [interval.data, other.data]
 
 
-class EquivalentMetricsResolver(OverlapResolver):
-    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        return [interval.update_end(other.end).data]
-
-
-class ContainedResolverBase(OverlapResolver):
-    """Base class for resolving contained intervals"""
+class MeetsResolver(OverlapResolver):
+    """Resolver for intervals that meet exactly at a boundary"""
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolved = [
-            # First interval - update end boundary
+        # No resolution needed - intervals are already disjoint
+        return [interval.data, other.data]
+
+
+class OverlapsResolver(OverlapResolver):
+    """Resolver for intervals where one overlaps the start of the other"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # Split into three intervals: before overlap, overlap, after overlap
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # First part (before overlap)
             interval.update_end(other.start).data,
-            # Middle interval - merge metrics
-            self._merge_metrics(interval, other),
-            # Last interval - update start boundary
-            interval.update_start(other.end).data]
 
-        return resolved
-
-    @abstractmethod
-    def _merge_metrics(self, interval: Interval, other: Interval) -> pd.Series:
-        """Define how metrics should be merged based on containment type"""
-        pass
-
-
-class IntervalContainedResolver(ContainedResolverBase):
-    def _merge_metrics(self, interval: Interval, other: Interval) -> pd.Series:
-        return NonNullOverwriteMetricMerger().merge(interval, other)
-
-
-class OtherContainedResolver(ContainedResolverBase):
-    def _merge_metrics(self, interval: Interval, other: Interval) -> pd.Series:
-        return NonNullOverwriteMetricMerger().merge(other, interval)
-
-
-class CommonStartResolver(OverlapResolver):
-    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolved = []
-
-        if IntervalEndsFirstChecker().check(interval, other):
-            # 1)
-            resolved_series = NonNullOverwriteMetricMerger().merge(interval, other)
-
-            resolved.append(resolved_series)
-
-            # 2)
-            resolved_series = other.update_start(interval.end).data
-
-            resolved.append(resolved_series)
-
-        else:
-            # 1)
-            resolved_series = NonNullOverwriteMetricMerger().merge(other, interval)
-
-            resolved.append(resolved_series)
-
-            # 2)
-            resolved_series = interval.update_start(other.end).data
-
-            resolved.append(resolved_series)
-
-        return resolved
-
-
-class CommonEndResolver(OverlapResolver):
-    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolved = []
-
-        if IntervalStartsFirstChecker().check(interval, other):
-            # 1)
-            resolved_series = interval.update_end(other.start).data
-
-            resolved.append(resolved_series)
-
-            # 2)
-            resolved_series = NonNullOverwriteMetricMerger().merge(other, interval)
-
-            resolved.append(resolved_series)
-
-        return resolved
-
-
-class BoundaryEqualityResolver(OverlapResolver):
-    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        return [NonNullOverwriteMetricMerger().merge(interval, other)]
-
-
-class PartialOverlapResolver(OverlapResolver):
-    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolved = []
-        # 1)
-        resolved_series = interval.update_end(other.start).data
-
-        resolved.append(resolved_series)
-
-        # 2)
-        updated_series = other.update_end(interval.end).data
-        resolved_series = NonNullOverwriteMetricMerger().merge(
-            Interval.create(
-                updated_series,
-                other.start_field,
-                other.end_field,
-                series_fields=other.series_fields,
-                metric_fields=other.metric_fields,
+            # Overlapping part (merge metrics)
+            resolver.merge(
+                interval.update_start(other.start),
+                other.update_end(interval.end)
             ),
-            interval,
-        )
 
-        resolved.append(resolved_series)
-
-        # 3)
-        resolved_series = other.update_start(interval.end).data
-
-        resolved.append(resolved_series)
-
-        return resolved
+            # Last part (after overlap)
+            other.update_start(interval.end).data
+        ]
 
 
-class ResolutionManager:
-    """
-    Handles the coordination of overlap resolution between intervals using registered resolution strategies
-    """
+class StartsResolver(OverlapResolver):
+    """Resolver for intervals that start together but one ends earlier"""
 
-    def __init__(self):
-        self._resolvers = self._init_resolvers()
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # Shared start portion
+            resolver.merge(interval, other.update_end(interval.end)),
 
-    def _init_resolvers(self) -> Dict[OverlapType, OverlapResolver]:
-        """
-        Initializes mapping of overlap types to their resolvers.
-        Order matches overlap detection hierarchy.
-        """
-        return OrderedDict([
-            (OverlapType.BOUNDARY_EQUAL, BoundaryEqualityResolver()),
-            (OverlapType.COMMON_END, CommonEndResolver()),
-            (OverlapType.COMMON_START, CommonStartResolver()),
-            (OverlapType.INTERVAL_CONTAINED, IntervalContainedResolver()),
-            (OverlapType.METRICS_EQUIVALENT, EquivalentMetricsResolver()),
-            (OverlapType.NO_OVERLAP, NoOverlapResolver()),
-            (OverlapType.OTHER_CONTAINED, OtherContainedResolver()),
-            (OverlapType.PARTIAL_OVERLAP, PartialOverlapResolver()),
-        ])
+            # Remaining portion of longer interval
+            other.update_start(interval.end).data
+        ]
 
-    def resolve(self, overlap_type: OverlapType, interval: Interval, other: Interval) -> ResolutionResult:
-        """
-        Resolves overlap between intervals using appropriate strategy
 
-        Args:
-            overlap_type: Type of overlap detected
-            interval: First interval
-            other: Second interval
+class DuringResolver(OverlapResolver):
+    """Resolver for intervals where one is completely contained within the other"""
 
-        Returns:
-            ResolutionResult containing resolved intervals and metadata
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # First part of containing interval
+            other.update_end(interval.start).data,
 
-        Raises:
-            ValueError: If no resolver exists for overlap type
-        """
-        resolver = self._resolvers.get(overlap_type)
-        if not resolver:
-            raise ValueError(ErrorMessages.NO_RESOLVER.format(overlap_type))
+            # Contained interval (merge metrics)
+            resolver.merge(interval, other.update_end(interval.end)),
 
-        try:
-            resolved = resolver.resolve(interval, other)
-            return ResolutionResult(resolved_intervals=resolved)
-        except Exception as e:
-            raise ValueError(ErrorMessages.RESOLUTION_FAILED.format(overlap_type, str(e)))
+            # Last part of containing interval
+            other.update_start(interval.end).data
+        ]
 
-    def register_resolver(self, overlap_type: OverlapType, resolver: Type[OverlapResolver]) -> None:
-        """Registers a new resolver for given overlap type"""
-        if overlap_type in self._resolvers:
-            raise ValueError(ErrorMessages.RESOLVER_REGISTERED.format(overlap_type))
-        self._resolvers[overlap_type] = resolver()
+
+class FinishesResolver(OverlapResolver):
+    """Resolver for intervals that end together but started at different times"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # Non-overlapping start portion
+            other.update_end(interval.start).data,
+
+            # Shared end portion (merge metrics)
+            resolver.merge(interval, other.update_start(interval.start))
+        ]
+
+
+class EqualsResolver(OverlapResolver):
+    """Resolver for intervals that are exactly equal"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # Merge metrics for the identical intervals
+        resolver = NonNullOverwriteMetricMerger()
+        return [resolver.merge(interval, other)]
+
+
+class ContainsResolver(OverlapResolver):
+    """Resolver for intervals where one completely contains the other"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # Same logic as DuringResolver but with intervals swapped
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # First part of containing interval
+            interval.update_end(other.start).data,
+
+            # Contained interval (merge metrics)
+            resolver.merge(other, interval.update_end(other.end)),
+
+            # Last part of containing interval
+            interval.update_start(other.end).data
+        ]
+
+
+class StartedByResolver(OverlapResolver):
+    """Resolver for intervals where both start together but one continues longer"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # Same logic as StartsResolver but with intervals swapped
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # Shared start portion
+            resolver.merge(other, interval.update_end(other.end)),
+
+            # Remaining portion of longer interval
+            interval.update_start(other.end).data
+        ]
+
+
+class FinishedByResolver(OverlapResolver):
+    """Resolver for intervals where other ends together with interval but starts later"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # First part before other starts
+            interval.update_end(other.start).data,
+
+            # Shared end portion (merge metrics)
+            resolver.merge(interval.update_start(other.start), other)
+        ]
+
+
+class OverlappedByResolver(OverlapResolver):
+    """Resolver for intervals where one is overlapped by the start of another"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # Same logic as OverlapsResolver but with intervals swapped
+        resolver = NonNullOverwriteMetricMerger()
+        return [
+            # First part (before overlap)
+            other.update_end(interval.start).data,
+
+            # Overlapping part (merge metrics)
+            resolver.merge(
+                other.update_end(other.end),
+                interval.update_end(other.end)
+            ),
+
+            # Last part (after overlap)
+            interval.update_start(other.end).data
+        ]
+
+
+class MetByResolver(OverlapResolver):
+    """Resolver for intervals where one ends exactly where the other starts"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # No resolution needed - intervals are already disjoint
+        return [other.data, interval.data]
+
+
+class AfterResolver(OverlapResolver):
+    """Resolver for intervals that are completely after one another"""
+
+    def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
+        # No resolution needed - intervals are already disjoint
+        return [other.data, interval.data]
 
 
 # Utility Classes
@@ -1479,11 +1484,13 @@ class IntervalsUtils:
             interval: Interval,
     ) -> pd.DataFrame:
         """
-        resolve the interval `x` against all overlapping intervals in `overlapping`,
+        resolve the interval against all overlapping intervals in `overlapping`,
         returning a set of disjoint intervals with the same spans
-        https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.apply.html
         """
+        if self.intervals.empty:
+            return pd.DataFrame([interval.data])
 
+        # Process first row
         first_row = Interval.create(
             self.intervals.iloc[0],
             interval.start_field,
@@ -1523,7 +1530,6 @@ class IntervalsUtils:
         return disjoint_intervals
 
 
-# TODO: does it make sense to move this to inside of the Interval class?
 class IntervalTransformer:
     def __init__(
             self,
@@ -1546,83 +1552,126 @@ class IntervalTransformer:
             self.interval = other
             self.other = interval
 
-        self.overlap_detector = OverlapDetector(self.interval, self.other)
-        self.resolution_manager = ResolutionManager()
+        self.validate_intervals(self.interval, self.other)
 
-    def validate_intervals(self):
-
-        if set(self.interval.data.index) != set(self.other.data.index):
+    def validate_intervals(self, interval: Interval, other: Interval):
+        """Validate that intervals can be compared"""
+        if set(interval.data.index) != set(other.data.index):
             raise ValueError(ErrorMessages.INTERVAL_INDICES)
 
-    def resolve_overlap(  # TODO: need to implement proper metric merging
-            #  -> for now, can just take non-null values from both intervals
-            self
-    ) -> list[pd.Series]:
+    def detect_relationship(self) -> Optional[OverlapType]:
         """
-        resolve overlaps between the two given intervals,
-        splitting them as necessary into some set of disjoint intervals
+        Detect the Allen's interval relationship between the intervals.
+        Returns None if no relationship is found.
+
+        The order of checks is important as some relationships are more specific
+        than others. For example, EQUALS is more specific than STARTS.
         """
+        # Check for metric equivalence first
+        if MetricsEquivalentChecker().check(self.interval, self.other):
+            return OverlapType.METRICS_EQUIVALENT
 
-        self.validate_intervals()
+        checkers = OrderedDict([
+            # 1. Most specific - exact equality
+            (OverlapType.EQUALS, EqualsChecker()),  # intervals are identical
 
-        overlap_result = self.overlap_detector.detect_overlap_type()
-        if overlap_result is None:
-            raise NotImplementedError("Unable to determine overlap type")
+            # 2. Containment relationships (one interval completely contains another)
+            (OverlapType.DURING, DuringChecker()),  # interval is inside other
+            (OverlapType.CONTAINS, ContainsChecker()),  # interval contains other
 
-        resolution_result = self.resolution_manager.resolve(
-            overlap_result.type,
-            self.interval,
-            self.other
-        )
+            # 3. Boundary sharing relationships (intervals share a boundary but have different spans)
+            (OverlapType.STARTS, StartsChecker()),  # intervals start together, interval ends first
+            (OverlapType.STARTED_BY, StartedByChecker()),  # intervals start together, other ends first
+            (OverlapType.FINISHES, FinishesChecker()),  # intervals end together, interval starts later
+            (OverlapType.FINISHED_BY, FinishedByChecker()),  # intervals end together, other starts later
 
-        return resolution_result.resolved_intervals
+            # 4. Boundary touching relationships (intervals touch but don't overlap)
+            (OverlapType.MEETS, MeetsChecker()),  # interval ends where other starts
+            (OverlapType.MET_BY, MetByChecker()),  # other ends where interval starts
 
-    def merge_metrics(
-            self,
-            new_interval: Optional[Interval] = None,
-            new_other: Optional[Interval] = None,
-            metric_merge_method: bool = False,
-    ) -> pd.Series:
-        """
-        Return a merged set of metrics from `interval` and `other`.
+            # 5. Partial overlap relationships (intervals overlap but don't share boundaries)
+            (OverlapType.OVERLAPS, OverlapsChecker()),  # interval starts first, overlaps start of other
+            (OverlapType.OVERLAPPED_BY, OverlappedByChecker()),  # other starts first, overlaps start of interval
 
-        Parameters:
-            metric_merge_method (bool): If True, non-NaN metrics from `other` will overwrite metrics in `interval`.
+            # 6. Disjoint relationships (no overlap)
+            (OverlapType.BEFORE, BeforeChecker()),  # interval completely before other
+            (OverlapType.AFTER, AfterChecker())  # interval completely after other
+        ])
 
-        Returns:
-            pd.Series: A merged set of metrics as a Pandas Series.
+        for relationship_type, checker in checkers.items():
+            if checker.check(self.interval, self.other):
+                return relationship_type
 
-        Raises:
-            ValueError: If `interval.metric_columns` and `other.metric_columns` are not aligned.
-            :param metric_merge_method:
-            :param new_other:
-            :param new_interval:
-        """
-        # Determine which intervals to use
-        interval_to_use = new_interval if new_interval else self.interval
-        other_to_use = new_other if new_other else self.other
+        return None
 
-        # Validate that metric columns align
-        if len(interval_to_use.metric_fields) != len(other_to_use.metric_fields):
-            raise ValueError(
-                ErrorMessages.METRIC_COLUMNS_LENGTH
-            )
+    def resolve_overlap(self) -> list[pd.Series]:
+        """Resolve overlapping intervals into disjoint intervals."""
+        relationship = self.detect_relationship()
+        if relationship is None:
+            raise NotImplementedError("Unable to determine interval relationship")
 
-        # Create a copy of interval's data
-        merged_interval = interval_to_use.data.copy()
+        resolver = self._get_resolver(relationship)
+        return resolver.resolve(self.interval, self.other)
 
-        if metric_merge_method:
-            for interval_metric_col, other_metric_col in zip(
-                    interval_to_use.metric_fields, other_to_use.metric_fields
-            ):
-                # Overwrite with non-NaN values from `other`
-                merged_interval[interval_metric_col] = (
-                    other_to_use.data[other_metric_col]
-                    if pd.notna(other_to_use.data[other_metric_col])
-                    else merged_interval[interval_metric_col]
-                )
+    def _get_resolver(self, relationship: OverlapType) -> OverlapResolver:
+        """Get the appropriate resolver for the relationship type."""
+        resolvers = OrderedDict([
+            # Special case: Metric equivalence overrides Allen relationships
+            (OverlapType.METRICS_EQUIVALENT, MetricsEquivalentResolver()),
+            # Merges overlapping intervals with equal metrics
+            # Returns: [merged_spanning_interval]
 
-        return merged_interval
+            # 1. Most specific - exact equality
+            (OverlapType.EQUALS, EqualsResolver()),  # Merges metrics for identical intervals
+            # Returns: [merged_interval]
+
+            # 2. Containment relationships (one interval completely contains another)
+            (OverlapType.DURING, DuringResolver()),  # Interval is inside other
+            # Returns: [before_contained, contained_with_merged_metrics, after_contained]
+
+            (OverlapType.CONTAINS, ContainsResolver()),  # Interval contains other
+            # Returns: [before_other, other_with_merged_metrics, after_other]
+
+            # 3. Boundary sharing relationships (intervals share a boundary but have different spans)
+            (OverlapType.STARTS, StartsResolver()),  # Intervals start together, interval ends first
+            # Returns: [shared_start_with_merged_metrics, remaining_other]
+
+            (OverlapType.STARTED_BY, StartedByResolver()),  # Intervals start together, other ends first
+            # Returns: [shared_start_with_merged_metrics, remaining_interval]
+
+            (OverlapType.FINISHES, FinishesResolver()),  # Intervals end together, interval starts later
+            # Returns: [other_before_interval, shared_end_with_merged_metrics]
+
+            (OverlapType.FINISHED_BY, FinishedByResolver()),  # Intervals end together, other starts later
+            # Returns: [interval_before_other, shared_end_with_merged_metrics]
+
+            # 4. Boundary touching relationships (intervals touch but don't overlap)
+            (OverlapType.MEETS, MeetsResolver()),  # Interval ends where other starts
+            # Returns: [interval, other] (no merging needed)
+
+            (OverlapType.MET_BY, MetByResolver()),  # Other ends where interval starts
+            # Returns: [other, interval] (no merging needed)
+
+            # 5. Partial overlap relationships (intervals overlap but don't share boundaries)
+            (OverlapType.OVERLAPS, OverlapsResolver()),  # Interval starts first, overlaps start of other
+            # Returns: [before_overlap, overlapping_with_merged_metrics, after_overlap]
+
+            (OverlapType.OVERLAPPED_BY, OverlappedByResolver()),  # Other starts first, overlaps start of interval
+            # Returns: [before_overlap, overlapping_with_merged_metrics, after_overlap]
+
+            # 6. Disjoint relationships (no overlap)
+            (OverlapType.BEFORE, BeforeResolver()),  # Interval completely before other
+            # Returns: [interval, other] (no merging needed)
+
+            (OverlapType.AFTER, AfterResolver())  # Interval completely after other
+            # Returns: [other, interval] (no merging needed)
+        ])
+
+        resolver = resolvers.get(relationship)
+        if resolver is None:
+            raise ValueError(f"No resolver found for relationship type: {relationship}")
+
+        return resolver
 
 
 # Utility Functions
@@ -1701,7 +1750,7 @@ def infer_datetime_format(date_string: str) -> str:
         (r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}', '%Y-%m-%dT%H:%M:%S'),
         (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}', '%Y-%m-%d %H:%M:%S.%f'),
         (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', '%Y-%m-%d %H:%M:%S'),
-        (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}', '%Y-%m-%d %H:%M'),  # Added this format
+        (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}', '%Y-%m-%d %H:%M'),
         (r'\d{4}-\d{2}-\d{2}', '%Y-%m-%d'),
         (r'\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}', '%m/%d/%Y %H:%M:%S'),
         (r'\d{2}/\d{2}/\d{4}', '%m/%d/%Y'),
