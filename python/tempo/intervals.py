@@ -95,13 +95,79 @@ class ResolutionResult:
     warnings: List[str] = field(default_factory=list)
 
 
+class MetricMergeStrategy(ABC):
+    """Abstract base class for implementing metric merge strategies"""
+
+    @abstractmethod
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        """Merge two metric values according to the strategy"""
+        pass
+
+    def validate(self, value1: MetricValue, value2: MetricValue) -> None:
+        """Optional validation of values before merging"""
+        pass
+
+
+class MetricMergeConfig:
+    """Configuration for metric merging behavior"""
+
+    def __init__(self,
+                 default_strategy: MetricMergeStrategy = None,
+                 column_strategies: Dict[str, MetricMergeStrategy] = None):
+        self.default_strategy = default_strategy or KeepLastStrategy()
+        self.column_strategies = column_strategies or {}
+        self._validate_strategies()
+
+    def _validate_strategies(self) -> None:
+        """Validate that all strategies are proper MetricMergeStrategy instances"""
+        if not isinstance(self.default_strategy, MetricMergeStrategy):
+            raise ValueError("default_strategy must be an instance of MetricMergeStrategy")
+
+        for col, strategy in self.column_strategies.items():
+            if not isinstance(strategy, MetricMergeStrategy):
+                raise ValueError(f"Strategy for column {col} must be an instance of MetricMergeStrategy")
+
+    def get_strategy(self, column: str) -> MetricMergeStrategy:
+        """Get the merge strategy for a specific column"""
+        return self.column_strategies.get(column, self.default_strategy)
+
+
 class MetricMerger(ABC):
     """Abstract base class defining metric merging strategy"""
 
-    @abstractmethod
+    def __init__(self, merge_config: MetricMergeConfig = None):
+        self.merge_config = merge_config or MetricMergeConfig()
+
     def merge(self, interval: Interval, other: Interval) -> pd.Series:
         """Merge metrics from two intervals according to strategy"""
-        pass
+        self._validate_metric_columns(interval, other)
+
+        # Create a copy of interval's data
+        merged_data = interval.data.copy()
+
+        # Apply merge strategy for each metric column
+        for metric_col in interval.metric_fields:
+            strategy = self.merge_config.get_strategy(metric_col)
+            merged_data[metric_col] = self._apply_merge_strategy(
+                interval.data[metric_col],
+                other.data[metric_col],
+                strategy
+            )
+
+        return merged_data
+
+    @staticmethod
+    def _apply_merge_strategy(
+            value1: pd.Series,
+            value2: pd.Series,
+            strategy: MetricMergeStrategy,
+    ) -> MetricValue:
+        """Apply the specified merge strategy to two values"""
+        try:
+            strategy.validate(value1, value2)
+            return strategy.merge(value1, value2)
+        except Exception as e:
+            raise ValueError(f"Strategy {strategy.__class__.__name__} failed: {str(e)}")
 
     @staticmethod
     def _validate_metric_columns(interval: Interval, other: Interval) -> None:
@@ -815,9 +881,9 @@ class Interval:
     # Metric Operations
     # ----------------
 
-    def merge_metrics(self, other: 'Interval') -> pd.Series:
+    def merge_metrics(self, other: 'Interval', merge_config: MetricMergeConfig = None) -> pd.Series:
         """Combines metrics between intervals according to merging strategy"""
-        merger = NonNullOverwriteMetricMerger()
+        merger = DefaultMetricMerger(merge_config)
         return merger.merge(self, other)
 
     def validate_metrics_alignment(self, other: 'Interval') -> ValidationResult:
@@ -928,34 +994,69 @@ class ValidationResult:
     message: Optional[str] = None
 
 
-# Metric Processing
+# Metric Strategies
 # -----------------
 # Classes for handling metric operations and transformations
 
 
-class NullMetricNormalizer(MetricNormalizer):
-    def normalize(self, interval: Interval) -> pd.Series:
-        return interval.data[interval.metric_fields].fillna(pd.NA)
+# Now we can remove the old NonNullOverwriteMetricMerger and replace it with:
+class DefaultMetricMerger(MetricMerger):
+    """Default implementation that uses configured merge strategies"""
+    pass
 
 
-class NonNullOverwriteMetricMerger(MetricMerger):
-    """Implementation that overwrites with non-null values from other interval"""
+class KeepFirstStrategy(MetricMergeStrategy):
+    """Keep the first non-null value"""
 
-    def merge(self, interval: Interval, other: Interval) -> pd.Series:
-        self._validate_metric_columns(interval, other)
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        return value1 if pd.notna(value1) else value2
 
-        # Create a copy of interval's data
-        merged_data = interval.data.copy()
 
-        # Overwrite with non-NaN values from other
-        for interval_col, other_col in zip(interval.metric_fields, other.metric_fields):
-            merged_data[interval_col] = (
-                other.data[other_col]
-                if pd.notna(other.data[other_col])
-                else merged_data[interval_col]
-            )
+class KeepLastStrategy(MetricMergeStrategy):
+    """Keep the last non-null value"""
 
-        return merged_data
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        return value2 if pd.notna(value2) else value1
+
+
+class SumStrategy(MetricMergeStrategy):
+    """Sum the values, treating nulls as 0"""
+
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        return pd.Series([value1, value2]).fillna(0).sum()
+
+    def validate(self, value1: MetricValue, value2: MetricValue) -> None:
+        if pd.notna(value1) and not isinstance(value1, (int, float)):
+            raise ValueError("SumStrategy requires numeric values")
+        if pd.notna(value2) and not isinstance(value2, (int, float)):
+            raise ValueError("SumStrategy requires numeric values")
+
+
+class MaxStrategy(MetricMergeStrategy):
+    """Take the maximum value"""
+
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        return pd.Series([value1, value2]).max()
+
+
+class MinStrategy(MetricMergeStrategy):
+    """Take the minimum value"""
+
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        return pd.Series([value1, value2]).min()
+
+
+class AverageStrategy(MetricMergeStrategy):
+    """Take the average of non-null values"""
+
+    def merge(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        return pd.Series([value1, value2]).mean()
+
+    def validate(self, value1: MetricValue, value2: MetricValue) -> None:
+        if pd.notna(value1) and not isinstance(value1, (int, float)):
+            raise ValueError("AverageStrategy requires numeric values")
+        if pd.notna(value2) and not isinstance(value2, (int, float)):
+            raise ValueError("AverageStrategy requires numeric values")
 
 
 # Overlap Detection & Resolution
@@ -1135,14 +1236,12 @@ class OverlapsResolver(OverlapResolver):
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         # Split into three intervals: before overlap, overlap, after overlap
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # First part (before overlap)
             interval.update_end(other.start).data,
 
             # Overlapping part (merge metrics)
-            resolver.merge(
-                interval.update_start(other.start),
+            interval.update_start(other.start).merge_metrics(
                 other.update_end(interval.end)
             ),
 
@@ -1155,10 +1254,9 @@ class StartsResolver(OverlapResolver):
     """Resolver for intervals that start together but one ends earlier"""
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # Shared start portion
-            resolver.merge(interval, other.update_end(interval.end)),
+            interval.merge_metrics(other.update_end(interval.end)),
 
             # Remaining portion of longer interval
             other.update_start(interval.end).data
@@ -1169,13 +1267,12 @@ class DuringResolver(OverlapResolver):
     """Resolver for intervals where one is completely contained within the other"""
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # First part of containing interval
             other.update_end(interval.start).data,
 
             # Contained interval (merge metrics)
-            resolver.merge(interval, other.update_end(interval.end)),
+            interval.merge_metrics(other.update_end(interval.end)),
 
             # Last part of containing interval
             other.update_start(interval.end).data
@@ -1186,13 +1283,12 @@ class FinishesResolver(OverlapResolver):
     """Resolver for intervals that end together but started at different times"""
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # Non-overlapping start portion
             other.update_end(interval.start).data,
 
             # Shared end portion (merge metrics)
-            resolver.merge(interval, other.update_start(interval.start))
+            interval.merge_metrics(other.update_start(interval.start))
         ]
 
 
@@ -1201,8 +1297,7 @@ class EqualsResolver(OverlapResolver):
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         # Merge metrics for the identical intervals
-        resolver = NonNullOverwriteMetricMerger()
-        return [resolver.merge(interval, other)]
+        return [interval.merge_metrics(other)]
 
 
 class ContainsResolver(OverlapResolver):
@@ -1210,13 +1305,12 @@ class ContainsResolver(OverlapResolver):
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         # Same logic as DuringResolver but with intervals swapped
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # First part of containing interval
             interval.update_end(other.start).data,
 
             # Contained interval (merge metrics)
-            resolver.merge(other, interval.update_end(other.end)),
+            other.merge_metrics(interval.update_end(other.end)),
 
             # Last part of containing interval
             interval.update_start(other.end).data
@@ -1228,10 +1322,9 @@ class StartedByResolver(OverlapResolver):
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         # Same logic as StartsResolver but with intervals swapped
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # Shared start portion
-            resolver.merge(other, interval.update_end(other.end)),
+            other.merge_metrics(interval.update_end(other.end)),
 
             # Remaining portion of longer interval
             interval.update_start(other.end).data
@@ -1242,13 +1335,12 @@ class FinishedByResolver(OverlapResolver):
     """Resolver for intervals where other ends together with interval but starts later"""
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # First part before other starts
             interval.update_end(other.start).data,
 
             # Shared end portion (merge metrics)
-            resolver.merge(interval.update_start(other.start), other)
+            interval.update_start(other.start).merge_metrics(other)
         ]
 
 
@@ -1257,14 +1349,12 @@ class OverlappedByResolver(OverlapResolver):
 
     def resolve(self, interval: Interval, other: Interval) -> list[pd.Series]:
         # Same logic as OverlapsResolver but with intervals swapped
-        resolver = NonNullOverwriteMetricMerger()
         return [
             # First part (before overlap)
             other.update_end(interval.start).data,
 
             # Overlapping part (merge metrics)
-            resolver.merge(
-                other.update_end(other.end),
+            other.update_end(other.end).merge_metrics(
                 interval.update_end(other.end)
             ),
 
