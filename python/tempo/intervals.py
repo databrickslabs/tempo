@@ -999,7 +999,6 @@ class ValidationResult:
 # Classes for handling metric operations and transformations
 
 
-# Now we can remove the old NonNullOverwriteMetricMerger and replace it with:
 class DefaultMetricMerger(MetricMerger):
     """Default implementation that uses configured merge strategies"""
     pass
