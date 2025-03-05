@@ -7,14 +7,13 @@ import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.utils import AnalysisException
 
-from tempo.intervals import (
-    Interval,
-    IntervalsDF,
-    IntervalsUtils,
-    IntervalTransformer,
-    make_disjoint_wrap, OverlapsChecker, BeforeChecker, EqualsChecker, DuringChecker, ContainsChecker, StartsChecker,
-    StartedByChecker, OverlappedByChecker, FinishesChecker, MeetsChecker, AfterChecker,
-)
+from tempo.intervals.core.interval import Interval
+from tempo.intervals.core.intervals_df import IntervalsDF
+from tempo.intervals.core.utils import IntervalsUtils
+from tempo.intervals.overlap.detection import OverlapsChecker, BeforeChecker, EqualsChecker, DuringChecker, \
+    ContainsChecker, StartsChecker, StartedByChecker, OverlappedByChecker, FinishesChecker, MeetsChecker, AfterChecker
+from tempo.intervals.overlap.transformer import IntervalTransformer
+from tempo.intervals.spark.functions import make_disjoint_wrap
 from tests.tsdf_tests import SparkTest
 
 
@@ -250,8 +249,6 @@ class IntervalsDFTests(SparkTest):
     def test_make_disjoint_contains_interval_already_disjoint(self):
         idf_input = self.get_test_df_builder("init").as_idf()
         idf_expected = self.get_test_df_builder("expected").as_idf()
-        print("expected")
-        print(idf_expected.df.toPandas())
 
         idf_actual = idf_input.make_disjoint()
 
@@ -1153,9 +1150,6 @@ class PandasFunctionTests(TestCase):
         interval = Interval.create(pd.Series(
             {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
         ), "start", "end", )
-        other = Interval.create(pd.Series(
-            {"start": "2023-01-01T01:00:00", "end": "2023-01-01T02:00:00"}
-        ), "start", "end", )
 
         updated = interval.update_end(
             "2023-01-01T02:30:00",
@@ -1249,8 +1243,6 @@ class PandasFunctionTests(TestCase):
         ), "start", "end", metric_fields=["metric_1", "metric_2"])
         resolver = IntervalTransformer(interval, other)
         result = resolver.resolve_overlap()
-
-        print(result)
 
         self.assertEqual(1, len(result))
 
@@ -1473,7 +1465,30 @@ class PandasFunctionTests(TestCase):
         )
 
         result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
-        print(result)
+        print("raw result", "---", result, sep="\n")
+        # raw result
+        # ---
+        #                  start                  end  value
+        # 1 1  2023-01-01 05:00:00  2023-01-01 06:00:00      8
+        # 2 2  2023-01-01 06:00:00  2023-01-01 07:00:00      8
+        # 3 0  2023-01-01 04:00:00  2023-01-01 05:00:00      7
+        # 4 0  2023-01-01 00:00:00  2023-01-01 03:00:00     10
+        # 5 0  2023-01-01 03:00:00  2023-01-01 04:00:00      7
+        # 6 0  2023-01-01 00:00:00  2023-01-01 03:00:00     10
+        # 7 0  2023-01-01 03:00:00  2023-01-01 04:00:00      7
+
+        print("sorted result", "---", result.sort_values(["start", "end"]), sep="\n")
+        # sorted result
+        # ---
+        #                  start                  end  value
+        # 1 0  2023-01-01 00:00:00  2023-01-01 03:00:00     10
+        # 2 0  2023-01-01 00:00:00  2023-01-01 03:00:00     10
+        # 3 0  2023-01-01 03:00:00  2023-01-01 04:00:00      7
+        # 4 0  2023-01-01 03:00:00  2023-01-01 04:00:00      7
+        # 5 0  2023-01-01 04:00:00  2023-01-01 05:00:00      7
+        # 6 1  2023-01-01 05:00:00  2023-01-01 06:00:00      8
+        # 7 2  2023-01-01 06:00:00  2023-01-01 07:00:00      8
+
         self.assertEqual(5, len(result))
 
     def test_resolve_all_overlaps_where_no_overlaps(self):
@@ -1662,7 +1677,6 @@ class PandasFunctionTests(TestCase):
         interval_utils.disjoint_set = disjoint_set
 
         result = interval_utils.add_as_disjoint(interval)
-        print(result)
 
         expected = pd.DataFrame(
             {

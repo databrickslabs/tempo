@@ -2,19 +2,16 @@ import os
 import unittest
 import warnings
 from typing import Union, Optional
-from functools import cached_property
 
 import jsonref
 import pandas as pd
-
 import pyspark.sql.functions as sfn
+from chispa import assert_df_equality
+from delta.pip_utils import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 
-from chispa import assert_df_equality
-from delta.pip_utils import configure_spark_with_delta_pip
-
-from tempo.intervals import IntervalsDF
+from tempo.intervals.core.intervals_df import IntervalsDF
 from tempo.tsdf import TSDF
 
 
