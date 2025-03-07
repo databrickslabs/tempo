@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Generic, Callable, Optional, Union
 
+from numpy import integer, floating
 from pandas import Series, Timestamp
 
 from tempo.intervals.core.types import T, IntervalBoundary
@@ -14,8 +15,8 @@ class BoundaryConverter(Generic[T]):
     Handles conversion between user-provided boundary types and internal pd.Timestamp.
     Maintains original format for converting back to user format.
     """
-    to_timestamp: Callable[[T], Timestamp]
-    from_timestamp: Callable[[Timestamp], T]
+    to_timestamp: Callable[[Optional[T]], Optional[Timestamp]]
+    from_timestamp: Callable[[Optional[Timestamp]], Optional[T]]
     original_type: type
     original_format: Optional[str] = None  # Store original string format if applicable
 
@@ -23,17 +24,37 @@ class BoundaryConverter(Generic[T]):
     def for_type(cls, sample_value: IntervalBoundary) -> 'BoundaryConverter':
         """Factory method to create appropriate converter based on input type"""
         if isinstance(sample_value, str):
+            # Determine the format from the sample value
+            format_str = infer_datetime_format(sample_value)
+
             return cls(
                 to_timestamp=lambda x: Timestamp(x),
-                from_timestamp=lambda x: x.strftime(infer_datetime_format(sample_value)),
+                # Use the inferred format to convert back
+                from_timestamp=lambda x: x.strftime(format_str),
                 original_type=str,
-                original_format=sample_value  # Store complete original string
+                original_format=format_str  # Store just the format string
             )
-        elif isinstance(sample_value, (int, float)) or sample_value is None:
+        elif isinstance(sample_value, (int, float, integer, floating)):
+            # Convert numpy types to Python native types
+            original_type = int if isinstance(sample_value, (int, integer)) else float
             return cls(
-                to_timestamp=lambda x: Timestamp(x, unit='s'),
-                from_timestamp=lambda x: x.timestamp(),
+                to_timestamp=lambda x: Timestamp(int(x) if isinstance(x, (int, integer)) else float(x), unit='s'),
+                from_timestamp=lambda x: original_type(x.timestamp()),
+                original_type=original_type
+            )
+
+        elif sample_value is None:
+            return cls(
+                to_timestamp=lambda x: None,
+                from_timestamp=lambda x: None,
                 original_type=type(sample_value)
+            )
+        # Handle Timestamp first because pandas.Timestamp is a subclass of datetime
+        elif isinstance(sample_value, Timestamp):
+            return cls(
+                to_timestamp=lambda x: x,
+                from_timestamp=lambda x: x,
+                original_type=Timestamp
             )
         elif isinstance(sample_value, datetime):
             return cls(
@@ -41,15 +62,8 @@ class BoundaryConverter(Generic[T]):
                 from_timestamp=lambda x: x.to_pydatetime(),
                 original_type=datetime
             )
-        elif isinstance(sample_value, Timestamp):
-            return cls(
-                to_timestamp=lambda x: x,
-                from_timestamp=lambda x: x,
-                original_type=Timestamp
-            )
         else:
             raise ValueError(f"Unsupported boundary type: {type(sample_value)}")
-
 
 @dataclass
 class BoundaryValue:
@@ -84,6 +98,15 @@ class BoundaryValue:
 
     def __le__(self, other: 'BoundaryValue') -> bool:
         return self._timestamp <= other._timestamp
+
+    def __gt__(self, other: 'BoundaryValue') -> bool:
+        return self._timestamp > other._timestamp
+
+    def __ge__(self, other: 'BoundaryValue') -> bool:
+        return self._timestamp >= other._timestamp
+
+    def __ne__(self, other: 'BoundaryValue') -> bool:
+        return self._timestamp != other._timestamp
 
 
 @dataclass
