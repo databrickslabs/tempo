@@ -121,9 +121,9 @@ class IntervalsDF:
 
         :param df: :class:`DataFrame` to wrap with :class:`IntervalsDF`
         :type df: `DataFrame`_
-        :param start_ts: Name of the column which denotes interval start
+        :param start_ts: Name of the column which denotes interval._start
         :type start_ts: str
-        :param end_ts: Name of the column which denotes interval end
+        :param end_ts: Name of the column which denotes interval._end
         :type end_ts: str
         :param series: column names
         :type series: list[str]

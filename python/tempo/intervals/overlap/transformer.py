@@ -35,7 +35,7 @@ class IntervalTransformer:
         """
 
         # Ensure intervals are ordered by start time
-        if interval.start <= other.start:
+        if interval._start <= other._start:
             self.interval = interval
             self.other = other
         else:
@@ -71,18 +71,18 @@ class IntervalTransformer:
             (OverlapType.CONTAINS, ContainsChecker()),  # interval contains other
 
             # 3. Boundary sharing relationships (intervals share a boundary but have different spans)
-            (OverlapType.STARTS, StartsChecker()),  # intervals start together, interval ends first
-            (OverlapType.STARTED_BY, StartedByChecker()),  # intervals start together, other ends first
-            (OverlapType.FINISHES, FinishesChecker()),  # intervals end together, interval starts later
-            (OverlapType.FINISHED_BY, FinishedByChecker()),  # intervals end together, other starts later
+            (OverlapType.STARTS, StartsChecker()),  # intervals start together, interval._ends first
+            (OverlapType.STARTED_BY, StartedByChecker()),  # intervals start together, other._ends first
+            (OverlapType.FINISHES, FinishesChecker()),  # intervals end together, interval._starts later
+            (OverlapType.FINISHED_BY, FinishedByChecker()),  # intervals end together, other._starts later
 
             # 4. Boundary touching relationships (intervals touch but don't overlap)
-            (OverlapType.MEETS, MeetsChecker()),  # interval ends where other starts
-            (OverlapType.MET_BY, MetByChecker()),  # other ends where interval starts
+            (OverlapType.MEETS, MeetsChecker()),  # interval._ends where other._starts
+            (OverlapType.MET_BY, MetByChecker()),  # other._ends where interval._starts
 
             # 5. Partial overlap relationships (intervals overlap but don't share boundaries)
-            (OverlapType.OVERLAPS, OverlapsChecker()),  # interval starts first, overlaps start of other
-            (OverlapType.OVERLAPPED_BY, OverlappedByChecker()),  # other starts first, overlaps start of interval
+            (OverlapType.OVERLAPS, OverlapsChecker()),  # interval._starts first, overlaps start of other
+            (OverlapType.OVERLAPPED_BY, OverlappedByChecker()),  # other._starts first, overlaps start of interval
 
             # 6. Disjoint relationships (no overlap)
             (OverlapType.BEFORE, BeforeChecker()),  # interval completely before other
@@ -125,30 +125,30 @@ class IntervalTransformer:
             # Returns: [before_other, other_with_merged_metrics, after_other]
 
             # 3. Boundary sharing relationships (intervals share a boundary but have different spans)
-            (OverlapType.STARTS, StartsResolver()),  # Intervals start together, interval ends first
+            (OverlapType.STARTS, StartsResolver()),  # Intervals start together, interval._ends first
             # Returns: [shared_start_with_merged_metrics, remaining_other]
 
-            (OverlapType.STARTED_BY, StartedByResolver()),  # Intervals start together, other ends first
+            (OverlapType.STARTED_BY, StartedByResolver()),  # Intervals start together, other._ends first
             # Returns: [shared_start_with_merged_metrics, remaining_interval]
 
-            (OverlapType.FINISHES, FinishesResolver()),  # Intervals end together, interval starts later
+            (OverlapType.FINISHES, FinishesResolver()),  # Intervals end together, interval._starts later
             # Returns: [other_before_interval, shared_end_with_merged_metrics]
 
-            (OverlapType.FINISHED_BY, FinishedByResolver()),  # Intervals end together, other starts later
+            (OverlapType.FINISHED_BY, FinishedByResolver()),  # Intervals end together, other._starts later
             # Returns: [interval_before_other, shared_end_with_merged_metrics]
 
             # 4. Boundary touching relationships (intervals touch but don't overlap)
-            (OverlapType.MEETS, MeetsResolver()),  # Interval ends where other starts
+            (OverlapType.MEETS, MeetsResolver()),  # interval._ends where other._starts
             # Returns: [interval, other] (no merging needed)
 
-            (OverlapType.MET_BY, MetByResolver()),  # Other ends where interval starts
+            (OverlapType.MET_BY, MetByResolver()),  # other._ends where interval._starts
             # Returns: [other, interval] (no merging needed)
 
             # 5. Partial overlap relationships (intervals overlap but don't share boundaries)
-            (OverlapType.OVERLAPS, OverlapsResolver()),  # Interval starts first, overlaps start of other
+            (OverlapType.OVERLAPS, OverlapsResolver()),  # interval._starts first, overlaps start of other
             # Returns: [before_overlap, overlapping_with_merged_metrics, after_overlap]
 
-            (OverlapType.OVERLAPPED_BY, OverlappedByResolver()),  # Other starts first, overlaps start of interval
+            (OverlapType.OVERLAPPED_BY, OverlappedByResolver()),  # other._starts first, overlaps start of interval
             # Returns: [before_overlap, overlapping_with_merged_metrics, after_overlap]
 
             # 6. Disjoint relationships (no overlap)

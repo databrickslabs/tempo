@@ -29,13 +29,13 @@ class MetricsEquivalentResolver(OverlapResolver):
 
     def resolve(self, interval: "Interval", other: "Interval") -> list[Series]:
         # Create a new interval spanning the entire range
-        earliest = interval if interval.start <= other.start else other
-        latest = interval if interval.end >= other.end else other
+        earliest = interval if interval._start <= other._start else other
+        latest = interval if interval._end >= other._end else other
 
         # Use interval's data as base since metrics are equivalent
         result = interval.data.copy()
-        result[interval.start_field] = earliest.user_start
-        result[interval.end_field] = latest.user_end
+        result[interval.start_field] = earliest.start
+        result[interval.end_field] = latest.end
 
         return [result]
 
@@ -63,15 +63,15 @@ class OverlapsResolver(OverlapResolver):
         # Split into three intervals: before overlap, overlap, after overlap
         return [
             # First part (before overlap)
-            interval.update_end(other.start).data,
+            interval.update_end(other._start).data,
 
             # Overlapping part (merge metrics)
-            interval.update_start(other.start).merge_metrics(
-                other.update_end(interval.end)
+            interval.update_start(other._start).merge_metrics(
+                other.update_end(interval._end)
             ),
 
             # Last part (after overlap)
-            other.update_start(interval.end).data
+            other.update_start(interval._end).data
         ]
 
 
@@ -81,10 +81,10 @@ class StartsResolver(OverlapResolver):
     def resolve(self, interval: "Interval", other: "Interval") -> list[Series]:
         return [
             # Shared start portion
-            interval.merge_metrics(other.update_end(interval.end)),
+            interval.merge_metrics(other.update_end(interval._end)),
 
             # Remaining portion of longer interval
-            other.update_start(interval.end).data
+            other.update_start(interval._end).data
         ]
 
 
@@ -94,13 +94,13 @@ class DuringResolver(OverlapResolver):
     def resolve(self, interval: "Interval", other: "Interval") -> list[Series]:
         return [
             # First part of containing interval
-            other.update_end(interval.start).data,
+            other.update_end(interval._start).data,
 
             # Contained interval (merge metrics)
-            interval.merge_metrics(other.update_end(interval.end)),
+            interval.merge_metrics(other.update_end(interval._end)),
 
             # Last part of containing interval
-            other.update_start(interval.end).data
+            other.update_start(interval._end).data
         ]
 
 
@@ -110,10 +110,10 @@ class FinishesResolver(OverlapResolver):
     def resolve(self, interval: "Interval", other: "Interval") -> list[Series]:
         return [
             # Non-overlapping start portion
-            other.update_end(interval.start).data,
+            other.update_end(interval._start).data,
 
             # Shared end portion (merge metrics)
-            interval.merge_metrics(other.update_start(interval.start))
+            interval.merge_metrics(other.update_start(interval._start))
         ]
 
 
@@ -132,13 +132,13 @@ class ContainsResolver(OverlapResolver):
         # Same logic as DuringResolver but with intervals swapped
         return [
             # First part of containing interval
-            interval.update_end(other.start).data,
+            interval.update_end(other._start).data,
 
             # Contained interval (merge metrics)
-            other.merge_metrics(interval.update_end(other.end)),
+            other.merge_metrics(interval.update_end(other._end)),
 
             # Last part of containing interval
-            interval.update_start(other.end).data
+            interval.update_start(other._end).data
         ]
 
 
@@ -149,23 +149,23 @@ class StartedByResolver(OverlapResolver):
         # Same logic as StartsResolver but with intervals swapped
         return [
             # Shared start portion
-            other.merge_metrics(interval.update_end(other.end)),
+            other.merge_metrics(interval.update_end(other._end)),
 
             # Remaining portion of longer interval
-            interval.update_start(other.end).data
+            interval.update_start(other._end).data
         ]
 
 
 class FinishedByResolver(OverlapResolver):
-    """Resolver for intervals where other ends together with interval but starts later"""
+    """Resolver for intervals where other._ends together with interval but starts later"""
 
     def resolve(self, interval: "Interval", other: "Interval") -> list[Series]:
         return [
-            # First part before other starts
-            interval.update_end(other.start).data,
+            # First part before other._starts
+            interval.update_end(other._start).data,
 
             # Shared end portion (merge metrics)
-            interval.update_start(other.start).merge_metrics(other)
+            interval.update_start(other._start).merge_metrics(other)
         ]
 
 
@@ -176,20 +176,20 @@ class OverlappedByResolver(OverlapResolver):
         # Same logic as OverlapsResolver but with intervals swapped
         return [
             # First part (before overlap)
-            other.update_end(interval.start).data,
+            other.update_end(interval._start).data,
 
             # Overlapping part (merge metrics)
-            other.update_end(other.end).merge_metrics(
-                interval.update_end(other.end)
+            other.update_end(other._end).merge_metrics(
+                interval.update_end(other._end)
             ),
 
             # Last part (after overlap)
-            interval.update_start(other.end).data
+            interval.update_start(other._end).data
         ]
 
 
 class MetByResolver(OverlapResolver):
-    """Resolver for intervals where one ends exactly where the other starts"""
+    """Resolver for intervals where one ends exactly where the other._starts"""
 
     def resolve(self, interval: "Interval", other: "Interval") -> list[Series]:
         # No resolution needed - intervals are already disjoint

@@ -18,6 +18,11 @@ class InvalidTimestampError(IntervalValidationError):
     pass
 
 
+class InvalidSeriesColumnError(IntervalValidationError):
+    """Raised when metric columns are invalid"""
+    pass
+
+
 class InvalidMetricColumnError(IntervalValidationError):
     """Raised when metric columns are invalid"""
     pass
