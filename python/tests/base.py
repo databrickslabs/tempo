@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 import warnings
@@ -267,31 +268,113 @@ class SparkTest(unittest.TestCase):
     def __loadTestData(self, test_case_path: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
-        format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs)
+        format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs).
+        Can handle tests in subdirectories of arbitrary depth.
+
         :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
+                              or "intervals.core.boundaries_tests.BoundariesTests.test_something"
         :type test_case_path: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")[-3:]
+        # Split the path into components
+        path_components = test_case_path.split(".")
+
+        # The last component is always the function name
+        func_name = path_components[-1]
+
+        # The second-to-last component is always the class name
+        class_name = path_components[-2]
+
+        # Everything else is part of the module path
+        # We need to determine which part corresponds to the file name
+
+        # First, try to find the test file name
+        for i in range(len(path_components) - 2):
+            # Try to construct a potential file name from the path components
+            # Usually, the last component before the class name is the file name
+            module_path = ".".join(path_components[:-2])
+            potential_file_name = path_components[-3]
+
+            # If it ends with _tests, it's likely our file name
+            if potential_file_name.endswith("_tests"):
+                file_name = potential_file_name
+                break
+        else:
+            # If we didn't find a component ending with _tests, default to the last module component
+            file_name = path_components[-3]
 
         # load the test data file if it hasn't been loaded yet
         if self.test_data_file is None:
-            # find our test data file
-            test_data_filename = self.getTestDataFilePath(file_name)
-            if not os.path.isfile(test_data_filename):
-                warnings.warn(f"Could not load test data file {test_data_filename}")
+            # Try to find the test data file by searching the directory
+            test_data_filename = self._findTestDataFile(file_name)
+
+            if test_data_filename is None:
+                warnings.warn(f"Could not find test data file for {file_name}")
                 self.test_data_file = {}
+            else:
+                # Process the data file
+                with open(test_data_filename, "r") as f:
+                    self.test_data_file = jsonref.load(f)
 
-            # proces the data file
-            with open(test_data_filename, "r") as f:
-                self.test_data_file = jsonref.load(f)
-
-        # return the data if it exists
+        # Handling nested structure in the json
+        # If the test is in a subdirectory, the class name might be in a nested structure
         if class_name in self.test_data_file:
             if func_name in self.test_data_file[class_name]:
                 return self.test_data_file[class_name][func_name]
 
+        # For tests in subdirectories, we might need to navigate a nested structure
+        # Check if any keys in the file have our class_name as a subkey
+        for top_key, top_value in self.test_data_file.items():
+            if isinstance(top_value, dict) and class_name in top_value:
+                if func_name in top_value[class_name]:
+                    return top_value[class_name][func_name]
+
         # return empty dictionary if no data found
         return {}
+
+    def _findTestDataFile(self, file_name: str) -> Optional[str]:
+        """
+        Find a test data file by searching the directory structure.
+
+        :param file_name: The base name of the test file (without extension)
+        :type file_name: str
+        :return: The full path to the test data file, or None if not found
+        :rtype: str or None
+        """
+        # Default test data directory
+        test_data_dir = os.path.join(os.path.dirname(__file__), "unit_test_data")
+
+        # First, try the direct approach
+        direct_path = os.path.join(test_data_dir, f"{file_name}.json")
+        if os.path.isfile(direct_path):
+            return direct_path
+
+        # If not found, search recursively through the test_data_dir
+        for root, _, files in os.walk(test_data_dir):
+            for file in files:
+                if file == f"{file_name}.json":
+                    return os.path.join(root, file)
+
+        # If still not found, search for files that might contain the test data
+        # Sometimes test data for multiple modules might be consolidated in a single file
+        for root, _, files in os.walk(test_data_dir):
+            for file in files:
+                if file.endswith(".json"):
+                    # Try to load the file and see if it contains our class
+                    file_path = os.path.join(root, file)
+                    try:
+                        with open(file_path, "r") as f:
+                            data = json.load(f)
+
+                        # Check if any part of our file_name is in the keys
+                        file_name_parts = file_name.split("_")
+                        for part in file_name_parts:
+                            if any(part in key for key in data.keys()):
+                                return file_path
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        # Skip files that aren't valid JSON
+                        continue
+
+        return None
 
     def get_test_df_builder(self, name: str) -> TestDataFrameBuilder:
         return TestDataFrameBuilder(self.spark, self.test_case_data[name])
