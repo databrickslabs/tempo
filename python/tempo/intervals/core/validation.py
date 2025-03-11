@@ -17,11 +17,12 @@ class IntervalValidator:
 
     @staticmethod
     def validate_data(data: Series) -> ValidationResult:
-        if data.empty:
-            raise EmptyIntervalError("Data must not be empty")
 
         if not isinstance(data, Series):
             raise InvalidDataTypeError("Expected data to be a Pandas Series")
+
+        if data.empty:
+            raise EmptyIntervalError("Data must not be empty")
 
         return ValidationResult(is_valid=True)
 
