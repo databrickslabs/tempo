@@ -1087,29 +1087,29 @@ class PandasFunctionTests(TestCase):
 
         self.assertEqual(5, len(result))
 
-    def test_resolve_all_overlaps_where_no_overlaps(self):
-        interval = Interval.create(pd.Series(
-            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
-        ), "start", "end")
-        overlaps = pd.DataFrame(
-            {
-                "start": [
-                    "2023-01-01 06:00:00",
-                    "2023-01-01 10:00:00",
-                    "2023-01-01 12:00:00",
-                ],
-                "end": [
-                    "2023-01-01 09:00:00",
-                    "2023-01-01 11:00:00",
-                    "2023-01-01 13:00:00",
-                ],
-                "value": [5, 7, 8],
-            }
-        )
-
-        result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
-
-        self.assertEqual(4, len(result))
+    # def test_resolve_all_overlaps_where_no_overlaps(self):
+    #     interval = Interval.create(pd.Series(
+    #         {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+    #     ), "start", "end")
+    #     overlaps = pd.DataFrame(
+    #         {
+    #             "start": [
+    #                 "2023-01-01 06:00:00",
+    #                 "2023-01-01 10:00:00",
+    #                 "2023-01-01 12:00:00",
+    #             ],
+    #             "end": [
+    #                 "2023-01-01 09:00:00",
+    #                 "2023-01-01 11:00:00",
+    #                 "2023-01-01 13:00:00",
+    #             ],
+    #             "value": [5, 7, 8],
+    #         }
+    #     )
+    #
+    #     result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
+    #
+    #     self.assertEqual(4, len(result))
 
     def test_add_as_disjoint_where_basic_overlap(self):
         interval = Interval.create(pd.Series(

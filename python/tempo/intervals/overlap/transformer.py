@@ -48,7 +48,7 @@ class IntervalTransformer:
     def validate_intervals(interval: "Interval", other: "Interval"):
         """Validate that intervals can be compared"""
         if set(interval.data.index) != set(other.data.index):
-            raise ValueError(ErrorMessages.INTERVAL_INDICES)
+            raise ValueError(ErrorMessages.INTERVAL_INDICES.format(interval.data.index, other.data.index))
 
     def detect_relationship(self) -> Optional[OverlapType]:
         """

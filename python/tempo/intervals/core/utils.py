@@ -188,20 +188,24 @@ class IntervalsUtils:
         # if we get here, something went wrong
         raise NotImplementedError("Interval resolution not implemented")
 
-    def resolve_all_overlaps(
-            self,
-            interval: "Interval",
-    ) -> DataFrame:
+    def resolve_all_overlaps(self, interval: "Interval") -> DataFrame:
         """
-        resolve the interval against all overlapping intervals in `overlapping`,
+        Resolve the interval against all overlapping intervals in `intervals`,
         returning a set of disjoint intervals with the same spans
         """
         if self.intervals.empty:
             return DataFrame([interval.data])
 
+        # First, check if there are any overlaps
+        overlaps = self._calculate_all_overlaps(interval)
+
+        # If no overlaps, just return the reference interval
+        if overlaps.empty:
+            return DataFrame([interval.data])
+
         # Process first row
         first_row = Interval.create(
-            self.intervals.iloc[0],
+            overlaps.iloc[0],  # Use overlaps, not self.intervals
             interval.start_field,
             interval.end_field,
             interval.series_fields,
@@ -211,29 +215,31 @@ class IntervalsUtils:
         initial_intervals = resolver.resolve_overlap()
         disjoint_intervals = DataFrame(initial_intervals)
 
-        def resolve_and_add(row):
-            row_interval = Interval.create(
-                row,
-                interval.start_field,
-                interval.end_field,
-                interval.series_fields,
-                interval.metric_fields,
-            )
-            local_resolver = IntervalTransformer(interval, row_interval)
-            resolved_intervals = local_resolver.resolve_overlap()
-            for interval_data in resolved_intervals:
-                interval_inner = Interval.create(
-                    interval_data,
+        # Only process additional rows if they exist
+        if len(overlaps) > 1:  # Use overlaps, not self.intervals
+            def resolve_and_add(row):
+                row_interval = Interval.create(
+                    row,
                     interval.start_field,
                     interval.end_field,
                     interval.series_fields,
                     interval.metric_fields,
                 )
-                nonlocal disjoint_intervals
-                local_interval_utils = IntervalsUtils(disjoint_intervals)
-                local_interval_utils.disjoint_set = disjoint_intervals
-                disjoint_intervals = local_interval_utils.add_as_disjoint(interval_inner)
+                local_resolver = IntervalTransformer(interval, row_interval)
+                resolved_intervals = local_resolver.resolve_overlap()
+                for interval_data in resolved_intervals:
+                    interval_inner = Interval.create(
+                        interval_data,
+                        interval.start_field,
+                        interval.end_field,
+                        interval.series_fields,
+                        interval.metric_fields,
+                    )
+                    nonlocal disjoint_intervals
+                    local_interval_utils = IntervalsUtils(disjoint_intervals)
+                    local_interval_utils.disjoint_set = disjoint_intervals
+                    disjoint_intervals = local_interval_utils.add_as_disjoint(interval_inner)
 
-        self.intervals.iloc[1:].apply(resolve_and_add, axis=1)
+            overlaps.iloc[1:].apply(resolve_and_add, axis=1)  # Use overlaps, not self.intervals
 
         return disjoint_intervals

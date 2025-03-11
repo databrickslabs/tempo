@@ -34,5 +34,5 @@ class ErrorMessages:
     NO_RESOLVER = "No resolver registered for overlap type: {}"
     RESOLUTION_FAILED = "Resolution failed for {}: {}"
     RESOLVER_REGISTERED = "Resolver already registered for {}"
-    INTERVAL_INDICES = "Expected indices of interval elements to be equivalent"
+    INTERVAL_INDICES = "Expected indices of interval elements to be equivalent.\n Instead received, {} and {}"
     METRIC_COLUMNS_LENGTH = "Metric columns must have the same length"
