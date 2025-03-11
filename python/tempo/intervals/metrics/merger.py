@@ -1,5 +1,4 @@
 from abc import ABC
-from typing import TYPE_CHECKING
 
 from pandas import Series
 
@@ -7,9 +6,6 @@ from tempo.intervals.core.exceptions import ErrorMessages
 from tempo.intervals.core.types import MetricValue
 from tempo.intervals.metrics.operations import MetricMergeConfig
 from tempo.intervals.metrics.strategies import MetricMergeStrategy
-
-if TYPE_CHECKING:
-    from tempo.intervals.core.interval import Interval
 
 
 class MetricMerger(ABC):

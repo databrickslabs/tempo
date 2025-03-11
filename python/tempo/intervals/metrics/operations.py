@@ -37,3 +37,9 @@ class MetricMergeConfig:
     def get_strategy(self, column: str) -> MetricMergeStrategy:
         """Get the merge strategy for a specific column"""
         return self.column_strategies.get(column, self.default_strategy)
+
+    def set_strategy(self, column: str, strategy: MetricMergeStrategy) -> None:
+        """Set the merge strategy for a specific column"""
+        if not isinstance(strategy, MetricMergeStrategy):
+            raise ValueError("The provided strategy must be an instance of MetricMergeStrategy")
+        self.column_strategies[column] = strategy
