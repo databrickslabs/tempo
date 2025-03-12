@@ -68,7 +68,12 @@ class Interval:
             series_fields: Names of columns that identify the series
             metric_fields: Names of columns containing metric values
         """
-        self._validate_initialization(data, series_fields, metric_fields)
+        self._validate_initialization(
+            data,
+            boundary_accessor,
+            series_fields,
+            metric_fields,
+        )
 
         self.data = data
         self.boundary_accessor = boundary_accessor
@@ -84,11 +89,15 @@ class Interval:
     def _validate_initialization(
             self,
             data: Series,
+            boundary_accessor: _BoundaryAccessor,
             series_fields: Optional[Sequence[str]],
             metric_fields: Optional[Sequence[str]]
     ) -> None:
         """Validates all components during initialization"""
+        # Validate data type and emptiness first
         self._validate_data(data)
+        # Then validate other aspects
+        self._validate_not_point_in_time(data, boundary_accessor)
         self._validate_series_fields(series_fields)
         self._validate_metric_columns(metric_fields)
 
@@ -123,6 +132,14 @@ class Interval:
     def boundaries(self) -> tuple:
         """Returns the start and end timestamps as a Series"""
         return self._boundaries.start, self._boundaries.end
+
+    @staticmethod
+    def _validate_not_point_in_time(data: Series, boundary_accessor: _BoundaryAccessor) -> None:
+        """Validates that the interval is not a point in time"""
+        if data[boundary_accessor.start_field] == data[boundary_accessor.end_field]:
+            raise InvalidDataTypeError(
+                "Start and end field values cannot be the same. Point-in-Time Intervals are not supported."
+            )
 
     @staticmethod
     def _validate_data(data: Series) -> None:

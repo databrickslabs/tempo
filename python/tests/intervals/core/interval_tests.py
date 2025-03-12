@@ -3,6 +3,7 @@ import re
 import pytest
 from pandas import Series
 
+from tempo.intervals.core.boundaries import _BoundaryAccessor
 from tempo.intervals.core.exceptions import InvalidDataTypeError, EmptyIntervalError, InvalidMetricColumnError, \
     InvalidSeriesColumnError
 from tempo.intervals.core.interval import Interval
@@ -185,3 +186,26 @@ class TestInterval:
                 InvalidSeriesColumnError,
                 match=expected_msg):
             interval1.validate_series_alignment(interval2)
+
+    def test_validate_not_point_in_time_valid_interval(self):
+        data = Series({"start_time": 1, "end_time": 2})
+        boundary_accessor = _BoundaryAccessor("start_time", "end_time")
+
+        try:
+            Interval._validate_not_point_in_time(data, boundary_accessor)
+        except InvalidDataTypeError:
+            pytest.fail("InvalidDataTypeError raised for a valid interval")
+
+    def test_validate_not_point_in_time_point_in_time_interval(self):
+        data = Series({"start_time": 1, "end_time": 1})
+        boundary_accessor = _BoundaryAccessor("start_time", "end_time")
+
+        with pytest.raises(InvalidDataTypeError, match="Point-in-Time Intervals are not supported"):
+            Interval._validate_not_point_in_time(data, boundary_accessor)
+
+    def test_validate_not_point_in_time_missing_boundary_fields(self):
+        data = Series({"start_time": 1})
+        boundary_accessor = _BoundaryAccessor("start_time", "end_time")
+
+        with pytest.raises(KeyError):
+            Interval._validate_not_point_in_time(data, boundary_accessor)
