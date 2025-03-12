@@ -340,3 +340,83 @@ class TestInternalBoundaryAccessor:
 
         with pytest.raises(KeyError):
             accessor.get_boundaries(data)
+
+
+class TestNegativeTimestampValidation:
+    """Tests for negative timestamp validation in BoundaryConverter"""
+
+    def test_negative_timestamp_with_string(self):
+        """Test that string inputs resulting in negative timestamps raise ValueError"""
+        # A date far in the past that would result in a negative timestamp
+        sample = "1800-01-01"
+        converter = BoundaryConverter.for_type("2023-01-01")  # Create converter with valid format
+
+        # Using converter directly to test the validation
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            converter.to_timestamp(sample)
+
+    def test_negative_timestamp_with_int(self):
+        """Test that integer inputs resulting in negative timestamps raise ValueError"""
+        # A negative epoch timestamp
+        sample = -1000000  # Negative seconds since epoch
+        converter = BoundaryConverter.for_type(1698192000)  # Create converter with valid format
+
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            converter.to_timestamp(sample)
+
+    def test_negative_timestamp_with_float(self):
+        """Test that float inputs resulting in negative timestamps raise ValueError"""
+        # A negative epoch timestamp as float
+        sample = -1000000.5  # Negative seconds since epoch
+        converter = BoundaryConverter.for_type(1698192000.0)  # Create converter with valid format
+
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            converter.to_timestamp(sample)
+
+    def test_negative_timestamp_with_datetime(self):
+        """Test that datetime inputs resulting in negative timestamps raise ValueError"""
+        # A date far in the past that would result in a negative timestamp
+        sample = datetime(1800, 1, 1)
+        converter = BoundaryConverter.for_type(datetime(2023, 1, 1))  # Create converter with valid format
+
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            converter.to_timestamp(sample)
+
+    def test_negative_timestamp_with_pandas_timestamp(self):
+        """Test that Timestamp inputs with negative values raise ValueError"""
+        # Create a negative timestamp directly (may need to adjust based on how pandas handles this)
+        sample = Timestamp('1800-01-01')  # A date that would result in a negative timestamp value
+        converter = BoundaryConverter.for_type(Timestamp('2023-01-01'))  # Create converter with valid format
+
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            converter.to_timestamp(sample)
+
+    def test_boundary_value_creation_with_negative_timestamp(self):
+        """Test that creating a BoundaryValue with a negative timestamp raises ValueError"""
+        from python.tempo.intervals.core.boundaries import BoundaryValue
+
+        # Try to create a BoundaryValue with a string date that would result in a negative timestamp
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            BoundaryValue.from_user_value("1800-01-01")
+
+    def test_interval_boundaries_creation_with_negative_start(self):
+        """Test that creating IntervalBoundaries with a negative start timestamp raises ValueError"""
+        from python.tempo.intervals.core.boundaries import IntervalBoundaries
+
+        # Try to create IntervalBoundaries with a negative start timestamp
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            IntervalBoundaries.create(
+                start="1800-01-01",
+                end="2023-01-01"
+            )
+
+    def test_interval_boundaries_creation_with_negative_end(self):
+        """Test that creating IntervalBoundaries with a negative end timestamp raises ValueError"""
+        from python.tempo.intervals.core.boundaries import IntervalBoundaries
+
+        # Try to create IntervalBoundaries with a negative end timestamp
+        with pytest.raises(ValueError, match="Timestamps cannot be negative."):
+            IntervalBoundaries.create(
+                start="2023-01-01",
+                end="1800-01-01"
+            )

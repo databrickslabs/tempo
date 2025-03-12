@@ -23,12 +23,18 @@ class BoundaryConverter(Generic[T]):
     @classmethod
     def for_type(cls, sample_value: IntervalBoundary) -> 'BoundaryConverter':
         """Factory method to create appropriate converter based on input type"""
+
+        def check_negative_timestamp(ts: Optional[Timestamp]) -> Optional[Timestamp]:
+            if ts is not None and ts.value < 0:
+                raise ValueError("Timestamps cannot be negative.")
+            return ts
+
         if isinstance(sample_value, str):
             # Determine the format from the sample value
             format_str = infer_datetime_format(sample_value)
 
             return cls(
-                to_timestamp=lambda x: Timestamp(x),
+                to_timestamp=lambda x: check_negative_timestamp(Timestamp(x)),
                 # Use the inferred format to convert back
                 from_timestamp=lambda x: x.strftime(format_str),
                 original_type=str,
@@ -38,7 +44,9 @@ class BoundaryConverter(Generic[T]):
             # Convert numpy types to Python native types
             original_type = int if isinstance(sample_value, (int, integer)) else float
             return cls(
-                to_timestamp=lambda x: Timestamp(int(x) if isinstance(x, (int, integer)) else float(x), unit='s'),
+                to_timestamp=lambda x: check_negative_timestamp(
+                    Timestamp(int(x) if isinstance(x, (int, integer)) else float(x), unit='s')
+                ),
                 from_timestamp=lambda x: original_type(x.timestamp()),
                 original_type=original_type
             )
@@ -52,13 +60,13 @@ class BoundaryConverter(Generic[T]):
         # Handle Timestamp first because pandas.Timestamp is a subclass of datetime
         elif isinstance(sample_value, Timestamp):
             return cls(
-                to_timestamp=lambda x: x,
+                to_timestamp=lambda x: check_negative_timestamp(x),
                 from_timestamp=lambda x: x,
                 original_type=Timestamp
             )
         elif isinstance(sample_value, datetime):
             return cls(
-                to_timestamp=lambda x: Timestamp(x),
+                to_timestamp=lambda x: check_negative_timestamp(Timestamp(x)),
                 from_timestamp=lambda x: x.to_pydatetime(),
                 original_type=datetime
             )
