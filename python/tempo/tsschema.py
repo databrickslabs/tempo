@@ -14,8 +14,8 @@ from pyspark.sql.types import (
     DateType,
     TimestampType,
     BooleanType,
+    NumericType,
 )
-from pyspark.sql.types import NumericType
 
 from tempo.timeunit import TimeUnit, StandardTimeUnits
 
