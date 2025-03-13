@@ -72,7 +72,7 @@ class IntervalTransformer:
         self.validate_intervals(self.interval, self.other)
 
     @staticmethod
-    def validate_intervals(interval: "Interval", other: "Interval"):
+    def validate_intervals(interval: "Interval", other: "Interval") -> None:
         """Validate that intervals can be compared"""
         if set(interval.data.index) != set(other.data.index):
             raise ValueError(
