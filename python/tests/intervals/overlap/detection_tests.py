@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from tempo.intervals.core.interval import Interval
 from tempo.intervals.overlap.detection import (
     MetricsEquivalentChecker, BeforeChecker, MeetsChecker, OverlapsChecker,
     StartsChecker, DuringChecker, FinishesChecker, EqualsChecker, ContainsChecker,
@@ -68,9 +69,6 @@ def mock_values():
     v5 = TimeValue(50, 5)
 
     return v1, v2, v3, v4, v5
-
-    return v1, v2, v3, v4, v5
-
 
 @pytest.fixture
 def checkers():
@@ -780,7 +778,6 @@ class TestAdvancedScenarios:
         interval_reference = create_interval(v1, v4)
         interval_before = create_interval(v1, v2)
         interval_meets = create_interval(v2, v3)
-        interval_overlaps = create_interval(v1, v3)
         interval_during = create_interval(v2, v3)
         interval_finishes = create_interval(v2, v4)
         interval_equals = create_interval(v1, v4)
@@ -984,20 +981,6 @@ class TestAdvancedScenarios:
 class TestMetricsEdgeCases:
     """Tests for edge cases related to metrics comparison"""
 
-    def test_empty_metrics(self, mock_values, checkers, create_interval):
-        """Test intervals with empty metric dictionaries"""
-        v1, v2, v3, v4 = mock_values[:4]
-        metrics_checker = checkers['metrics_equivalent']
-
-        # Both intervals have empty metrics
-        interval_a = create_interval(v1, v3, {})
-        interval_b = create_interval(v2, v4, {})
-        assert metrics_checker.check(interval_a, interval_b) is True
-
-        # One interval has metrics, other doesn't
-        interval_c = create_interval(v1, v3, {"product": "A"})
-        assert metrics_checker.check(interval_c, interval_b) is False
-
     def test_different_metric_fields(self, mock_values, checkers, create_interval):
         """Test intervals with different sets of metric fields"""
         v1, v2, v3, v4 = mock_values[:4]
@@ -1041,21 +1024,6 @@ class TestMetricsEdgeCases:
         # One interval has metrics, other doesn't
         interval_c = create_interval(v1, v3, {"product": "A"})
         assert metrics_checker.check(interval_c, interval_b) is False
-
-    def test_different_metric_fields(self, mock_values, checkers, create_interval):
-        """Test intervals with different sets of metric fields"""
-        v1, v2, v3, v4 = mock_values[:4]
-        metrics_checker = checkers['metrics_equivalent']
-
-        # Different fields but overlapping intervals
-        interval_a = create_interval(v1, v3, {"product": "A"})
-        interval_b = create_interval(v2, v4, {"region": "US"})
-        assert metrics_checker.check(interval_a, interval_b) is False
-
-        # One interval has a superset of the other's fields
-        interval_c = create_interval(v1, v3, {"product": "A", "region": "US"})
-        interval_d = create_interval(v2, v4, {"product": "A"})
-        assert metrics_checker.check(interval_c, interval_d) is False
 
     def test_case_sensitivity_in_metric_names(self, mock_values, checkers, create_interval):
         """Test case sensitivity in metric field names"""
@@ -1267,10 +1235,6 @@ class TestMutualExclusivity:
                 assert len(true_relations) == 1, \
                     f"Intervals {name_a} and {name_b} have {len(true_relations)} true relations: {true_relations}. Expected exactly 1."
 
-                # For debugging purposes, print the relation
-                relation = true_relations[0]
-                # print(f"{name_a} {relation} {name_b}")
-
     def test_relation_pairs_symmetry(self, mock_values, checkers, create_interval):
         """
         Test the symmetry properties of interval relations.
@@ -1408,7 +1372,6 @@ class TestMutualExclusivity:
         Test every possible pair of intervals with every relation checker to ensure only one returns true.
         This includes regular intervals but excludes point intervals.
         """
-        v1, v2, v3, v4, v5 = mock_values
 
         # Generate all possible non-point intervals
         intervals = []
@@ -1646,3 +1609,95 @@ class TestTransitivityProperties:
         assert checkers['during'].check(interval_g, interval_h)
         assert checkers['during'].check(interval_h, interval_i)
         assert checkers['during'].check(interval_g, interval_i), "If A during B and B during C, then A during C"
+
+
+class TestStillValidLegacy:
+    def test_interval_starts_with_other_shorter_duration(self):
+        """Test case where both intervals start together but first interval ends earlier"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T00:00:01"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T00:00:02"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = StartsChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively a STARTS relationship
+        assert not EqualsChecker().check(interval, other)
+        assert not DuringChecker().check(interval, other)
+        assert not StartedByChecker().check(interval, other)
+
+    def test_interval_does_not_end_before_other_when_ends_same(self):
+        """Test that interval doesn't end before other when they have the same end time"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T00:00:01"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T00:00:01"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = BeforeChecker().check(interval, other)
+
+        # Assert
+        assert not result
+
+        # Verify we have equality instead
+        assert EqualsChecker().check(interval, other)
+
+    def test_interval_is_started_by_other(self):
+        """Test case where both intervals start together but first interval ends later"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:01",
+                "end": "2023-01-01T00:00:03"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:01",
+                "end": "2023-01-01T00:00:02"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = StartedByChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively a STARTED_BY relationship
+        assert not StartsChecker().check(interval, other)
+        assert not EqualsChecker().check(interval

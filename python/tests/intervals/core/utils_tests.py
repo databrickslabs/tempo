@@ -1499,3 +1499,293 @@ class TestAddAsDisjoint:
         finally:
             # Restore the original method to avoid affecting other tests
             IntervalsUtils.add_as_disjoint = original_method
+
+
+class TestStillValidLegacy:
+    def test_identify_interval_overlaps_df_empty(self):
+        df = pd.DataFrame()
+        row = Interval.create(
+            pd.Series({"start": "2023-01-01T00:00:01", "end": "2023-01-01T00:00:05"}), "start", "end"
+        )
+
+        result = IntervalsUtils(df).find_overlaps(row)
+        assert result.empty
+
+    def test_identify_interval_overlaps_overlapping_intervals(self):
+        df = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01T00:00:01",
+                    "2023-01-01T00:00:04",
+                    "2023-01-01T00:00:07",
+                ],
+                "end": [
+                    "2023-01-01T00:00:05",
+                    "2023-01-01T00:00:08",
+                    "2023-01-01T00:00:10",
+                ],
+            }
+        )
+        row = Interval.create(
+            pd.Series({"start": "2023-01-01T00:00:03", "end": "2023-01-01T00:00:06"}), "start", "end"
+        )
+
+        result = IntervalsUtils(df).find_overlaps(row)
+        expected = pd.DataFrame(
+            {
+                "start": ["2023-01-01T00:00:01", "2023-01-01T00:00:04"],
+                "end": ["2023-01-01T00:00:05", "2023-01-01T00:00:08"],
+            }
+        )
+        assert len(result) == 2
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_identify_interval_overlaps_no_overlapping_intervals(self):
+        df = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01T00:00:01",
+                    "2023-01-01T00:00:02",
+                    "2023-01-01T00:00:03",
+                ],
+                "end": [
+                    "2023-01-01T00:00:02",
+                    "2023-01-01T00:00:03",
+                    "2023-01-01T00:00:04",
+                ],
+            }
+        )
+        row = Interval.create(pd.Series({"start": "2023-01-01T00:00:04.1", "end": "2023-01-01T00:00:05"}), "start",
+                              "end")
+
+        result = IntervalsUtils(df).find_overlaps(row)
+        assert result.empty
+
+    def test_identify_interval_overlaps_interval_subset(self):
+        df = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01T00:00:01",
+                    "2023-01-01T00:00:05",
+                    "2023-01-01T00:00:08",
+                ],
+                "end": [
+                    "2023-01-01T00:00:10",
+                    "2023-01-01T00:00:07",
+                    "2023-01-01T00:00:11",
+                ],
+            }
+        )
+        row = Interval.create(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:04"}), "start", "end")
+
+        result = IntervalsUtils(df).find_overlaps(row)
+        expected = pd.DataFrame(
+            {"start": ["2023-01-01T00:00:01"], "end": ["2023-01-01T00:00:10"]}
+        )
+        assert len(result) == 1
+        pd.testing.assert_frame_equal(result, expected)
+
+    def test_identify_interval_overlaps_identical_start_end(self):
+        df = pd.DataFrame(
+            {"start": ["2023-01-01T00:00:02"], "end": ["2023-01-01T00:00:05"]}
+        )
+        row = Interval.create(pd.Series({"start": "2023-01-01T00:00:02", "end": "2023-01-01T00:00:05"}), "start", "end")
+
+        result = IntervalsUtils(df).find_overlaps(row)
+        assert result.empty
+
+    def test_resolve_all_overlaps_basic(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end", metric_fields=["value"])
+        overlaps = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01 02:00:00",
+                    "2023-01-01 03:00:00",
+                    "2023-01-01 04:00:00",
+                ],
+                "end": [
+                    "2023-01-01 04:00:00",
+                    "2023-01-01 06:00:00",
+                    "2023-01-01 07:00:00",
+                ],
+                "value": [5, 7, 8],
+            }
+        )
+
+        result = IntervalsUtils(overlaps).resolve_all_overlaps(interval)
+        assert len(result) == 5
+
+    def test_add_as_disjoint_where_basic_overlap(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end", metric_fields=["value"])
+        disjoint_set = pd.DataFrame(
+            {
+                "start": ["2023-01-01 03:00:00"],
+                "end": ["2023-01-01 04:00:00"],
+                "value": [5],
+            }
+        )
+
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
+
+        expected = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01 00:00:00",
+                    "2023-01-01 03:00:00",
+                    "2023-01-01 04:00:00",
+                ],
+                "end": [
+                    "2023-01-01 03:00:00",
+                    "2023-01-01 04:00:00",
+                    "2023-01-01 05:00:00",
+                ],
+                "value": [10, 10, 10],
+            }
+        )
+
+        pd.testing.assert_frame_equal(result.sort_values("start").reset_index(drop=True),
+                                      expected.sort_values("start").reset_index(drop=True))
+
+    def test_add_as_disjoint_where_no_overlap(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end", metric_fields=["value"])
+        disjoint_set = pd.DataFrame(
+            {
+                "start": ["2023-01-01 06:00:00"],
+                "end": ["2023-01-01 07:00:00"],
+                "value": [5],
+            }
+        )
+
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
+
+        expected = pd.concat([disjoint_set, pd.DataFrame([interval.data])])
+
+        pd.testing.assert_frame_equal(result.reset_index(drop=True),
+                                      expected.reset_index(drop=True))
+
+    def test_add_as_disjoint_where_empty_disjoint_set(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end", metric_fields=["value"])
+        disjoint_set = pd.DataFrame()
+
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
+
+        expected = pd.DataFrame([interval.data])
+
+        pd.testing.assert_frame_equal(result.reset_index(drop=True),
+                                      expected.reset_index(drop=True))
+
+    def test_add_as_disjoint_where_duplicate_interval(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 00:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end")
+        disjoint_set = pd.DataFrame(
+            {
+                "start": ["2023-01-01 00:00:00"],
+                "end": ["2023-01-01 05:00:00"],
+                "value": [10],
+            }
+        )
+
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
+
+        pd.testing.assert_frame_equal(result.reset_index(drop=True),
+                                      disjoint_set.reset_index(drop=True))
+
+    def test_add_as_disjoint_where_multiple_overlaps(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 01:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end", metric_fields=["value"])
+        disjoint_set = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01 00:00:00",
+                    "2023-01-01 02:00:00",
+                    "2023-01-01 03:00:00",
+                ],
+                "end": [
+                    "2023-01-01 03:00:00",
+                    "2023-01-01 04:00:00",
+                    "2023-01-01 06:00:00",
+                ],
+                "value": [5, 10, 15],
+            }
+        )
+
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
+
+        expected = pd.DataFrame(
+            {
+                "start": [
+                    "2023-01-01 00:00:00",
+                    "2023-01-01 01:00:00",
+                    "2023-01-01 03:00:00",
+                    "2023-01-01 05:00:00",
+                ],
+                "end": [
+                    "2023-01-01 01:00:00",
+                    "2023-01-01 03:00:00",
+                    "2023-01-01 05:00:00",
+                    "2023-01-01 06:00:00",
+                ],
+                "value": [
+                    5,
+                    10,
+                    15,
+                    15,
+                ],
+            }
+        )
+
+        pd.testing.assert_frame_equal(result.sort_values("start").reset_index(drop=True),
+                                      expected.sort_values("start").reset_index(drop=True))
+
+    def test_add_as_disjoint_where_all_records_overlap(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2023-01-01 01:00:00", "end": "2023-01-01 05:00:00", "value": 10}
+        ), "start", "end", metric_fields=["value"])
+        disjoint_set = pd.DataFrame(
+            {
+                "start": ["2023-01-01 01:30:00", "2023-01-01 02:30:00"],
+                "end": ["2023-01-01 02:30:00", "2023-01-01 03:30:00"],
+                "value": [5, 10],
+            }
+        )
+
+        interval_utils = IntervalsUtils(disjoint_set)
+        interval_utils.disjoint_set = disjoint_set
+
+        result = interval_utils.add_as_disjoint(interval)
+
+        expected = pd.DataFrame(
+            {
+                "start": ["2023-01-01 01:00:00"],
+                "end": ["2023-01-01 05:00:00"],
+                "value": [10],
+            }
+        )
+
+        pd.testing.assert_frame_equal(result.sort_values("start").reset_index(drop=True),
+                                      expected.sort_values("start").reset_index(drop=True))

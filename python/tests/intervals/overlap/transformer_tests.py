@@ -1026,3 +1026,197 @@ class TestActualResolverImplementations:
 
         # Print actual values for reference
         print(f"Metrics in contained segment: metric1={resolved[1]['metric1']}, metric2={resolved[1]['metric2']}")
+
+
+class TestStillValidLegacy:
+    def test_resolve_overlap_where_interval_other_have_equivalent_metric_cols(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 1
+
+    def test_resolve_overlap_where_interval_is_contained_by_other(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 3
+
+    def test_resolve_overlap_where_shared_start_but_interval_ends_before_other(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 2
+
+    def test_resolve_overlap_where_shared_start_but_interval_ends_after_other(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 2
+
+    def test_resolve_overlap_where_shared_end_and_interval_starts_before_other(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 2
+
+    def test_resolve_overlap_where_shared_end_and_interval_starts_after_other(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 2
+
+    def test_resolve_overlap_shared_start_and_end(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 1
+
+    def test_resolve_overlaps_where_interval_starts_first_partially_overlaps_other(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 3
+
+    def test_resolve_overlaps_where_other_starts_first_partially_overlaps_interval(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-03", "metric_1": 6, "metric_2": 11}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-04", "metric_1": 5, "metric_2": 10}
+        ), "start", "end", metric_fields=["metric_1", "metric_2"])
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 3
+
+    def test_interval_transformer_where_different_series_id_col_names(self):
+        interval = Interval.create(pd.Series(
+            {
+                "start": "2022-01-01",
+                "end": "2022-01-03",
+                "series_1": 1,
+                "metric_1": 5,
+                "metric_2": 10,
+            }
+        ), "start", "end", ["series_1"], ["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {
+                "start": "2022-01-02",
+                "end": "2022-01-04",
+                "wrong": 1,
+                "metric_1": 6,
+                "metric_2": 11,
+            }
+        ), "start", "end", ["wrong"], ["metric_1", "metric_2"])
+        with pytest.raises(ValueError):
+            IntervalTransformer(interval, other)
+
+    def test_interval_transformer_where_different_metric_col_names(self):
+        interval = Interval.create(pd.Series(
+            {
+                "start": "2022-01-01",
+                "end": "2022-01-03",
+                "series_1": 1,
+                "metric_1": 5,
+                "metric_2": 10,
+            }
+        ), "start", "end", ["series_1"], ["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {
+                "start": "2022-01-02",
+                "end": "2022-01-04",
+                "series_1": 1,
+                "wrong": 6,
+                "metric_2": 11,
+            }
+        ), "start", "end", ["series_1"], ["wrong", "metric_2"])
+        with pytest.raises(ValueError):
+            IntervalTransformer(interval, other)
+
+    def test_resolve_overlaps_where_different_series_shapes(self):
+        interval = Interval.create(pd.Series(
+            {
+                "start": "2022-01-01",
+                "end": "2022-01-03",
+                "series_1": 1,
+                "metric_1": 5,
+                "metric_2": 10,
+            }
+        ), "start", "end", ["series_1"], ["metric_1", "metric_2"])
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-02", "end": "2022-01-04", "series_1": 1, "metric_2": 11}
+        ), "start", "end", ["series_1"], ["metric_2"])
+        with pytest.raises(ValueError):
+            IntervalTransformer(interval, other)
+
+    def test_resolve_overlaps_where_no_overlaps(self):
+        interval = Interval.create(pd.Series(
+            {"start": "2022-01-01", "end": "2022-01-02", "metric_1": 5, "metric_2": 10}
+        ), "start", "end")
+
+        other = Interval.create(pd.Series(
+            {"start": "2022-01-03", "end": "2022-01-04", "metric_1": 6, "metric_2": 11}
+        ), "start", "end")
+        resolver = IntervalTransformer(interval, other)
+        result = resolver.resolve_overlap()
+
+        assert len(result) == 2
