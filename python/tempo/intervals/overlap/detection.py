@@ -28,8 +28,12 @@ class OverlapChecker(ABC):
         """Implementation of the specific overlap checking strategy"""
         pass
 
-    def _check_boundary_values(self, interval: "Interval", other: "Interval",
-                               required_boundaries: Optional[Tuple[str, ...]] = None) -> bool:
+    def _check_boundary_values(
+            self,
+            interval: "Interval",
+            other: "Interval",
+            required_boundaries: Optional[Tuple[str, ...]] = None,
+    ) -> bool:
         """
         Helper method to check if interval boundaries are valid.
         Returns False if any required boundary is None.
@@ -41,7 +45,7 @@ class OverlapChecker(ABC):
                              If None, checks all boundaries
         """
         if required_boundaries is None:
-            required_boundaries = ('_start', '_end', '_start', '_end')
+            required_boundaries = ("_start", "_end", "_start", "_end")
 
         # Check interval boundaries
         for boundary in required_boundaries[:2]:
@@ -103,26 +107,35 @@ class MetricsEquivalentChecker(OverlapChecker):
             return False
 
         # Extract internal values with null checks
-        interval_start = getattr(interval._start, 'internal_value', None)
-        interval_end = getattr(interval._end, 'internal_value', None)
-        other_start = getattr(other._start, 'internal_value', None)
-        other_end = getattr(other._end, 'internal_value', None)
+        interval_start = getattr(interval._start, "internal_value", None)
+        interval_end = getattr(interval._end, "internal_value", None)
+        other_start = getattr(other._start, "internal_value", None)
+        other_end = getattr(other._end, "internal_value", None)
 
         # Skip overlap check if any value is None
-        if any(value is None for value in [interval_start, interval_end, other_start, other_end]):
+        if any(
+                value is None
+                for value in [interval_start, interval_end, other_start, other_end]
+        ):
             return False
 
         # Then check if intervals overlap or one contains the other
         # Check overlap condition - interval overlaps with other
-        overlap_check = self._check_overlap(interval_start, interval_end, other_start, other_end)
+        overlap_check = self._check_overlap(
+            interval_start, interval_end, other_start, other_end
+        )
         if overlap_check:
             return True
 
         # If not overlapping, check if one contains the other
-        containment_check = self._check_containment(interval_start, interval_end, other_start, other_end)
+        containment_check = self._check_containment(
+            interval_start, interval_end, other_start, other_end
+        )
         return containment_check
 
-    def _check_overlap(self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any) -> bool:
+    def _check_overlap(
+            self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any
+    ) -> bool:
         """Check if intervals overlap."""
         try:
             # Check if interval starts before other ends
@@ -146,7 +159,9 @@ class MetricsEquivalentChecker(OverlapChecker):
         except Exception:
             return False
 
-    def _check_containment(self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any) -> bool:
+    def _check_containment(
+            self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any
+    ) -> bool:
         """Check if one interval contains the other."""
         try:
             # Check if interval contains other
@@ -180,7 +195,7 @@ class BeforeChecker(OverlapChecker):
 
     def _check_impl(self, interval: "Interval", other: "Interval") -> bool:
         # Check required boundaries
-        if not self._check_boundary_values(interval, other, ('_end', '_start')):
+        if not self._check_boundary_values(interval, other, ("_end", "_start")):
             return False
 
         # For type safety, ensure we're never comparing None values
@@ -192,7 +207,7 @@ class MeetsChecker(OverlapChecker):
 
     def _check_impl(self, interval: "Interval", other: "Interval") -> bool:
         # Check required boundaries
-        if not self._check_boundary_values(interval, other, ('_end', '_start')):
+        if not self._check_boundary_values(interval, other, ("_end", "_start")):
             return False
 
         # For type safety
@@ -338,7 +353,7 @@ class MetByChecker(OverlapChecker):
 
     def _check_impl(self, interval: "Interval", other: "Interval") -> bool:
         # Check required boundaries
-        if not self._check_boundary_values(interval, other, ('_start', '_end')):
+        if not self._check_boundary_values(interval, other, ("_start", "_end")):
             return False
 
         # For type safety
@@ -350,7 +365,7 @@ class AfterChecker(OverlapChecker):
 
     def _check_impl(self, interval: "Interval", other: "Interval") -> bool:
         # Check required boundaries
-        if not self._check_boundary_values(interval, other, ('_start', '_end')):
+        if not self._check_boundary_values(interval, other, ("_start", "_end")):
             return False
 
         # For type safety

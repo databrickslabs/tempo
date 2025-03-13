@@ -242,8 +242,6 @@ class IntervalsUtils:
 
             # Use apply with explicit parameters to satisfy type checker
             # Type ignore comment added to suppress mypy error about apply
-            overlaps.iloc[1:].apply(  # type: ignore
-                resolve_and_add, axis=1
-            )
+            overlaps.iloc[1:].apply(resolve_and_add, axis=1)  # type: ignore
 
         return disjoint_intervals
