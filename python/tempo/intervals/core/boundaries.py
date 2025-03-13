@@ -167,7 +167,7 @@ class BoundaryValue:
         return cls(_timestamp=timestamp, _converter=converter)
 
     @property
-    def internal_value(self) -> Timestamp:
+    def internal_value(self) -> Optional[Timestamp]:
         """Get the internal timestamp representation"""
         return self._timestamp
 
@@ -178,24 +178,53 @@ class BoundaryValue:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BoundaryValue):
             return NotImplemented
+        # Handle None cases
+        if self._timestamp is None and other._timestamp is None:
+            return True
+        if self._timestamp is None or other._timestamp is None:
+            return False
         return self._timestamp == other._timestamp
 
     def __lt__(self, other: "BoundaryValue") -> bool:
+        # Handle None cases
+        if self._timestamp is None:
+            return False  # None is considered less than any value
+        if other._timestamp is None:
+            return False  # Nothing is less than None
         return self._timestamp < other._timestamp
 
     def __le__(self, other: "BoundaryValue") -> bool:
+        # Handle None cases
+        if self._timestamp is None and other._timestamp is None:
+            return True  # None == None
+        if self._timestamp is None:
+            return False  # None is not <= timestamp
+        if other._timestamp is None:
+            return False  # timestamp is not <= None
         return self._timestamp <= other._timestamp
 
     def __gt__(self, other: "BoundaryValue") -> bool:
+        # Handle None cases
+        if self._timestamp is None:
+            return False  # None is not greater than anything
+        if other._timestamp is None:
+            return False  # Nothing is greater than None
         return self._timestamp > other._timestamp
 
     def __ge__(self, other: "BoundaryValue") -> bool:
+        # Handle None cases
+        if self._timestamp is None and other._timestamp is None:
+            return True  # None == None
+        if self._timestamp is None:
+            return False  # None is not >= timestamp
+        if other._timestamp is None:
+            return False  # timestamp is not >= None
         return self._timestamp >= other._timestamp
 
     def __ne__(self, other: object) -> bool:
         if not isinstance(other, BoundaryValue):
             return NotImplemented
-        return self._timestamp != other._timestamp
+        return not self.__eq__(other)
 
 
 @dataclass
