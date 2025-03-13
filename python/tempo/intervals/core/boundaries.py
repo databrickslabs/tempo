@@ -1,76 +1,150 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Generic, Callable, Optional, Union
+from typing import (
+    Optional,
+    Union,
+    cast,
+    Any,
+    Protocol,
+    Type,
+)
 
 from numpy import integer, floating
 from pandas import Series, Timestamp
 
-from tempo.intervals.core.types import T, IntervalBoundary
+from tempo.intervals.core.types import IntervalBoundary
 from tempo.intervals.datetime.utils import infer_datetime_format
 
 
+# Define a protocol for the converter functions
+class ToTimestampProtocol(Protocol):
+    def __call__(self, value: Optional[Any]) -> Optional[Timestamp]: ...
+
+
+class FromTimestampProtocol(Protocol):
+    def __call__(self, timestamp: Optional[Timestamp]) -> Optional[Any]: ...
+
+
 @dataclass
-class BoundaryConverter(Generic[T]):
+class BoundaryConverter:
     """
     Handles conversion between user-provided boundary types and internal pd.Timestamp.
     Maintains original format for converting back to user format.
     """
 
-    to_timestamp: Callable[[Optional[T]], Optional[Timestamp]]
-    from_timestamp: Callable[[Optional[Timestamp]], Optional[T]]
-    original_type: type
+    to_timestamp: ToTimestampProtocol
+    from_timestamp: FromTimestampProtocol
+    original_type: Type[Any]
     original_format: Optional[str] = None  # Store original string format if applicable
 
     @classmethod
     def for_type(cls, sample_value: IntervalBoundary) -> "BoundaryConverter":
         """Factory method to create appropriate converter based on input type"""
 
-        def check_negative_timestamp(ts: Optional[Timestamp]) -> Optional[Timestamp]:
-            if ts is not None and ts.value < 0:
+        def _check_negative_timestamp(
+                timestamp: Optional[Timestamp],
+        ) -> Optional[Timestamp]:
+            if timestamp is not None and timestamp.value < 0:
                 raise ValueError("Timestamps cannot be negative.")
-            return ts
+            return timestamp
 
         if isinstance(sample_value, str):
             # Determine the format from the sample value
             format_str = infer_datetime_format(sample_value)
 
+            def str_to_timestamp(value: Optional[str]) -> Optional[Timestamp]:
+                if value is None:
+                    return None
+                return _check_negative_timestamp(Timestamp(value))
+
+            def timestamp_to_str(timestamp: Optional[Timestamp]) -> Optional[str]:
+                if timestamp is None:
+                    return None
+                return timestamp.strftime(format_str)
+
             return cls(
-                to_timestamp=lambda x: check_negative_timestamp(Timestamp(x)),
-                # Use the inferred format to convert back
-                from_timestamp=lambda x: x.strftime(format_str),
+                to_timestamp=str_to_timestamp,
+                from_timestamp=cast(FromTimestampProtocol, timestamp_to_str),
                 original_type=str,
                 original_format=format_str,  # Store just the format string
             )
         elif isinstance(sample_value, (int, float, integer, floating)):
             # Convert numpy types to Python native types
             original_type = int if isinstance(sample_value, (int, integer)) else float
+
+            def numeric_to_timestamp(
+                    value: Optional[Union[int, float]]
+            ) -> Optional[Timestamp]:
+                if value is None:
+                    return None
+                value_converted = (
+                    int(value) if isinstance(value, (int, integer)) else float(value)
+                )
+                return _check_negative_timestamp(Timestamp(value_converted, unit="s"))
+
+            def timestamp_to_numeric(
+                    timestamp: Optional[Timestamp],
+            ) -> Optional[Union[int, float]]:
+                if timestamp is None:
+                    return None
+                return original_type(timestamp.timestamp())
+
             return cls(
-                to_timestamp=lambda x: check_negative_timestamp(
-                    Timestamp(
-                        int(x) if isinstance(x, (int, integer)) else float(x), unit="s"
-                    )
-                ),
-                from_timestamp=lambda x: original_type(x.timestamp()),
+                to_timestamp=cast(ToTimestampProtocol, numeric_to_timestamp),
+                from_timestamp=cast(FromTimestampProtocol, timestamp_to_numeric),
                 original_type=original_type,
             )
 
         elif sample_value is None:
+
+            def none_to_timestamp(value: Optional[None]) -> Optional[Timestamp]:
+                return None
+
+            def timestamp_to_none(timestamp: Optional[Timestamp]) -> Optional[None]:
+                return None
+
             return cls(
-                to_timestamp=lambda x: None,
-                from_timestamp=lambda x: None,
-                original_type=type(sample_value),
+                to_timestamp=none_to_timestamp,
+                from_timestamp=cast(FromTimestampProtocol, timestamp_to_none),
+                original_type=type(None),
             )
         # Handle Timestamp first because pandas.Timestamp is a subclass of datetime
         elif isinstance(sample_value, Timestamp):
+
+            def timestamp_to_timestamp(
+                    value: Optional[Timestamp],
+            ) -> Optional[Timestamp]:
+                if value is None:
+                    return None
+                return _check_negative_timestamp(value)
+
+            def timestamp_identity(
+                    timestamp: Optional[Timestamp],
+            ) -> Optional[Timestamp]:
+                return timestamp
+
             return cls(
-                to_timestamp=lambda x: check_negative_timestamp(x),
-                from_timestamp=lambda x: x,
+                to_timestamp=timestamp_to_timestamp,
+                from_timestamp=cast(FromTimestampProtocol, timestamp_identity),
                 original_type=Timestamp,
             )
         elif isinstance(sample_value, datetime):
+
+            def datetime_to_timestamp(value: Optional[datetime]) -> Optional[Timestamp]:
+                if value is None:
+                    return None
+                return _check_negative_timestamp(Timestamp(value))
+
+            def timestamp_to_datetime(
+                    timestamp: Optional[Timestamp],
+            ) -> Optional[datetime]:
+                if timestamp is None:
+                    return None
+                return timestamp.to_pydatetime()
+
             return cls(
-                to_timestamp=lambda x: check_negative_timestamp(Timestamp(x)),
-                from_timestamp=lambda x: x.to_pydatetime(),
+                to_timestamp=cast(ToTimestampProtocol, datetime_to_timestamp),
+                from_timestamp=cast(FromTimestampProtocol, timestamp_to_datetime),
                 original_type=datetime,
             )
         else:
@@ -89,7 +163,10 @@ class BoundaryValue:
     @classmethod
     def from_user_value(cls, value: IntervalBoundary) -> "BoundaryValue":
         converter = BoundaryConverter.for_type(value)
-        return cls(_timestamp=converter.to_timestamp(value), _converter=converter)
+        timestamp = converter.to_timestamp(value)
+        if timestamp is None:
+            raise ValueError("Cannot create a BoundaryValue with None timestamp")
+        return cls(_timestamp=timestamp, _converter=converter)
 
     @property
     def internal_value(self) -> Timestamp:
@@ -100,7 +177,9 @@ class BoundaryValue:
         """Convert back to the original user format"""
         return self._converter.from_timestamp(self._timestamp)
 
-    def __eq__(self, other: "BoundaryValue") -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BoundaryValue):
+            return NotImplemented
         return self._timestamp == other._timestamp
 
     def __lt__(self, other: "BoundaryValue") -> bool:
@@ -115,7 +194,9 @@ class BoundaryValue:
     def __ge__(self, other: "BoundaryValue") -> bool:
         return self._timestamp >= other._timestamp
 
-    def __ne__(self, other: "BoundaryValue") -> bool:
+    def __ne__(self, other: object) -> bool:
+        if not isinstance(other, BoundaryValue):
+            return NotImplemented
         return self._timestamp != other._timestamp
 
 
