@@ -465,33 +465,3 @@ class TestMetricMergeStrategies:
 
         with pytest.raises(ValueError, match="AverageStrategy requires numeric values"):
             strategy.merge(s4, s3)
-
-    def test_convert_to_series(self):
-        strategy = MaxStrategy()  # Using any strategy that has the method
-
-        # Test with two scalars
-        v1, v2, was_series = strategy._convert_to_series(10, 20)
-        assert isinstance(v1, Series)
-        assert isinstance(v2, Series)
-        assert v1.iloc[0] == 10
-        assert v2.iloc[0] == 20
-        assert was_series is False
-
-        # Test with one Series, one scalar
-        s1 = Series([1, 2, 3])
-        v1, v2, was_series = strategy._convert_to_series(s1, 20)
-        assert isinstance(v1, Series)
-        assert isinstance(v2, Series)
-        assert (v1 == s1).all()
-        assert v2.iloc[0] == 20
-        assert was_series is True
-
-        # Test with two Series
-        s1 = Series([1, 2, 3])
-        s2 = Series([4, 5, 6])
-        v1, v2, was_series = strategy._convert_to_series(s1, s2)
-        assert isinstance(v1, Series)
-        assert isinstance(v2, Series)
-        assert (v1 == s1).all()
-        assert (v2 == s2).all()
-        assert was_series is True

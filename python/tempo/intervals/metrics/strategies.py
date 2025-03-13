@@ -1,9 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Union, Tuple
+from typing import Union, Callable, TypeVar
 
 from pandas import notna, isna, Series
 
 from tempo.intervals.core.types import MetricValue
+
+# Type variables for better typing
+T = TypeVar("T")
+ScalarFunc = Callable[[MetricValue, MetricValue], MetricValue]
+SeriesScalarFunc = Callable[[Series, MetricValue, bool], Series]
+SeriesSeriesFunc = Callable[[Series, Series], Series]
 
 
 class MetricMergeStrategy(ABC):
@@ -22,35 +28,84 @@ class MetricMergeStrategy(ABC):
             self,
             value1: Union[MetricValue, Series],
             value2: Union[MetricValue, Series],
-    ) -> Union[MetricValue, Series]:
-        """Optional validation of values before merging"""
-        pass
+    ) -> None:
+        """Validate that values are of the appropriate type for the strategy"""
+        # For Series inputs
+        if isinstance(value1, Series):
+            for val in value1:
+                if notna(val) and not isinstance(val, (int, float)):
+                    raise ValueError(
+                        f"{self.__class__.__name__} requires numeric values"
+                    )
 
-    def _convert_to_series(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
-    ) -> Tuple[Series, Series, bool]:
+        elif notna(value1) and not isinstance(value1, (int, float)):
+            raise ValueError(f"{self.__class__.__name__} requires numeric values")
+
+        if isinstance(value2, Series):
+            for val in value2:
+                if notna(val) and not isinstance(val, (int, float)):
+                    raise ValueError(
+                        f"{self.__class__.__name__} requires numeric values"
+                    )
+
+        elif notna(value2) and not isinstance(value2, (int, float)):
+            raise ValueError(f"{self.__class__.__name__} requires numeric values")
+
+    def _handle_scalar_case(
+            self, value1: MetricValue, value2: MetricValue, scalar_strategy_func: ScalarFunc
+    ) -> MetricValue:
         """
-        Convert scalar values to Series if needed.
+        Generic handler for scalar-scalar merge cases.
+
+        Args:
+            value1: First scalar value
+            value2: Second scalar value
+            scalar_strategy_func: Function that implements the specific strategy logic for scalars
 
         Returns:
-            Tuple containing:
-            - Series version of value1
-            - Series version of value2
-            - Boolean indicating if either input was a Series
+            Merged scalar value according to the strategy
         """
-        was_series = isinstance(value1, Series) or isinstance(value2, Series)
+        return scalar_strategy_func(value1, value2)
 
-        if not isinstance(value1, Series):
-            v1 = Series([value1])
-        else:
-            v1 = value1.copy()
+    def _handle_series_scalar_case(
+            self,
+            series_value: Series,
+            scalar_value: MetricValue,
+            series_is_first: bool,
+            series_scalar_strategy_func: SeriesScalarFunc,
+    ) -> Series:
+        """
+        Generic handler for series-scalar merge cases.
 
-        if not isinstance(value2, Series):
-            v2 = Series([value2])
-        else:
-            v2 = value2.copy()
+        Args:
+            series_value: The Series value
+            scalar_value: The scalar value
+            series_is_first: True if series is value1, False if series is value2
+            series_scalar_strategy_func: Function that implements the specific strategy logic
 
-        return v1, v2, was_series
+        Returns:
+            Merged Series according to the strategy
+        """
+        return series_scalar_strategy_func(series_value, scalar_value, series_is_first)
+
+    def _handle_series_series_case(
+            self,
+            series1: Series,
+            series2: Series,
+            series_series_strategy_func: SeriesSeriesFunc,
+    ) -> Series:
+        """
+        Generic handler for series-series merge cases.
+
+        Args:
+            series1: First Series
+            series2: Second Series
+            series_series_strategy_func: Function that implements the specific strategy logic
+
+        Returns:
+            Merged Series according to the strategy
+        """
+        return series_series_strategy_func(series1, series2)
 
 
 class KeepFirstStrategy(MetricMergeStrategy):
@@ -59,24 +114,66 @@ class KeepFirstStrategy(MetricMergeStrategy):
     def merge(
             self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
-        # Handle scalar inputs
+        # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
-            return value1 if notna(value1) else value2
+            return self._handle_scalar_case(value1, value2, self._keep_first_scalar)
 
-        # Convert to Series if needed
-        v1, v2, was_series = self._convert_to_series(value1, value2)
+        # 2. Handle Series + scalar case
+        if isinstance(value1, Series) and not isinstance(value2, Series):
+            return self._handle_series_scalar_case(
+                value1, value2, True, self._keep_first_series_scalar
+            )
 
-        # Create a new result Series
-        result = v1.copy()
+        # 3. Handle scalar + Series case
+        if not isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_scalar_case(
+                value2, value1, False, self._keep_first_series_scalar
+            )
 
-        # For each position in the result
-        for i in range(len(result)):
-            # If value1 is null at this position, take value2's value
-            if isna(result.iloc[i]):
-                result.iloc[i] = v2.iloc[i]
+        # 4. Handle Series + Series case (with explicit casting for type checker)
+        if isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_series_case(
+                value1, value2, self._keep_first_series_series
+            )
 
-        # Return the correct type
-        return result if was_series else result.iloc[0]
+        # This should never happen due to the conditions above, but makes the type checker happy
+        raise ValueError("Unexpected input types")
+
+    def _keep_first_scalar(
+            self, value1: MetricValue, value2: MetricValue
+    ) -> MetricValue:
+        """Keep the first non-null scalar value"""
+        return value1 if notna(value1) else value2
+
+    def _keep_first_series_scalar(
+            self, series: Series, scalar: MetricValue, series_is_first: bool
+    ) -> Series:
+        """Merge a Series and a scalar, keeping the first non-null value"""
+        if series_is_first:
+            # Series is first, scalar is second
+            merged_result = series.copy()
+            for i in range(len(merged_result)):
+                if isna(merged_result.iloc[i]):
+                    merged_result.iloc[i] = scalar
+            return merged_result
+        else:
+            # Scalar is first, series is second
+            if notna(scalar):
+                # If scalar is not null, create a Series with that value
+                return Series([scalar] * len(series))
+            else:
+                # If scalar is null, use the second series
+                return series.copy()
+
+    def _keep_first_series_series(self, series1: Series, series2: Series) -> Series:
+        """Merge two Series, keeping the first non-null value at each position"""
+        merged_result = series1.copy()
+        for i in range(len(merged_result)):
+            if isna(merged_result.iloc[i]):
+                # Only replace if we're within range of series2
+                if i < len(series2):
+                    merged_result.iloc[i] = series2.iloc[i]
+        return merged_result
 
 
 class KeepLastStrategy(MetricMergeStrategy):
@@ -85,105 +182,149 @@ class KeepLastStrategy(MetricMergeStrategy):
     def merge(
             self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
-        # Handle scalar inputs
+        # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
-            return value2 if notna(value2) else value1
+            return self._handle_scalar_case(value1, value2, self._keep_last_scalar)
 
-        # Convert to Series if needed
-        v1, v2, was_series = self._convert_to_series(value1, value2)
+        # 2. Handle Series + scalar case
+        if isinstance(value1, Series) and not isinstance(value2, Series):
+            return self._handle_series_scalar_case(
+                value1, value2, True, self._keep_last_series_scalar
+            )
 
-        # Create a new result Series - start with value2 as the preference
-        result = v2.copy()
+        # 3. Handle scalar + Series case
+        if not isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_scalar_case(
+                value2, value1, False, self._keep_last_series_scalar
+            )
 
-        # For each position in the result
-        for i in range(len(result)):
-            # If value2 is null at this position, take value1's value
-            if isna(result.iloc[i]):
-                result.iloc[i] = v1.iloc[i]
+        # 4. Handle Series + Series case (with explicit casting for type checker)
+        if isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_series_case(
+                value1, value2, self._keep_last_series_series
+            )
 
-        # Return the correct type
-        return result if was_series else result.iloc[0]
+        # This should never happen due to the conditions above, but makes the type checker happy
+        raise ValueError("Unexpected input types")
+
+    def _keep_last_scalar(
+            self, value1: MetricValue, value2: MetricValue
+    ) -> MetricValue:
+        """Keep the last non-null scalar value"""
+        return value2 if notna(value2) else value1
+
+    def _keep_last_series_scalar(
+            self, series: Series, scalar: MetricValue, series_is_first: bool
+    ) -> Series:
+        """Merge a Series and a scalar, keeping the last non-null value"""
+        if series_is_first:
+            # Series is first, scalar is second
+            if notna(scalar):
+                # If scalar is not null, use it for all positions
+                return Series([scalar] * len(series))
+            else:
+                # If scalar is null, use the first series
+                return series.copy()
+        else:
+            # Scalar is first, series is second
+            merged_result = series.copy()
+            for i in range(len(merged_result)):
+                if isna(merged_result.iloc[i]):
+                    merged_result.iloc[i] = scalar
+            return merged_result
+
+    def _keep_last_series_series(self, series1: Series, series2: Series) -> Series:
+        """Merge two Series, keeping the last non-null value at each position"""
+        merged_result = series2.copy()
+        for i in range(len(merged_result)):
+            if isna(merged_result.iloc[i]):
+                # Only replace if we're within range of series1
+                if i < len(series1):
+                    merged_result.iloc[i] = series1.iloc[i]
+        return merged_result
 
 
 class SumStrategy(MetricMergeStrategy):
     """Sum the values, treating nulls as 0"""
 
     def merge(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
+            self,
+            value1: Union[MetricValue, Series],
+            value2: Union[MetricValue, Series],
     ) -> Union[MetricValue, Series]:
-        # Handle scalar case first
+        # Validate inputs
+        self.validate(value1, value2)
+
+        # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
-            # Validate scalar inputs
-            self.validate(value1, value2)
+            return self._handle_scalar_case(value1, value2, self._sum_scalars)
 
-            # Treat NaN as 0
-            v1 = 0 if isna(value1) else value1
-            v2 = 0 if isna(value2) else value2
-            return v1 + v2
-
-        # Handle Series-based inputs
-        v1, v2, was_series = self._convert_to_series(value1, value2)
-
-        # Validate Series
-        self.validate(v1, v2)
-
-        # Handle Series + scalar case specially
+        # 2. Handle Series + scalar case
         if isinstance(value1, Series) and not isinstance(value2, Series):
-            # When adding a scalar to a Series, just add the scalar value to each element
-            result = v1.fillna(0).copy()
-            scalar_value = 0 if isna(value2) else value2
-            for i in range(len(result)):
-                result.iloc[i] += scalar_value
-            return result
+            return self._handle_series_scalar_case(
+                value1, value2, True, self._sum_series_scalar
+            )
 
-        # Handle scalar + Series case
-        elif not isinstance(value1, Series) and isinstance(value2, Series):
-            # When adding a scalar to a Series, just add the scalar value to each element
-            result = v2.fillna(0).copy()
-            scalar_value = 0 if isna(value1) else value1
-            for i in range(len(result)):
-                result.iloc[i] += scalar_value
-            return result
+        # 3. Handle scalar + Series case
+        if not isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_scalar_case(
+                value2, value1, False, self._sum_series_scalar
+            )
 
-        # Handle Series + Series case
-        else:
-            # Ensure same length Series
-            if len(v1) != len(v2):
-                # If we have Series of different lengths, this is unexpected
-                # but we'll try to handle it reasonably
-                max_len = max(len(v1), len(v2))
-                if len(v1) < max_len:
-                    # Extend v1 with NaN values if needed
-                    v1 = v1.reindex(range(max_len), fill_value=float("nan"))
-                if len(v2) < max_len:
-                    # Extend v2 with NaN values if needed
-                    v2 = v2.reindex(range(max_len), fill_value=float("nan"))
+        # 4. Handle Series + Series case (with explicit casting for type checker)
+        if isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_series_case(
+                value1, value2, self._sum_series_series
+            )
 
-            # Sum the Series, treating NaN as 0
-            result = v1.fillna(0).add(v2.fillna(0))
+        # This should never happen due to the conditions above, but makes the type checker happy
+        raise ValueError("Unexpected input types")
 
-            # Return appropriate type
-            return result if was_series else result.iloc[0]
+    def _sum_scalars(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        """Sum two scalar values, treating NaN as 0"""
+        # Treat NaN as 0
+        first_value = 0 if isna(value1) else value1
+        second_value = 0 if isna(value2) else value2
+        return first_value + second_value
 
-    def validate(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
-    ) -> None:
-        # For Series inputs
-        if isinstance(value1, Series):
-            for val in value1:
-                if notna(val) and not isinstance(val, (int, float)):
-                    raise ValueError("SumStrategy requires numeric values")
+    def _sum_series_scalar(
+            self, series: Series, scalar: MetricValue, series_is_first: bool
+    ) -> Series:
+        """Sum a Series and a scalar value, treating NaN as 0"""
+        # Create a copy of the Series and fill NA values with 0
+        merged_result = series.copy().fillna(0)
 
-        elif notna(value1) and not isinstance(value1, (int, float)):
-            raise ValueError("SumStrategy requires numeric values")
+        # Add the scalar value (treating NaN as 0)
+        scalar_value = 0 if isna(scalar) else scalar
+        for i in range(len(merged_result)):
+            merged_result.iloc[i] += scalar_value
 
-        if isinstance(value2, Series):
-            for val in value2:
-                if notna(val) and not isinstance(val, (int, float)):
-                    raise ValueError("SumStrategy requires numeric values")
+        return merged_result
 
-        elif notna(value2) and not isinstance(value2, (int, float)):
-            raise ValueError("SumStrategy requires numeric values")
+    def _sum_series_series(self, series1: Series, series2: Series) -> Series:
+        """Sum two Series, treating NaN as 0"""
+        # Create result with maximum length
+        max_len = max(len(series1), len(series2))
+        merged_result = Series(index=range(max_len))
+
+        # Calculate sum for each position
+        for i in range(max_len):
+            # Get value from first_series (default to 0 if out of range or null)
+            first_value = 0
+            if i < len(series1):
+                if notna(series1.iloc[i]):
+                    first_value = series1.iloc[i]
+
+            # Get value from second_series (default to 0 if out of range or null)
+            second_value = 0
+            if i < len(series2):
+                if notna(series2.iloc[i]):
+                    second_value = series2.iloc[i]
+
+            # Sum the values
+            merged_result.iloc[i] = first_value + second_value
+
+        return merged_result
 
 
 class MaxStrategy(MetricMergeStrategy):
@@ -192,81 +333,92 @@ class MaxStrategy(MetricMergeStrategy):
     def merge(
             self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
-        # Handle scalar case
+        # Validate inputs
+        self.validate(value1, value2)
+
+        # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
-            # Use pandas Series.max() for proper NaN handling
-            s = Series([value1, value2])
-            return s.max(skipna=True)
+            return self._handle_scalar_case(value1, value2, self._max_scalars)
 
-        # Handle Series + scalar case specifically
+        # 2. Handle Series + scalar case
         if isinstance(value1, Series) and not isinstance(value2, Series):
-            # Create result Series
-            result = Series(index=range(len(value1)))
-            scalar_val = value2
+            return self._handle_series_scalar_case(
+                value1, value2, True, self._max_series_scalar
+            )
 
-            # Compare each element with the scalar
-            for i in range(len(result)):
-                val = value1.iloc[i]
-                if isna(val):
-                    result.iloc[i] = scalar_val
-                elif isna(scalar_val):
-                    result.iloc[i] = val
-                else:
-                    result.iloc[i] = max(val, scalar_val)
-
-            return result
-
-        # Handle scalar + Series case
+        # 3. Handle scalar + Series case
         if not isinstance(value1, Series) and isinstance(value2, Series):
-            # Create result Series
-            result = Series(index=range(len(value2)))
-            scalar_val = value1
+            return self._handle_series_scalar_case(
+                value2, value1, False, self._max_series_scalar
+            )
 
-            # Compare each element with the scalar
-            for i in range(len(result)):
-                val = value2.iloc[i]
-                if isna(val):
-                    result.iloc[i] = scalar_val
-                elif isna(scalar_val):
-                    result.iloc[i] = val
-                else:
-                    result.iloc[i] = max(scalar_val, val)
+        # 4. Handle Series + Series case (with explicit casting for type checker)
+        if isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_series_case(
+                value1, value2, self._max_series_series
+            )
 
-            return result
+        # This should never happen due to the conditions above, but makes the type checker happy
+        raise ValueError("Unexpected input types")
 
-        # Otherwise handle Series + Series
-        # Convert to Series if needed
-        v1, v2, was_series = self._convert_to_series(value1, value2)
+    def _max_scalars(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        """Find the maximum of two scalar values, handling NaN"""
+        # Use pandas Series.max() for proper NaN handling
+        s = Series([value1, value2])
+        return s.max(skipna=True)
 
+    def _max_series_scalar(
+            self, series: Series, scalar: MetricValue, series_is_first: bool
+    ) -> Series:
+        """Find the maximum between Series values and a scalar"""
+        # Create result Series
+        merged_result = Series(index=range(len(series)))
+
+        # Compare each element with the scalar
+        for i in range(len(merged_result)):
+            current_value = series.iloc[i]
+            if isna(current_value):
+                merged_result.iloc[i] = scalar
+            elif isna(scalar):
+                merged_result.iloc[i] = current_value
+            else:
+                merged_result.iloc[i] = max(current_value, scalar)
+
+        return merged_result
+
+    def _max_series_series(self, series1: Series, series2: Series) -> Series:
+        """Find the maximum values between two Series"""
         # Create a result Series with appropriate length
-        result = Series(index=range(max(len(v1), len(v2))))
+        max_len = max(len(series1), len(series2))
+        merged_result = Series(index=range(max_len))
 
         # Calculate max for each position
-        for i in range(len(result)):
-            # Get value from v1 (handle index out of range)
-            if i < len(v1):
-                val1 = v1.iloc[i]
-            else:
-                val1 = float("-inf")  # Use -inf as placeholder for missing values
+        for i in range(max_len):
+            # Get value from first_series (default to -inf if out of range)
+            first_value = float("-inf")
+            if i < len(series1):
+                if notna(series1.iloc[i]):
+                    first_value = series1.iloc[i]
+                else:
+                    first_value = float("-inf")  # treat NaN as -inf for max comparison
 
-            # Get value from v2 (handle index out of range)
-            if i < len(v2):
-                val2 = v2.iloc[i]
-            else:
-                val2 = float("-inf")  # Use -inf as placeholder for missing values
+            # Get value from second_series (default to -inf if out of range)
+            second_value = float("-inf")
+            if i < len(series2):
+                if notna(series2.iloc[i]):
+                    second_value = series2.iloc[i]
+                else:
+                    second_value = float("-inf")  # treat NaN as -inf for max comparison
 
-            # For max(), we treat NaN as missing value (not included in comparison)
-            if isna(val1) and isna(val2):
-                result.iloc[i] = float("nan")
-            elif isna(val1):
-                result.iloc[i] = val2
-            elif isna(val2):
-                result.iloc[i] = val1
+            # If both are -inf (representing NaN or out of range), result is NaN
+            if first_value == float("-inf") and second_value == float("-inf"):
+                merged_result.iloc[i] = float("nan")
+            # Otherwise, take the max
             else:
-                result.iloc[i] = max(val1, val2)
+                # If one is -inf, the other will be selected
+                merged_result.iloc[i] = max(first_value, second_value)
 
-        # Return the correct type
-        return result if was_series else result.iloc[0]
+        return merged_result
 
 
 class MinStrategy(MetricMergeStrategy):
@@ -275,81 +427,92 @@ class MinStrategy(MetricMergeStrategy):
     def merge(
             self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
-        # Handle scalar case
+        # Validate inputs
+        self.validate(value1, value2)
+
+        # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
-            # Use pandas Series.min() for proper NaN handling
-            s = Series([value1, value2])
-            return s.min(skipna=True)
+            return self._handle_scalar_case(value1, value2, self._min_scalars)
 
-        # Handle Series + scalar case specifically
+        # 2. Handle Series + scalar case
         if isinstance(value1, Series) and not isinstance(value2, Series):
-            # Create result Series
-            result = Series(index=range(len(value1)))
-            scalar_val = value2
+            return self._handle_series_scalar_case(
+                value1, value2, True, self._min_series_scalar
+            )
 
-            # Compare each element with the scalar
-            for i in range(len(result)):
-                val = value1.iloc[i]
-                if isna(val):
-                    result.iloc[i] = scalar_val
-                elif isna(scalar_val):
-                    result.iloc[i] = val
-                else:
-                    result.iloc[i] = min(val, scalar_val)
-
-            return result
-
-        # Handle scalar + Series case
+        # 3. Handle scalar + Series case
         if not isinstance(value1, Series) and isinstance(value2, Series):
-            # Create result Series
-            result = Series(index=range(len(value2)))
-            scalar_val = value1
+            return self._handle_series_scalar_case(
+                value2, value1, False, self._min_series_scalar
+            )
 
-            # Compare each element with the scalar
-            for i in range(len(result)):
-                val = value2.iloc[i]
-                if isna(val):
-                    result.iloc[i] = scalar_val
-                elif isna(scalar_val):
-                    result.iloc[i] = val
-                else:
-                    result.iloc[i] = min(scalar_val, val)
+        # 4. Handle Series + Series case (with explicit casting for type checker)
+        if isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_series_case(
+                value1, value2, self._min_series_series
+            )
 
-            return result
+        # This should never happen due to the conditions above, but makes the type checker happy
+        raise ValueError("Unexpected input types")
 
-        # Otherwise handle Series + Series
-        # Convert to Series if needed
-        v1, v2, was_series = self._convert_to_series(value1, value2)
+    def _min_scalars(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        """Find the minimum of two scalar values, handling NaN"""
+        # Use pandas Series.min() for proper NaN handling
+        s = Series([value1, value2])
+        return s.min(skipna=True)
 
+    def _min_series_scalar(
+            self, series: Series, scalar: MetricValue, series_is_first: bool
+    ) -> Series:
+        """Find the minimum between Series values and a scalar"""
+        # Create result Series
+        merged_result = Series(index=range(len(series)))
+
+        # Compare each element with the scalar
+        for i in range(len(merged_result)):
+            current_value = series.iloc[i]
+            if isna(current_value):
+                merged_result.iloc[i] = scalar
+            elif isna(scalar):
+                merged_result.iloc[i] = current_value
+            else:
+                merged_result.iloc[i] = min(current_value, scalar)
+
+        return merged_result
+
+    def _min_series_series(self, series1: Series, series2: Series) -> Series:
+        """Find the minimum values between two Series"""
         # Create a result Series with appropriate length
-        result = Series(index=range(max(len(v1), len(v2))))
+        max_len = max(len(series1), len(series2))
+        merged_result = Series(index=range(max_len))
 
         # Calculate min for each position
-        for i in range(len(result)):
-            # Get value from v1 (handle index out of range)
-            if i < len(v1):
-                val1 = v1.iloc[i]
-            else:
-                val1 = float("inf")  # Use inf as placeholder for missing values
+        for i in range(max_len):
+            # Get value from first_series (default to inf if out of range)
+            first_value = float("inf")
+            if i < len(series1):
+                if notna(series1.iloc[i]):
+                    first_value = series1.iloc[i]
+                else:
+                    first_value = float("inf")  # treat NaN as inf for min comparison
 
-            # Get value from v2 (handle index out of range)
-            if i < len(v2):
-                val2 = v2.iloc[i]
-            else:
-                val2 = float("inf")  # Use inf as placeholder for missing values
+            # Get value from second_series (default to inf if out of range)
+            second_value = float("inf")
+            if i < len(series2):
+                if notna(series2.iloc[i]):
+                    second_value = series2.iloc[i]
+                else:
+                    second_value = float("inf")  # treat NaN as inf for min comparison
 
-            # For min(), we treat NaN as missing value (not included in comparison)
-            if isna(val1) and isna(val2):
-                result.iloc[i] = float("nan")
-            elif isna(val1):
-                result.iloc[i] = val2
-            elif isna(val2):
-                result.iloc[i] = val1
+            # If both are inf (representing NaN or out of range), result is NaN
+            if first_value == float("inf") and second_value == float("inf"):
+                merged_result.iloc[i] = float("nan")
+            # Otherwise, take the min
             else:
-                result.iloc[i] = min(val1, val2)
+                # If one is inf, the other will be selected
+                merged_result.iloc[i] = min(first_value, second_value)
 
-        # Return the correct type
-        return result if was_series else result.iloc[0]
+        return merged_result
 
 
 class AverageStrategy(MetricMergeStrategy):
@@ -358,114 +521,94 @@ class AverageStrategy(MetricMergeStrategy):
     def merge(
             self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
-        # Handle scalar case
+        # Validate inputs
+        self.validate(value1, value2)
+
+        # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
-            # Validate scalar inputs
-            self.validate(value1, value2)
+            return self._handle_scalar_case(value1, value2, self._avg_scalars)
 
-            # Use pandas Series.mean() for proper NaN handling
-            s = Series([value1, value2])
-            return s.mean()
-
-        # Handle Series + scalar case
+        # 2. Handle Series + scalar case
         if isinstance(value1, Series) and not isinstance(value2, Series):
-            # Validate inputs
-            self.validate(value1, value2)
+            return self._handle_series_scalar_case(
+                value1, value2, True, self._avg_series_scalar
+            )
 
-            # Convert scalar to Series for averaging
-            scalar_val = value2
-            result = Series(index=range(len(value1)))
-
-            for i in range(len(result)):
-                val = value1.iloc[i]
-
-                # If both are NaN, result is NaN
-                if isna(val) and isna(scalar_val):
-                    result.iloc[i] = float("nan")
-                # If one is NaN, use the other value (not an average)
-                elif isna(val):
-                    result.iloc[i] = scalar_val
-                elif isna(scalar_val):
-                    result.iloc[i] = val
-                # Otherwise, calculate the average
-                else:
-                    result.iloc[i] = (val + scalar_val) / 2
-
-            return result
-
-        # Handle scalar + Series case
+        # 3. Handle scalar + Series case
         if not isinstance(value1, Series) and isinstance(value2, Series):
-            # Validate inputs
-            self.validate(value1, value2)
+            return self._handle_series_scalar_case(
+                value2, value1, False, self._avg_series_scalar
+            )
 
-            # Convert scalar to Series for averaging
-            scalar_val = value1
-            result = Series(index=range(len(value2)))
+        # 4. Handle Series + Series case (with explicit casting for type checker)
+        if isinstance(value1, Series) and isinstance(value2, Series):
+            return self._handle_series_series_case(
+                value1, value2, self._avg_series_series
+            )
 
-            for i in range(len(result)):
-                val = value2.iloc[i]
+        # This should never happen due to the conditions above, but makes the type checker happy
+        raise ValueError("Unexpected input types")
 
-                # If both are NaN, result is NaN
-                if isna(val) and isna(scalar_val):
-                    result.iloc[i] = float("nan")
-                # If one is NaN, use the other value (not an average)
-                elif isna(val):
-                    result.iloc[i] = scalar_val
-                elif isna(scalar_val):
-                    result.iloc[i] = val
-                # Otherwise, calculate the average
-                else:
-                    result.iloc[i] = (scalar_val + val) / 2
+    def _avg_scalars(self, value1: MetricValue, value2: MetricValue) -> MetricValue:
+        """Calculate the average of two scalar values, handling NaN"""
+        # Use pandas Series.mean() for proper NaN handling
+        s = Series([value1, value2])
+        return s.mean()
 
-            return result
+    def _avg_series_scalar(
+            self, series: Series, scalar: MetricValue, series_is_first: bool
+    ) -> Series:
+        """Calculate the average between Series values and a scalar"""
+        # Create result Series
+        merged_result = Series(index=range(len(series)))
 
-        # Handle Series + Series case
-        # Convert to Series if needed
-        v1, v2, was_series = self._convert_to_series(value1, value2)
-
-        # Validate Series
-        self.validate(v1, v2)
-
-        # Create a result Series with appropriate length
-        result = Series(index=range(max(len(v1), len(v2))))
-
-        # Calculate average for each position
-        for i in range(len(result)):
-            # Get values (handle out of bounds)
-            val1 = v1.iloc[i] if i < len(v1) else float("nan")
-            val2 = v2.iloc[i] if i < len(v2) else float("nan")
+        for i in range(len(merged_result)):
+            series_value = series.iloc[i]
 
             # If both are NaN, result is NaN
-            if isna(val1) and isna(val2):
-                result.iloc[i] = float("nan")
+            if isna(series_value) and isna(scalar):
+                merged_result.iloc[i] = float("nan")
             # If one is NaN, use the other value (not an average)
-            elif isna(val1):
-                result.iloc[i] = val2
-            elif isna(val2):
-                result.iloc[i] = val1
+            elif isna(series_value):
+                merged_result.iloc[i] = scalar
+            elif isna(scalar):
+                merged_result.iloc[i] = series_value
             # Otherwise, calculate the average
             else:
-                result.iloc[i] = (val1 + val2) / 2
+                merged_result.iloc[i] = (series_value + scalar) / 2
 
-        # Return the correct type
-        return result if was_series else result.iloc[0]
+        return merged_result
 
-    def validate(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
-    ) -> None:
-        # For Series inputs
-        if isinstance(value1, Series):
-            for val in value1:
-                if notna(val) and not isinstance(val, (int, float)):
-                    raise ValueError("AverageStrategy requires numeric values")
+    def _avg_series_series(self, series1: Series, series2: Series) -> Series:
+        """Calculate the average between two Series values"""
+        # Create a result Series with appropriate length
+        max_len = max(len(series1), len(series2))
+        merged_result = Series(index=range(max_len))
 
-        elif notna(value1) and not isinstance(value1, (int, float)):
-            raise ValueError("AverageStrategy requires numeric values")
+        # Calculate average for each position
+        for i in range(max_len):
+            # Get values (handle out of bounds)
+            first_value = None
+            if i < len(series1):
+                first_value = series1.iloc[i]
 
-        if isinstance(value2, Series):
-            for val in value2:
-                if notna(val) and not isinstance(val, (int, float)):
-                    raise ValueError("AverageStrategy requires numeric values")
+            second_value = None
+            if i < len(series2):
+                second_value = series2.iloc[i]
 
-        elif notna(value2) and not isinstance(value2, (int, float)):
-            raise ValueError("AverageStrategy requires numeric values")
+            # If both are None or NaN, result is NaN
+            if (first_value is None or isna(first_value)) and (
+                    second_value is None or isna(second_value)
+            ):
+                merged_result.iloc[i] = float("nan")
+            # If first_value is None or NaN, use second_value
+            elif first_value is None or isna(first_value):
+                merged_result.iloc[i] = second_value
+            # If second_value is None or NaN, use first_value
+            elif second_value is None or isna(second_value):
+                merged_result.iloc[i] = first_value
+            # Otherwise, calculate the average
+            else:
+                merged_result.iloc[i] = (first_value + second_value) / 2
+
+        return merged_result
