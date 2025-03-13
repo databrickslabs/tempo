@@ -157,15 +157,13 @@ class BoundaryValue:
     Wrapper class that maintains both internal timestamp and original format.
     """
 
-    _timestamp: Timestamp
+    _timestamp: Optional[Timestamp]
     _converter: BoundaryConverter
 
     @classmethod
     def from_user_value(cls, value: IntervalBoundary) -> "BoundaryValue":
         converter = BoundaryConverter.for_type(value)
         timestamp = converter.to_timestamp(value)
-        if timestamp is None:
-            raise ValueError("Cannot create a BoundaryValue with None timestamp")
         return cls(_timestamp=timestamp, _converter=converter)
 
     @property
