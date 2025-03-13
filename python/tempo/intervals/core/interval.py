@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Tuple, Any
 
 from pandas import Series
 
@@ -115,11 +115,11 @@ class Interval:
         return self._boundaries.internal_start
 
     @property
-    def start(self):
+    def start(self) -> Any:
         return self._boundaries.start
 
     @property
-    def start_field(self):
+    def start_field(self) -> str:
         return self.boundary_accessor.start_field
 
     @property
@@ -128,16 +128,15 @@ class Interval:
         return self._boundaries.internal_end
 
     @property
-    def end(self):
+    def end(self) -> Any:
         return self._boundaries.end
 
     @property
     def end_field(self) -> str:
-
         return self.boundary_accessor.end_field
 
     @property
-    def boundaries(self) -> tuple:
+    def boundaries(self) -> Tuple[Any, Any]:
         """Returns the start and end timestamps as a Series"""
         return self._boundaries.start, self._boundaries.end
 
@@ -225,7 +224,7 @@ class Interval:
     # ----------------
 
     def merge_metrics(
-            self, other: "Interval", merge_config: MetricMergeConfig = None
+            self, other: "Interval", merge_config: Optional[MetricMergeConfig] = None
     ) -> Series:
         """Combines metrics between intervals according to merging strategy"""
         merger = DefaultMetricMerger(merge_config)
