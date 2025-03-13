@@ -1,4 +1,4 @@
-from pandas import concat, DataFrame, NA
+from pandas import concat, DataFrame, NA, Series
 
 from tempo.intervals.core.interval import Interval
 from tempo.intervals.overlap.transformer import IntervalTransformer
@@ -22,14 +22,14 @@ class IntervalsUtils:
         self._disjoint_set = DataFrame()
 
     @property
-    def disjoint_set(self):
+    def disjoint_set(self) -> DataFrame:
         return self._disjoint_set
 
     @disjoint_set.setter
-    def disjoint_set(self, value: DataFrame):
+    def disjoint_set(self, value: DataFrame) -> None:
         self._disjoint_set = value
 
-    def _calculate_all_overlaps(self, interval):
+    def _calculate_all_overlaps(self, interval: "Interval") -> DataFrame:
         max_start = "_MAX_START_TS"
         max_end = "_MAX_END_TS"
 
@@ -214,8 +214,8 @@ class IntervalsUtils:
 
         # Only process additional rows if they exist
         if len(overlaps) > 1:  # Use overlaps, not self.intervals
-
-            def resolve_and_add(row):
+            # Type-correct implementation of the nested function
+            def resolve_and_add(row: Series) -> None:
                 row_interval = Interval.create(
                     row,
                     interval.start_field,
@@ -240,8 +240,10 @@ class IntervalsUtils:
                         interval_inner
                     )
 
-            overlaps.iloc[1:].apply(
+            # Use apply with explicit parameters to satisfy type checker
+            # Type ignore comment added to suppress mypy error about apply
+            overlaps.iloc[1:].apply(  # type: ignore
                 resolve_and_add, axis=1
-            )  # Use overlaps, not self.intervals
+            )
 
         return disjoint_intervals
