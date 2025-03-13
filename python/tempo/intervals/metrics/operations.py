@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import Dict, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING, Optional
 
 from pandas import Series
 
@@ -20,8 +20,8 @@ class MetricMergeConfig:
 
     def __init__(
             self,
-            default_strategy: MetricMergeStrategy = None,
-            column_strategies: Dict[str, MetricMergeStrategy] = None,
+            default_strategy: Optional[MetricMergeStrategy] = None,
+            column_strategies: Optional[Dict[str, MetricMergeStrategy]] = None,
     ):
         self.default_strategy = default_strategy or KeepLastStrategy()
         self.column_strategies = column_strategies or {}
