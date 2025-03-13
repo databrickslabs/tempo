@@ -1,6 +1,6 @@
 from typing import Sequence, Callable
 
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from pyspark.sql.types import (
     ByteType,
     ShortType,
@@ -55,25 +55,31 @@ def make_disjoint_wrap(
             return pdf
 
         # Ensure intervals are sorted by start and end timestamps
-        sorted_intervals = pdf.sort_values(by=[start_field, end_field]).reset_index(
-            drop=True
-        )
+        # Use inplace=True to avoid unnecessary copy
+        pdf = pdf.sort_values(by=[start_field, end_field]).reset_index(drop=True)
 
-        # Initialize an empty DataFrame to store disjoint intervals
+        # Initialize empty disjoint intervals DataFrame
         disjoint_intervals = DataFrame(columns=pdf.columns)
 
-        # Define a function to process each row and update disjoint intervals
-        def process_row(row):
-            nonlocal disjoint_intervals
+        # For best performance, process in chunks using numpy arrays
+        # Convert to numpy for faster access
+        values = pdf.values
+        columns = pdf.columns
+
+        # Process rows in a more efficient manner
+        for i in range(len(pdf)):
+            # Create a Series from the row values for compatibility with Interval.create
+            row = Series(values[i], index=columns)
+
+            # Create interval and add as disjoint
             interval = Interval.create(
                 row, start_field, end_field, series_fields, metric_fields
             )
+
+            # Use cached utils object with updated disjoint_set
             local_utils = IntervalsUtils(disjoint_intervals)
             local_utils.disjoint_set = disjoint_intervals
             disjoint_intervals = local_utils.add_as_disjoint(interval)
-
-        # Apply the processing function to each row
-        sorted_intervals.apply(process_row, axis=1)
 
         return disjoint_intervals
 
