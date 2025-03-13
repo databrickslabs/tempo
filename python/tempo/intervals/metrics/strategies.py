@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Union, Callable, TypeVar
 
+from numpy import integer, floating
 from pandas import notna, isna, Series
 
 from tempo.intervals.core.types import MetricValue
@@ -33,22 +34,22 @@ class MetricMergeStrategy(ABC):
         # For Series inputs
         if isinstance(value1, Series):
             for val in value1:
-                if notna(val) and not isinstance(val, (int, float)):
+                if notna(val) and not isinstance(val, (int, float, integer, floating)):
                     raise ValueError(
                         f"{self.__class__.__name__} requires numeric values"
                     )
 
-        elif notna(value1) and not isinstance(value1, (int, float)):
+        elif notna(value1) and not isinstance(value1, (int, float, integer, floating)):
             raise ValueError(f"{self.__class__.__name__} requires numeric values")
 
         if isinstance(value2, Series):
             for val in value2:
-                if notna(val) and not isinstance(val, (int, float)):
+                if notna(val) and not isinstance(val, (int, float, integer, floating)):
                     raise ValueError(
                         f"{self.__class__.__name__} requires numeric values"
                     )
 
-        elif notna(value2) and not isinstance(value2, (int, float)):
+        elif notna(value2) and not isinstance(value2, (int, float, integer, floating)):
             raise ValueError(f"{self.__class__.__name__} requires numeric values")
 
     def _handle_scalar_case(

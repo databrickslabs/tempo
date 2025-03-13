@@ -435,21 +435,18 @@ class TestEdgeCases:
 
     def test_nan_handling(self, interval_factory):
         """Test handling of NaN values during merging"""
-        try:
-            interval1 = interval_factory(1, 5, {"value": 10, "missing": np.nan})
-            interval2 = interval_factory(3, 7, {"value": 20, "missing": 5})
+        interval1 = interval_factory(1, 5, {"value": 10, "missing": np.nan})
+        interval2 = interval_factory(3, 7, {"value": 20, "missing": 5})
 
-            resolver = OverlapsResolver()
-            result = resolver.resolve(interval1, interval2)
+        resolver = OverlapsResolver()
+        result = resolver.resolve(interval1, interval2)
 
-            assert len(result) == 3
-            # Check overlapping part
-            assert result[1]["start"] == 3
-            assert result[1]["end"] == 5
-            assert "value" in result[1]
-            assert "missing" in result[1]
-        except Exception:
-            pytest.skip("NaN values not supported in the actual implementation")
+        assert len(result) == 3
+        # Check overlapping part
+        assert result[1]["start"] == 3
+        assert result[1]["end"] == 5
+        assert "value" in result[1]
+        assert "missing" in result[1]
 
     def test_multiple_metrics_merging(self, interval_factory):
         """Test merging intervals with multiple metrics fields"""

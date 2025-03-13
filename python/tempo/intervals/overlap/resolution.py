@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from pandas import Series
 
@@ -12,10 +12,11 @@ class ResolutionResult:
     """Represents the result of interval resolution"""
 
     _resolved_intervals: List[Series] = field(repr=False)  # Private field for storage
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict[str, Any]] = None
     warnings: List[str] = field(default_factory=list)
 
-    def __init__(self, resolved_intervals: List[Series], metadata=None, warnings=None):
+    def __init__(self, resolved_intervals: List[Series], metadata: Optional[Dict[str, Any]] = None,
+                 warnings: Optional[List[str]] = None):
         # Make defensive copies of mutable inputs
         self._resolved_intervals = resolved_intervals.copy()
         self.metadata = metadata.copy() if metadata is not None else None
