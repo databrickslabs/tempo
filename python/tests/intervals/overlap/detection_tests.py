@@ -1632,11 +1632,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = StartsChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert StartsChecker().check(interval, other)
 
         # Verify this is exclusively a STARTS relationship
         assert not EqualsChecker().check(interval, other)
@@ -1663,11 +1660,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = BeforeChecker().check(interval, other)
-
-        # Assert
-        assert not result
+        # Act & Assert
+        assert not BeforeChecker().check(interval, other)
 
         # Verify we have equality instead
         assert EqualsChecker().check(interval, other)
@@ -1692,11 +1686,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = StartedByChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert StartedByChecker().check(interval, other)
 
         # Verify this is exclusively a STARTED_BY relationship
         assert not StartsChecker().check(interval, other)  # Important! This is the inverse relationship
@@ -1723,11 +1714,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = ContainsChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert ContainsChecker().check(interval, other)
 
         # Verify this is exclusively a CONTAINS relationship
         assert not DuringChecker().check(interval, other)  # Important! This is the inverse relationship
@@ -1755,11 +1743,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = OverlapsChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert OverlapsChecker().check(interval, other)
 
         # Verify this is exclusively an OVERLAPS relationship
         assert not DuringChecker().check(interval, other)  # Verify not contained
@@ -1787,11 +1772,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = OverlappedByChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert OverlappedByChecker().check(interval, other)
 
         # Verify this is exclusively an OVERLAPPED_BY relationship
         assert not DuringChecker().check(interval, other)  # Verify not contained
@@ -1819,11 +1801,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = BeforeChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert BeforeChecker().check(interval, other)
 
         # Verify this is exclusively a BEFORE relationship
         assert not DuringChecker().check(interval, other)  # Verify not contained
@@ -1851,11 +1830,8 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = EqualsChecker().check(interval, other)
-
-        # Assert
-        assert result
+        # Act & Assert
+        assert EqualsChecker().check(interval, other)
 
         # Verify this is exclusively an EQUALS relationship
         assert not StartsChecker().check(interval, other)  # Not just sharing start
@@ -1883,17 +1859,13 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = OverlapsChecker().check(interval, other)
-
-        # Assert
-        self.assertTrue(result)
+        assert OverlapsChecker().check(interval, other)
 
         # Additional verification that other relationships don't match
-        self.assertFalse(BeforeChecker().check(interval, other))
-        self.assertFalse(EqualsChecker().check(interval, other))
-        self.assertFalse(DuringChecker().check(interval, other))
-        self.assertFalse(ContainsChecker().check(interval, other))
+        assert not BeforeChecker().check(interval, other)
+        assert not EqualsChecker().check(interval, other)
+        assert not DuringChecker().check(interval, other)
+        assert not ContainsChecker().check(interval, other)
 
     def test_interval_starts_with_other(self):
         """Test case where both intervals start at the same time but first ends earlier"""
@@ -1915,14 +1887,10 @@ class TestStillValidLegacy:
             "end"
         )
 
-        # Act
-        result = StartsChecker().check(interval, other)
-
-        # Assert
-        self.assertTrue(result)
+        assert StartsChecker().check(interval, other)
 
         # Additional verification that other relationships don't match
-        self.assertFalse(EqualsChecker().check(interval, other))
-        self.assertFalse(DuringChecker().check(interval, other))
-        self.assertFalse(OverlapsChecker().check(interval, other))
-        self.assertFalse(StartedByChecker().check(interval, other))  # Important! This is the inverse relationship
+        assert not EqualsChecker().check(interval, other)
+        assert not DuringChecker().check(interval, other)
+        assert not OverlapsChecker().check(interval, other)
+        assert not StartedByChecker().check(interval, other)  # Important! This is the inverse relationship
