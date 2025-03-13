@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from pandas import Series
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class MetricMerger(ABC):
     """Abstract base class defining metric merging strategy"""
 
-    def __init__(self, merge_config: MetricMergeConfig = None):
+    def __init__(self, merge_config: Optional[MetricMergeConfig] = None):
         self.merge_config = merge_config or MetricMergeConfig()
 
     def merge(self, interval: "Interval", other: "Interval") -> Series:
@@ -39,7 +39,7 @@ class MetricMerger(ABC):
             value1: Series,
             value2: Series,
             strategy: MetricMergeStrategy,
-    ) -> MetricValue:
+    ) -> Union[MetricValue, Series]:
         """Apply the specified merge strategy to two values"""
         try:
             strategy.validate(value1, value2)
