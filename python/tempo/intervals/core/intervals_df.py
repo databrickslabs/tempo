@@ -75,9 +75,7 @@ class IntervalsDF:
         elif isinstance(series_ids, Iterable):
             self.series_ids = list(series_ids)
         else:
-            raise ValueError(
-                ErrorMessages.INVALID_SERIES_IDS.format(type(series_ids))
-            )
+            raise ValueError(ErrorMessages.INVALID_SERIES_IDS.format(type(series_ids)))
 
     @cached_property
     def interval_boundaries(self) -> list[str]:
@@ -359,9 +357,7 @@ class IntervalsDF:
                 tuple(f"'{col}', {col}" for col in self.metric_columns)
             )
 
-            stack_expr = (
-                f"STACK({n_cols}, {metric_cols_expr}) AS ({_metric_name}, {_metric_value})"
-            )
+            stack_expr = f"STACK({n_cols}, {metric_cols_expr}) AS ({_metric_name}, {_metric_value})"
 
             return self.df.select(
                 *self.interval_boundaries,

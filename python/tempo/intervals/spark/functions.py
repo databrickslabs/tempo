@@ -1,8 +1,17 @@
 from typing import Sequence, Callable
 
 from pandas import DataFrame
-from pyspark.sql.types import ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, DecimalType, \
-    StructField, BooleanType
+from pyspark.sql.types import (
+    ByteType,
+    ShortType,
+    IntegerType,
+    LongType,
+    FloatType,
+    DoubleType,
+    DecimalType,
+    StructField,
+    BooleanType,
+)
 
 from tempo.intervals.core.interval import Interval
 from tempo.intervals.core.utils import IntervalsUtils
@@ -46,7 +55,9 @@ def make_disjoint_wrap(
             return pdf
 
         # Ensure intervals are sorted by start and end timestamps
-        sorted_intervals = pdf.sort_values(by=[start_field, end_field]).reset_index(drop=True)
+        sorted_intervals = pdf.sort_values(by=[start_field, end_field]).reset_index(
+            drop=True
+        )
 
         # Initialize an empty DataFrame to store disjoint intervals
         disjoint_intervals = DataFrame(columns=pdf.columns)
@@ -54,7 +65,9 @@ def make_disjoint_wrap(
         # Define a function to process each row and update disjoint intervals
         def process_row(row):
             nonlocal disjoint_intervals
-            interval = Interval.create(row, start_field, end_field, series_fields, metric_fields)
+            interval = Interval.create(
+                row, start_field, end_field, series_fields, metric_fields
+            )
             local_utils = IntervalsUtils(disjoint_intervals)
             local_utils.disjoint_set = disjoint_intervals
             disjoint_intervals = local_utils.add_as_disjoint(interval)

@@ -5,7 +5,16 @@ from typing import Collection, Tuple, List, Optional, Union, Iterator
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
-from pyspark.sql.types import *
+from pyspark.sql.types import (
+    DataType,
+    StructType,
+    StructField,
+    StringType,
+    DoubleType,
+    DateType,
+    TimestampType,
+    BooleanType,
+)
 from pyspark.sql.types import NumericType
 
 from tempo.timeunit import TimeUnit, StandardTimeUnits

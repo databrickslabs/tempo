@@ -29,9 +29,7 @@ class MetricMerger(ABC):
         for metric_col in interval.metric_fields:
             strategy = self.merge_config.get_strategy(metric_col)
             merged_data[metric_col] = self._apply_merge_strategy(
-                interval.data[metric_col],
-                other.data[metric_col],
-                strategy
+                interval.data[metric_col], other.data[metric_col], strategy
             )
 
         return merged_data
@@ -58,4 +56,5 @@ class MetricMerger(ABC):
 
 class DefaultMetricMerger(MetricMerger):
     """Default implementation that uses configured merge strategies"""
+
     pass

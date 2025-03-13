@@ -41,18 +41,13 @@ class IntervalsUtils:
         intervals_copy = self.intervals.copy()
 
         # Calculate the latest possible start timestamp for overlap comparison.
-        intervals_copy[max_start] = intervals_copy[
-            interval.start_field
-        ].where(
-            intervals_copy[interval.start_field]
-            >= interval.data[interval.start_field],
+        intervals_copy[max_start] = intervals_copy[interval.start_field].where(
+            intervals_copy[interval.start_field] >= interval.data[interval.start_field],
             interval.data[interval.start_field],
         )
 
         # Calculate the earliest possible end timestamp for overlap comparison.
-        intervals_copy[max_end] = intervals_copy[
-            interval.end_field
-        ].where(
+        intervals_copy[max_end] = intervals_copy[interval.end_field].where(
             intervals_copy[interval.end_field] <= interval.data[interval.end_field],
             interval.data[interval.end_field],
         )
@@ -60,7 +55,7 @@ class IntervalsUtils:
         # https://www.baeldung.com/cs/finding-all-overlapping-intervals
         intervals_copy = intervals_copy[
             intervals_copy[max_start] < intervals_copy[max_end]
-            ]
+        ]
 
         # Remove intermediate columns used for interval overlap calculation.
         cols_to_drop = [max_start, max_end]
@@ -68,10 +63,7 @@ class IntervalsUtils:
 
         return intervals_copy
 
-    def find_overlaps(
-            self,
-            interval: "Interval"
-    ) -> DataFrame:
+    def find_overlaps(self, interval: "Interval") -> DataFrame:
 
         all_overlaps = self._calculate_all_overlaps(interval)
 
@@ -86,20 +78,22 @@ class IntervalsUtils:
         return deduplicated_overlaps
 
     def add_as_disjoint(self, interval: "Interval") -> DataFrame:
-
         """
-                        returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
-                        """
+        returns a disjoint set consisting of the given interval, made disjoint with those already in `disjoint_set`
+        """
 
         if self.disjoint_set is None or self.disjoint_set.empty:
             return DataFrame([interval.data])
 
-        overlapping_subset_df = IntervalsUtils(self.disjoint_set).find_overlaps(interval)
+        overlapping_subset_df = IntervalsUtils(self.disjoint_set).find_overlaps(
+            interval
+        )
 
         # if there are no overlaps, add the interval to disjoint_set
         if overlapping_subset_df.empty:
-            element_wise_comparison = self.disjoint_set.copy().fillna(NA) == interval.data.fillna(
-                NA).values
+            element_wise_comparison = (
+                    self.disjoint_set.copy().fillna(NA) == interval.data.fillna(NA).values
+            )
 
             row_wise_comparison = element_wise_comparison.all(axis=1)
             # NB: because of the nested iterations, we need to check that the
@@ -112,9 +106,12 @@ class IntervalsUtils:
         # identify all intervals which do not overlap with the given interval to
         # concatenate them to the disjoint set after resolving overlaps
         non_overlapping_subset_df = self.disjoint_set[
-
-            ~self.disjoint_set.set_index(keys=[interval.start_field, interval.end_field]).index.isin(
-                overlapping_subset_df.set_index(keys=[interval.start_field, interval.end_field]).index
+            ~self.disjoint_set.set_index(
+                keys=[interval.start_field, interval.end_field]
+            ).index.isin(
+                overlapping_subset_df.set_index(
+                    keys=[interval.start_field, interval.end_field]
+                ).index
             )
         ]
 
@@ -122,7 +119,9 @@ class IntervalsUtils:
         multiple_to_resolve = len(overlapping_subset_df.index) > 1
 
         # If every record overlaps, no need to handle non-overlaps
-        only_overlaps_present = len(self.disjoint_set.index) == len(overlapping_subset_df.index)
+        only_overlaps_present = len(self.disjoint_set.index) == len(
+            overlapping_subset_df.index
+        )
 
         # Resolve the interval against all the existing, overlapping intervals
         # `multiple_to_resolve` is used to avoid unnecessary calls to `resolve_all_overlaps`
@@ -144,9 +143,7 @@ class IntervalsUtils:
                     interval.metric_fields,
                 ),
             )
-            return DataFrame(
-                resolver.resolve_overlap()
-            )
+            return DataFrame(resolver.resolve_overlap())
 
         if multiple_to_resolve and only_overlaps_present:
             return IntervalsUtils(overlapping_subset_df).resolve_all_overlaps(interval)
@@ -170,9 +167,7 @@ class IntervalsUtils:
             )
             return concat(
                 (
-                    DataFrame(
-                        resolver.resolve_overlap()
-                    ),
+                    DataFrame(resolver.resolve_overlap()),
                     non_overlapping_subset_df,
                 ),
             )
@@ -180,7 +175,9 @@ class IntervalsUtils:
         if multiple_to_resolve and not only_overlaps_present:
             return concat(
                 (
-                    IntervalsUtils(overlapping_subset_df).resolve_all_overlaps(interval),
+                    IntervalsUtils(overlapping_subset_df).resolve_all_overlaps(
+                        interval
+                    ),
                     non_overlapping_subset_df,
                 ),
             )
@@ -217,6 +214,7 @@ class IntervalsUtils:
 
         # Only process additional rows if they exist
         if len(overlaps) > 1:  # Use overlaps, not self.intervals
+
             def resolve_and_add(row):
                 row_interval = Interval.create(
                     row,
@@ -238,8 +236,12 @@ class IntervalsUtils:
                     nonlocal disjoint_intervals
                     local_interval_utils = IntervalsUtils(disjoint_intervals)
                     local_interval_utils.disjoint_set = disjoint_intervals
-                    disjoint_intervals = local_interval_utils.add_as_disjoint(interval_inner)
+                    disjoint_intervals = local_interval_utils.add_as_disjoint(
+                        interval_inner
+                    )
 
-            overlaps.iloc[1:].apply(resolve_and_add, axis=1)  # Use overlaps, not self.intervals
+            overlaps.iloc[1:].apply(
+                resolve_and_add, axis=1
+            )  # Use overlaps, not self.intervals
 
         return disjoint_intervals

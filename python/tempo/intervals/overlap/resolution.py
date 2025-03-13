@@ -10,6 +10,7 @@ from tempo.intervals.core.interval import Interval
 @dataclass
 class ResolutionResult:
     """Represents the result of interval resolution"""
+
     _resolved_intervals: List[Series] = field(repr=False)  # Private field for storage
     metadata: Optional[Dict] = None
     warnings: List[str] = field(default_factory=list)

@@ -42,13 +42,20 @@ class MetricsEquivalentChecker(OverlapChecker):
         # Then check if intervals overlap or one contains the other
         has_overlap = (
             # Overlap cases
-                (interval._start.internal_value < other._end.internal_value and
-                 interval._end.internal_value > other._start.internal_value) or
+                (
+                        interval._start.internal_value < other._end.internal_value
+                        and interval._end.internal_value > other._start.internal_value
+                )
+                or
                 # Containment cases
-                (interval._start.internal_value <= other._start.internal_value and
-                 interval._end.internal_value >= other._end.internal_value) or
-                (other._start.internal_value <= interval._start.internal_value and
-                 other._end.internal_value >= interval._end.internal_value)
+                (
+                        interval._start.internal_value <= other._start.internal_value
+                        and interval._end.internal_value >= other._end.internal_value
+                )
+                or (
+                        other._start.internal_value <= interval._start.internal_value
+                        and other._end.internal_value >= interval._end.internal_value
+                )
         )
 
         return metrics_equal and has_overlap
@@ -76,9 +83,11 @@ class OverlapsChecker(OverlapChecker):
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval overlaps other if it starts before other starts,
         # but ends after other starts and before other ends
-        return (interval._start < other._start and
-                interval._end > other._start and
-                interval._end < other._end)
+        return (
+                interval._start < other._start
+                and interval._end > other._start
+                and interval._end < other._end
+        )
 
 
 class StartsChecker(OverlapChecker):
@@ -87,8 +96,7 @@ class StartsChecker(OverlapChecker):
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval starts other if they have the same start point
         # but interval ends before other
-        return (interval._start == other._start and
-                interval._end < other._end)
+        return interval._start == other._start and interval._end < other._end
 
 
 class DuringChecker(OverlapChecker):
@@ -96,8 +104,7 @@ class DuringChecker(OverlapChecker):
 
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval is during other if it starts after and ends before other
-        return (interval._start > other._start and
-                interval._end < other._end)
+        return interval._start > other._start and interval._end < other._end
 
 
 class FinishesChecker(OverlapChecker):
@@ -106,8 +113,7 @@ class FinishesChecker(OverlapChecker):
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval finishes other if they have the same end point
         # but interval starts after other
-        return (interval._start > other._start and
-                interval._end == other._end)
+        return interval._start > other._start and interval._end == other._end
 
 
 class EqualsChecker(OverlapChecker):
@@ -115,8 +121,7 @@ class EqualsChecker(OverlapChecker):
 
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Intervals are equal if they have the same start and end points
-        return (interval._start == other._start and
-                interval._end == other._end)
+        return interval._start == other._start and interval._end == other._end
 
 
 class ContainsChecker(OverlapChecker):
@@ -124,8 +129,7 @@ class ContainsChecker(OverlapChecker):
 
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval contains other if other starts after and ends before interval
-        return (interval._start < other._start and
-                interval._end > other._end)
+        return interval._start < other._start and interval._end > other._end
 
 
 class StartedByChecker(OverlapChecker):
@@ -134,8 +138,7 @@ class StartedByChecker(OverlapChecker):
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval is started by other if they have the same start point
         # but other ends before interval
-        return (interval._start == other._start and
-                interval._end > other._end)
+        return interval._start == other._start and interval._end > other._end
 
 
 class FinishedByChecker(OverlapChecker):
@@ -144,8 +147,7 @@ class FinishedByChecker(OverlapChecker):
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval is finished by other if they have the same end point
         # but other starts after interval
-        return (interval._end == other._end and
-                interval._start < other._start)
+        return interval._end == other._end and interval._start < other._start
 
 
 class OverlappedByChecker(OverlapChecker):
@@ -154,9 +156,11 @@ class OverlappedByChecker(OverlapChecker):
     def check(self, interval: "Interval", other: "Interval") -> bool:
         # Interval is overlapped by other if other starts before interval,
         # but ends after interval starts and before interval ends
-        return (other._start < interval._start and
-                other._end > interval._start and
-                other._end < interval._end)
+        return (
+                other._start < interval._start
+                and other._end > interval._start
+                and other._end < interval._end
+        )
 
 
 class MetByChecker(OverlapChecker):

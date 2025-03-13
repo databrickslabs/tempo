@@ -18,9 +18,11 @@ class MetricNormalizer(ABC):
 class MetricMergeConfig:
     """Configuration for metric merging behavior"""
 
-    def __init__(self,
-                 default_strategy: MetricMergeStrategy = None,
-                 column_strategies: Dict[str, MetricMergeStrategy] = None):
+    def __init__(
+            self,
+            default_strategy: MetricMergeStrategy = None,
+            column_strategies: Dict[str, MetricMergeStrategy] = None,
+    ):
         self.default_strategy = default_strategy or KeepLastStrategy()
         self.column_strategies = column_strategies or {}
         self._validate_strategies()
@@ -28,11 +30,15 @@ class MetricMergeConfig:
     def _validate_strategies(self) -> None:
         """Validate that all strategies are proper MetricMergeStrategy instances"""
         if not isinstance(self.default_strategy, MetricMergeStrategy):
-            raise ValueError("default_strategy must be an instance of MetricMergeStrategy")
+            raise ValueError(
+                "default_strategy must be an instance of MetricMergeStrategy"
+            )
 
         for col, strategy in self.column_strategies.items():
             if not isinstance(strategy, MetricMergeStrategy):
-                raise ValueError(f"Strategy for column {col} must be an instance of MetricMergeStrategy")
+                raise ValueError(
+                    f"Strategy for column {col} must be an instance of MetricMergeStrategy"
+                )
 
     def get_strategy(self, column: str) -> MetricMergeStrategy:
         """Get the merge strategy for a specific column"""
@@ -41,5 +47,7 @@ class MetricMergeConfig:
     def set_strategy(self, column: str, strategy: MetricMergeStrategy) -> None:
         """Set the merge strategy for a specific column"""
         if not isinstance(strategy, MetricMergeStrategy):
-            raise ValueError("The provided strategy must be an instance of MetricMergeStrategy")
+            raise ValueError(
+                "The provided strategy must be an instance of MetricMergeStrategy"
+            )
         self.column_strategies[column] = strategy

@@ -8,7 +8,10 @@ class OverlapType(Enum):
     Comprehensive classification of possible interval relationships.
     Based on Allen's interval algebra.
     """
-    METRICS_EQUIVALENT = auto()  # Overlapping intervals with same metrics; this is a special case
+
+    METRICS_EQUIVALENT = (
+        auto()
+    )  # Overlapping intervals with same metrics; this is a special case
     BEFORE = auto()  # X completely before Y
     MEETS = auto()  # X ends where Y starts
     OVERLAPS = auto()  # X overlaps start of Y

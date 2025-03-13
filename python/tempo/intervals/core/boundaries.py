@@ -15,13 +15,14 @@ class BoundaryConverter(Generic[T]):
     Handles conversion between user-provided boundary types and internal pd.Timestamp.
     Maintains original format for converting back to user format.
     """
+
     to_timestamp: Callable[[Optional[T]], Optional[Timestamp]]
     from_timestamp: Callable[[Optional[Timestamp]], Optional[T]]
     original_type: type
     original_format: Optional[str] = None  # Store original string format if applicable
 
     @classmethod
-    def for_type(cls, sample_value: IntervalBoundary) -> 'BoundaryConverter':
+    def for_type(cls, sample_value: IntervalBoundary) -> "BoundaryConverter":
         """Factory method to create appropriate converter based on input type"""
 
         def check_negative_timestamp(ts: Optional[Timestamp]) -> Optional[Timestamp]:
@@ -38,56 +39,57 @@ class BoundaryConverter(Generic[T]):
                 # Use the inferred format to convert back
                 from_timestamp=lambda x: x.strftime(format_str),
                 original_type=str,
-                original_format=format_str  # Store just the format string
+                original_format=format_str,  # Store just the format string
             )
         elif isinstance(sample_value, (int, float, integer, floating)):
             # Convert numpy types to Python native types
             original_type = int if isinstance(sample_value, (int, integer)) else float
             return cls(
                 to_timestamp=lambda x: check_negative_timestamp(
-                    Timestamp(int(x) if isinstance(x, (int, integer)) else float(x), unit='s')
+                    Timestamp(
+                        int(x) if isinstance(x, (int, integer)) else float(x), unit="s"
+                    )
                 ),
                 from_timestamp=lambda x: original_type(x.timestamp()),
-                original_type=original_type
+                original_type=original_type,
             )
 
         elif sample_value is None:
             return cls(
                 to_timestamp=lambda x: None,
                 from_timestamp=lambda x: None,
-                original_type=type(sample_value)
+                original_type=type(sample_value),
             )
         # Handle Timestamp first because pandas.Timestamp is a subclass of datetime
         elif isinstance(sample_value, Timestamp):
             return cls(
                 to_timestamp=lambda x: check_negative_timestamp(x),
                 from_timestamp=lambda x: x,
-                original_type=Timestamp
+                original_type=Timestamp,
             )
         elif isinstance(sample_value, datetime):
             return cls(
                 to_timestamp=lambda x: check_negative_timestamp(Timestamp(x)),
                 from_timestamp=lambda x: x.to_pydatetime(),
-                original_type=datetime
+                original_type=datetime,
             )
         else:
             raise ValueError(f"Unsupported boundary type: {type(sample_value)}")
+
 
 @dataclass
 class BoundaryValue:
     """
     Wrapper class that maintains both internal timestamp and original format.
     """
+
     _timestamp: Timestamp
     _converter: BoundaryConverter
 
     @classmethod
     def from_user_value(cls, value: IntervalBoundary) -> "BoundaryValue":
         converter = BoundaryConverter.for_type(value)
-        return cls(
-            _timestamp=converter.to_timestamp(value),
-            _converter=converter
-        )
+        return cls(_timestamp=converter.to_timestamp(value), _converter=converter)
 
     @property
     def internal_value(self) -> Timestamp:
@@ -98,22 +100,22 @@ class BoundaryValue:
         """Convert back to the original user format"""
         return self._converter.from_timestamp(self._timestamp)
 
-    def __eq__(self, other: 'BoundaryValue') -> bool:
+    def __eq__(self, other: "BoundaryValue") -> bool:
         return self._timestamp == other._timestamp
 
-    def __lt__(self, other: 'BoundaryValue') -> bool:
+    def __lt__(self, other: "BoundaryValue") -> bool:
         return self._timestamp < other._timestamp
 
-    def __le__(self, other: 'BoundaryValue') -> bool:
+    def __le__(self, other: "BoundaryValue") -> bool:
         return self._timestamp <= other._timestamp
 
-    def __gt__(self, other: 'BoundaryValue') -> bool:
+    def __gt__(self, other: "BoundaryValue") -> bool:
         return self._timestamp > other._timestamp
 
-    def __ge__(self, other: 'BoundaryValue') -> bool:
+    def __ge__(self, other: "BoundaryValue") -> bool:
         return self._timestamp >= other._timestamp
 
-    def __ne__(self, other: 'BoundaryValue') -> bool:
+    def __ne__(self, other: "BoundaryValue") -> bool:
         return self._timestamp != other._timestamp
 
 
@@ -127,15 +129,20 @@ class IntervalBoundaries:
             cls,
             start: Union[IntervalBoundary, BoundaryValue],
             end: Union[IntervalBoundary, BoundaryValue],
-    ) -> 'IntervalBoundaries':
+    ) -> "IntervalBoundaries":
         # Convert only if not already a BoundaryValue
-        start_boundary = start if isinstance(start, BoundaryValue) else BoundaryValue.from_user_value(start)
-        end_boundary = end if isinstance(end, BoundaryValue) else BoundaryValue.from_user_value(end)
-
-        return cls(
-            _start=start_boundary,
-            _end=end_boundary
+        start_boundary = (
+            start
+            if isinstance(start, BoundaryValue)
+            else BoundaryValue.from_user_value(start)
         )
+        end_boundary = (
+            end
+            if isinstance(end, BoundaryValue)
+            else BoundaryValue.from_user_value(end)
+        )
+
+        return cls(_start=start_boundary, _end=end_boundary)
 
     @property
     def start(self) -> IntervalBoundary:

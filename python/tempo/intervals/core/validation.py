@@ -3,7 +3,11 @@ from typing import Optional, Sequence
 
 from pandas import Series
 
-from tempo.intervals.core.exceptions import EmptyIntervalError, InvalidDataTypeError, InvalidMetricColumnError
+from tempo.intervals.core.exceptions import (
+    EmptyIntervalError,
+    InvalidDataTypeError,
+    InvalidMetricColumnError,
+)
 
 
 @dataclass
@@ -27,7 +31,9 @@ class IntervalValidator:
         return ValidationResult(is_valid=True)
 
     @staticmethod
-    def _validate_columns(columns: Optional[Sequence[str]], column_type: str) -> ValidationResult:
+    def _validate_columns(
+            columns: Optional[Sequence[str]], column_type: str
+    ) -> ValidationResult:
         if columns is None:
             return ValidationResult(is_valid=True)
 
@@ -43,9 +49,13 @@ class IntervalValidator:
         return ValidationResult(is_valid=True)
 
     @staticmethod
-    def validate_series_id_columns(series_ids: Optional[Sequence[str]]) -> ValidationResult:
+    def validate_series_id_columns(
+            series_ids: Optional[Sequence[str]],
+    ) -> ValidationResult:
         return IntervalValidator._validate_columns(series_ids, "series ID columns")
 
     @staticmethod
-    def validate_metric_columns(metric_columns: Optional[Sequence[str]]) -> ValidationResult:
+    def validate_metric_columns(
+            metric_columns: Optional[Sequence[str]],
+    ) -> ValidationResult:
         return IntervalValidator._validate_columns(metric_columns, "metric columns")

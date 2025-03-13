@@ -1699,5 +1699,230 @@ class TestStillValidLegacy:
         assert result
 
         # Verify this is exclusively a STARTED_BY relationship
+        assert not StartsChecker().check(interval, other)  # Important! This is the inverse relationship
+        assert not EqualsChecker().check(interval, other)
+        assert not ContainsChecker().check(interval, other)
+
+    def test_interval_contains_other(self):
+        """Test case where first interval completely contains the second interval"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T03:00:00"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T01:00:00",
+                "end": "2023-01-01T02:00:00"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = ContainsChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively a CONTAINS relationship
+        assert not DuringChecker().check(interval, other)  # Important! This is the inverse relationship
+        assert not EqualsChecker().check(interval, other)
+        assert not OverlapsChecker().check(interval, other)
         assert not StartsChecker().check(interval, other)
-        assert not EqualsChecker().check(interval
+
+    def test_interval_overlaps_but_not_contained(self):
+        """Test case where first interval overlaps start of second interval but isn't contained by it"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T01:30:00"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T01:00:00",
+                "end": "2023-01-01T03:00:00"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = OverlapsChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively an OVERLAPS relationship
+        assert not DuringChecker().check(interval, other)  # Verify not contained
+        assert not ContainsChecker().check(interval, other)
+        assert not StartsChecker().check(interval, other)
+        assert not OverlappedByChecker().check(interval, other)  # Important! This is the inverse relationship
+
+    def test_interval_is_overlapped_by_other(self):
+        """Test case where first interval starts after second starts and ends after it ends"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T02:00:00",
+                "end": "2023-01-01T05:00:00"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T01:00:00",
+                "end": "2023-01-01T04:00:00"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = OverlappedByChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively an OVERLAPPED_BY relationship
+        assert not DuringChecker().check(interval, other)  # Verify not contained
+        assert not OverlapsChecker().check(interval, other)  # Important! This is the inverse relationship
+        assert not ContainsChecker().check(interval, other)
+        assert not FinishesChecker().check(interval, other)
+
+    def test_interval_before_other_no_overlap(self):
+        """Test case where first interval is completely before second interval with no overlap"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:00",
+                "end": "2023-01-01T01:00:00"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T02:00:00",
+                "end": "2023-01-01T03:00:00"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = BeforeChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively a BEFORE relationship
+        assert not DuringChecker().check(interval, other)  # Verify not contained
+        assert not MeetsChecker().check(interval, other)  # Verify no touching boundaries
+        assert not OverlapsChecker().check(interval, other)  # Verify no overlap
+        assert not AfterChecker().check(interval, other)  # Important! This is the inverse relationship
+
+    def test_intervals_are_equal(self):
+        """Test case where intervals have identical start and end times"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T01:00:00",
+                "end": "2023-01-01T01:30:00"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T01:00:00",
+                "end": "2023-01-01T01:30:00"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = EqualsChecker().check(interval, other)
+
+        # Assert
+        assert result
+
+        # Verify this is exclusively an EQUALS relationship
+        assert not StartsChecker().check(interval, other)  # Not just sharing start
+        assert not FinishesChecker().check(interval, other)  # Not just sharing end
+        assert not DuringChecker().check(interval, other)
+        assert not ContainsChecker().check(interval, other)
+
+    def test_interval_overlaps_other(self):
+        """Test case where first interval starts before and overlaps with second interval"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:01",
+                "end": "2023-01-01T00:00:03"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:02",
+                "end": "2023-01-01T00:00:04"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = OverlapsChecker().check(interval, other)
+
+        # Assert
+        self.assertTrue(result)
+
+        # Additional verification that other relationships don't match
+        self.assertFalse(BeforeChecker().check(interval, other))
+        self.assertFalse(EqualsChecker().check(interval, other))
+        self.assertFalse(DuringChecker().check(interval, other))
+        self.assertFalse(ContainsChecker().check(interval, other))
+
+    def test_interval_starts_with_other(self):
+        """Test case where both intervals start at the same time but first ends earlier"""
+        # Arrange
+        interval = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:01",
+                "end": "2023-01-01T00:00:03"
+            }),
+            "start",
+            "end"
+        )
+        other = Interval.create(
+            pd.Series({
+                "start": "2023-01-01T00:00:01",
+                "end": "2023-01-01T00:00:04"
+            }),
+            "start",
+            "end"
+        )
+
+        # Act
+        result = StartsChecker().check(interval, other)
+
+        # Assert
+        self.assertTrue(result)
+
+        # Additional verification that other relationships don't match
+        self.assertFalse(EqualsChecker().check(interval, other))
+        self.assertFalse(DuringChecker().check(interval, other))
+        self.assertFalse(OverlapsChecker().check(interval, other))
+        self.assertFalse(StartedByChecker().check(interval, other))  # Important! This is the inverse relationship
