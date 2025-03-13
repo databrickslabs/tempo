@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Optional, Iterable
+from typing import Optional, Iterable, List
 
 import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
@@ -64,12 +64,14 @@ class IntervalsDF:
         self.start_ts = start_ts
         self.end_ts = end_ts
 
-        self._validate_series_ids(series_ids)
+        # Handle None explicitly before passing to _validate_series_ids
+        if series_ids is None:
+            self.series_ids: List[str] = []
+        else:
+            self._validate_series_ids(series_ids)
 
-    def _validate_series_ids(self, series_ids):
-        if not series_ids:
-            self.series_ids = []
-        elif isinstance(series_ids, str):
+    def _validate_series_ids(self, series_ids: Iterable[str]) -> None:
+        if isinstance(series_ids, str):
             series_ids = series_ids.split(",")
             self.series_ids = [s.strip() for s in series_ids]
         elif isinstance(series_ids, Iterable):
