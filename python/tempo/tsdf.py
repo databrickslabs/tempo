@@ -30,6 +30,8 @@ class TSDF:
     This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
     """
 
+    summarizable_types = ["int", "bigint", "float", "double"]
+
     def __init__(
         self,
         df: DataFrame,
@@ -1136,14 +1138,12 @@ class TSDF:
             prohibited_cols = [self.ts_col.lower()]
             if self.partitionCols:
                 prohibited_cols.extend([pc.lower() for pc in self.partitionCols])
-            # types that can be summarized
-            summarizable_types = ["int", "bigint", "float", "double"]
             # filter columns to find summarizable columns
             colsToSummarize = [
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                    (datatype[1] in summarizable_types)
+                    (datatype[1] in self.summarizable_types)
                     and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
@@ -1202,14 +1202,12 @@ class TSDF:
             prohibited_cols = [self.ts_col.lower()]
             if self.partitionCols:
                 prohibited_cols.extend([pc.lower() for pc in self.partitionCols])
-            # types that can be summarized
-            summarizable_types = ["int", "bigint", "float", "double"]
             # filter columns to find summarizable columns
             metricCols = [
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                    (datatype[1] in summarizable_types)
+                    (datatype[1] in self.summarizable_types)
                     and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
@@ -1332,17 +1330,7 @@ class TSDF:
             partition_cols = self.partitionCols
         if target_cols is None:
             prohibited_cols: List[str] = partition_cols + [ts_col]
-            summarizable_types = ["int", "bigint", "float", "double"]
-
-            # get summarizable find summarizable columns
-            target_cols = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
+            target_cols = [col for col in self.df.columns if col not in prohibited_cols]
 
         interpolate_service = t_interpolation.Interpolation(is_resampled=False)
         tsdf_input = TSDF(self.df, ts_col=ts_col, partition_cols=partition_cols)
@@ -1673,17 +1661,7 @@ class _ResampledTSDF(TSDF):
         # Set defaults for target columns, timestamp column and partition columns when not provided
         if target_cols is None:
             prohibited_cols: List[str] = self.partitionCols + [self.ts_col]
-            summarizable_types = ["int", "bigint", "float", "double"]
-
-            # get summarizable find summarizable columns
-            target_cols = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
+            target_cols = [col for col in self.df.columns if col not in prohibited_cols]
 
         interpolate_service = t_interpolation.Interpolation(is_resampled=True)
         tsdf_input = TSDF(

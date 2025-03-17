@@ -141,6 +141,17 @@ class TestDataFrameBuilder:
                     )
                 else:
                     df = df.withColumn(ts_col, sfn.to_timestamp(ts_col))
+        if "ts_convert_ntz" in self.df:
+            for ts_col in self.df["ts_convert_ntz"]:
+                # handle nested columns
+                if "." in ts_col:
+                    col, field = ts_col.split(".")
+                    convert_field_expr = sfn.to_timestamp_ntz(sfn.col(col).getField(field))
+                    df = df.withColumn(
+                        col, sfn.col(col).withField(field, convert_field_expr)
+                    )
+                else:
+                    df = df.withColumn(ts_col, sfn.to_timestamp_ntz(ts_col))
         # convert date columns
         if "date_convert" in self.df:
             for date_col in self.df["date_convert"]:
@@ -154,7 +165,19 @@ class TestDataFrameBuilder:
                 else:
                     df = df.withColumn(date_col, sfn.to_date(date_col))
 
+        if "decimal_convert" in self.df:
+            for decimal_col in self.df["decimal_convert"]:
+                if "." in date_col:
+                    col, field = date_col.split(".")
+                    convert_field_expr = sfn.col(col).getField(field).cast("decimal")
+                    df = df.withColumn(
+                        col, sfn.col(col).withField(field, convert_field_expr)
+                    )
+                else:
+                    df = df.withColumn(decimal_col, sfn.col(decimal_col).cast("decimal"))
+
         return df
+
 
     def as_tsdf(self) -> TSDF:
         """

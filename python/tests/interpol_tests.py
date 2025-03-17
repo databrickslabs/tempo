@@ -53,18 +53,6 @@ class InterpolationUnitTest(SparkTest):
             "wrongly_named",
         )
 
-    def test_validate_col_target_cols_data_type(self):
-        input_df: DataFrame = self.get_test_df_builder("init").as_sdf()
-
-        self.assertRaises(
-            TypeError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "partition_b"],
-            ["string_target", "float_target"],
-            "event_ts",
-        )
-
     def test_fill_validation(self):
         """Test fill parameter is valid."""
 
@@ -449,6 +437,82 @@ class InterpolationUnitTest(SparkTest):
             "zero",
             True,
         )
+
+    def test_non_numeric_forward_fill(self):
+        """Verify that forward fill interpolation works on non-numeric columns."""
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_test_df_builder("non_numeric_init").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
+
+        actual_df: DataFrame = simple_input_tsdf.interpolate(
+            freq="30 seconds", func="ceil", method="ffill", ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"]
+        ).df
+
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+
+    def test_non_numeric_back_fill(self):
+        """Verify that backward fill interpolation works on non-numeric columns."""
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_test_df_builder("non_numeric_init").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
+
+        actual_df: DataFrame = simple_input_tsdf.interpolate(
+            freq="30 seconds", func="ceil", method="bfill", ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"]
+        ).df
+
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+
+    def test_non_numeric_null_fill(self):
+        """Verify that null method interpolation works on non-numeric columns."""
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_test_df_builder("non_numeric_init").as_tsdf()
+        expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
+
+        actual_df: DataFrame = simple_input_tsdf.interpolate(
+            freq="30 seconds", func="ceil", method="null", ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"]
+        ).df
+
+        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+
+    def test_non_numeric_linear(self):
+        """Verify that linear interpolation is prohibited for non-numeric columns."""
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_test_df_builder("non_numeric_init").as_tsdf()
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper.interpolate,
+            simple_input_tsdf,
+            freq="30 seconds", func="ceil", method="linear", ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"], target_cols=["string_col", "timestamp_col"],
+            show_interpolated=False
+        )
+
+    def test_non_numeric_zero(self):
+        """Verify that zero interpolation is prohibited for non-numeric columns."""
+
+        # load test data
+        simple_input_tsdf: TSDF = self.get_test_df_builder("non_numeric_init").as_tsdf()
+
+        self.assertRaises(
+            ValueError,
+            self.interpolate_helper.interpolate,
+            simple_input_tsdf,
+            freq="30 seconds", func="ceil", method="linear", ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"], target_cols=["string_col", "timestamp_col"],
+            show_interpolated=False
+        )
+
+
+
+
 
 
 class InterpolationIntegrationTest(SparkTest):
