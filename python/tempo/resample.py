@@ -103,7 +103,7 @@ def _appendAggKey(
 
     agg_window = sfn.window(
         sfn.col(tsdf.ts_col),
-        "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+        "{} {}".format(period, freq_dict[unit]),  # type: ignore[literal-required]
     )
 
     df = df.withColumn("agg_key", agg_window)
@@ -121,6 +121,7 @@ class ResampleWarning(Warning):
     """
 
     pass
+
 
 def calculate_time_horizon(
     tsdf: t_tsdf.TSDF,
@@ -209,6 +210,7 @@ def calculate_time_horizon(
         ResampleWarning,
     )
 
+
 def downsample(
     tsdf: t_tsdf.TSDF,
     freq: str,
@@ -232,6 +234,7 @@ def downsample(
     else:
         agg_exprs = {col: func for col in metricCols}
     return tsdf.aggByCycles(freq, *agg_exprs)
+
 
 def aggregate(
     tsdf: t_tsdf.TSDF,
@@ -433,6 +436,7 @@ def validateFuncExists(func: Union[Callable | str]) -> None:
             + ", ".join(allowableFuncs)
         )
 
+
 def resample(
     tsdf: t_tsdf.TSDF,
     freq: str,
@@ -458,9 +462,7 @@ def resample(
     if fill is True and perform_checks is True:
         calculate_time_horizon(tsdf, freq)
 
-    enriched_df: DataFrame = aggregate(
-        tsdf, freq, func, metricCols, prefix, fill
-    )
+    enriched_df: DataFrame = aggregate(tsdf, freq, func, metricCols, prefix, fill)
     return _ResampledTSDF(
         enriched_df,
         ts_col=tsdf.ts_col,
@@ -477,7 +479,7 @@ class _ResampledTSDF(t_tsdf.TSDF):
         freq: str,
         func: Union[Callable | str],
         ts_col: str = "event_ts",
-        series_ids: Optional[List[str]] = None
+        series_ids: Optional[List[str]] = None,
     ):
         super(_ResampledTSDF, self).__init__(df, ts_col=ts_col, series_ids=series_ids)
         self.__freq = freq
@@ -532,7 +534,9 @@ class _ResampledTSDF(t_tsdf.TSDF):
             ]
 
         interpolate_service = t_interpol.Interpolation(is_resampled=True)
-        tsdf_input = t_tsdf.TSDF(self.df, ts_col=self.ts_col, series_ids=self.series_ids)
+        tsdf_input = t_tsdf.TSDF(
+            self.df, ts_col=self.ts_col, series_ids=self.series_ids
+        )
         interpolated_df = interpolate_service.interpolate(
             tsdf=tsdf_input,
             target_cols=target_cols,
@@ -543,4 +547,6 @@ class _ResampledTSDF(t_tsdf.TSDF):
             perform_checks=perform_checks,
         )
 
-        return t_tsdf.TSDF(interpolated_df, ts_col=self.ts_col, series_ids=self.series_ids)
+        return t_tsdf.TSDF(
+            interpolated_df, ts_col=self.ts_col, series_ids=self.series_ids
+        )

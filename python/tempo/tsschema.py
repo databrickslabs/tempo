@@ -532,9 +532,7 @@ class CompositeTSIndex(TSIndex, ABC):
     def has_types(self, *types: DataType) -> bool:
         if len(types) != len(self.component_fields):
             return False
-        return all(
-            self.fieldType(f) == t for f, t in zip(self.component_fields, types)
-        )
+        return all(self.fieldType(f) == t for f, t in zip(self.component_fields, types))
 
     def comparableExpr(self) -> List[Column]:
         return [sfn.col(self.fieldPath(comp)) for comp in self.component_fields]

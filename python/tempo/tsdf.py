@@ -25,11 +25,17 @@ from pyspark.sql.window import Window, WindowSpec
 import tempo.io as t_io
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.tsschema import (DEFAULT_TIMESTAMP_FORMAT, is_time_format,
-                            identify_fractional_second_separator,
-                            sub_seconds_precision_digits,
-                            CompositeTSIndex, ParsedTSIndex, TSIndex, TSSchema,
-                            WindowBuilder)
+from tempo.tsschema import (
+    DEFAULT_TIMESTAMP_FORMAT,
+    is_time_format,
+    identify_fractional_second_separator,
+    sub_seconds_precision_digits,
+    CompositeTSIndex,
+    ParsedTSIndex,
+    TSIndex,
+    TSSchema,
+    WindowBuilder,
+)
 from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
 
 logger = logging.getLogger(__name__)
@@ -38,9 +44,9 @@ logger = logging.getLogger(__name__)
 # Helper functions
 
 
-def make_struct_from_cols(df: DataFrame,
-                          struct_col_name: str,
-                          cols_to_move: List[str]) -> DataFrame:
+def make_struct_from_cols(
+    df: DataFrame, struct_col_name: str, cols_to_move: List[str]
+) -> DataFrame:
     """
     Transform a :class:`DataFrame` by moving certain columns into a named struct
 
@@ -50,15 +56,15 @@ def make_struct_from_cols(df: DataFrame,
 
     :return: the transformed :class:`DataFrame`
     """
-    return (df.withColumn(struct_col_name,
-                          sfn.struct(*cols_to_move))
-              .drop(*cols_to_move))
+    return df.withColumn(struct_col_name, sfn.struct(*cols_to_move)).drop(*cols_to_move)
 
 
-def time_str_to_double(df: DataFrame,
-                       ts_str_col: str,
-                       ts_dbl_col: str,
-                       ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT) -> DataFrame:
+def time_str_to_double(
+    df: DataFrame,
+    ts_str_col: str,
+    ts_dbl_col: str,
+    ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT,
+) -> DataFrame:
     """
     Convert a string timestamp column to a double timestamp column
 
@@ -73,26 +79,28 @@ def time_str_to_double(df: DataFrame,
     tmp_frac_ts_col = "__tmp_fract_ts"
     fract_secs_sep = identify_fractional_second_separator(ts_fmt)
     double_ts_df = (
-                # get the interger part of the timestamp
-                df.withColumn(tmp_int_ts_col,
-                              sfn.to_timestamp(ts_str_col, ts_fmt).cast("long"))
-                # get the fractional part of the timestamp
-                .withColumn(tmp_frac_ts_col,
-                            sfn.when(
-                                sfn.col(ts_str_col).contains(fract_secs_sep),
-                                sfn.concat(
-                                    sfn.lit("0."),
-                                    sfn.split(sfn.col(ts_str_col),
-                                              f"\\{fract_secs_sep}")[1]
-                                )).otherwise(0.0).cast("double")
-                            )
-                # combine them together
-                .withColumn(ts_dbl_col,
-                            sfn.col(tmp_int_ts_col) + sfn.col(tmp_frac_ts_col))
-                # clean up
-                .drop(tmp_int_ts_col, tmp_frac_ts_col)
+        # get the interger part of the timestamp
+        df.withColumn(tmp_int_ts_col, sfn.to_timestamp(ts_str_col, ts_fmt).cast("long"))
+        # get the fractional part of the timestamp
+        .withColumn(
+            tmp_frac_ts_col,
+            sfn.when(
+                sfn.col(ts_str_col).contains(fract_secs_sep),
+                sfn.concat(
+                    sfn.lit("0."),
+                    sfn.split(sfn.col(ts_str_col), f"\\{fract_secs_sep}")[1],
+                ),
             )
+            .otherwise(0.0)
+            .cast("double"),
+        )
+        # combine them together
+        .withColumn(ts_dbl_col, sfn.col(tmp_int_ts_col) + sfn.col(tmp_frac_ts_col))
+        # clean up
+        .drop(tmp_int_ts_col, tmp_frac_ts_col)
+    )
     return double_ts_df
+
 
 # The TSDF class
 
@@ -162,17 +170,18 @@ class TSDF(WindowBuilder):
 
     @classmethod
     def buildEmptyLattice(
-            cls,
-            spark: SparkSession,
-            start_time: dt,
-            end_time: Optional[dt] = None,
-            step_size: Optional[td] = None,
-            num_intervals: Optional[int] = None,
-            ts_col: Optional[str] = None,
-            series_ids: Optional[Any] = None,
-            series_schema: Optional[Union[AtomicType, StructType, str]] = None,
-            observation_cols: Optional[Union[Mapping[str, str], Iterable[str]]] = None,
-            num_partitions: Optional[int] = None) -> TSDF:
+        cls,
+        spark: SparkSession,
+        start_time: dt,
+        end_time: Optional[dt] = None,
+        step_size: Optional[td] = None,
+        num_intervals: Optional[int] = None,
+        ts_col: Optional[str] = None,
+        series_ids: Optional[Any] = None,
+        series_schema: Optional[Union[AtomicType, StructType, str]] = None,
+        observation_cols: Optional[Union[Mapping[str, str], Iterable[str]]] = None,
+        num_partitions: Optional[int] = None,
+    ) -> TSDF:
         """
         Construct an empty "lattice", i.e. a :class:`TSDF` with a time range
         for each unique series and a set of observational columns (initialized to Nulls)
@@ -196,12 +205,9 @@ class TSDF(WindowBuilder):
             ts_col = cls.__DEFAULT_TS_IDX_COL
 
         # initialize the lattice as a time range
-        lattice_df = t_utils.time_range(spark,
-                                        start_time,
-                                        end_time,
-                                        step_size,
-                                        num_intervals,
-                                        ts_colname=ts_col)
+        lattice_df = t_utils.time_range(
+            spark, start_time, end_time, step_size, num_intervals, ts_colname=ts_col
+        )
         select_exprs = [sfn.col(ts_col)]
 
         # handle construction of the series_ids DataFrame
@@ -225,8 +231,10 @@ class TSDF(WindowBuilder):
             # convert to a dict if not already, mapping all columns to "double" types
             if not isinstance(observation_cols, dict):
                 observation_cols = {col: "double" for col in observation_cols}
-            select_exprs += [sfn.lit(None).cast(coltype).alias(colname)
-                             for colname, coltype in observation_cols.items()]
+            select_exprs += [
+                sfn.lit(None).cast(coltype).alias(colname)
+                for colname, coltype in observation_cols.items()
+            ]
             lattice_df = lattice_df.select(*select_exprs)
 
         # repartition the lattice in a more optimal way
@@ -234,8 +242,9 @@ class TSDF(WindowBuilder):
             num_partitions = lattice_df.rdd.getNumPartitions()
         if series_df:
             sort_cols = series_df.columns + [ts_col]
-            lattice_df = (lattice_df.repartition(num_partitions, *(series_df.columns))
-                          .sortWithinPartitions(*sort_cols))
+            lattice_df = lattice_df.repartition(
+                num_partitions, *(series_df.columns)
+            ).sortWithinPartitions(*sort_cols)
         else:
             lattice_df = lattice_df.repartitionByRange(num_partitions, ts_col)
 
@@ -252,9 +261,9 @@ class TSDF(WindowBuilder):
     ) -> "TSDF":
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
-        with_subseq_struct_df = make_struct_from_cols(df,
-                                                      struct_col_name,
-                                                      [ts_col, subsequence_col])
+        with_subseq_struct_df = make_struct_from_cols(
+            df, struct_col_name, [ts_col, subsequence_col]
+        )
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
         subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
@@ -271,7 +280,7 @@ class TSDF(WindowBuilder):
         df: DataFrame,
         ts_col: str,
         series_ids: Optional[Collection[str]] = None,
-        ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT
+        ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT,
     ) -> "TSDF":
         # parse the ts_col based on the pattern
         is_sub_ms = False
@@ -291,33 +300,35 @@ class TSDF(WindowBuilder):
         # parse a sub-microsecond precision timestamp to a double
         if is_sub_ms:
             # get the integer part of the timestamp
-            parsed_df = time_str_to_double(parsed_df,
-                                           ts_col,
-                                           cls.__DEFAULT_DOUBLE_TS_COL,
-                                           ts_fmt)
+            parsed_df = time_str_to_double(
+                parsed_df, ts_col, cls.__DEFAULT_DOUBLE_TS_COL, ts_fmt
+            )
         # move the ts cols into a struct
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
         cols_to_move = [ts_col, parsed_ts_col]
         if is_sub_ms:
             cols_to_move.append(cls.__DEFAULT_DOUBLE_TS_COL)
-        with_parsed_struct_df = make_struct_from_cols(parsed_df,
-                                                      struct_col_name,
-                                                      cols_to_move)
+        with_parsed_struct_df = make_struct_from_cols(
+            parsed_df, struct_col_name, cols_to_move
+        )
         # construct an appropriate TSIndex
         parsed_struct = with_parsed_struct_df.schema[struct_col_name]
         if is_sub_ms:
-            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
-                                                              parsed_ts_col,
-                                                              ts_col,
-                                                              cls.__DEFAULT_DOUBLE_TS_COL,
-                                                              sub_ms_digits)
+            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(
+                parsed_struct,
+                parsed_ts_col,
+                ts_col,
+                cls.__DEFAULT_DOUBLE_TS_COL,
+                sub_ms_digits,
+            )
         else:
-            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(parsed_struct,
-                                                              parsed_ts_col,
-                                                              ts_col)
+            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(
+                parsed_struct, parsed_ts_col, ts_col
+            )
         # construct & return the TSDF with appropriate schema
-        return TSDF(with_parsed_struct_df,
-                    ts_schema=TSSchema(parsed_ts_idx, series_ids))
+        return TSDF(
+            with_parsed_struct_df, ts_schema=TSSchema(parsed_ts_idx, series_ids)
+        )
 
     @property
     def ts_index(self) -> "TSIndex":
@@ -632,9 +643,7 @@ class TSDF(WindowBuilder):
         """
         return self.where(self.ts_index >= ts)
 
-    def between(
-        self, start_ts: Any, end_ts: Any, inclusive: bool = True
-    ) -> "TSDF":
+    def between(self, start_ts: Any, end_ts: Any, inclusive: bool = True) -> "TSDF":
         """
         Select only records in a given range
 
@@ -1026,7 +1035,9 @@ class TSDF(WindowBuilder):
         if tsPartitionVal is None:
             seq_col = None
             if isinstance(combined_df.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(1)
+                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(
+                    1
+                )
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1041,7 +1052,9 @@ class TSDF(WindowBuilder):
             )
             seq_col = None
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, tsPartitionDF.ts_index).get_ts_component(1)
+                seq_col = cast(
+                    CompositeTSIndex, tsPartitionDF.ts_index
+                ).get_ts_component(1)
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1115,8 +1128,9 @@ class TSDF(WindowBuilder):
         """
 
         # only makes sense if we have series ids
-        assert self.series_ids and len(self.series_ids) > 0, \
-            "No series ids to repartition by"
+        assert (
+            self.series_ids and len(self.series_ids) > 0
+        ), "No series ids to repartition by"
 
         # keep same number of partitions if not specified
         if numPartitions is None:
@@ -1126,9 +1140,9 @@ class TSDF(WindowBuilder):
         order_exprs = self.ts_index.orderByExpr()
 
         # repartition by series ids, ordering by time
-        repartitioned_df = (self.df.repartition(numPartitions, *self.series_ids)
-                            .sortWithinPartitions(*[self.series_ids
-                                                    + [self.ts_index.orderByExpr()]]))
+        repartitioned_df = self.df.repartition(
+            numPartitions, *self.series_ids
+        ).sortWithinPartitions(*[self.series_ids + [self.ts_index.orderByExpr()]])
         return self.__withTransformedDF(repartitioned_df)
 
     def repartitionByTime(self, numPartitions: Optional[int] = None) -> "TSDF":
@@ -1142,8 +1156,9 @@ class TSDF(WindowBuilder):
         if numPartitions is None:
             numPartitions = self.df.rdd.getNumPartitions()
 
-        repartitioned_df = self.df.repartitionByRange(numPartitions,
-                                                      self.ts_index.orderByExpr())
+        repartitioned_df = self.df.repartitionByRange(
+            numPartitions, self.ts_index.orderByExpr()
+        )
         return self.__withTransformedDF(repartitioned_df)
 
     #
@@ -1209,12 +1224,10 @@ class TSDF(WindowBuilder):
         return self.__withTransformedDF(new_df)
 
     @overload
-    def drop(self, cols: ColumnOrName) -> TSDF:
-        ...
+    def drop(self, cols: ColumnOrName) -> TSDF: ...
 
     @overload
-    def drop(self, *cols: str) -> TSDF:
-        ...
+    def drop(self, *cols: str) -> TSDF: ...
 
     def drop(self, *cols: ColumnOrName) -> TSDF:
         """
