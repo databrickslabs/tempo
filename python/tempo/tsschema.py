@@ -987,10 +987,10 @@ class TSSchema(WindowBuilder):
 
     @classmethod
     def fromDFSchema(
-            cls,
-            df_schema: StructType,
-            ts_col: str,
-            series_ids: Optional[Collection[str]] = None,
+        cls,
+        df_schema: StructType,
+        ts_col: str,
+        series_ids: Optional[Collection[str]] = None,
     ) -> "TSSchema":
         # construct a TSIndex for the given ts_col
         ts_idx = SimpleTSIndex.fromTSCol(df_schema[ts_col])
@@ -998,13 +998,13 @@ class TSSchema(WindowBuilder):
 
     @classmethod
     def fromParsedTimestamp(
-            cls,
-            df_schema: StructType,
-            ts_col: str,
-            parsed_field: str,
-            src_str_field: str,
-            series_ids: Optional[Collection[str]] = None,
-            secondary_parsed_field: Optional[str] = None,
+        cls,
+        df_schema: StructType,
+        ts_col: str,
+        parsed_field: str,
+        src_str_field: str,
+        series_ids: Optional[Collection[str]] = None,
+        secondary_parsed_field: Optional[str] = None,
     ) -> "TSSchema":
         ts_idx_schema = df_schema[ts_col].dataType
         assert isinstance(

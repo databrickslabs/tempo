@@ -51,11 +51,11 @@ class IntervalsDF:
     """
 
     def __init__(
-            self,
-            df: DataFrame,
-            start_ts: str,
-            end_ts: str,
-            series_ids: Optional[Iterable[str]] = None,
+        self,
+        df: DataFrame,
+        start_ts: str,
+        end_ts: str,
+        series_ids: Optional[Iterable[str]] = None,
     ) -> None:
         """Constructor for IntervalsDF managing time intervals and metrics."""
 
@@ -101,14 +101,14 @@ class IntervalsDF:
 
     @classmethod
     def fromStackedMetrics(
-            cls,
-            df: DataFrame,
-            start_ts: str,
-            end_ts: str,
-            series: list[str],
-            metrics_name_col: str,
-            metrics_value_col: str,
-            metric_names: Optional[list[str]] = None,
+        cls,
+        df: DataFrame,
+        start_ts: str,
+        end_ts: str,
+        series: list[str],
+        metrics_name_col: str,
+        metrics_value_col: str,
+        metric_names: Optional[list[str]] = None,
     ) -> "IntervalsDF":
         """
         Returns a new :class:`IntervalsDF` with metrics of the current DataFrame

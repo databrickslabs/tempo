@@ -37,12 +37,12 @@ class Interval:
 
     @classmethod
     def create(
-            cls,
-            data: Series,
-            start_field: str,
-            end_field: str,
-            series_fields: Optional[Sequence[str]] = None,
-            metric_fields: Optional[Sequence[str]] = None,
+        cls,
+        data: Series,
+        start_field: str,
+        end_field: str,
+        series_fields: Optional[Sequence[str]] = None,
+        metric_fields: Optional[Sequence[str]] = None,
     ) -> "Interval":
         """
         Creates a new Interval instance from a pandas Series and field mappings.
@@ -61,11 +61,11 @@ class Interval:
         )
 
     def __init__(
-            self,
-            data: Series,
-            boundary_accessor: _BoundaryAccessor,
-            series_fields: Optional[Sequence[str]] = None,
-            metric_fields: Optional[Sequence[str]] = None,
+        self,
+        data: Series,
+        boundary_accessor: _BoundaryAccessor,
+        series_fields: Optional[Sequence[str]] = None,
+        metric_fields: Optional[Sequence[str]] = None,
     ):
         """
         Initialize an interval with its data and metadata.
@@ -95,11 +95,11 @@ class Interval:
     # -----------------
 
     def _validate_initialization(
-            self,
-            data: Series,
-            boundary_accessor: _BoundaryAccessor,
-            series_fields: Optional[Sequence[str]],
-            metric_fields: Optional[Sequence[str]],
+        self,
+        data: Series,
+        boundary_accessor: _BoundaryAccessor,
+        series_fields: Optional[Sequence[str]],
+        metric_fields: Optional[Sequence[str]],
     ) -> None:
         """Validates all components during initialization"""
         # Validate data type and emptiness first
@@ -142,7 +142,7 @@ class Interval:
 
     @staticmethod
     def _validate_not_point_in_time(
-            data: Series, boundary_accessor: _BoundaryAccessor
+        data: Series, boundary_accessor: _BoundaryAccessor
     ) -> None:
         """Validates that the interval is not a point in time"""
         if data[boundary_accessor.start_field] == data[boundary_accessor.end_field]:
@@ -163,7 +163,7 @@ class Interval:
         """Validates series identifier columns"""
         if series_fields is not None:
             if not isinstance(series_fields, Sequence) or isinstance(
-                    series_fields, str
+                series_fields, str
             ):
                 raise InvalidSeriesColumnError("series_fields must be a sequence")
             if not all(isinstance(col, str) for col in series_fields):
@@ -174,7 +174,7 @@ class Interval:
         """Validates metric column names"""
         if metric_fields is not None:
             if not isinstance(metric_fields, Sequence) or isinstance(
-                    metric_fields, str
+                metric_fields, str
             ):
                 raise InvalidMetricColumnError("metric_fields must be a sequence")
             if not all(isinstance(col, str) for col in metric_fields):
@@ -184,7 +184,7 @@ class Interval:
     # --------------
 
     def update_start(
-            self, new_start: Union[IntervalBoundary, BoundaryValue]
+        self, new_start: Union[IntervalBoundary, BoundaryValue]
     ) -> "Interval":
         """
         Creates a new interval with updated start time while maintaining
@@ -224,7 +224,7 @@ class Interval:
     # ----------------
 
     def merge_metrics(
-            self, other: "Interval", merge_config: Optional[MetricMergeConfig] = None
+        self, other: "Interval", merge_config: Optional[MetricMergeConfig] = None
     ) -> Series:
         """Combines metrics between intervals according to merging strategy"""
         merger = DefaultMetricMerger(merge_config)
@@ -244,7 +244,7 @@ class Interval:
 
     @staticmethod
     def _validate_column_alignment(
-            self_columns: Sequence[str], other_columns: Sequence[str], column_type: str
+        self_columns: Sequence[str], other_columns: Sequence[str], column_type: str
     ) -> ValidationResult:
         """Generic validator for column alignment between intervals"""
         error_message = f"{column_type} don't match: {self_columns} vs {other_columns}"

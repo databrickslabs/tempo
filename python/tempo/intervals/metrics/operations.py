@@ -19,9 +19,9 @@ class MetricMergeConfig:
     """Configuration for metric merging behavior"""
 
     def __init__(
-            self,
-            default_strategy: Optional[MetricMergeStrategy] = None,
-            column_strategies: Optional[Dict[str, MetricMergeStrategy]] = None,
+        self,
+        default_strategy: Optional[MetricMergeStrategy] = None,
+        column_strategies: Optional[Dict[str, MetricMergeStrategy]] = None,
     ):
         self.default_strategy = default_strategy or KeepLastStrategy()
         self.column_strategies = column_strategies or {}

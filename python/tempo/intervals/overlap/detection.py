@@ -29,10 +29,10 @@ class OverlapChecker(ABC):
         pass
 
     def _check_boundary_values(
-            self,
-            interval: "Interval",
-            other: "Interval",
-            required_boundaries: Optional[Tuple[str, ...]] = None,
+        self,
+        interval: "Interval",
+        other: "Interval",
+        required_boundaries: Optional[Tuple[str, ...]] = None,
     ) -> bool:
         """
         Helper method to check if interval boundaries are valid.
@@ -114,8 +114,8 @@ class MetricsEquivalentChecker(OverlapChecker):
 
         # Skip overlap check if any value is None
         if any(
-                value is None
-                for value in [interval_start, interval_end, other_start, other_end]
+            value is None
+            for value in [interval_start, interval_end, other_start, other_end]
         ):
             return False
 
@@ -134,7 +134,7 @@ class MetricsEquivalentChecker(OverlapChecker):
         return containment_check
 
     def _check_overlap(
-            self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any
+        self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any
     ) -> bool:
         """Check if intervals overlap."""
         try:
@@ -160,7 +160,7 @@ class MetricsEquivalentChecker(OverlapChecker):
             return False
 
     def _check_containment(
-            self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any
+        self, interval_start: Any, interval_end: Any, other_start: Any, other_end: Any
     ) -> bool:
         """Check if one interval contains the other."""
         try:

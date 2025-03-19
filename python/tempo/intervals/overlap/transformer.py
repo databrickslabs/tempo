@@ -49,9 +49,9 @@ from tempo.intervals.overlap.types import OverlapType
 
 class IntervalTransformer:
     def __init__(
-            self,
-            interval: "Interval",
-            other: "Interval",
+        self,
+        interval: "Interval",
+        other: "Interval",
     ) -> None:
         """
         Initialize OverlapResolver with two intervals, ensuring the one with the earlier start comes first.

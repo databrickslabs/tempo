@@ -6,8 +6,8 @@ from tempo.intervals.overlap.transformer import IntervalTransformer
 
 class IntervalsUtils:
     def __init__(
-            self,
-            intervals: DataFrame,
+        self,
+        intervals: DataFrame,
     ):
         """
         Initialize IntervalsUtils with a DataFrame and interval properties.
@@ -69,8 +69,8 @@ class IntervalsUtils:
 
         # Remove rows that are identical to `interval.data`
         remove_with_row_mask = ~(
-                all_overlaps.isna().eq(interval.data.isna())
-                & all_overlaps.eq(interval.data).fillna(False)
+            all_overlaps.isna().eq(interval.data.isna())
+            & all_overlaps.eq(interval.data).fillna(False)
         ).all(axis=1)
 
         deduplicated_overlaps = all_overlaps[remove_with_row_mask]
@@ -92,7 +92,7 @@ class IntervalsUtils:
         # if there are no overlaps, add the interval to disjoint_set
         if overlapping_subset_df.empty:
             element_wise_comparison = (
-                    self.disjoint_set.copy().fillna(NA) == interval.data.fillna(NA).values
+                self.disjoint_set.copy().fillna(NA) == interval.data.fillna(NA).values
             )
 
             row_wise_comparison = element_wise_comparison.all(axis=1)

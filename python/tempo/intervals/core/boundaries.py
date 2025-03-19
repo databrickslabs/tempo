@@ -42,7 +42,7 @@ class BoundaryConverter:
         """Factory method to create appropriate converter based on input type"""
 
         def _check_negative_timestamp(
-                timestamp: Optional[Timestamp],
+            timestamp: Optional[Timestamp],
         ) -> Optional[Timestamp]:
             if timestamp is not None and timestamp.value < 0:
                 raise ValueError("Timestamps cannot be negative.")
@@ -73,7 +73,7 @@ class BoundaryConverter:
             original_type = int if isinstance(sample_value, (int, integer)) else float
 
             def numeric_to_timestamp(
-                    value: Optional[Union[int, float]]
+                value: Optional[Union[int, float]]
             ) -> Optional[Timestamp]:
                 if value is None:
                     return None
@@ -83,7 +83,7 @@ class BoundaryConverter:
                 return _check_negative_timestamp(Timestamp(value_converted, unit="s"))
 
             def timestamp_to_numeric(
-                    timestamp: Optional[Timestamp],
+                timestamp: Optional[Timestamp],
             ) -> Optional[Union[int, float]]:
                 if timestamp is None:
                     return None
@@ -112,14 +112,14 @@ class BoundaryConverter:
         elif isinstance(sample_value, Timestamp):
 
             def timestamp_to_timestamp(
-                    value: Optional[Timestamp],
+                value: Optional[Timestamp],
             ) -> Optional[Timestamp]:
                 if value is None:
                     return None
                 return _check_negative_timestamp(value)
 
             def timestamp_identity(
-                    timestamp: Optional[Timestamp],
+                timestamp: Optional[Timestamp],
             ) -> Optional[Timestamp]:
                 return timestamp
 
@@ -136,7 +136,7 @@ class BoundaryConverter:
                 return _check_negative_timestamp(Timestamp(value))
 
             def timestamp_to_datetime(
-                    timestamp: Optional[Timestamp],
+                timestamp: Optional[Timestamp],
             ) -> Optional[datetime]:
                 if timestamp is None:
                     return None
@@ -234,9 +234,9 @@ class IntervalBoundaries:
 
     @classmethod
     def create(
-            cls,
-            start: Union[IntervalBoundary, BoundaryValue],
-            end: Union[IntervalBoundary, BoundaryValue],
+        cls,
+        start: Union[IntervalBoundary, BoundaryValue],
+        end: Union[IntervalBoundary, BoundaryValue],
     ) -> "IntervalBoundaries":
         # Convert only if not already a BoundaryValue
         start_boundary = (

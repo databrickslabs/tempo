@@ -33,10 +33,10 @@ def is_metric_col(col: StructField) -> bool:
 
 
 def make_disjoint_wrap(
-        start_field: str,
-        end_field: str,
-        series_fields: Sequence[str],
-        metric_fields: Sequence[str],
+    start_field: str,
+    end_field: str,
+    series_fields: Sequence[str],
+    metric_fields: Sequence[str],
 ) -> Callable[[DataFrame], DataFrame]:
     """Returns a Pandas UDF for resolving overlapping intervals into disjoint intervals."""
 

@@ -36,9 +36,9 @@ class MetricMerger(ABC):
 
     @staticmethod
     def _apply_merge_strategy(
-            value1: Series,
-            value2: Series,
-            strategy: MetricMergeStrategy,
+        value1: Series,
+        value2: Series,
+        strategy: MetricMergeStrategy,
     ) -> Union[MetricValue, Series]:
         """Apply the specified merge strategy to two values"""
         try:

@@ -32,7 +32,7 @@ class IntervalValidator:
 
     @staticmethod
     def _validate_columns(
-            columns: Optional[Sequence[str]], column_type: str
+        columns: Optional[Sequence[str]], column_type: str
     ) -> ValidationResult:
         if columns is None:
             return ValidationResult(is_valid=True)
@@ -50,12 +50,12 @@ class IntervalValidator:
 
     @staticmethod
     def validate_series_id_columns(
-            series_ids: Optional[Sequence[str]],
+        series_ids: Optional[Sequence[str]],
     ) -> ValidationResult:
         return IntervalValidator._validate_columns(series_ids, "series ID columns")
 
     @staticmethod
     def validate_metric_columns(
-            metric_columns: Optional[Sequence[str]],
+        metric_columns: Optional[Sequence[str]],
     ) -> ValidationResult:
         return IntervalValidator._validate_columns(metric_columns, "metric columns")

@@ -16,10 +16,10 @@ class ResolutionResult:
     warnings: List[str] = field(default_factory=list)
 
     def __init__(
-            self,
-            resolved_intervals: List[Series],
-            metadata: Optional[Dict[str, Any]] = None,
-            warnings: Optional[List[str]] = None,
+        self,
+        resolved_intervals: List[Series],
+        metadata: Optional[Dict[str, Any]] = None,
+        warnings: Optional[List[str]] = None,
     ):
         # Make defensive copies of mutable inputs
         self._resolved_intervals = resolved_intervals.copy()

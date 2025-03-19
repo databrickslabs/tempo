@@ -65,7 +65,7 @@ class AsOfJoiner(ABC):
         ) - self.commonSeriesIDs(left, right)
 
     def _prefixColumns(
-            self, tsdf: t_tsdf.TSDF, prefixable_cols: set[str], prefix: str
+        self, tsdf: t_tsdf.TSDF, prefixable_cols: set[str], prefix: str
     ) -> t_tsdf.TSDF:
         """
         Prefixes the columns in the TSDF
@@ -81,7 +81,7 @@ class AsOfJoiner(ABC):
         return tsdf
 
     def _prefixOverlappingColumns(
-            self, left: t_tsdf.TSDF, right: t_tsdf.TSDF
+        self, left: t_tsdf.TSDF, right: t_tsdf.TSDF
     ) -> (t_tsdf.TSDF, t_tsdf.TSDF):
         """
         Prefixes the overlapping columns in the left and right TSDFs
@@ -117,11 +117,11 @@ class BroadcastAsOfJoiner(AsOfJoiner):
     """
 
     def __init__(
-            self,
-            spark: SparkSession,
-            left_prefix: str = "left",
-            right_prefix: str = "right",
-            range_join_bin_size: int = 60,
+        self,
+        spark: SparkSession,
+        left_prefix: str = "left",
+        right_prefix: str = "right",
+        range_join_bin_size: int = 60,
     ):
         super().__init__(left_prefix, right_prefix)
         self.spark = spark
@@ -164,11 +164,11 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
     """
 
     def __init__(
-            self,
-            left_prefix: str = "left",
-            right_prefix: str = "right",
-            skipNulls: bool = True,
-            tolerance: Optional[int] = None,
+        self,
+        left_prefix: str = "left",
+        right_prefix: str = "right",
+        skipNulls: bool = True,
+        tolerance: Optional[int] = None,
     ):
         super().__init__(left_prefix, right_prefix)
         self.skipNulls = skipNulls
@@ -227,7 +227,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         )
 
     def _filterLastRightRow(
-            self, combined: t_tsdf.TSDF, right_cols: set[str], last_left_tsschema: TSSchema
+        self, combined: t_tsdf.TSDF, right_cols: set[str], last_left_tsschema: TSSchema
     ) -> t_tsdf.TSDF:
         """
         Filters out the last right-hand row for each left-hand row
@@ -293,13 +293,13 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
     """
 
     def __init__(
-            self,
-            left_prefix: str = "left",
-            right_prefix: str = "right",
-            skipNulls: bool = True,
-            tolerance: Optional[int] = None,
-            tsPartitionVal: Optional[int] = None,
-            fraction: float = 0.5,
+        self,
+        left_prefix: str = "left",
+        right_prefix: str = "right",
+        skipNulls: bool = True,
+        tolerance: Optional[int] = None,
+        tsPartitionVal: Optional[int] = None,
+        fraction: float = 0.5,
     ):
         super().__init__(left_prefix, right_prefix, skipNulls, tolerance)
 
@@ -367,16 +367,16 @@ __DEFAULT_BROADCAST_BYTES_THRESHOLD = 30 * 1024 * 1024
 
 
 def choose_as_of_join_strategy(
-        left_tsdf: t_tsdf.TSDF,
-        right_tsdf: t_tsdf.TSDF,
-        left_prefix: Optional[str] = None,
-        right_prefix: str = "right",
-        tsPartitionVal: Optional[int] = None,
-        fraction: float = 0.5,
-        skipNulls: bool = True,
-        sql_join_opt: bool = False,
-        suppress_null_warning: bool = False,
-        tolerance: Optional[int] = None,
+    left_tsdf: t_tsdf.TSDF,
+    right_tsdf: t_tsdf.TSDF,
+    left_prefix: Optional[str] = None,
+    right_prefix: str = "right",
+    tsPartitionVal: Optional[int] = None,
+    fraction: float = 0.5,
+    skipNulls: bool = True,
+    sql_join_opt: bool = False,
+    suppress_null_warning: bool = False,
+    tolerance: Optional[int] = None,
 ) -> AsOfJoiner:
     """
     Returns an AsOfJoiner object based on the parameters passed in

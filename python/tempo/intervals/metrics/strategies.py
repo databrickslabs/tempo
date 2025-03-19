@@ -18,17 +18,17 @@ class MetricMergeStrategy(ABC):
 
     @abstractmethod
     def merge(
-            self,
-            value1: Union[MetricValue, Series],
-            value2: Union[MetricValue, Series],
+        self,
+        value1: Union[MetricValue, Series],
+        value2: Union[MetricValue, Series],
     ) -> Union[MetricValue, Series]:
         """Merge two metric values according to the strategy"""
         pass
 
     def validate(
-            self,
-            value1: Union[MetricValue, Series],
-            value2: Union[MetricValue, Series],
+        self,
+        value1: Union[MetricValue, Series],
+        value2: Union[MetricValue, Series],
     ) -> None:
         """Validate that values are of the appropriate type for the strategy"""
         # For Series inputs
@@ -53,7 +53,7 @@ class MetricMergeStrategy(ABC):
             raise ValueError(f"{self.__class__.__name__} requires numeric values")
 
     def _handle_scalar_case(
-            self, value1: MetricValue, value2: MetricValue, scalar_strategy_func: ScalarFunc
+        self, value1: MetricValue, value2: MetricValue, scalar_strategy_func: ScalarFunc
     ) -> MetricValue:
         """
         Generic handler for scalar-scalar merge cases.
@@ -69,11 +69,11 @@ class MetricMergeStrategy(ABC):
         return scalar_strategy_func(value1, value2)
 
     def _handle_series_scalar_case(
-            self,
-            series_value: Series,
-            scalar_value: MetricValue,
-            series_is_first: bool,
-            series_scalar_strategy_func: SeriesScalarFunc,
+        self,
+        series_value: Series,
+        scalar_value: MetricValue,
+        series_is_first: bool,
+        series_scalar_strategy_func: SeriesScalarFunc,
     ) -> Series:
         """
         Generic handler for series-scalar merge cases.
@@ -90,10 +90,10 @@ class MetricMergeStrategy(ABC):
         return series_scalar_strategy_func(series_value, scalar_value, series_is_first)
 
     def _handle_series_series_case(
-            self,
-            series1: Series,
-            series2: Series,
-            series_series_strategy_func: SeriesSeriesFunc,
+        self,
+        series1: Series,
+        series2: Series,
+        series_series_strategy_func: SeriesSeriesFunc,
     ) -> Series:
         """
         Generic handler for series-series merge cases.
@@ -113,7 +113,7 @@ class KeepFirstStrategy(MetricMergeStrategy):
     """Keep the first non-null value"""
 
     def merge(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
+        self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
         # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
@@ -141,13 +141,13 @@ class KeepFirstStrategy(MetricMergeStrategy):
         raise ValueError("Unexpected input types")
 
     def _keep_first_scalar(
-            self, value1: MetricValue, value2: MetricValue
+        self, value1: MetricValue, value2: MetricValue
     ) -> MetricValue:
         """Keep the first non-null scalar value"""
         return value1 if notna(value1) else value2
 
     def _keep_first_series_scalar(
-            self, series: Series, scalar: MetricValue, series_is_first: bool
+        self, series: Series, scalar: MetricValue, series_is_first: bool
     ) -> Series:
         """Merge a Series and a scalar, keeping the first non-null value"""
         if series_is_first:
@@ -181,7 +181,7 @@ class KeepLastStrategy(MetricMergeStrategy):
     """Keep the last non-null value"""
 
     def merge(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
+        self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
         # 1. Handle scalar + scalar case
         if not isinstance(value1, Series) and not isinstance(value2, Series):
@@ -209,13 +209,13 @@ class KeepLastStrategy(MetricMergeStrategy):
         raise ValueError("Unexpected input types")
 
     def _keep_last_scalar(
-            self, value1: MetricValue, value2: MetricValue
+        self, value1: MetricValue, value2: MetricValue
     ) -> MetricValue:
         """Keep the last non-null scalar value"""
         return value2 if notna(value2) else value1
 
     def _keep_last_series_scalar(
-            self, series: Series, scalar: MetricValue, series_is_first: bool
+        self, series: Series, scalar: MetricValue, series_is_first: bool
     ) -> Series:
         """Merge a Series and a scalar, keeping the last non-null value"""
         if series_is_first:
@@ -249,9 +249,9 @@ class SumStrategy(MetricMergeStrategy):
     """Sum the values, treating nulls as 0"""
 
     def merge(
-            self,
-            value1: Union[MetricValue, Series],
-            value2: Union[MetricValue, Series],
+        self,
+        value1: Union[MetricValue, Series],
+        value2: Union[MetricValue, Series],
     ) -> Union[MetricValue, Series]:
         # Validate inputs
         self.validate(value1, value2)
@@ -289,7 +289,7 @@ class SumStrategy(MetricMergeStrategy):
         return first_value + second_value
 
     def _sum_series_scalar(
-            self, series: Series, scalar: MetricValue, series_is_first: bool
+        self, series: Series, scalar: MetricValue, series_is_first: bool
     ) -> Series:
         """Sum a Series and a scalar value, treating NaN as 0"""
         # Create a copy of the Series and fill NA values with 0
@@ -332,7 +332,7 @@ class MaxStrategy(MetricMergeStrategy):
     """Take the maximum value"""
 
     def merge(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
+        self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
         # Validate inputs
         self.validate(value1, value2)
@@ -369,7 +369,7 @@ class MaxStrategy(MetricMergeStrategy):
         return s.max(skipna=True)
 
     def _max_series_scalar(
-            self, series: Series, scalar: MetricValue, series_is_first: bool
+        self, series: Series, scalar: MetricValue, series_is_first: bool
     ) -> Series:
         """Find the maximum between Series values and a scalar"""
         # Create result Series
@@ -426,7 +426,7 @@ class MinStrategy(MetricMergeStrategy):
     """Take the minimum value"""
 
     def merge(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
+        self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
         # Validate inputs
         self.validate(value1, value2)
@@ -463,7 +463,7 @@ class MinStrategy(MetricMergeStrategy):
         return s.min(skipna=True)
 
     def _min_series_scalar(
-            self, series: Series, scalar: MetricValue, series_is_first: bool
+        self, series: Series, scalar: MetricValue, series_is_first: bool
     ) -> Series:
         """Find the minimum between Series values and a scalar"""
         # Create result Series
@@ -520,7 +520,7 @@ class AverageStrategy(MetricMergeStrategy):
     """Take the average of non-null values"""
 
     def merge(
-            self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
+        self, value1: Union[MetricValue, Series], value2: Union[MetricValue, Series]
     ) -> Union[MetricValue, Series]:
         # Validate inputs
         self.validate(value1, value2)
@@ -557,7 +557,7 @@ class AverageStrategy(MetricMergeStrategy):
         return s.mean()
 
     def _avg_series_scalar(
-            self, series: Series, scalar: MetricValue, series_is_first: bool
+        self, series: Series, scalar: MetricValue, series_is_first: bool
     ) -> Series:
         """Calculate the average between Series values and a scalar"""
         # Create result Series
@@ -599,7 +599,7 @@ class AverageStrategy(MetricMergeStrategy):
 
             # If both are None or NaN, result is NaN
             if (first_value is None or isna(first_value)) and (
-                    second_value is None or isna(second_value)
+                second_value is None or isna(second_value)
             ):
                 merged_result.iloc[i] = float("nan")
             # If first_value is None or NaN, use second_value
