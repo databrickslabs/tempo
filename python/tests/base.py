@@ -15,6 +15,19 @@ from pyspark.sql.dataframe import DataFrame
 from tempo.intervals.core.intervals_df import IntervalsDF
 from tempo.tsdf import TSDF
 
+# helper functions
+
+def prefix_value(key: str, d: dict):
+    # look for an exact match
+    if key in d:
+        return d[key]
+    # scan for a prefix-match
+    for k in d.keys():
+        if key.startswith(k):
+            return d[k]
+    return None
+
+# test classes
 
 class TestDataFrameBuilder:
     """
@@ -184,7 +197,6 @@ class SparkTest(unittest.TestCase):
     spark = None
 
     # test data
-    test_data_file = None
     test_case_data = None
 
     @classmethod
@@ -223,10 +235,20 @@ class SparkTest(unittest.TestCase):
         cls.spark.stop()
 
     def setUp(self) -> None:
-        self.test_case_data = self.__loadTestData(self.id())
+        # parse out components of the test case path
+        file_name, class_name, func_name = self.id().split(".")[-3:]
+        self.file_name = file_name
+        self.class_name = class_name
+        self.func_name = func_name
+
+        # load the test data file if it hasn't been loaded yet
+        if self.test_case_data is None:
+            self.test_case_data = self.__loadTestData(file_name)
 
     def tearDown(self) -> None:
-        del self.test_case_data
+        del self.file_name
+        del self.class_name
+        del self.func_name
 
     #
     # Utility Functions
@@ -246,7 +268,7 @@ class SparkTest(unittest.TestCase):
     TEST_DATA_FOLDER = "unit_test_data"
 
     @classmethod
-    def getTestDataFilePath(cls, test_file_name: str, extension: str = '.json') -> str:
+    def getTestDataDirPath(cls) -> str:
         # what folder are we running from?
         cwd = os.path.basename(os.getcwd())
 
@@ -257,15 +279,15 @@ class SparkTest(unittest.TestCase):
         elif cwd == "python":
             dir_path = "./tests"
         elif cwd != "tests":
-            raise RuntimeError(
-                f"Cannot locate test data file {test_file_name}, running from dir"
-                f" {os.getcwd()}"
-            )
+            raise RuntimeError(f"Cannot locate test dir, running from dir {os.getcwd()}")
+        return os.path.abspath(os.path.join(dir_path, cls.TEST_DATA_FOLDER))
 
-        # return appropriate path
-        return f"{dir_path}/{cls.TEST_DATA_FOLDER}/{test_file_name}{extension}"
+    @classmethod
+    def getTestDataFilePath(cls, test_file_name: str, extension: str = '.json') -> str:
+        return os.path.join(cls.getTestDataDirPath(),
+                            f"{test_file_name}{extension}")
 
-    def __loadTestData(self, test_case_path: str) -> dict:
+    def __loadTestData(self, file_name: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
         format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs).

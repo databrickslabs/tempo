@@ -1,4 +1,5 @@
 from __future__ import annotations
+import warnings
 
 from typing import (
     Any,
@@ -13,8 +14,11 @@ from typing import (
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
+from pyspark.sql.column import Column
 
 import tempo.tsdf as t_tsdf
+import tempo.intervals as t_int
+import tempo.interpol as t_interpol
 
 # define global frequency options
 MUSEC = "microsec"
@@ -98,7 +102,8 @@ def _appendAggKey(
     period, unit = parsed_freq[0], parsed_freq[1]
 
     agg_window = sfn.window(
-        sfn.col(tsdf.ts_col), "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
+        sfn.col(tsdf.ts_col),
+        "{} {}".format(period, freq_dict[unit])  # type: ignore[literal-required]
     )
 
     df = df.withColumn("agg_key", agg_window)
@@ -110,6 +115,124 @@ def _appendAggKey(
     )
 
 
+class ResampleWarning(Warning):
+    """
+    This class is a warning that is raised when the interpolate or resample with fill methods are called.
+    """
+
+    pass
+
+def calculate_time_horizon(
+    tsdf: t_tsdf.TSDF,
+    freq: str,
+    local_freq_dict: Optional[FreqDict] = None,
+) -> None:
+    # Convert Frequency using resample dictionary
+    if local_freq_dict is None:
+        local_freq_dict = freq_dict
+    parsed_freq = checkAllowableFreq(freq)
+    period, unit = parsed_freq[0], parsed_freq[1]
+    if is_valid_allowed_freq_keys(
+        unit,
+        ALLOWED_FREQ_KEYS,
+    ):
+        freq = f"{period} {local_freq_dict[unit]}"  # type: ignore[literal-required]
+    else:
+        raise ValueError(f"Frequency {unit} not supported")
+
+    # Get max and min timestamp per partition
+    if tsdf.series_ids:
+        grouped_df = tsdf.df.groupBy(*tsdf.series_ids)
+    else:
+        grouped_df = tsdf.df.groupBy()
+    ts_range_per_series: DataFrame = grouped_df.agg(
+        sfn.max(tsdf.ts_col).alias("max_ts"),
+        sfn.min(tsdf.ts_col).alias("min_ts"),
+    )
+
+    # Generate upscale metrics
+    normalized_time_df: DataFrame = (
+        ts_range_per_series.withColumn("min_epoch_ms", sfn.expr("unix_millis(min_ts)"))
+        .withColumn("max_epoch_ms", sfn.expr("unix_millis(max_ts)"))
+        .withColumn(
+            "interval_ms",
+            sfn.expr(
+                f"unix_millis(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"
+            ),
+        )
+        .withColumn(
+            "rounded_min_epoch",
+            sfn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)"),
+        )
+        .withColumn(
+            "rounded_max_epoch",
+            sfn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)"),
+        )
+        .withColumn("diff_ms", sfn.expr("rounded_max_epoch - rounded_min_epoch"))
+        .withColumn("num_values", sfn.expr("(diff_ms/interval_ms) +1"))
+    )
+
+    (
+        min_ts,
+        max_ts,
+        min_value_partition,
+        max_value_partition,
+        p25_value_partition,
+        p50_value_partition,
+        p75_value_partition,
+        total_values,
+    ) = normalized_time_df.select(
+        sfn.min("min_ts"),
+        sfn.max("max_ts"),
+        sfn.min("num_values"),
+        sfn.max("num_values"),
+        sfn.percentile_approx("num_values", 0.25),
+        sfn.percentile_approx("num_values", 0.5),
+        sfn.percentile_approx("num_values", 0.75),
+        sfn.sum("num_values"),
+    ).first()
+
+    warnings.simplefilter("always", ResampleWarning)
+    warnings.warn(
+        f"""
+            Resample Metrics Warning:
+                Earliest Timestamp: {min_ts}
+                Latest Timestamp: {max_ts}
+                No. of Unique Partitions: {normalized_time_df.count()}
+                Resampled Min No. Values in Single a Partition: {min_value_partition}
+                Resampled Max No. Values in Single a Partition: {max_value_partition}
+                Resampled P25 No. Values in Single a Partition: {p25_value_partition}
+                Resampled P50 No. Values in Single a Partition: {p50_value_partition}
+                Resampled P75 No. Values in Single a Partition: {p75_value_partition}
+                Resampled Total No. Values Across All Partitions: {total_values}
+        """,
+        ResampleWarning,
+    )
+
+def downsample(
+    tsdf: t_tsdf.TSDF,
+    freq: str,
+    func: Union[Callable, str],
+    metricCols: Optional[List[str]] = None,
+) -> t_int.IntervalsDF:
+    """
+    Downsample a TSDF object to a lower frequency
+
+    :param tsdf: input TSDF object
+    :param freq: downsample to this frequency
+    :param func: aggregate function
+    :param metricCols: columns used for aggregates
+
+    :return: IntervalsDF object with the aggregated values
+    """
+    if metricCols is None:
+        metricCols = tsdf.metric_cols
+    if isinstance(func, Callable):
+        agg_exprs = [func(col).alias(col) for col in metricCols]
+    else:
+        agg_exprs = {col: func for col in metricCols}
+    return tsdf.aggByCycles(freq, *agg_exprs)
+
 def aggregate(
     tsdf: t_tsdf.TSDF,
     freq: str,
@@ -117,7 +240,7 @@ def aggregate(
     metricCols: Optional[List[str]] = None,
     prefix: Optional[str] = None,
     fill: Optional[bool] = None,
-) -> DataFrame:
+) -> t_tsdf.TSDF:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
@@ -144,7 +267,7 @@ def aggregate(
     groupingCols = [sfn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = sfn.struct([tsdf.ts_col] + metricCols)
+        metricCol = sfn.struct(*([tsdf.ts_col] + metricCols))
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(sfn.min("struct_cols").alias("closest_data")).select(
             *groupingCols, sfn.col("closest_data.*")
@@ -211,7 +334,7 @@ def aggregate(
     )
 
     # sort columns so they are consistent
-    non_part_cols = set(set(res.columns) - set(tsdf.series_ids)) - set([tsdf.ts_col])
+    non_part_cols = set(set(res.columns) - set(tsdf.series_ids)) - {tsdf.ts_col}
     sel_and_sort = tsdf.series_ids + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
@@ -246,7 +369,7 @@ def aggregate(
     return res
 
 
-def checkAllowableFreq(freq: Optional[str]) -> Tuple[Union[int | str], str]:
+def checkAllowableFreq(freq: str) -> Tuple[Union[int | str], str]:
     """
     Parses frequency and checks against allowable frequencies
     :param freq: frequncy at which to upsample/downsample, declared in resample function
@@ -309,3 +432,115 @@ def validateFuncExists(func: Union[Callable | str]) -> None:
             "Aggregate function is not in the valid list. Provide one of the allowable functions: "
             + ", ".join(allowableFuncs)
         )
+
+def resample(
+    tsdf: t_tsdf.TSDF,
+    freq: str,
+    func: Union[Callable | str],
+    metricCols: Optional[List[str]] = None,
+    prefix: Optional[str] = None,
+    fill: Optional[bool] = None,
+    perform_checks: bool = True,
+) -> t_tsdf.TSDF:
+    """
+    function to upsample based on frequency and aggregate function similar to pandas
+    :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+    :param func: function used to aggregate input
+    :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
+    :param prefix - supply a prefix for the newly sampled columns
+    :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
+    :param perform_checks: calculate time horizon and warnings if True (default is True)
+    :return: TSDF object with sample data using aggregate function
+    """
+    validateFuncExists(func)
+
+    # Throw warning for user to validate that the expected number of output rows is valid.
+    if fill is True and perform_checks is True:
+        calculate_time_horizon(tsdf, freq)
+
+    enriched_df: DataFrame = aggregate(
+        tsdf, freq, func, metricCols, prefix, fill
+    )
+    return _ResampledTSDF(
+        enriched_df,
+        ts_col=tsdf.ts_col,
+        series_ids=tsdf.series_ids,
+        freq=freq,
+        func=func,
+    )
+
+
+class _ResampledTSDF(t_tsdf.TSDF):
+    def __init__(
+        self,
+        df: DataFrame,
+        freq: str,
+        func: Union[Callable | str],
+        ts_col: str = "event_ts",
+        series_ids: Optional[List[str]] = None
+    ):
+        super(_ResampledTSDF, self).__init__(df, ts_col=ts_col, series_ids=series_ids)
+        self.__freq = freq
+        self.__func = func
+
+    def interpolate(
+        self,
+        method: str,
+        freq: Optional[str] = None,
+        func: Optional[Union[Callable | str]] = None,
+        target_cols: Optional[List[str]] = None,
+        ts_col: Optional[str] = None,
+        series_ids: Optional[List[str]] = None,
+        show_interpolated: bool = False,
+        perform_checks: bool = True,
+    ) -> t_tsdf.TSDF:
+        """
+        Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
+
+        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+        :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+        :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+        :param perform_checks: calculate time horizon and warnings if True (default is True)
+        :return: new TSDF object containing interpolated data
+        """
+
+        if freq is None:
+            freq = self.__freq
+
+        if func is None:
+            func = self.__func
+
+        if ts_col is None:
+            ts_col = self.ts_col
+
+        if series_ids is None:
+            partition_cols = self.series_ids
+
+        # Set defaults for target columns, timestamp column and partition columns when not provided
+        if target_cols is None:
+            prohibited_cols: List[str] = self.series_ids + [self.ts_col]
+            summarizable_types = ["int", "bigint", "float", "double"]
+
+            # get summarizable find summarizable columns
+            target_cols: List[str] = [
+                datatype[0]
+                for datatype in self.df.dtypes
+                if (
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
+                )
+            ]
+
+        interpolate_service = t_interpol.Interpolation(is_resampled=True)
+        tsdf_input = t_tsdf.TSDF(self.df, ts_col=self.ts_col, series_ids=self.series_ids)
+        interpolated_df = interpolate_service.interpolate(
+            tsdf=tsdf_input,
+            target_cols=target_cols,
+            freq=freq,
+            func=func,
+            method=method,
+            show_interpolated=show_interpolated,
+            perform_checks=perform_checks,
+        )
+
+        return t_tsdf.TSDF(interpolated_df, ts_col=self.ts_col, series_ids=self.series_ids)
