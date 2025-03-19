@@ -1136,9 +1136,6 @@ class TSDF(WindowBuilder):
         if numPartitions is None:
             numPartitions = self.df.rdd.getNumPartitions()
 
-        # define a sorting expression
-        order_exprs = self.ts_index.orderByExpr()
-
         # repartition by series ids, ordering by time
         repartitioned_df = self.df.repartition(
             numPartitions, *self.series_ids

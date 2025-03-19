@@ -14,7 +14,6 @@ from typing import (
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
-from pyspark.sql.column import Column
 
 import tempo.tsdf as t_tsdf
 import tempo.intervals as t_int
@@ -511,12 +510,6 @@ class _ResampledTSDF(t_tsdf.TSDF):
 
         if func is None:
             func = self.__func
-
-        if ts_col is None:
-            ts_col = self.ts_col
-
-        if series_ids is None:
-            partition_cols = self.series_ids
 
         # Set defaults for target columns, timestamp column and partition columns when not provided
         if target_cols is None:
