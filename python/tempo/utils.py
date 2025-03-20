@@ -7,13 +7,13 @@ from datetime import datetime as dt, timedelta as td
 from typing import Optional, Union, overload
 
 import pyspark.sql.functions as sfn
-from IPython import get_ipython
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
+from IPython import get_ipython  # type: ignore
+from IPython.core.display import HTML  # type: ignore
+from IPython.display import display as ipydisplay  # type: ignore
 from pandas.core.frame import DataFrame as pandasDataFrame
 from pyspark.sql import SparkSession, DataFrame
 
-import tempo.tsdf as t_tsdf
+from tempo.tsdf import TSDF
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -151,12 +151,12 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf, k):
+def get_display_df(tsdf: TSDF, k: int):
     return tsdf.latest(k).withNaturalOrdering().df
 
 
 @overload
-def display_improvised(obj: t_tsdf.TSDF) -> None: ...
+def display_improvised(obj: TSDF) -> None: ...
 
 
 @overload
@@ -167,15 +167,15 @@ def display_improvised(obj: pandasDataFrame) -> None: ...
 def display_improvised(obj: DataFrame) -> None: ...
 
 
-def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
-    if isinstance(obj, t_tsdf.TSDF):
+def display_improvised(obj: Union[TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, TSDF):
         method(get_display_df(obj, k=5))
     else:
         method(obj)
 
 
 @overload
-def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
+def display_html_improvised(obj: Optional[TSDF]) -> None: ...
 
 
 @overload
@@ -187,9 +187,9 @@ def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
 
 
 def display_html_improvised(
-    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+    obj: Union[TSDF, pandasDataFrame, DataFrame]
 ) -> None:
-    if isinstance(obj, t_tsdf.TSDF):
+    if isinstance(obj, TSDF):
         display_html(get_display_df(obj, k=5))
     else:
         display_html(obj)
