@@ -151,7 +151,7 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf: TSDF, k: int):
+def get_display_df(tsdf: TSDF, k: int) -> DataFrame:
     return tsdf.latest(k).withNaturalOrdering().df
 
 
