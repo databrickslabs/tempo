@@ -100,12 +100,50 @@ class IntervalsDF:
         return Window.partitionBy(*self.series_ids).orderBy(*self.interval_boundaries)
 
     @classmethod
+    def fromNestedBoundariesDF(
+            cls,
+            df: DataFrame,
+            window_col: str,
+            series_ids: Optional[Iterable[str]] = None,
+    ) -> "IntervalsDF":
+        """
+        Create an IntervalsDF from a DataFrame with a nested window struct column.
+
+        Parameters:
+        ----------
+        df : DataFrame
+            DataFrame containing a window struct column with start and end fields
+        window_col : str
+            Name of the column containing the window struct
+        series_ids : Optional[Iterable[str]]
+            Optional list of column names that identify the series
+
+        Returns:
+        -------
+        IntervalsDF
+            A new IntervalsDF with the window boundaries extracted
+        """
+        # Extract start and end fields from the window struct
+        start_ts_col = f"{window_col}_start"
+        end_ts_col = f"{window_col}_end"
+
+        # Create new columns for start and end timestamps
+        extracted_df = df.withColumn(
+            start_ts_col, f.col(f"{window_col}.start")
+        ).withColumn(
+            end_ts_col, f.col(f"{window_col}.end")
+        ).drop(window_col)  # Drop the original window column
+
+        # Create and return the IntervalsDF
+        return cls(extracted_df, start_ts_col, end_ts_col, series_ids)
+
+    @classmethod
     def fromStackedMetrics(
         cls,
         df: DataFrame,
         start_ts: str,
         end_ts: str,
-        series: list[str],
+        series_ids: list[str],
         metrics_name_col: str,
         metrics_value_col: str,
         metric_names: Optional[list[str]] = None,
@@ -167,16 +205,16 @@ class IntervalsDF:
 
         """
 
-        if not isinstance(series, list):
+        if not isinstance(series_ids, list):
             raise ValueError
 
         df = (
-            df.groupBy(start_ts, end_ts, *series)
+            df.groupBy(start_ts, end_ts, *series_ids)
             .pivot(metrics_name_col, values=metric_names)
             .max(metrics_value_col)
         )
 
-        return cls(df, start_ts, end_ts, series)
+        return cls(df, start_ts, end_ts, series_ids)
 
     def make_disjoint(self) -> "IntervalsDF":
         """

@@ -698,6 +698,72 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
 
+class GenericCompositeTSIndex(CompositeTSIndex):
+    """
+    A generic implementation of CompositeTSIndex that can be used
+    when you need a composite time series index.
+
+    This class implements all required abstract methods from the CompositeTSIndex
+    abstract base class.
+    """
+
+    def __init__(self, ts_struct: StructField, *component_fields: str):
+        """
+        Initialize a GenericCompositeTSIndex with a struct field and component fields.
+
+        Parameters:
+        -----------
+        ts_struct : StructField
+            The StructField containing the composite time series data
+        component_fields : str
+            One or more field names from ts_struct that determine the temporal ordering
+        """
+        super().__init__(ts_struct, *component_fields)
+
+    @property
+    def unit(self) -> Optional[TimeUnit]:
+        """
+        Returns the time unit of this index.
+
+        Returns:
+        --------
+        Optional[TimeUnit]
+            The unit of this index, or None if it's unitless
+        """
+        # Default implementation returns None (unitless)
+        # Override this if you need a specific unit
+        return None
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        """
+        Gets an expression for performing range operations.
+
+        Parameters:
+        -----------
+        reverse : bool
+            Whether to reverse the ordering
+
+        Returns:
+        --------
+        Column
+            An expression for range operations
+        """
+        # Use the first component field for range operations
+        # This is a simple implementation - you might need more sophisticated logic
+        # depending on your specific requirements
+        expr = sfn.col(self.fieldPath(self.component_fields[0]))
+
+        # If the field is a timestamp, cast to double for range operations
+        field_type = self.fieldType(self.component_fields[0])
+        if isinstance(field_type, TimestampType):
+            expr = expr.cast("double")
+        elif isinstance(field_type, DateType):
+            # Convert date to days since epoch
+            expr = sfn.datediff(expr, sfn.lit("1970-01-01").cast("date"))
+
+        return cast(Column, _reverse_or_not(expr, reverse))
+
+
 #
 # Parsed TS Index types
 #
