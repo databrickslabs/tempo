@@ -1193,3 +1193,38 @@ class TSSchema(WindowBuilder):
             .orderBy(self.ts_idx.rangeExpr(reverse=reverse))
             .rangeBetween(start, end)
         )
+
+
+def ensure_composite_index(index: TSIndex) -> CompositeTSIndex:
+    """
+    Ensures the index is a CompositeTSIndex and returns it with proper typing.
+
+    Args:
+        index: A TSIndex object that should be a CompositeTSIndex
+
+    Returns:
+        The same index but typed as CompositeTSIndex
+
+    Raises:
+        TypeError: If the index is not a CompositeTSIndex
+    """
+    if not isinstance(index, CompositeTSIndex):
+        raise TypeError(f"Expected CompositeTSIndex but got {type(index).__name__}")
+    return index
+
+
+def get_component_fields(index: TSIndex) -> List[str]:
+    """
+    Gets component fields from a TSIndex, handling both simple and composite indices.
+
+    Args:
+        index: The TSIndex object to get component fields from
+
+    Returns:
+        For CompositeTSIndex: its component_fields list
+        For SimpleTSIndex: a list containing only the colname
+    """
+    if isinstance(index, CompositeTSIndex):
+        return index.component_fields
+    else:
+        return [index.colname]
