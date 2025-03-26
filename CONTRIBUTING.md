@@ -42,7 +42,7 @@ Run the following command in your terminal to create a virtual environment in th
 ```bash
 tox --devenv .venv -e {environment-name}
 ```
-The `—devenv` flag tells `tox` to create a development environment, and `.venv` is the folder where the virtual environment will be created.
+The `—devenv` flag tells `tox` to create a development environment, and `.venv` is the folder where the virtual environment will be created. The `environment-name` is a reference to the environments that are listed in the `tox.ini` file. In general, these reflect various LTS versions of DBR. 
 
 ## Environments we test
 The environments we test against are defined within the `tox.ini` file, and the requirements for those environments are stored in `python/tests/requirements`. The makeup of these environments is inspired by the [Databricks Runtime](https://docs.databricks.com/en/release-notes/runtime/index.html#) (hence the naming convention), but it's important to note that developing Databricks is **not** a requirement. We're simply  mimicking some of the different runtime versions because (a) we recognize that much of the user base uses `tempo` on Databricks and (b) it saves development time spent trying to build out test environments with different versions of Python and PySpark from scratch.
