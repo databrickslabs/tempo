@@ -29,18 +29,32 @@ def backward_fill(null_series: pd.Series) -> pd.Series:
 
 # Define valid interpolation methods
 InterpolationMethod = Literal[
-    'linear', 'time', 'index', 'pad', 'nearest', 'zero', 'slinear',
-    'quadratic', 'cubic', 'barycentric', 'polynomial', 'krogh',
-    'piecewise_polynomial', 'spline', 'pchip', 'akima', 'cubicspline',
-    'from_derivatives'
+    "linear",
+    "time",
+    "index",
+    "pad",
+    "nearest",
+    "zero",
+    "slinear",
+    "quadratic",
+    "cubic",
+    "barycentric",
+    "polynomial",
+    "krogh",
+    "piecewise_polynomial",
+    "spline",
+    "pchip",
+    "akima",
+    "cubicspline",
+    "from_derivatives",
 ]
 
 
 # The interpolation
 def _build_interpolator(
-        interpol_cols: List[str],
-        interpol_fn: Union[Callable[[pd.Series], pd.Series], InterpolationMethod],
-        ts_col: Optional[str] = None,
+    interpol_cols: List[str],
+    interpol_fn: Union[Callable[[pd.Series], pd.Series], InterpolationMethod],
+    ts_col: Optional[str] = None,
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     def interpolator_fn(pdf: pd.DataFrame) -> pd.DataFrame:
         # create a timestamp index
@@ -67,11 +81,11 @@ def _build_interpolator(
 
 
 def interpolate(
-        tsdf: TSDF,
-        cols: Union[str, List[str]],
-        fn: Union[Callable[[pd.Series], pd.Series], InterpolationMethod],
-        leading_margin: int = 1,
-        lagging_margin: int = 0,
+    tsdf: TSDF,
+    cols: Union[str, List[str]],
+    fn: Union[Callable[[pd.Series], pd.Series], InterpolationMethod],
+    leading_margin: int = 1,
+    lagging_margin: int = 0,
 ) -> TSDF:
     """
     Interpolate missing values in a time series column.
@@ -107,7 +121,7 @@ def interpolate(
         cols = [cols]
     for col in cols:
         assert (
-                col in tsdf.columns
+            col in tsdf.columns
         ), f"Column to be interpolated '{col}' not found in the DataFrame"
 
     # Define helper functions that return column references
@@ -134,7 +148,8 @@ def interpolate(
     all_win = tsdf.baseWindow()
     segments = need_intpl.withColumn(
         seg_trans_col,
-        sfn.lag(sfn.col("__tmp_needs_interpolation"), 1, False).over(all_win) != sfn.col("__tmp_needs_interpolation"),
+        sfn.lag(sfn.col("__tmp_needs_interpolation"), 1, False).over(all_win)
+        != sfn.col("__tmp_needs_interpolation"),
     )
 
     # assign a group number to each segment
@@ -151,7 +166,8 @@ def interpolate(
         lead_margins = segments.withColumn(
             "__tmp_leading_margin",
             sfn.when(
-                ~get_needs_interpolation_col() & sfn.bool_or(get_segment_transition_col()).over(margin_win),
+                ~get_needs_interpolation_col()
+                & sfn.bool_or(get_segment_transition_col()).over(margin_win),
                 sfn.array(get_segment_group_col(), get_segment_group_col() + 1),
             ).otherwise(sfn.array(get_segment_group_col())),
         )
@@ -160,14 +176,17 @@ def interpolate(
         lag_margins = lead_margins.withColumn(
             "__tmp_lagging_margin",
             sfn.when(
-                ~get_needs_interpolation_col() & sfn.bool_or(get_segment_transition_col()).over(margin_win),
+                ~get_needs_interpolation_col()
+                & sfn.bool_or(get_segment_transition_col()).over(margin_win),
                 sfn.array(get_segment_group_col() - 1, get_segment_group_col()),
             ).otherwise(sfn.array(get_segment_group_col())),
         )
         # collect the group number of each segment with a margin
         all_margins = lag_margins.withColumn(
             "__tmp_group_with_margin",
-            sfn.array_union(sfn.col("__tmp_leading_margin"), sfn.col("__tmp_lagging_margin")),
+            sfn.array_union(
+                sfn.col("__tmp_leading_margin"), sfn.col("__tmp_lagging_margin")
+            ),
         )
         # explode the groups with margins
         explode_exprs = tsdf.columns + [
@@ -183,7 +202,7 @@ def interpolate(
     # Use our helper functions
     segments = segments.withColumn(
         "__tmp_needs_interpolation",
-        sfn.max(get_needs_interpolation_col().cast(BooleanType())).over(segment_win)
+        sfn.max(get_needs_interpolation_col().cast(BooleanType())).over(segment_win),
     )
 
     # split the segments according to the need for interpolation

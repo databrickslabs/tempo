@@ -101,10 +101,10 @@ class IntervalsDF:
 
     @classmethod
     def fromNestedBoundariesDF(
-            cls,
-            df: DataFrame,
-            window_col: str,
-            series_ids: Optional[Iterable[str]] = None,
+        cls,
+        df: DataFrame,
+        window_col: str,
+        series_ids: Optional[Iterable[str]] = None,
     ) -> "IntervalsDF":
         """
         Create an IntervalsDF from a DataFrame with a nested window struct column.
@@ -128,11 +128,11 @@ class IntervalsDF:
         end_ts_col = f"{window_col}_end"
 
         # Create new columns for start and end timestamps
-        extracted_df = df.withColumn(
-            start_ts_col, f.col(f"{window_col}.start")
-        ).withColumn(
-            end_ts_col, f.col(f"{window_col}.end")
-        ).drop(window_col)  # Drop the original window column
+        extracted_df = (
+            df.withColumn(start_ts_col, f.col(f"{window_col}.start"))
+            .withColumn(end_ts_col, f.col(f"{window_col}.end"))
+            .drop(window_col)
+        )  # Drop the original window column
 
         # Create and return the IntervalsDF
         return cls(extracted_df, start_ts_col, end_ts_col, series_ids)

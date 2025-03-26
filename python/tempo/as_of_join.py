@@ -8,7 +8,12 @@ from pyspark.sql import DataFrame, SparkSession, Column, Row
 
 from tempo.tsdf import TSDF
 from tempo.timeunit import TimeUnit
-from tempo.tsschema import CompositeTSIndex, TSSchema, ensure_composite_index, get_component_fields
+from tempo.tsschema import (
+    CompositeTSIndex,
+    TSSchema,
+    ensure_composite_index,
+    get_component_fields,
+)
 
 
 # Helpers
@@ -80,9 +85,7 @@ class AsOfJoiner(ABC):
             )
         return tsdf
 
-    def _prefixOverlappingColumns(
-        self, left: TSDF, right: TSDF
-    ) -> tuple[TSDF, TSDF]:
+    def _prefixOverlappingColumns(self, left: TSDF, right: TSDF) -> tuple[TSDF, TSDF]:
         """
         Prefixes the overlapping columns in the left and right TSDFs
         """
@@ -231,7 +234,9 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         """
         # find the last value for each column in the right-hand side
         w = combined.allBeforeWindow()
-        right_row_field = ensure_composite_index(combined.ts_index).fieldPath(_DEFAULT_RIGHT_ROW_COLNAME)
+        right_row_field = ensure_composite_index(combined.ts_index).fieldPath(
+            _DEFAULT_RIGHT_ROW_COLNAME
+        )
         if self.skipNulls:
             last_right_cols = [
                 sfn.last(col, True).over(w).alias(col) for col in right_cols
@@ -402,9 +407,10 @@ def choose_as_of_join_strategy(
                 skipNulls=skipNulls,
                 tolerance=tolerance,
                 tsPartitionVal=tsPartitionVal,
-                fraction=fraction
+                fraction=fraction,
             )
 
     # default to use the union sort filter join
-    return UnionSortFilterAsOfJoiner(left_prefix or "left", right_prefix, skipNulls, tolerance)
-
+    return UnionSortFilterAsOfJoiner(
+        left_prefix or "left", right_prefix, skipNulls, tolerance
+    )

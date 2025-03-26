@@ -252,9 +252,9 @@ class TSIndex(ABC):
         return self.comparableExpr() >= _unpack_comparable(other)
 
     def between(
-            self,
-            lowerBound: Union["TSIndex", Column, Any],
-            upperBound: Union["TSIndex", Column, Any],
+        self,
+        lowerBound: Union["TSIndex", Column, Any],
+        upperBound: Union["TSIndex", Column, Any],
     ) -> Column:
         """
         A boolean expression that is evaluated to true if the value of this expression is between the given columns.
@@ -267,9 +267,19 @@ class TSIndex(ABC):
         expr = self.comparableExpr()
         if isinstance(expr, list):
             # Handle the case where comparableExpr returns a list
-            comps = zip(expr,
-                      [_unpack_comparable(lowerBound)] * len(expr) if not isinstance(lowerBound, (tuple, list)) else [_unpack_comparable(o) for o in lowerBound],
-                      [_unpack_comparable(upperBound)] * len(expr) if not isinstance(upperBound, (tuple, list)) else [_unpack_comparable(o) for o in upperBound])
+            comps = zip(
+                expr,
+                (
+                    [_unpack_comparable(lowerBound)] * len(expr)
+                    if not isinstance(lowerBound, (tuple, list))
+                    else [_unpack_comparable(o) for o in lowerBound]
+                ),
+                (
+                    [_unpack_comparable(upperBound)] * len(expr)
+                    if not isinstance(upperBound, (tuple, list))
+                    else [_unpack_comparable(o) for o in upperBound]
+                ),
+            )
             comp_exprs = [(c.between(lb, ub)) for (c, lb, ub) in comps]
             if len(comp_exprs) > 1:
                 return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
@@ -277,7 +287,9 @@ class TSIndex(ABC):
                 return comp_exprs[0]
         else:
             # Handle the case where comparableExpr returns a single Column
-            return expr.between(_unpack_comparable(lowerBound), _unpack_comparable(upperBound))
+            return expr.between(
+                _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
+            )
 
     # other expression builder methods
 
@@ -1045,7 +1057,9 @@ class TSSchema(WindowBuilder):
     Schema type for a :class:`TSDF` class.
     """
 
-    def __init__(self, ts_idx: TSIndex, series_ids: Optional[Collection[str]] = None) -> None:
+    def __init__(
+        self, ts_idx: TSIndex, series_ids: Optional[Collection[str]] = None
+    ) -> None:
         self.__ts_idx = ts_idx
         if series_ids:
             self.__series_ids = list(series_ids)
@@ -1088,13 +1102,13 @@ class TSSchema(WindowBuilder):
 
     @classmethod
     def fromParsedTimestamp(
-            cls,
-            df_schema: StructType,
-            ts_col: str,
-            parsed_field: str,
-            src_str_field: str,
-            series_ids: Optional[Collection[str]] = None,
-            secondary_parsed_field: Optional[str] = None,
+        cls,
+        df_schema: StructType,
+        ts_col: str,
+        parsed_field: str,
+        src_str_field: str,
+        series_ids: Optional[Collection[str]] = None,
+        secondary_parsed_field: Optional[str] = None,
     ) -> "TSSchema":
         ts_idx_schema = df_schema[ts_col].dataType
         assert isinstance(
@@ -1108,7 +1122,9 @@ class TSSchema(WindowBuilder):
 
         if isinstance(parsed_type, DoubleType):
             if secondary_parsed_field is None:
-                raise ValueError("secondary_parsed_field must be provided when parsed_field is of DoubleType")
+                raise ValueError(
+                    "secondary_parsed_field must be provided when parsed_field is of DoubleType"
+                )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,

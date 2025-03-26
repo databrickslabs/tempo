@@ -88,9 +88,7 @@ allowableFreqs = [MUSEC, MS, SEC, MIN, HR, DAY]
 allowableFuncs = [floor, min, max, average, ceiling]
 
 
-def _appendAggKey(
-    tsdf: TSDF, freq: str
-) -> Tuple[TSDF, int | str, Any]:
+def _appendAggKey(tsdf: TSDF, freq: str) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -486,15 +484,15 @@ class _ResampledTSDF(TSDF):
         self.__func = func
 
     def interpolate(
-            self,
-            method: str,
-            freq: Optional[str] = None,
-            func: Optional[Union[Callable, str]] = None,
-            target_cols: Optional[List[str]] = None,
-            ts_col: Optional[str] = None,
-            series_ids: Optional[List[str]] = None,
-            show_interpolated: bool = False,
-            perform_checks: bool = True,
+        self,
+        method: str,
+        freq: Optional[str] = None,
+        func: Optional[Union[Callable, str]] = None,
+        target_cols: Optional[List[str]] = None,
+        ts_col: Optional[str] = None,
+        series_ids: Optional[List[str]] = None,
+        show_interpolated: bool = False,
+        perform_checks: bool = True,
     ) -> TSDF:
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
@@ -522,15 +520,13 @@ class _ResampledTSDF(TSDF):
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                        (datatype[1] in summarizable_types)
-                        and (datatype[0].lower() not in prohibited_cols)
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
 
         # Create the input TSDF
-        tsdf_input = TSDF(
-            self.df, ts_col=self.ts_col, series_ids=self.series_ids
-        )
+        tsdf_input = TSDF(self.df, ts_col=self.ts_col, series_ids=self.series_ids)
 
         # Method mapping for compatibility
         method_mapping = {
@@ -543,10 +539,24 @@ class _ResampledTSDF(TSDF):
 
         # Convert method to a valid InterpolationMethod or function
         valid_methods: List[str] = [
-            'linear', 'time', 'index', 'pad', 'nearest', 'zero', 'slinear',
-            'quadratic', 'cubic', 'barycentric', 'polynomial', 'krogh',
-            'piecewise_polynomial', 'spline', 'pchip', 'akima', 'cubicspline',
-            'from_derivatives'
+            "linear",
+            "time",
+            "index",
+            "pad",
+            "nearest",
+            "zero",
+            "slinear",
+            "quadratic",
+            "cubic",
+            "barycentric",
+            "polynomial",
+            "krogh",
+            "piecewise_polynomial",
+            "spline",
+            "pchip",
+            "akima",
+            "cubicspline",
+            "from_derivatives",
         ]
 
         # Try to map the method to a known valid method
@@ -561,6 +571,7 @@ class _ResampledTSDF(TSDF):
         # At this point, mapped_method is guaranteed to be a valid InterpolationMethod
         # Use typing.cast to tell mypy this is the case
         from typing import cast
+
         valid_interpolation_method = cast(InterpolationMethod, mapped_method)
 
         # Decide on appropriate margins based on the context
@@ -573,7 +584,7 @@ class _ResampledTSDF(TSDF):
             cols=target_cols,
             fn=valid_interpolation_method,
             leading_margin=leading_margin,
-            lagging_margin=lagging_margin
+            lagging_margin=lagging_margin,
         )
 
         return interpolated_tsdf

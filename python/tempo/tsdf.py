@@ -1021,9 +1021,7 @@ class TSDF(WindowBuilder):
             [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
         )
 
-        left_columns = list(
-            set(left_tsdf.df.columns).difference(set(self.series_ids))
-        )
+        left_columns = list(set(left_tsdf.df.columns).difference(set(self.series_ids)))
         right_columns = list(
             set(right_tsdf.df.columns).difference(set(self.series_ids))
         )
@@ -1215,7 +1213,9 @@ class TSDF(WindowBuilder):
         new_schema = TSSchema(new_ts_index, new_series_ids)
         return TSDF(new_df, ts_schema=new_schema)
 
-    def withColumnTypeChanged(self, colName: str, newType: Union[DataType, str]) -> "TSDF":
+    def withColumnTypeChanged(
+        self, colName: str, newType: Union[DataType, str]
+    ) -> "TSDF":
         """
 
         :param colName:
@@ -1317,7 +1317,9 @@ class TSDF(WindowBuilder):
         :param inputCols:
         :return:
         """
-        input_col_exprs = [sfn.col(col) for col in inputCols if not isinstance(col, Column)]
+        input_col_exprs = [
+            sfn.col(col) for col in inputCols if not isinstance(col, Column)
+        ]
         pd_udf = sfn.pandas_udf(func, schema)
         return self.withColumn(outputCol, pd_udf(*input_col_exprs).over(window))
 
