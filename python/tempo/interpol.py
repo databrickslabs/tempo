@@ -4,6 +4,7 @@ from typing import Callable, List, Optional, Union
 
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as sfn
+from pyspark.sql.types import NumericType
 from pyspark.sql.window import Window
 
 import tempo.resample as t_resample
@@ -12,7 +13,6 @@ import tempo.utils as t_utils
 
 # Interpolation fill options
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
-supported_target_col_types = ["int", "bigint", "float", "double"]
 
 
 class Interpolation:
@@ -58,10 +58,6 @@ class Interpolation:
                 raise ValueError(
                     f"Target Column: '{column}' does not exist in DataFrame."
                 )
-            if df.select(column).dtypes[0][1] not in supported_target_col_types:
-                raise TypeError(
-                    f"Target Column needs to be one of the following types: {supported_target_col_types}"
-                )
 
         if ts_col not in str(df.columns):
             raise ValueError(
@@ -105,6 +101,17 @@ class Interpolation:
         # Preserve column order
         return interpolated.select(*df.columns)
 
+    def _is_valid_method_for_column(
+        self, series: DataFrame, method: str, col_name: str
+    ) -> bool:
+        """
+        zero and linear interpolation are only valid for numeric columns
+        """
+        if method in ["linear", "zero"]:
+            return isinstance(series.schema[col_name].dataType, NumericType)
+        else:
+            return True
+
     def __interpolate_column(
         self,
         series: DataFrame,
@@ -120,6 +127,12 @@ class Interpolation:
         :param target_col: column to interpolate
         :param method: interpolation function to fill missing values
         """
+
+        if not self._is_valid_method_for_column(series, method, target_col):
+            raise ValueError(
+                f"Interpolation method '{method}' is not supported for column '{target_col}' of type '{series.schema[target_col].dataType}'"
+            )
+
         output_df: DataFrame = series
 
         # create new column for if target column is interpolated
