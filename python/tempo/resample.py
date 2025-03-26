@@ -15,9 +15,9 @@ from typing import (
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
 
-import tempo.tsdf as t_tsdf
-import tempo.intervals as t_int
-import tempo.interpol as t_interpol
+from tempo.tsdf import TSDF
+from tempo.intervals.core.intervals_df import IntervalsDF
+from tempo.interpol import interpolate, InterpolationMethod
 
 # define global frequency options
 MUSEC = "microsec"
@@ -89,8 +89,8 @@ allowableFuncs = [floor, min, max, average, ceiling]
 
 
 def _appendAggKey(
-    tsdf: t_tsdf.TSDF, freq: Optional[str] = None
-) -> Tuple[t_tsdf.TSDF, int | str, Any]:
+    tsdf: TSDF, freq: str
+) -> Tuple[TSDF, int | str, Any]:
     """
     :param tsdf: TSDF object as input
     :param freq: frequency at which to upsample
@@ -108,7 +108,7 @@ def _appendAggKey(
     df = df.withColumn("agg_key", agg_window)
 
     return (
-        t_tsdf.TSDF(df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids),
+        TSDF(df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids),
         period,
         freq_dict[unit],  # type: ignore[literal-required]
     )
@@ -123,7 +123,7 @@ class ResampleWarning(Warning):
 
 
 def calculate_time_horizon(
-    tsdf: t_tsdf.TSDF,
+    tsdf: TSDF,
     freq: str,
     local_freq_dict: Optional[FreqDict] = None,
 ) -> None:
@@ -211,11 +211,11 @@ def calculate_time_horizon(
 
 
 def downsample(
-    tsdf: t_tsdf.TSDF,
+    tsdf: TSDF,
     freq: str,
     func: Union[Callable, str],
     metricCols: Optional[List[str]] = None,
-) -> t_int.IntervalsDF:
+) -> IntervalsDF:
     """
     Downsample a TSDF object to a lower frequency
 
@@ -228,21 +228,22 @@ def downsample(
     """
     if metricCols is None:
         metricCols = tsdf.metric_cols
-    if isinstance(func, Callable):
-        agg_exprs = [func(col).alias(col) for col in metricCols]
+    if callable(func):
+        list_exprs = [func(col).alias(col) for col in metricCols]
+        return tsdf.aggByCycles(freq, *list_exprs)
     else:
-        agg_exprs = {col: func for col in metricCols}
-    return tsdf.aggByCycles(freq, *agg_exprs)
+        dict_exprs = {col: func for col in metricCols}
+        return tsdf.aggByCycles(freq, dict_exprs)
 
 
 def aggregate(
-    tsdf: t_tsdf.TSDF,
+    tsdf: TSDF,
     freq: str,
     func: Union[Callable, str],
     metricCols: Optional[List[str]] = None,
     prefix: Optional[str] = None,
     fill: Optional[bool] = None,
-) -> t_tsdf.TSDF:
+) -> TSDF:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
     :param tsdf: input TSDF object
@@ -437,14 +438,14 @@ def validateFuncExists(func: Union[Callable | str]) -> None:
 
 
 def resample(
-    tsdf: t_tsdf.TSDF,
+    tsdf: TSDF,
     freq: str,
     func: Union[Callable | str],
     metricCols: Optional[List[str]] = None,
     prefix: Optional[str] = None,
     fill: Optional[bool] = None,
     perform_checks: bool = True,
-) -> t_tsdf.TSDF:
+) -> TSDF:
     """
     function to upsample based on frequency and aggregate function similar to pandas
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
@@ -471,7 +472,7 @@ def resample(
     )
 
 
-class _ResampledTSDF(t_tsdf.TSDF):
+class _ResampledTSDF(TSDF):
     def __init__(
         self,
         df: DataFrame,
@@ -485,16 +486,16 @@ class _ResampledTSDF(t_tsdf.TSDF):
         self.__func = func
 
     def interpolate(
-        self,
-        method: str,
-        freq: Optional[str] = None,
-        func: Optional[Union[Callable | str]] = None,
-        target_cols: Optional[List[str]] = None,
-        ts_col: Optional[str] = None,
-        series_ids: Optional[List[str]] = None,
-        show_interpolated: bool = False,
-        perform_checks: bool = True,
-    ) -> t_tsdf.TSDF:
+            self,
+            method: str,
+            freq: Optional[str] = None,
+            func: Optional[Union[Callable, str]] = None,
+            target_cols: Optional[List[str]] = None,
+            ts_col: Optional[str] = None,
+            series_ids: Optional[List[str]] = None,
+            show_interpolated: bool = False,
+            perform_checks: bool = True,
+    ) -> TSDF:
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
 
@@ -516,30 +517,63 @@ class _ResampledTSDF(t_tsdf.TSDF):
             prohibited_cols: List[str] = self.series_ids + [self.ts_col]
             summarizable_types = ["int", "bigint", "float", "double"]
 
-            # get summarizable find summarizable columns
-            target_cols: List[str] = [
+            # Update target_cols without redefining its type
+            target_cols = [
                 datatype[0]
                 for datatype in self.df.dtypes
                 if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
+                        (datatype[1] in summarizable_types)
+                        and (datatype[0].lower() not in prohibited_cols)
                 )
             ]
 
-        interpolate_service = t_interpol.Interpolation(is_resampled=True)
-        tsdf_input = t_tsdf.TSDF(
+        # Create the input TSDF
+        tsdf_input = TSDF(
             self.df, ts_col=self.ts_col, series_ids=self.series_ids
         )
-        interpolated_df = interpolate_service.interpolate(
+
+        # Method mapping for compatibility
+        method_mapping = {
+            "ffill": "pad",
+            "bfill": "backfill",
+            "zero": "zero",
+            "linear": "linear",
+            # Add other mappings as needed
+        }
+
+        # Convert method to a valid InterpolationMethod or function
+        valid_methods: List[str] = [
+            'linear', 'time', 'index', 'pad', 'nearest', 'zero', 'slinear',
+            'quadratic', 'cubic', 'barycentric', 'polynomial', 'krogh',
+            'piecewise_polynomial', 'spline', 'pchip', 'akima', 'cubicspline',
+            'from_derivatives'
+        ]
+
+        # Try to map the method to a known valid method
+        mapped_method = method_mapping.get(method, method)
+
+        # Check if it's a valid interpolation method
+        if mapped_method not in valid_methods:
+            raise ValueError(
+                f"Interpolation method '{method}' is not valid. Valid methods are: {', '.join(valid_methods)}"
+            )
+
+        # At this point, mapped_method is guaranteed to be a valid InterpolationMethod
+        # Use typing.cast to tell mypy this is the case
+        from typing import cast
+        valid_interpolation_method = cast(InterpolationMethod, mapped_method)
+
+        # Decide on appropriate margins based on the context
+        leading_margin = 1
+        lagging_margin = 0
+
+        # Call the interpolate function directly with the validated method
+        interpolated_tsdf = interpolate(
             tsdf=tsdf_input,
-            target_cols=target_cols,
-            freq=freq,
-            func=func,
-            method=method,
-            show_interpolated=show_interpolated,
-            perform_checks=perform_checks,
+            cols=target_cols,
+            fn=valid_interpolation_method,
+            leading_margin=leading_margin,
+            lagging_margin=lagging_margin
         )
 
-        return t_tsdf.TSDF(
-            interpolated_df, ts_col=self.ts_col, series_ids=self.series_ids
-        )
+        return interpolated_tsdf
