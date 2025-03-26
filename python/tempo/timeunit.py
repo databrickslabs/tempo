@@ -1,5 +1,5 @@
 from functools import total_ordering
-from typing import NamedTuple, Any
+from typing import NamedTuple
 
 
 @total_ordering

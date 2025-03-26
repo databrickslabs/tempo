@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from datetime import datetime as dt, timedelta as td
 from functools import cached_property
 from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, Mapping
-from typing import Collection, Dict, cast, overload
+from typing import Collection, Dict, cast
 
 import pandas as pd
 import pyspark.sql.functions as sfn
