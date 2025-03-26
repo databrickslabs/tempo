@@ -222,9 +222,7 @@ def withGroupedStats(
     period, unit = parsed_freq[0], parsed_freq[1]
     agg_window = sfn.window(
         sfn.col(tsdf.ts_col),
-        "{} {}".format(
-            period, freq_dict[unit]  # type: ignore[literal-required]
-        ),
+        "{} {}".format(period, freq_dict[unit]),  # type: ignore[literal-required]
     )
 
     # compute column summaries
@@ -251,11 +249,12 @@ def withGroupedStats(
 
     return TSDF(summary_df, ts_schema=copy.deepcopy(tsdf.ts_schema))
 
+
 def calc_bars(
-        tsdf: TSDF,
-        freq: str,
-        metric_cols: Optional[List[str]] = None,
-        fill: Optional[bool] = None,
+    tsdf: TSDF,
+    freq: str,
+    metric_cols: Optional[List[str]] = None,
+    fill: Optional[bool] = None,
 ) -> TSDF:
     """
     Calculate OHLC (Open, High, Low, Close) bars from time series data.
@@ -266,10 +265,7 @@ def calc_bars(
     :param fill: whether to fill missing values
     :return: a TSDF with OHLC bars
     """
-    # Import resample functionality from tempo.resample
-    import tempo.resample as t_resample
 
-    # Create resample instances using the t_resample module directly
     resample_open = resample(
         tsdf, freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
     )
@@ -293,10 +289,10 @@ def calc_bars(
         .join(resample_close.df, join_cols)
     )
     non_part_cols = (
-            set(bars.columns) - set(resample_open.series_ids) - {resample_open.ts_col}
+        set(bars.columns) - set(resample_open.series_ids) - {resample_open.ts_col}
     )
     sel_and_sort = (
-            resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
+        resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
     )
     bars = bars.select(sel_and_sort)
 
