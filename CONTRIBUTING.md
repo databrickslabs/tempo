@@ -12,7 +12,7 @@ Be sure to carefully follow the instructions to configure your shell environment
 
 Use `pyenv` to install the following Python versions for testing.
 ```bash
-pyenv install 3.8 3.9 3.10 3.11
+pyenv install 3.9 3.10 3.11
 ```
 
 You will probably want to set one of these versions as your global Python version. This will be the version of Python that is used when you run `python` commands in your terminal.
@@ -23,7 +23,7 @@ pyenv global 3.9
 
 Within the `tempo/python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
 ```bash
-pyenv local 3.8 3.9 3.10 3.11
+pyenv local 3.9 3.10 3.11
 ```
 
 This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.

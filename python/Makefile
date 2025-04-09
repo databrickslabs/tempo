@@ -35,8 +35,8 @@ help:
 .PHONY: create-env
 venv:
 	@echo "Creating virtual environment for DBR $(DBR)..."
-	pyenv install 3.8 3.9 3.10 3.11
-	pyenv local 3.8 3.9 3.10 3.11
+	pyenv install 3.9 3.10 3.11
+	pyenv local 3.9 3.10 3.11
 	tox --devenv .venv -e dbr${DBR}
 
 # Run specific environment testtests
