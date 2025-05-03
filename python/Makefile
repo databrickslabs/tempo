@@ -54,7 +54,7 @@ test-all:
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	tox -e lint
+	tox -e lint ${LINT_PARAMS}
 
 # Run type checks
 .PHONY: type-check
