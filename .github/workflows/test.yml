@@ -62,7 +62,7 @@ jobs:
         python -m pip install tox
     - name: Execute tox envs
       working-directory: ./python
-      run: make test DBR=${{ matrix.config.dbr }}
+      run: make test coverage-report DBR=${{ matrix.config.dbr }}
       # run: tox -e ${{ matrix.config.dbr }},coverage-report
     - name: Publish test coverage
       uses: codecov/codecov-action@v4
