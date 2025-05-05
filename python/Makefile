@@ -51,7 +51,7 @@ venv:
 	@(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10))
 	@(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11))
 	pyenv local 3.9 3.10 3.11
-	tox --devenv .venv -e dbr${DBR}
+	tox --devenv $(VENV) -e dbr${DBR}
 
 # Run specific environment testtests
 .PHONY: test
