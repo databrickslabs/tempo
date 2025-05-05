@@ -53,7 +53,7 @@ venv:
 	pyenv local 3.9 3.10 3.11
 	tox --devenv $(VENV) -e dbr${DBR}
 
-# Run specific environment testtests
+# Run specific environment tests
 .PHONY: test
 test:
 	@echo "Running tests in DBR $(DBR)..."
