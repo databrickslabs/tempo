@@ -51,48 +51,50 @@ venv:
 	@(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10))
 	@(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11))
 	pyenv local 3.9 3.10 3.11
-	tox --devenv $(VENV) -e dbr${DBR}
+	hatch shell dbr${DBR}
 
 # Run specific environment tests
 .PHONY: test
 test:
 	@echo "Running tests in DBR $(DBR)..."
-	tox -e dbr${DBR}
+	hatch run dbr${DBR}:test
+
 
 .PHONY: test-all
 test-all:
 	@echo "Running tests for all environments"
-	tox -e ${TEST_ENVS}
+	for env in dbr154 dbr143 dbr133 dbr122 dbr113; do hatch run $$env:test; done
+
 
 # Run linters
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	tox -e lint
+	hatch run lint:runLint
 
 # Run type checks
 .PHONY: type-check
 type-check: 
 	@echo "Running type checks..."
-	tox -e type-check	
+	hatch run type-check:check
 
 # Build distribution
 .PHONY: build-dist
 build-dist: 
 	@echo "Building distribution..."
-	tox -e build-dist
+	hatch run build-dist:build
 
 # Build documentation
 .PHONY: build-docs
 build-docs:
 	@echo "Building documentation..."
-	tox -e build-docs
+	hatch run build-docs:build
 
 # Combine coverage data and generate report
 .PHONY: coverage-report
 coverage-report:
 	@echo "Generating coverage report..."
-	tox -e coverage-report
+	hatch run coverage-report:coverage
 
 
 .PHONY: all-local

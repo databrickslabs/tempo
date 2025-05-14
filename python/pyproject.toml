@@ -27,13 +27,13 @@ classifiers = [
 ]
 dependencies = []
 
+[tool.hatch.version]
+path = "./version.py"
+
 [project.urls]
 Documentation = "https://databrickslabs.github.io/tempo/"
 Issues = "https://github.com/databrickslabs/tempo/issues"
 Source = "https://github.com/databrickslabs/tempo"
-
-[tool.hatch.version]
-path = "python/version.py"
 
 
 [tool.hatch.envs.testenv]
@@ -48,7 +48,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.testenv.scripts]
-run = [
+test = [
   "coverage erase",
   "coverage run -m unittest discover -s tests -p '*_tests.py'"
 ]
@@ -155,7 +155,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.build-dist.scripts]
-run = "python setup.py clean bdist_wheel"
+build = "python setup.py clean bdist_wheel"
 
 
 [tool.hatch.envs.build-docs]
@@ -200,8 +200,19 @@ extra-dependencies = [
 COVERAGE_FILE = ".coverage"
 
 [tool.hatch.envs.coverage-report.scripts]
-run = [
+coverage = [
   "coverage combine",
   "coverage report -m",
   "coverage xml"
+]
+
+
+
+[tool.hatch.scripts]
+testAll = [
+  "hatch run dbr154:test",
+  "hatch run dbr143:test",
+  "hatch run dbr133:test",
+  "hatch run dbr122:test",
+  "hatch run dbr113:test"
 ]
