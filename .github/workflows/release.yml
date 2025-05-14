@@ -32,7 +32,7 @@ jobs:
 
       - name: Build dist
         working-directory: ./python
-        run: tox -e build-dist
+        run: make build-dist
 
       - name: Publish a Python distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
