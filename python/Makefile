@@ -21,13 +21,25 @@ help:
 	@echo "Makefile for managing test environments"
 	@echo ""
 	@echo "Usage:"
+	@echo "  make venv                  Create virtual environment for newest, supported DBR version"
+	@echo "  make venv DBR=<version>    Create virtual environment for a specific DBR version"
+	@echo "  make test                  Run tests for the newest, supported DBR version"
 	@echo "  make test DBR=<version>    Run tests for a specific DBR version"
+	@echo "  make test-all              Run tests for all supported DBR versions"
+	@echo "  make coverage-report       Generate test coverage report"
 	@echo "  make lint                  Run linters"
 	@echo "  make type-check            Run type checks"
 	@echo "  make build-dist            Build distribution"
 	@echo "  make build-docs            Build documentation"
-	@echo "  make coverage-report       Generate test coverage report"
+	@echo "  make all-local             Run all local tests and checks"
 	@echo "  make clean                 Remove all generated files"
+	@echo ""
+	@echo "Available Environment Versions:"
+	@echo "  154 - Python 3.11 (default)"
+	@echo "  143 - Python 3.10"
+	@echo "  133 - Python 3.10"
+	@echo "  122 - Python 3.9"
+	@echo "  113 - Python 3.9"
 	@echo ""
 
 # Create virtual environment if it doesn't exist
@@ -35,11 +47,13 @@ help:
 .PHONY: create-env
 venv:
 	@echo "Creating virtual environment for DBR $(DBR)..."
-	pyenv install 3.9 3.10 3.11
+	@(pyenv versions | grep -q " 3.9" || (echo "Installing Python 3.9..." && pyenv install 3.9))
+	@(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10))
+	@(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11))
 	pyenv local 3.9 3.10 3.11
-	tox --devenv .venv -e dbr${DBR}
+	tox --devenv $(VENV) -e dbr${DBR}
 
-# Run specific environment testtests
+# Run specific environment tests
 .PHONY: test
 test:
 	@echo "Running tests in DBR $(DBR)..."
@@ -54,7 +68,7 @@ test-all:
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	tox -e lint ${LINT_PARAMS}
+	tox -e lint
 
 # Run type checks
 .PHONY: type-check
