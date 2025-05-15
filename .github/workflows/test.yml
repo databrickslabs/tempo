@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install tox tox-gh-actions
+        python -m pip install hatch 
     - name: Lint check
       working-directory: ./python
       run: make lint LINT_PARAMS="-- --check --diff"
