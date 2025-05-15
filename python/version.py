@@ -22,4 +22,4 @@ def get_latest_git_tag():
     semver.VersionInfo.parse(build_version)
     return build_version
 
-__version__ = run_cmd()
+__version__ = get_latest_git_tag()
