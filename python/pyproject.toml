@@ -145,14 +145,14 @@ runLint = [
 template = "testenv"
 skip-install = true
 dependencies = [
-  "flake8>1,<2",
-  "numpy",
+  "mypy>=1,<2",
   "pandas-stubs>=2,<3",
+  "numpy",
   "types-openpyxl"
 ]
 
 [tool.hatch.envs.type-check.scripts]
-check = "mypy --install-types --non-interactive {args:src/temporary tests}"
+check = "mypy --install-types --non-interactive ./tempo"
 
 
 [tool.hatch.envs.build-dist]
