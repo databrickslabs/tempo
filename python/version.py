@@ -21,3 +21,5 @@ def get_latest_git_tag():
     # validate that this is a valid semantic version - will throw exception if not
     semver.VersionInfo.parse(build_version)
     return build_version
+
+__version__ = run_cmd()
