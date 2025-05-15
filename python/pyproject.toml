@@ -36,6 +36,15 @@ Issues = "https://github.com/databrickslabs/tempo/issues"
 Source = "https://github.com/databrickslabs/tempo"
 
 
+[tool.hatch.scripts]
+testAll = [
+  "hatch run dbr154:test",
+  "hatch run dbr143:test",
+  "hatch run dbr133:test",
+  "hatch run dbr122:test",
+  "hatch run dbr113:test"
+]
+
 [tool.hatch.envs.testenv]
 template = "testenv"
 dependencies = [
@@ -128,8 +137,8 @@ dependencies = [
 
 [tool.hatch.envs.lint.scripts]
 runLint = [
-  "black {posargs} {toxinidir}/tempo",
-  "flake8 --config {toxinidir}/.flake8 {toxinidir}/tempo"
+  "black --check --diff ./tempo",
+  "flake8 --config ./.flake8 ./tempo"
 ]
 
 [tool.hatch.envs.type-check]
@@ -204,15 +213,4 @@ coverage = [
   "coverage combine",
   "coverage report -m",
   "coverage xml"
-]
-
-
-
-[tool.hatch.scripts]
-testAll = [
-  "hatch run dbr154:test",
-  "hatch run dbr143:test",
-  "hatch run dbr133:test",
-  "hatch run dbr122:test",
-  "hatch run dbr113:test"
 ]

@@ -70,7 +70,7 @@ test-all:
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	hatch run lint:runLint
+	hatch run lint:runLint $()
 
 # Run type checks
 .PHONY: type-check

@@ -25,7 +25,7 @@ jobs:
         python -m pip install hatch 
     - name: Lint check
       working-directory: ./python
-      run: make lint LINT_PARAMS="-- --check --diff"
+      run: make lint
     - name: Type check
       working-directory: ./python
       run: make type-check
@@ -59,11 +59,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install tox
-    - name: Execute tox envs
+        python -m pip install hatch
+    - name: Execute hatch envs
       working-directory: ./python
       run: make test coverage-report DBR=${{ matrix.config.dbr }}
-      # run: tox -e ${{ matrix.config.dbr }},coverage-report
     - name: Publish test coverage
       uses: codecov/codecov-action@v4
       with:
