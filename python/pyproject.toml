@@ -210,7 +210,7 @@ extra-dependencies = [
 COVERAGE_FILE = ".coverage"
 
 [tool.hatch.envs.coverage-report.scripts]
-coverage = [
+run-coverage = [
   "coverage combine",
   "coverage report -m",
   "coverage xml"
