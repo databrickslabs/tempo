@@ -25,9 +25,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = [
-  "semver"
-]
+dependencies = []
 
 [tool.hatch.version]
 source = "code"

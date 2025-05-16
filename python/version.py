@@ -1,6 +1,5 @@
 import subprocess
 import re
-import semver
 
 
 # run a shell command and return stdout
@@ -19,7 +18,12 @@ def get_latest_git_tag():
     latest_tag = run_cmd("git describe --abbrev=0 --tags")
     build_version = re.sub("v\.?\s*", "", latest_tag)
     # validate that this is a valid semantic version - will throw exception if not
-    semver.VersionInfo.parse(build_version)
+    try:
+        import semver
+        semver.VersionInfo.parse(build_version)
+    except (NameError) as NameError:
+        # unable to validate because semver is not installed in barebones env for hatch
+        pass
     return build_version
 
 
@@ -39,3 +43,6 @@ def get_version():
         # Return a fallback version if git operations fail
         # TODO - Raise with error message
         raise E
+    
+
+__version__ = get_version()
