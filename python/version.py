@@ -22,4 +22,7 @@ def get_latest_git_tag():
     semver.VersionInfo.parse(build_version)
     return build_version
 
-__version__ = get_latest_git_tag()
+
+# fetch the most recent build version for hatch environment creation
+def get_version():
+    return get_latest_git_tag()
