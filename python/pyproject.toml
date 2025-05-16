@@ -25,7 +25,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "semver"
+]
 
 [tool.hatch.version]
 source = "code"
@@ -54,8 +56,7 @@ dependencies = [
   "coverage>=7,<8",
   "jsonref>=1,<2",
   "packaging>=24,<25",
-  "python-dateutil>=2,<3",
-  "semver"
+  "python-dateutil>=2,<3"
 ]
 
 [tool.hatch.envs.testenv.scripts]
