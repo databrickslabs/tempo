@@ -94,7 +94,7 @@ build-docs:
 .PHONY: coverage-report
 coverage-report:
 	@echo "Generating coverage report..."
-	hatch run coverage-report:coverage
+	hatch run coverage-report:run-coverage
 
 
 .PHONY: all-local
