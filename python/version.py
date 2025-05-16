@@ -21,7 +21,7 @@ def get_latest_git_tag():
     try:
         import semver
         semver.VersionInfo.parse(build_version)
-    except NameError as name_error:
+    except (ModuleNotFoundError) as module_not_found_error:
         # unable to validate because semver is not installed in barebones env for hatch
         pass
     return build_version
