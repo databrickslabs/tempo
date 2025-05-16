@@ -27,11 +27,8 @@ classifiers = [
 ]
 dependencies = []
 
-
 [tool.hatch.version]
-source = "code"
-path = "./version.py"
-
+source = "vcs"
 
 [project.urls]
 Documentation = "https://databrickslabs.github.io/tempo/"
