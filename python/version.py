@@ -25,4 +25,17 @@ def get_latest_git_tag():
 
 # fetch the most recent build version for hatch environment creation
 def get_version():
-    return get_latest_git_tag()
+    """Return the package version based on latest git tag."""
+    import os
+    
+    # Optionally override with environment variable
+    if "PACKAGE_VERSION" in os.environ:
+        return os.environ.get("PACKAGE_VERSION")
+    
+    # Fall back to git tag
+    try:
+        return get_latest_git_tag()
+    except (OSError, ValueError) as E:
+        # Return a fallback version if git operations fail
+        # TODO - Raise with error message
+        raise E

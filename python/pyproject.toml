@@ -28,7 +28,8 @@ classifiers = [
 dependencies = []
 
 [tool.hatch.version]
-source = "vcs"
+source = "code"
+path = "./version.py"
 
 [project.urls]
 Documentation = "https://databrickslabs.github.io/tempo/"
@@ -53,7 +54,8 @@ dependencies = [
   "coverage>=7,<8",
   "jsonref>=1,<2",
   "packaging>=24,<25",
-  "python-dateutil>=2,<3"
+  "python-dateutil>=2,<3",
+  "semver"
 ]
 
 [tool.hatch.envs.testenv.scripts]
