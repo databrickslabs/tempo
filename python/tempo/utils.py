@@ -7,13 +7,13 @@ from datetime import datetime as dt, timedelta as td
 from typing import Optional, Union, overload
 
 import pyspark.sql.functions as sfn
-from IPython import get_ipython
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
+from IPython import get_ipython  # type: ignore
+from IPython.core.display import HTML  # type: ignore
+from IPython.display import display as ipydisplay  # type: ignore
 from pandas.core.frame import DataFrame as pandasDataFrame
 from pyspark.sql import SparkSession, DataFrame
 
-import tempo.tsdf as t_tsdf
+from tempo.tsdf import TSDF
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -26,13 +26,15 @@ where the code is running from.
 """
 
 
-def time_range(spark: SparkSession,
-               start_time: dt,
-               end_time: Optional[dt] = None,
-               step_size: Optional[td] = None,
-               num_intervals: Optional[int] = None,
-               ts_colname: str = "ts",
-               include_interval_ends: bool = False) -> DataFrame:
+def time_range(
+    spark: SparkSession,
+    start_time: dt,
+    end_time: Optional[dt] = None,
+    step_size: Optional[td] = None,
+    num_intervals: Optional[int] = None,
+    ts_colname: str = "ts",
+    include_interval_ends: bool = False,
+) -> DataFrame:
     """
     Generate a DataFrame of a range of timestamps with a regular interval,
     similar to pandas.date_range, but for Spark DataFrames.
@@ -59,34 +61,38 @@ def time_range(spark: SparkSession,
     # compute step_size if not provided
     if not step_size:
         # must have both end_time and num_intervals defined
-        assert end_time and num_intervals, \
-            "must provide at least 2 of: end_time, step_size, num_intervals"
+        assert (
+            end_time and num_intervals
+        ), "must provide at least 2 of: end_time, step_size, num_intervals"
         diff_time = end_time - start_time
         step_size = diff_time / num_intervals
 
     # compute the number of intervals if not provided
     if not num_intervals:
         # must have both end_time and num_intervals defined
-        assert end_time and step_size, \
-            "must provide at least 2 of: end_time, step_size, num_intervals"
+        assert (
+            end_time and step_size
+        ), "must provide at least 2 of: end_time, step_size, num_intervals"
         diff_time = end_time - start_time
         num_intervals = math.ceil(diff_time / step_size)
 
     # define expressions for the time range
     start_time_expr = sfn.to_timestamp(sfn.lit(str(start_time)))
-    step_fractional_seconds = step_size.seconds + (step_size.microseconds / 1E6)
-    interval_expr = sfn.make_dt_interval(days=sfn.lit(step_size.days),
-                                         secs=sfn.lit(step_fractional_seconds))
+    step_fractional_seconds = step_size.seconds + (step_size.microseconds / 1e6)
+    interval_expr = sfn.make_dt_interval(
+        days=sfn.lit(step_size.days), secs=sfn.lit(step_fractional_seconds)
+    )
 
     # create the DataFrame
-    range_df = spark.range(0, num_intervals) \
-        .withColumn(ts_colname,
-                    start_time_expr + sfn.col("id") * interval_expr)
+    range_df = spark.range(0, num_intervals).withColumn(
+        ts_colname, start_time_expr + sfn.col("id") * interval_expr
+    )
     if include_interval_ends:
         interval_end_colname = ts_colname + "_interval_end"
         range_df = range_df.withColumn(
             interval_end_colname,
-            start_time_expr + (sfn.col("id") + sfn.lit(1)) * interval_expr)
+            start_time_expr + (sfn.col("id") + sfn.lit(1)) * interval_expr,
+        )
     return range_df.drop("id")
 
 
@@ -145,12 +151,12 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf, k):
+def get_display_df(tsdf: TSDF, k: int) -> DataFrame:
     return tsdf.latest(k).withNaturalOrdering().df
 
 
 @overload
-def display_improvised(obj: t_tsdf.TSDF) -> None: ...
+def display_improvised(obj: TSDF) -> None: ...
 
 
 @overload
@@ -161,15 +167,15 @@ def display_improvised(obj: pandasDataFrame) -> None: ...
 def display_improvised(obj: DataFrame) -> None: ...
 
 
-def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
-    if isinstance(obj, t_tsdf.TSDF):
+def display_improvised(obj: Union[TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, TSDF):
         method(get_display_df(obj, k=5))
     else:
         method(obj)
 
 
 @overload
-def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
+def display_html_improvised(obj: Optional[TSDF]) -> None: ...
 
 
 @overload
@@ -180,10 +186,8 @@ def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
 def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
 
 
-def display_html_improvised(
-    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
-) -> None:
-    if isinstance(obj, t_tsdf.TSDF):
+def display_html_improvised(obj: Union[TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, TSDF):
         display_html(get_display_df(obj, k=5))
     else:
         display_html(obj)

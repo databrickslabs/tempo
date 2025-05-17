@@ -9,7 +9,7 @@ import pyspark.sql.functions as sfn
 from pyspark.sql import Column
 
 from tempo.tsdf import TSDF
-import tempo.resample as t_resample
+from tempo.resample import resample, checkAllowableFreq, freq_dict
 
 
 def vwap(
@@ -184,8 +184,8 @@ def withRangeStats(
 
 def withGroupedStats(
     tsdf: TSDF,
+    freq: str,
     metric_cols: Optional[List[str]] = None,
-    freq: Optional[str] = None,
 ) -> TSDF:
     """
     Create a wider set of stats based on all numeric columns by default
@@ -218,13 +218,11 @@ def withGroupedStats(
         ]
 
     # build window
-    parsed_freq = t_resample.checkAllowableFreq(freq)
+    parsed_freq = checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
     agg_window = sfn.window(
         sfn.col(tsdf.ts_col),
-        "{} {}".format(
-            period, t_resample.freq_dict[unit]  # type: ignore[literal-required]
-        ),
+        "{} {}".format(period, freq_dict[unit]),  # type: ignore[literal-required]
     )
 
     # compute column summaries
@@ -258,17 +256,30 @@ def calc_bars(
     metric_cols: Optional[List[str]] = None,
     fill: Optional[bool] = None,
 ) -> TSDF:
-    resample_open = tsdf.resample(
-        freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
+    """
+    Calculate OHLC (Open, High, Low, Close) bars from time series data.
+
+    :param tsdf: the input time series dataframe
+    :param freq: frequency to resample the data
+    :param metric_cols: list of metric columns to calculate bars for
+    :param fill: whether to fill missing values
+    :return: a TSDF with OHLC bars
+    """
+
+    resample_open = resample(
+        tsdf, freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
     )
-    resample_low = tsdf.resample(
-        freq=freq, func="min", metricCols=metric_cols, prefix="low", fill=fill
+
+    resample_low = resample(
+        tsdf, freq=freq, func="min", metricCols=metric_cols, prefix="low", fill=fill
     )
-    resample_high = tsdf.resample(
-        freq=freq, func="max", metricCols=metric_cols, prefix="high", fill=fill
+
+    resample_high = resample(
+        tsdf, freq=freq, func="max", metricCols=metric_cols, prefix="high", fill=fill
     )
-    resample_close = tsdf.resample(
-        freq=freq, func="ceil", metricCols=metric_cols, prefix="close", fill=fill
+
+    resample_close = resample(
+        tsdf, freq=freq, func="ceil", metricCols=metric_cols, prefix="close", fill=fill
     )
 
     join_cols = resample_open.series_ids + [resample_open.ts_col]
