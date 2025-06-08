@@ -1395,9 +1395,7 @@ class TSDF:
 
         return TSDF(bars, resample_open.ts_col, resample_open.partitionCols)
 
-    def fourier_transform(
-        self, timestep: Union[float, int], valueCol: str
-    ) -> "TSDF":
+    def fourier_transform(self, timestep: Union[float, int], valueCol: str) -> "TSDF":
         """
         Function to fourier transform the time series to its frequency domain representation.
         :param timestep: timestep value to be used for getting the frequency scale
