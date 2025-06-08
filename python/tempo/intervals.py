@@ -432,13 +432,13 @@ def check_for_nan_values(to_check: Any) -> bool:
     return True if there are any NaN values in `to_check`
     """
     if isinstance(to_check, pd.Series):
-        return to_check.isna().any()
+        return bool(to_check.isna().any())
     elif isinstance(to_check, pd.DataFrame):
-        return to_check.isna().any().any()
+        return bool(to_check.isna().any().any())
     elif isinstance(to_check, np.ndarray):
         return bool(np.isnan(to_check).any())
     elif isinstance(to_check, (np.generic, float)):
-        return np.isnan(to_check)
+        return bool(np.isnan(to_check))
     else:
         return to_check is None
 
