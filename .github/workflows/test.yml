@@ -63,9 +63,7 @@ jobs:
         python -m pip install hatch
     - name: Execute hatch envs
       working-directory: ./python
-      run: | 
-        python -m pip show semver
-        make test coverage-report DBR=${{ matrix.config.dbr }}
+      run: make test coverage-report DBR=${{ matrix.config.dbr }}
     - name: Publish test coverage
       uses: codecov/codecov-action@v4
       with:
