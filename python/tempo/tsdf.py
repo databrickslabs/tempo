@@ -15,7 +15,7 @@ from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StringType, TimestampType
 from pyspark.sql.window import Window, WindowSpec
-from scipy.fft import fft, fftfreq  # type: ignore[import-not-found]
+from scipy.fft import fft, fftfreq  # type: ignore[import-untyped]
 
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
