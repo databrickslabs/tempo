@@ -54,7 +54,7 @@ help:
 	@echo "  113 - Python 3.9, Java 8"
 	@echo ""
 	@echo "Environment Management:"
-	@echo "  - Python versions managed via pyenv"
+	@echo "  - Python versions: uses system Python if available, otherwise installs pyenv"
 	@echo "  - Java 8 (Zulu) managed via SDKMAN"
 	@echo "  - All DBR versions use Java 8 to match Databricks Runtime"
 	@echo ""
@@ -84,26 +84,97 @@ check-java:
 		java -version 2>/dev/null || echo "No Java found!"; \
 	fi
 
-# Check if pyenv is available
-.PHONY: check-pyenv
-check-pyenv:
-	@command -v pyenv >/dev/null 2>&1 || { echo "Error: pyenv is not installed. Please install pyenv first."; exit 1; }
-	@echo "pyenv is available at: $$(which pyenv)"
-	@echo "PATH is: $$PATH"
+# Check if required Python version for current DBR is available, install pyenv if needed
+.PHONY: check-python
+check-python:
+	@echo "Checking Python environment for DBR $(DBR)..."
+	@REQUIRED_PYTHON=$(PYTHON_DBR$(DBR)); \
+	if command -v $$REQUIRED_PYTHON >/dev/null 2>&1; then \
+		echo "Required Python version ($$REQUIRED_PYTHON) found in system"; \
+		echo "Using system Python: $$(which $$REQUIRED_PYTHON)"; \
+	elif command -v pyenv >/dev/null 2>&1; then \
+		echo "pyenv is available at: $$(which pyenv)"; \
+		echo "Using pyenv for Python version management"; \
+	else \
+		echo "Required Python version ($$REQUIRED_PYTHON) not found in system and pyenv not installed"; \
+		echo "Installing pyenv..."; \
+		curl https://pyenv.run | bash; \
+		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
+		eval "$$(pyenv init -)"; \
+		echo "Configuring shell for pyenv..."; \
+		if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+			echo 'export PATH="$$HOME/.pyenv/bin:$$PATH"' >> ~/.zshrc; \
+			echo 'eval "$$(pyenv init -)"' >> ~/.zshrc; \
+			echo "Added pyenv configuration to ~/.zshrc"; \
+		elif [ "$$SHELL" = "/bin/bash" ] || [ "$$SHELL" = "/usr/bin/bash" ]; then \
+			echo 'export PATH="$$HOME/.pyenv/bin:$$PATH"' >> ~/.bashrc; \
+			echo 'eval "$$(pyenv init -)"' >> ~/.bashrc; \
+			echo "Added pyenv configuration to ~/.bashrc"; \
+		else \
+			echo "Unknown shell ($$SHELL). Please manually add the following to your shell config:"; \
+			echo '  export PATH="$$HOME/.pyenv/bin:$$PATH"'; \
+			echo '  eval "$$(pyenv init -)"'; \
+		fi; \
+		echo "pyenv installed successfully"; \
+	fi
 
 # Check both Python and Java environments
 .PHONY: check-env
-check-env: check-pyenv check-java
+check-env: check-python check-java
+
+# Setup Python version for current DBR using either system Python or pyenv
+.PHONY: setup-python-versions
+setup-python-versions:
+	@echo "Setting up Python version for DBR $(DBR)..."
+	@REQUIRED_PYTHON=$(PYTHON_DBR$(DBR)); \
+	PYTHON_VERSION=$${REQUIRED_PYTHON#python}; \
+	if command -v $$REQUIRED_PYTHON >/dev/null 2>&1; then \
+		echo "Using system Python: $$(which $$REQUIRED_PYTHON)"; \
+	elif command -v pyenv >/dev/null 2>&1; then \
+		echo "Using pyenv to install and configure Python $$PYTHON_VERSION"; \
+		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
+		eval "$$(pyenv init -)"; \
+		(pyenv versions | grep -q " $$PYTHON_VERSION" || (echo "Installing Python $$PYTHON_VERSION..." && pyenv install $$PYTHON_VERSION)); \
+		pyenv local $$PYTHON_VERSION; \
+	else \
+		echo "Error: Required Python version ($$REQUIRED_PYTHON) not available and pyenv not found"; \
+		exit 1; \
+	fi
+
+# Setup all Python versions for test-all target
+.PHONY: setup-all-python-versions
+setup-all-python-versions:
+	@echo "Setting up all Python versions for test-all..."
+	@if command -v python3.9 >/dev/null 2>&1 && command -v python3.10 >/dev/null 2>&1 && command -v python3.11 >/dev/null 2>&1; then \
+		echo "All required Python versions (3.9, 3.10, 3.11) found in system"; \
+		echo "Using system Python versions"; \
+	elif command -v pyenv >/dev/null 2>&1; then \
+		echo "Using pyenv to install and configure all Python versions"; \
+		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
+		eval "$$(pyenv init -)"; \
+		(pyenv versions | grep -q " 3.9" || (echo "Installing Python 3.9..." && pyenv install 3.9)); \
+		(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10)); \
+		(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11)); \
+		pyenv local 3.9 3.10 3.11; \
+	else \
+		echo "Error: Python versions not available and pyenv not found"; \
+		echo "Installing pyenv..."; \
+		curl https://pyenv.run | bash; \
+		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
+		eval "$$(pyenv init -)"; \
+		echo "Installing required Python versions..."; \
+		pyenv install 3.9; \
+		pyenv install 3.10; \
+		pyenv install 3.11; \
+		pyenv local 3.9 3.10 3.11; \
+	fi
 
 # Create virtual environment if it doesn't exist
 # Ensure the virtual environment is created
 .PHONY: create-env
 venv: check-env
 	@echo "Creating virtual environment for DBR $(DBR)..."
-	@(pyenv versions | grep -q " 3.9" || (echo "Installing Python 3.9..." && pyenv install 3.9))
-	@(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10))
-	@(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11))
-	pyenv local 3.9 3.10 3.11
+	@$(MAKE) setup-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
 		tox --devenv $(VENV) -e dbr${DBR}
@@ -112,18 +183,15 @@ venv: check-env
 .PHONY: test
 test: check-env
 	@echo "Running tests in DBR $(DBR)..."
-	@# Ensure pyenv Python versions are available
-	@(pyenv versions | grep -q " 3.9" || (echo "Installing Python 3.9..." && pyenv install 3.9))
-	@(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10))
-	@(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11))
-	@pyenv local 3.9 3.10 3.11
+	@$(MAKE) setup-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
 		tox -e dbr${DBR}
 
 .PHONY: test-all
-test-all: check-env
+test-all: check-java
 	@echo "Running tests for all environments"
+	@$(MAKE) setup-all-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
 		tox -e ${TEST_ENVS}

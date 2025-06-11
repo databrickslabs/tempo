@@ -50,3 +50,6 @@ docs/_build
 .mypy_cache
 python/.mypy_cache
 .aider*
+
+# ignore Claude Code files
+.claude
