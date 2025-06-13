@@ -15,7 +15,7 @@ from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StringType, TimestampType
 from pyspark.sql.window import Window, WindowSpec
-from scipy.fft import fft, fftfreq  # type: ignore
+from scipy.fft import fft, fftfreq
 
 import tempo.interpol as t_interpolation
 import tempo.io as t_io
@@ -1396,7 +1396,7 @@ class TSDF:
         return TSDF(bars, resample_open.ts_col, resample_open.partitionCols)
 
     def fourier_transform(
-        self, timestep: Union[int | float | complex], valueCol: str
+        self, timestep: Union[int, float, complex], valueCol: str
     ) -> "TSDF":
         """
         Function to fourier transform the time series to its frequency domain representation.
@@ -1420,7 +1420,12 @@ class TSDF:
             pdf["ft_real"] = r
             pdf["ft_imag"] = i
             N = tran.shape
-            xf = fftfreq(N[0], timestep)
+            # fftfreq expects a float for the spacing parameter
+            if isinstance(timestep, complex):
+                spacing = abs(timestep)  # Use magnitude for complex numbers
+            else:
+                spacing = float(timestep)
+            xf = fftfreq(N[0], spacing)
             pdf["freq"] = xf
             return pdf[select_cols + ["freq", "ft_real", "ft_imag"]]
 

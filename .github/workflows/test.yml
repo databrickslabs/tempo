@@ -25,10 +25,10 @@ jobs:
         python -m pip install tox tox-gh-actions
     - name: Lint check
       working-directory: ./python
-      run: tox -e lint -- --check --diff
+      run: make lint LINT_PARAMS="-- --check --diff"
     - name: Type check
       working-directory: ./python
-      run: tox -e type-check
+      run: make type-check
 
   test:
     needs: lint-and-check
@@ -37,15 +37,15 @@ jobs:
       matrix:
         config:
           - py: '3.9'
-            dbr: dbr113
+            dbr: 113
           - py: '3.9'
-            dbr: dbr122
+            dbr: 122
           - py: '3.10'
-            dbr: dbr133
+            dbr: 133
           - py: '3.10'
-            dbr: dbr143
+            dbr: 143
           - py: '3.11'
-            dbr: dbr154
+            dbr: 154
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
         python -m pip install tox
     - name: Execute tox envs
       working-directory: ./python
-      run: tox -e ${{ matrix.config.dbr }},coverage-report
+      run: make test coverage-report DBR=${{ matrix.config.dbr }}
     - name: Publish test coverage
       uses: codecov/codecov-action@v4
       with:
