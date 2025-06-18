@@ -1,18 +1,16 @@
 import os
+import shutil
 import unittest
 import warnings
 from typing import Union, Optional
-from functools import cached_property
 
 import jsonref
 import pandas as pd
-
 import pyspark.sql.functions as sfn
-from pyspark.sql import SparkSession
-from pyspark.sql.dataframe import DataFrame
-
 from chispa import assert_df_equality
 from delta.pip_utils import configure_spark_with_delta_pip
+from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
@@ -213,7 +211,33 @@ class SparkTest(unittest.TestCase):
     test_case_data = None
 
     @classmethod
+    def _cleanup_delta_warehouse(cls) -> None:
+        """
+        Clean up Delta warehouse directories and metastore files that may interfere with tests
+        """
+        try:
+            # List of paths to clean up
+            cleanup_paths = [
+                "spark-warehouse",
+                "metastore_db",
+                "derby.log"
+            ]
+
+            for path in cleanup_paths:
+                if os.path.exists(path):
+                    if os.path.isdir(path):
+                        shutil.rmtree(path)
+                    else:
+                        os.remove(path)
+        except Exception as e:
+            # Don't fail tests if cleanup fails, just warn
+            warnings.warn(f"Failed to clean up Delta warehouse: {e}")
+
+    @classmethod
     def setUpClass(cls) -> None:
+        # Clean up any existing Delta tables and warehouse before starting tests
+        cls._cleanup_delta_warehouse()
+        
         # create and configure PySpark Session
         cls.spark = (
             configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
@@ -246,6 +270,8 @@ class SparkTest(unittest.TestCase):
     def tearDownClass(cls) -> None:
         # shut down Spark
         cls.spark.stop()
+        # Clean up Delta tables and warehouse after tests complete
+        cls._cleanup_delta_warehouse()
 
     def setUp(self) -> None:
         self.test_case_data = self.__loadTestData(self.id())

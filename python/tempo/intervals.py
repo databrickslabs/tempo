@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from functools import cached_property
 from itertools import islice
 from typing import Optional, Iterable, cast, Any, Callable
-from functools import cached_property
 
+import numpy as np
+import pandas as pd
+import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (
     # NB: NumericType is a non-public object, so we shouldn't import it directly
@@ -17,11 +20,7 @@ from pyspark.sql.types import (
     BooleanType,
     StructField,
 )
-import pyspark.sql.functions as f
 from pyspark.sql.window import Window, WindowSpec
-
-import numpy as np
-import pandas as pd
 
 
 def is_metric_col(col: StructField) -> bool:
@@ -432,13 +431,13 @@ def check_for_nan_values(to_check: Any) -> bool:
     return True if there are any NaN values in `to_check`
     """
     if isinstance(to_check, pd.Series):
-        return to_check.isna().any()
+        return bool(to_check.isna().any())
     elif isinstance(to_check, pd.DataFrame):
-        return to_check.isna().any().any()
+        return bool(to_check.isna().any().any())
     elif isinstance(to_check, np.ndarray):
         return bool(np.isnan(to_check).any())
     elif isinstance(to_check, (np.generic, float)):
-        return np.isnan(to_check)
+        return bool(np.isnan(to_check))
     else:
         return to_check is None
 
