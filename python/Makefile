@@ -177,7 +177,7 @@ venv: check-env
 	@$(MAKE) setup-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		tox --devenv $(VENV) -e dbr${DBR}
+		hatch shell dbr${DBR}
 
 # Run specific environment tests
 .PHONY: test
@@ -186,45 +186,44 @@ test: check-env
 	@$(MAKE) setup-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		tox -e dbr${DBR}
+		hatch run dbr${DBR}:test
 
 .PHONY: test-all
 test-all: check-java
-	@echo "Running tests for all environments"
 	@$(MAKE) setup-all-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		tox -e ${TEST_ENVS}
+		for env in dbr154 dbr143 dbr133 dbr122 dbr113; do hatch run $$env:test; done
 
 # Run linters
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	tox -e lint
+	hatch run lint:runLint $()
 
 # Run type checks
 .PHONY: type-check
 type-check: 
 	@echo "Running type checks..."
-	tox -e type-check	
+	hatch run type-check:check
 
 # Build distribution
 .PHONY: build-dist
 build-dist: 
 	@echo "Building distribution..."
-	tox -e build-dist
+	hatch run build-dist:build
 
 # Build documentation
 .PHONY: build-docs
 build-docs:
 	@echo "Building documentation..."
-	tox -e build-docs
+	hatch run build-docs:build
 
 # Combine coverage data and generate report
 .PHONY: coverage-report
 coverage-report:
 	@echo "Generating coverage report..."
-	tox -e coverage-report
+	hatch run coverage-report:run-coverage
 
 
 .PHONY: all-local
