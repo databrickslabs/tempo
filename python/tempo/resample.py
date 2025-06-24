@@ -1,6 +1,6 @@
 from __future__ import annotations
-import warnings
 
+import warnings
 from typing import (
     Any,
     Callable,
@@ -14,11 +14,8 @@ from typing import (
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
-from pyspark.sql.column import Column
 
-import tempo.tsdf as t_tsdf
 import tempo.intervals as t_int
-import tempo.interpol as t_interpol
 
 # define global frequency options
 MUSEC = "microsec"
@@ -381,8 +378,8 @@ def checkAllowableFreq(freq: str) -> Tuple[Union[int | str], str]:
     if not isinstance(freq, str):
         raise TypeError(f"Invalid type for `freq` argument: {freq}.")
 
-    # TODO - return either int OR str for first argument
-    allowable_freq: Tuple[Union[int | str], str] = (
+    # Default value that will be overwritten if valid frequency is found
+    allowable_freq: Tuple[Union[int, str], str] = (
         0,
         "will_always_fail_if_not_overwritten",
     )
@@ -395,9 +392,9 @@ def checkAllowableFreq(freq: str) -> Tuple[Union[int | str], str]:
         return allowable_freq
 
     try:
-        periods = freq.lower().split(" ")[0].strip()
+        periods = int(freq.lower().split(" ")[0].strip())
         units = freq.lower().split(" ")[1].strip()
-    except IndexError:
+    except (IndexError, ValueError):
         raise ValueError(
             "Allowable grouping frequencies are microsecond (musec), millisecond (ms), sec (second), min (minute), hr (hour), day. Reformat your frequency as <integer> <day/hour/minute/second>"
         )
@@ -463,90 +460,15 @@ def resample(
         calculate_time_horizon(tsdf, freq)
 
     enriched_df: DataFrame = aggregate(tsdf, freq, func, metricCols, prefix, fill)
-    return _ResampledTSDF(
+
+    # Import TSDF here to avoid circular import
+    from tempo.tsdf import TSDF
+
+    return TSDF(
         enriched_df,
         ts_col=tsdf.ts_col,
         series_ids=tsdf.series_ids,
-        freq=freq,
-        func=func,
+        _resample_freq=freq,
+        _resample_func=func,
     )
 
-
-class _ResampledTSDF(t_tsdf.TSDF):
-    def __init__(
-        self,
-        df: DataFrame,
-        freq: str,
-        func: Union[Callable | str],
-        ts_col: str = "event_ts",
-        series_ids: Optional[List[str]] = None,
-    ):
-        super(_ResampledTSDF, self).__init__(df, ts_col=ts_col, series_ids=series_ids)
-        self.__freq = freq
-        self.__func = func
-
-    def interpolate(
-        self,
-        method: str,
-        freq: Optional[str] = None,
-        func: Optional[Union[Callable | str]] = None,
-        target_cols: Optional[List[str]] = None,
-        ts_col: Optional[str] = None,
-        series_ids: Optional[List[str]] = None,
-        show_interpolated: bool = False,
-        perform_checks: bool = True,
-    ) -> t_tsdf.TSDF:
-        """
-        Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
-
-        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
-        :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
-        :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
-        :param perform_checks: calculate time horizon and warnings if True (default is True)
-        :return: new TSDF object containing interpolated data
-        """
-
-        if freq is None:
-            freq = self.__freq
-
-        if func is None:
-            func = self.__func
-
-        if ts_col is None:
-            ts_col = self.ts_col
-
-        if series_ids is None:
-            partition_cols = self.series_ids
-
-        # Set defaults for target columns, timestamp column and partition columns when not provided
-        if target_cols is None:
-            prohibited_cols: List[str] = self.series_ids + [self.ts_col]
-            summarizable_types = ["int", "bigint", "float", "double"]
-
-            # get summarizable find summarizable columns
-            target_cols: List[str] = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
-
-        interpolate_service = t_interpol.Interpolation(is_resampled=True)
-        tsdf_input = t_tsdf.TSDF(
-            self.df, ts_col=self.ts_col, series_ids=self.series_ids
-        )
-        interpolated_df = interpolate_service.interpolate(
-            tsdf=tsdf_input,
-            target_cols=target_cols,
-            freq=freq,
-            func=func,
-            method=method,
-            show_interpolated=show_interpolated,
-            perform_checks=perform_checks,
-        )
-
-        return t_tsdf.TSDF(
-            interpolated_df, ts_col=self.ts_col, series_ids=self.series_ids
-        )

@@ -10,6 +10,7 @@ from functools import cached_property
 from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, Mapping
 from typing import Collection, Dict, cast, overload
 
+import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
 from IPython.core.display import HTML
@@ -21,16 +22,12 @@ from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import AtomicType, DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
-
-import numpy as np
 from scipy.fft import fft, fftfreq
 
 import tempo.io as t_io
-import tempo.interpolation as t_interpolation
 import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.resample import _ResampledTSDF
 from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
     is_time_format,
@@ -124,6 +121,8 @@ class TSDF(WindowBuilder):
         ts_schema: Optional[TSSchema] = None,
         ts_col: Optional[str] = None,
         series_ids: Optional[Collection[str]] = None,
+            _resample_freq: Optional[str] = None,
+            _resample_func: Optional[Union[Callable, str]] = None,
     ) -> None:
         self.df = df
         # construct schema if we don't already have one
@@ -134,6 +133,10 @@ class TSDF(WindowBuilder):
             self.ts_schema = TSSchema.fromDFSchema(self.df.schema, ts_col, series_ids)
         # validate that this schema works for this DataFrame
         self.ts_schema.validate(df.schema)
+
+        # Optional resample metadata (used when this TSDF is created from resample())
+        self._resample_freq = _resample_freq
+        self._resample_func = _resample_func
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
@@ -151,7 +154,12 @@ class TSDF(WindowBuilder):
 
         :return: a new TSDF object with the transformed DataFrame
         """
-        return TSDF(new_df, ts_schema=copy.deepcopy(self.ts_schema))
+        return TSDF(
+            new_df,
+            ts_schema=copy.deepcopy(self.ts_schema),
+            _resample_freq=self._resample_freq,
+            _resample_func=self._resample_func
+        )
 
     def __withStandardizedColOrder(self) -> TSDF:
         """
@@ -408,9 +416,10 @@ class TSDF(WindowBuilder):
 
         # find the structural columns
         ts_col = col_map.get(self.ts_col, self.ts_col)
-        partition_cols = [col_map.get(c, c) for c in self.partitionCols]
+        partition_cols = [col_map.get(c, c) for c in self.series_ids]
         sequence_col = col_map.get(self.sequence_col, self.sequence_col)
-        return TSDF(renamed_df, ts_col, partition_cols, sequence_col=sequence_col)
+        # TODO: Handle sequence_col in the refactored version
+        return TSDF(renamed_df, ts_col=ts_col, series_ids=partition_cols)
 
     def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> "TSDF":
         """
@@ -1021,10 +1030,10 @@ class TSDF(WindowBuilder):
         )
 
         left_columns = list(
-            set(left_tsdf.df.columns).difference(set(self.partitionCols))
+            set(left_tsdf.df.columns).difference(set(self.series_ids))
         )
         right_columns = list(
-            set(right_tsdf.df.columns).difference(set(self.partitionCols))
+            set(right_tsdf.df.columns).difference(set(self.series_ids))
         )
 
         # Union both dataframes, and create a combined TS column
@@ -1561,18 +1570,17 @@ class TSDF(WindowBuilder):
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
             t_utils.calculate_time_horizon(
-                self.df, self.ts_col, freq, self.partitionCols
+                self.df, self.ts_col, freq, self.series_ids
             )
 
         enriched_df: DataFrame = t_resample.aggregate(
             self, freq, func, metricCols, prefix, fill
         )
-        return _ResampledTSDF(
+        return TSDF(
             enriched_df,
-            ts_col=self.ts_col,
-            partition_cols=self.partitionCols,
-            freq=freq,
-            func=func,
+            ts_schema=copy.deepcopy(self.ts_schema),
+            _resample_freq=freq,
+            _resample_func=func,
         )
 
     def interpolate(
@@ -1603,13 +1611,19 @@ class TSDF(WindowBuilder):
 
         # Set defaults for target columns, timestamp column and partition columns when not provided
         if freq is None:
-            raise ValueError("freq must be provided")
+            if hasattr(self, '_resample_freq') and self._resample_freq is not None:
+                freq = self._resample_freq
+            else:
+                raise ValueError("freq must be provided")
         if func is None:
-            raise ValueError("func must be provided")
+            if hasattr(self, '_resample_func') and self._resample_func is not None:
+                func = self._resample_func
+            else:
+                raise ValueError("func must be provided")
         if ts_col is None:
             ts_col = self.ts_col
         if partition_cols is None:
-            partition_cols = self.partitionCols
+            partition_cols = self.series_ids
         if target_cols is None:
             prohibited_cols: List[str] = partition_cols + [ts_col]
             summarizable_types = ["int", "bigint", "float", "double"]
@@ -1624,21 +1638,54 @@ class TSDF(WindowBuilder):
                 )
             ]
 
-        interpolate_service = t_interpolation.Interpolation(is_resampled=False)
-        tsdf_input = TSDF(self.df, ts_col=ts_col, partition_cols=partition_cols)
-        interpolated_df: DataFrame = interpolate_service.interpolate(
-            tsdf_input,
-            ts_col,
-            partition_cols,
-            target_cols,
-            freq,
-            func,
-            method,
-            show_interpolated,
-            perform_checks,
+        # First resample the data
+        resampled_tsdf = self.resample(
+            freq=freq,
+            func=func,
+            metricCols=target_cols,
+            fill=True,  # Fill to create regular time series
+            perform_checks=perform_checks
         )
 
-        return TSDF(interpolated_df, ts_col=ts_col, partition_cols=partition_cols)
+        # Import interpolation function and pre-defined fill functions
+        from tempo.interpol import (
+            interpolate as interpol_func,
+            zero_fill,
+            forward_fill,
+            backward_fill
+        )
+
+        # Map method names to interpolation functions (no lambdas)
+        if method == 'linear':
+            fn = 'linear'  # String method for pandas interpolation
+        elif method == 'null':
+            # For null method, we don't fill - just return the resampled data
+            return resampled_tsdf
+        elif method == 'zero':
+            fn = zero_fill
+        elif method == 'bfill':
+            fn = backward_fill
+        elif method == 'ffill':
+            fn = forward_fill
+        else:
+            # Assume it's a valid pandas interpolation method string
+            fn = method
+
+        # Apply interpolation to the resampled data
+        interpolated_tsdf = interpol_func(
+            tsdf=resampled_tsdf,
+            cols=target_cols,
+            fn=fn,
+            leading_margin=2,
+            lagging_margin=2
+        )
+
+        if show_interpolated:
+            # Add a column indicating which rows were interpolated
+            # This would require tracking which rows had nulls before interpolation
+            logger.warning("show_interpolated=True is not yet implemented in the refactored version")
+
+        return interpolated_tsdf
 
     def calc_bars(
         tsdf,
@@ -1659,21 +1706,21 @@ class TSDF(WindowBuilder):
             freq=freq, func="ceil", metricCols=metricCols, prefix="close", fill=fill
         )
 
-        join_cols = resample_open.partitionCols + [resample_open.ts_col]
+        join_cols = resample_open.series_ids + [resample_open.ts_col]
         bars = (
             resample_open.df.join(resample_high.df, join_cols)
             .join(resample_low.df, join_cols)
             .join(resample_close.df, join_cols)
         )
-        non_part_cols = set(set(bars.columns) - set(resample_open.partitionCols)) - set(
+        non_part_cols = set(set(bars.columns) - set(resample_open.series_ids)) - set(
             [resample_open.ts_col]
         )
         sel_and_sort = (
-            resample_open.partitionCols + [resample_open.ts_col] + sorted(non_part_cols)
+                resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
         )
         bars = bars.select(sel_and_sort)
 
-        return TSDF(bars, resample_open.ts_col, resample_open.partitionCols)
+        return TSDF(bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids)
 
     def fourier_transform(
         self, timestep: Union[int, float, complex], valueCol: str
@@ -1709,10 +1756,12 @@ class TSDF(WindowBuilder):
             pdf["freq"] = xf
             return pdf[select_cols + ["freq", "ft_real", "ft_imag"]]
 
-        valueCol = self.__validated_column(self.df, valueCol)
+        # TODO: Implement __validated_column or replace with proper validation
+        # valueCol = self.__validated_column(self.df, valueCol)
         data = self.df
-        if self.sequence_col:
-            if self.partitionCols == []:
+        # TODO: Handle sequence_col in refactored version
+        if False:  # self.sequence_col:
+            if self.series_ids == []:
                 data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
                 data = (
                     data.select(
@@ -1733,7 +1782,7 @@ class TSDF(WindowBuilder):
                 )
                 result = result.drop("dummy_group", "tdval", "tpoints")
             else:
-                group_cols = self.partitionCols
+                group_cols = self.series_ids
                 data = (
                     data.select(
                         *group_cols,
@@ -1753,7 +1802,7 @@ class TSDF(WindowBuilder):
                 )
                 result = result.drop("tdval", "tpoints")
         else:
-            if self.partitionCols == []:
+            if self.series_ids == []:
                 data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
                 data = (
                     data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
@@ -1769,7 +1818,7 @@ class TSDF(WindowBuilder):
                 )
                 result = result.drop("dummy_group", "tdval", "tpoints")
             else:
-                group_cols = self.partitionCols
+                group_cols = self.series_ids
                 data = (
                     data.select(*group_cols, self.ts_col, sfn.col(valueCol))
                     .withColumn("tdval", sfn.col(valueCol))
@@ -1784,7 +1833,8 @@ class TSDF(WindowBuilder):
                 )
                 result = result.drop("tdval", "tpoints")
 
-        return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+        # TODO: Handle sequence_col in refactored version
+        return TSDF(result, ts_col=self.ts_col, series_ids=self.series_ids)
 
     def extractStateIntervals(
         self,
