@@ -23,9 +23,9 @@ class _AsOfJoinCompositeTSIndex(CompositeTSIndex):
         return None
 
     def rangeExpr(self, reverse: bool = False) -> Column:
-        raise NotImplementedError("rangeExpr is not defined for as-of join composite ts index")
-
-
+        raise NotImplementedError(
+            "rangeExpr is not defined for as-of join composite ts index"
+        )
 
 
 # As-of join types
@@ -35,9 +35,8 @@ class AsOfJoiner(ABC):
     """
     Abstract class for as-of join strategies
     """
-    def __init__(self,
-                 left_prefix: str = "left",
-                 right_prefix: str = "right"):
+
+    def __init__(self, left_prefix: str = "left", right_prefix: str = "right"):
         self.left_prefix = left_prefix
         self.right_prefix = right_prefix
 
@@ -60,28 +59,29 @@ class AsOfJoiner(ABC):
         Returns the overlapping columns in the left and right TSDFs
         not including overlapping series IDs
         """
-        return (set(left.columns).intersection(set(right.columns)) -
-                self.commonSeriesIDs(left, right))
+        return set(left.columns).intersection(
+            set(right.columns)
+        ) - self.commonSeriesIDs(left, right)
 
-    def _prefixColumns(self,
-                       tsdf: t_tsdf.TSDF,
-                       prefixable_cols: set[str],
-                       prefix: str) -> t_tsdf.TSDF:
+    def _prefixColumns(
+        self, tsdf: t_tsdf.TSDF, prefixable_cols: set[str], prefix: str
+    ) -> t_tsdf.TSDF:
         """
         Prefixes the columns in the TSDF
         """
         if prefix:
             tsdf = reduce(
-                lambda cur_tsdf, c:
-                    cur_tsdf.withColumnRenamed(c, "_".join([prefix, c])),
+                lambda cur_tsdf, c: cur_tsdf.withColumnRenamed(
+                    c, "_".join([prefix, c])
+                ),
                 prefixable_cols,
-                tsdf
+                tsdf,
             )
         return tsdf
 
-    def _prefixOverlappingColumns(self,
-                                  left: t_tsdf.TSDF,
-                                  right: t_tsdf.TSDF) -> (t_tsdf.TSDF, t_tsdf.TSDF):
+    def _prefixOverlappingColumns(
+        self, left: t_tsdf.TSDF, right: t_tsdf.TSDF
+    ) -> (t_tsdf.TSDF, t_tsdf.TSDF):
         """
         Prefixes the overlapping columns in the left and right TSDFs
         """
@@ -115,29 +115,36 @@ class BroadcastAsOfJoiner(AsOfJoiner):
     Strategy class for broadcast as-of joins
     """
 
-    def __init__(self,
-                 spark: SparkSession,
-                 left_prefix: str = "left",
-                 right_prefix: str = "right",
-                 range_join_bin_size: int = 60):
+    def __init__(
+        self,
+        spark: SparkSession,
+        left_prefix: str = "left",
+        right_prefix: str = "right",
+        range_join_bin_size: int = 60,
+    ):
         super().__init__(left_prefix, right_prefix)
         self.spark = spark
         self.range_join_bin_size = range_join_bin_size
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
         # set the range join bin size to 60 seconds
-        self.spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize",
-                            str(self.range_join_bin_size))
+        self.spark.conf.set(
+            "spark.databricks.optimizer.rangeJoin.binSize",
+            str(self.range_join_bin_size),
+        )
         # find a leading column in the right TSDF
         w = right.baseWindow()
         lead_colname = "lead_" + right.ts_index.colname
-        right_with_lead = right.withColumn(lead_colname,
-                                           sfn.lead(right.ts_index.colname).over(w))
+        right_with_lead = right.withColumn(
+            lead_colname, sfn.lead(right.ts_index.colname).over(w)
+        )
         # perform the join
         join_series_ids = self.commonSeriesIDs(left, right)
-        res_df = (left.df.join(right_with_lead.df, list(join_series_ids))
-                  .where(left.ts_index.between(right.ts_index, sfn.col(lead_colname)))
-                  .drop(lead_colname))
+        res_df = (
+            left.df.join(right_with_lead.df, list(join_series_ids))
+            .where(left.ts_index.between(right.ts_index, sfn.col(lead_colname)))
+            .drop(lead_colname)
+        )
         # return with the left-hand schema
         return t_tsdf.TSDF(res_df, ts_schema=left.ts_schema)
 
@@ -155,11 +162,13 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
     most recent matching rows for each right-hand side row
     """
 
-    def __init__(self,
-                 left_prefix: str = "left",
-                 right_prefix: str = "right",
-                 skipNulls: bool = True,
-                 tolerance: Optional[int] = None):
+    def __init__(
+        self,
+        left_prefix: str = "left",
+        right_prefix: str = "right",
+        skipNulls: bool = True,
+        tolerance: Optional[int] = None,
+    ):
         super().__init__(left_prefix, right_prefix)
         self.skipNulls = skipNulls
         self.tolerance = tolerance
@@ -169,9 +178,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         Appends null columns to the TSDF
         """
         return reduce(
-            lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)),
-            cols,
-            tsdf)
+            lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)), cols, tsdf
+        )
 
     def _combine(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
         """
@@ -190,28 +198,36 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             comp_names = left.ts_index.component_fields
         else:
             comp_names = [left.ts_index.colname]
-        combined_comps = [sfn.coalesce(lc, rc).alias(cn) for lc, rc, cn in zip(left_comps, right_comps, comp_names)]
+        combined_comps = [
+            sfn.coalesce(lc, rc).alias(cn)
+            for lc, rc, cn in zip(left_comps, right_comps, comp_names)
+        ]
         # build an expression for an right-hand side indicator field
-        right_ind = (sfn.when(sfn.col(left.ts_index.colname).isNotNull(),
-                              _LEFT_HAND_ROW_INDICATOR)
-                     .otherwise(_RIGHT_HAND_ROW_INDICATOR)
-                     .alias(_DEFAULT_RIGHT_ROW_COLNAME))
+        right_ind = (
+            sfn.when(
+                sfn.col(left.ts_index.colname).isNotNull(), _LEFT_HAND_ROW_INDICATOR
+            )
+            .otherwise(_RIGHT_HAND_ROW_INDICATOR)
+            .alias(_DEFAULT_RIGHT_ROW_COLNAME)
+        )
         # combine all into a single struct column
-        with_combined_ts = unioned.withColumn(_DEFAULT_COMBINED_TS_COLNAME,
-                                              sfn.struct(*combined_comps,right_ind))
+        with_combined_ts = unioned.withColumn(
+            _DEFAULT_COMBINED_TS_COLNAME, sfn.struct(*combined_comps, right_ind)
+        )
         combined_ts_col = with_combined_ts.df.schema[_DEFAULT_COMBINED_TS_COLNAME]
         # construct a CompositeTSIndex from the combined ts index
         combined_comp_names = comp_names + [_DEFAULT_RIGHT_ROW_COLNAME]
-        combined_tsidx = _AsOfJoinCompositeTSIndex(combined_ts_col,
-                                                   *combined_comp_names)
+        combined_tsidx = _AsOfJoinCompositeTSIndex(
+            combined_ts_col, *combined_comp_names
+        )
         # put it all together in a new TSDF
-        return t_tsdf.TSDF(with_combined_ts.df,
-                           ts_schema=TSSchema(combined_tsidx, left.series_ids))
+        return t_tsdf.TSDF(
+            with_combined_ts.df, ts_schema=TSSchema(combined_tsidx, left.series_ids)
+        )
 
-    def _filterLastRightRow(self,
-                            combined: t_tsdf.TSDF,
-                            right_cols: set[str],
-                            last_left_tsschema: TSSchema) -> t_tsdf.TSDF:
+    def _filterLastRightRow(
+        self, combined: t_tsdf.TSDF, right_cols: set[str], last_left_tsschema: TSSchema
+    ) -> t_tsdf.TSDF:
         """
         Filters out the last right-hand row for each left-hand row
         """
@@ -220,26 +236,28 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         right_row_field = combined.ts_index.fieldPath(_DEFAULT_RIGHT_ROW_COLNAME)
         if self.skipNulls:
             last_right_cols = [
-                sfn.last(col, True).over(w).alias(col)
-                for col in right_cols
+                sfn.last(col, True).over(w).alias(col) for col in right_cols
             ]
         else:
             last_right_cols = [
                 sfn.last(
-                    sfn.when(sfn.col(right_row_field) == _RIGHT_HAND_ROW_INDICATOR,
-                             sfn.struct(col)).otherwise(None),
+                    sfn.when(
+                        sfn.col(right_row_field) == _RIGHT_HAND_ROW_INDICATOR,
+                        sfn.struct(col),
+                    ).otherwise(None),
                     True,
-                ).over(w).alias(col)
+                )
+                .over(w)
+                .alias(col)
                 for col in right_cols
             ]
         # get the last right-hand row for each left-hand row
         non_right_cols = list(set(combined.columns) - right_cols)
         last_right_vals = combined.select(*(non_right_cols + last_right_cols))
         # filter out the last right-hand row for each left-hand row
-        as_of_df = (last_right_vals.df
-                    .where(sfn.col(right_row_field) ==
-                           _LEFT_HAND_ROW_INDICATOR)
-                    .drop(_DEFAULT_COMBINED_TS_COLNAME))
+        as_of_df = last_right_vals.df.where(
+            sfn.col(right_row_field) == _LEFT_HAND_ROW_INDICATOR
+        ).drop(_DEFAULT_COMBINED_TS_COLNAME)
         # return with the left-hand schema
         return t_tsdf.TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
@@ -259,9 +277,9 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         # combine the left and right TSDFs
         combined = self._combine(extended_left, extended_right)
         # filter out the last right-hand row for each left-hand row
-        as_of = self._filterLastRightRow(combined,
-                                         right_only_cols,
-                                         extended_left.ts_schema)
+        as_of = self._filterLastRightRow(
+            combined, right_only_cols, extended_left.ts_schema
+        )
         # apply tolerance filter
         if self.tolerance is not None:
             as_of = self._toleranceFilter(as_of)
@@ -273,13 +291,15 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
     Implements the as-of join strategy for skewed data
     """
 
-    def __init__(self,
-                 left_prefix: str = "left",
-                 right_prefix: str = "right",
-                 skipNulls: bool = True,
-                 tolerance: Optional[int] = None,
-                 tsPartitionVal: Optional[int] = None,
-                 fraction: float = 0.5):
+    def __init__(
+        self,
+        left_prefix: str = "left",
+        right_prefix: str = "right",
+        skipNulls: bool = True,
+        tolerance: Optional[int] = None,
+        tsPartitionVal: Optional[int] = None,
+        fraction: float = 0.5,
+    ):
         super().__init__(left_prefix, right_prefix, skipNulls, tolerance)
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
@@ -287,6 +307,7 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
 
 
 # Helper functions
+
 
 def get_spark_plan(df: DataFrame, spark: SparkSession) -> str:
     """
@@ -344,16 +365,18 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
 __DEFAULT_BROADCAST_BYTES_THRESHOLD = 30 * 1024 * 1024
 
 
-def choose_as_of_join_strategy(left_tsdf: t_tsdf.TSDF,
-                               right_tsdf: t_tsdf.TSDF,
-                               left_prefix: Optional[str] = None,
-                               right_prefix: str = "right",
-                               tsPartitionVal: Optional[int] = None,
-                               fraction: float = 0.5,
-                               skipNulls: bool = True,
-                               sql_join_opt: bool = False,
-                               suppress_null_warning: bool = False,
-                               tolerance: Optional[int] = None) -> AsOfJoiner:
+def choose_as_of_join_strategy(
+    left_tsdf: t_tsdf.TSDF,
+    right_tsdf: t_tsdf.TSDF,
+    left_prefix: Optional[str] = None,
+    right_prefix: str = "right",
+    tsPartitionVal: Optional[int] = None,
+    fraction: float = 0.5,
+    skipNulls: bool = True,
+    sql_join_opt: bool = False,
+    suppress_null_warning: bool = False,
+    tolerance: Optional[int] = None,
+) -> AsOfJoiner:
     """
     Returns an AsOfJoiner object based on the parameters passed in
     """
@@ -373,7 +396,4 @@ def choose_as_of_join_strategy(left_tsdf: t_tsdf.TSDF,
         return SkewAsOfJoiner(tsPartitionVal, left_prefix, right_prefix)
 
     # default to use the union sort filter join
-    return UnionSortFilterAsOfJoiner(left_prefix,
-                                     right_prefix,
-                                     skipNulls,
-                                     tolerance)
+    return UnionSortFilterAsOfJoiner(left_prefix, right_prefix, skipNulls, tolerance)
