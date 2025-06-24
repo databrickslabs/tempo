@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from functools import cached_property
 from itertools import islice
 from typing import Optional, Iterable, cast, Any, Callable
-from functools import cached_property
 
+import numpy as np
+import pandas as pd
+import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (
     # NB: NumericType is a non-public object, so we shouldn't import it directly
@@ -17,11 +20,7 @@ from pyspark.sql.types import (
     BooleanType,
     StructField,
 )
-import pyspark.sql.functions as f
 from pyspark.sql.window import Window, WindowSpec
-
-import numpy as np
-import pandas as pd
 
 
 def is_metric_col(col: StructField) -> bool:

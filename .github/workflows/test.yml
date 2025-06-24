@@ -25,7 +25,7 @@ jobs:
         python -m pip install hatch 
     - name: Lint check
       working-directory: ./python
-      run: make lint
+      run: make lint LINT_PARAMS="-- --check --diff"
     - name: Type check
       working-directory: ./python
       run: make type-check

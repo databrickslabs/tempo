@@ -1395,7 +1395,9 @@ class TSDF:
 
         return TSDF(bars, resample_open.ts_col, resample_open.partitionCols)
 
-    def fourier_transform(self, timestep: Union[float, int], valueCol: str) -> "TSDF":
+    def fourier_transform(
+        self, timestep: Union[int, float, complex], valueCol: str
+    ) -> "TSDF":
         """
         Function to fourier transform the time series to its frequency domain representation.
         :param timestep: timestep value to be used for getting the frequency scale
@@ -1418,7 +1420,12 @@ class TSDF:
             pdf["ft_real"] = r
             pdf["ft_imag"] = i
             N = tran.shape
-            xf = fftfreq(N[0], timestep)
+            # fftfreq expects a float for the spacing parameter
+            if isinstance(timestep, complex):
+                spacing = abs(timestep)  # Use magnitude for complex numbers
+            else:
+                spacing = float(timestep)
+            xf = fftfreq(N[0], spacing)
             pdf["freq"] = xf
             return pdf[select_cols + ["freq", "ft_real", "ft_imag"]]
 
