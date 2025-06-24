@@ -12,18 +12,18 @@ Be sure to carefully follow the instructions to configure your shell environment
 
 Use `pyenv` to install the following Python versions for testing.
 ```bash
-pyenv install 3.8 3.9 3.10
+pyenv install 3.9 3.10 3.11
 ```
 
 You will probably want to set one of these versions as your global Python version. This will be the version of Python that is used when you run `python` commands in your terminal.
 For example, to set Python 3.9 as your global Python version, run the following command:
 ```bash
-pyenv global 3.10
+pyenv global 3.9
 ```
 
 Within the `tempo/python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
 ```bash
-pyenv local 3.8 3.9 3.10
+pyenv local 3.9 3.10 3.11
 ```
 
 This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
@@ -38,28 +38,23 @@ pip install -U tox
 A brief description of each managed `tox` environment can be found by running `tox list` or in the `tox.ini` file.
 
 ## Create a development environment
-Run the following command in your terminal to create a virtual environment in the `.venv` folder:
+Each development environment is roughly associated with a DBR LTS version. A list of base environments can be found in your `tox.ini` file, but the number specified below is only the version number.
+Run the following command in your terminal to create a virtual environment (you can replace "your_dbr_number" with something like 154, 143, etc.):
 ```bash
-tox --devenv .venv -e {environment-name}
+make venv DBR={your_dbr_number}
 ```
-The `—devenv` flag tells `tox` to create a development environment, and `.venv` is the folder where the virtual environment will be created.
+
 
 ## Environments we test
-The environments we test against are defined within the `tox.ini` file, and the requirements for those environments are stored in `python/tests/requirements`. The makeup of these environments is inspired by the [Databricks Runtime](https://docs.databricks.com/en/release-notes/runtime/index.html#) (hence the naming convention), but it's important to note that developing Databricks is **not** a requirement. We're simply  mimicking some of the different runtime versions because (a) we recognize that much of the user base uses `tempo` on Databricks and (b) it saves development time spent trying to build out test environments with different versions of Python and PySpark from scratch.
-
-## Run tests locally for one or more environments
-You can run tests locally for one or more environments defined enviornments without setting up a development environment first.
-
-### To run tests for a single environment, use the `-e` flag followed by the environment name:
+Use the following to run tests for a given environment. 
 ```bash
-tox -e {environment-name}
+make test DBR={your_dbr_number}
 ```
 
-### To run tests for multiple environments, specify the environment names separated by commas:
+If you would like to run tests for all environments, use
 ```bash
-tox -e {environment-name1, environment-name2, etc.}
+make test-all
 ```
-This will run tests for all listed environments.
 
 ### Run additional checks locally
 `tox` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
@@ -70,6 +65,17 @@ These environments are also defined in the `tox.ini`file and skip installing dep
 * build-docs
 * coverage-report
 
+To run an individual check, use
+```bash
+make lint
+make type-check
+make {name_of_environment}
+```
+
+To run all checks at once, run
+```bash
+make all-local
+```
 # Code style & Standards
 
 The tempo project abides by [`black`](https://black.readthedocs.io/en/stable/index.html) formatting standards, 

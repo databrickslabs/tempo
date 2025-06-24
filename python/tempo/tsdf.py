@@ -22,9 +22,15 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import AtomicType, DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 
+import numpy as np
+from scipy.fft import fft, fftfreq
+
 import tempo.io as t_io
+import tempo.interpolation as t_interpolation
+import tempo.resample as t_resample
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
+from tempo.resample import _ResampledTSDF
 from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
     is_time_format,
@@ -1530,6 +1536,255 @@ class TSDF(WindowBuilder):
         optimizationCols: Optional[List[str]] = None,
     ) -> None:
         t_io.write(self, spark, tabName, optimizationCols)
+
+    def resample(
+        self,
+        freq: str,
+        func: Union[Callable | str],
+        metricCols: Optional[List[str]] = None,
+        prefix: Optional[str] = None,
+        fill: Optional[bool] = None,
+        perform_checks: bool = True,
+    ) -> "TSDF":
+        """
+        function to upsample based on frequency and aggregate function similar to pandas
+        :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+        :param func: function used to aggregate input
+        :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
+        :param prefix - supply a prefix for the newly sampled columns
+        :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
+        :param perform_checks: calculate time horizon and warnings if True (default is True)
+        :return: TSDF object with sample data using aggregate function
+        """
+        t_resample.validateFuncExists(func)
+
+        # Throw warning for user to validate that the expected number of output rows is valid.
+        if fill is True and perform_checks is True:
+            t_utils.calculate_time_horizon(
+                self.df, self.ts_col, freq, self.partitionCols
+            )
+
+        enriched_df: DataFrame = t_resample.aggregate(
+            self, freq, func, metricCols, prefix, fill
+        )
+        return _ResampledTSDF(
+            enriched_df,
+            ts_col=self.ts_col,
+            partition_cols=self.partitionCols,
+            freq=freq,
+            func=func,
+        )
+
+    def interpolate(
+        self,
+        method: str,
+        freq: Optional[str] = None,
+        func: Optional[Union[Callable | str]] = None,
+        target_cols: Optional[List[str]] = None,
+        ts_col: Optional[str] = None,
+        partition_cols: Optional[List[str]] = None,
+        show_interpolated: bool = False,
+        perform_checks: bool = True,
+    ) -> "TSDF":
+        """
+        Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
+        will be filled based on the fill calculation.
+
+        :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
+        :param func: function used to aggregate input
+        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+        :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
+        :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
+        :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
+        :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
+        :param perform_checks: calculate time horizon and warnings if True (default is True)
+        :return: new TSDF object containing interpolated data
+        """
+
+        # Set defaults for target columns, timestamp column and partition columns when not provided
+        if freq is None:
+            raise ValueError("freq must be provided")
+        if func is None:
+            raise ValueError("func must be provided")
+        if ts_col is None:
+            ts_col = self.ts_col
+        if partition_cols is None:
+            partition_cols = self.partitionCols
+        if target_cols is None:
+            prohibited_cols: List[str] = partition_cols + [ts_col]
+            summarizable_types = ["int", "bigint", "float", "double"]
+
+            # get summarizable find summarizable columns
+            target_cols = [
+                datatype[0]
+                for datatype in self.df.dtypes
+                if (
+                    (datatype[1] in summarizable_types)
+                    and (datatype[0].lower() not in prohibited_cols)
+                )
+            ]
+
+        interpolate_service = t_interpolation.Interpolation(is_resampled=False)
+        tsdf_input = TSDF(self.df, ts_col=ts_col, partition_cols=partition_cols)
+        interpolated_df: DataFrame = interpolate_service.interpolate(
+            tsdf_input,
+            ts_col,
+            partition_cols,
+            target_cols,
+            freq,
+            func,
+            method,
+            show_interpolated,
+            perform_checks,
+        )
+
+        return TSDF(interpolated_df, ts_col=ts_col, partition_cols=partition_cols)
+
+    def calc_bars(
+        tsdf,
+        freq: str,
+        metricCols: Optional[List[str]] = None,
+        fill: Optional[bool] = None,
+    ) -> "TSDF":
+        resample_open = tsdf.resample(
+            freq=freq, func="floor", metricCols=metricCols, prefix="open", fill=fill
+        )
+        resample_low = tsdf.resample(
+            freq=freq, func="min", metricCols=metricCols, prefix="low", fill=fill
+        )
+        resample_high = tsdf.resample(
+            freq=freq, func="max", metricCols=metricCols, prefix="high", fill=fill
+        )
+        resample_close = tsdf.resample(
+            freq=freq, func="ceil", metricCols=metricCols, prefix="close", fill=fill
+        )
+
+        join_cols = resample_open.partitionCols + [resample_open.ts_col]
+        bars = (
+            resample_open.df.join(resample_high.df, join_cols)
+            .join(resample_low.df, join_cols)
+            .join(resample_close.df, join_cols)
+        )
+        non_part_cols = set(set(bars.columns) - set(resample_open.partitionCols)) - set(
+            [resample_open.ts_col]
+        )
+        sel_and_sort = (
+            resample_open.partitionCols + [resample_open.ts_col] + sorted(non_part_cols)
+        )
+        bars = bars.select(sel_and_sort)
+
+        return TSDF(bars, resample_open.ts_col, resample_open.partitionCols)
+
+    def fourier_transform(
+        self, timestep: Union[int, float, complex], valueCol: str
+    ) -> "TSDF":
+        """
+        Function to fourier transform the time series to its frequency domain representation.
+        :param timestep: timestep value to be used for getting the frequency scale
+        :param valueCol: name of the time domain data column which will be transformed
+        """
+
+        def tempo_fourier_util(
+            pdf: pd.DataFrame,
+        ) -> pd.DataFrame:
+            """
+            This method is a vanilla python logic implementing fourier transform on a numpy array using the scipy module.
+            This method is meant to be called from Tempo TSDF as a pandas function API on Spark
+            """
+            select_cols = list(pdf.columns)
+            pdf.sort_values(by=["tpoints"], inplace=True, ascending=True)
+            y = np.array(pdf["tdval"])
+            tran = fft(y)
+            r = tran.real
+            i = tran.imag
+            pdf["ft_real"] = r
+            pdf["ft_imag"] = i
+            N = tran.shape
+            # fftfreq expects a float for the spacing parameter
+            if isinstance(timestep, complex):
+                spacing = abs(timestep)  # Use magnitude for complex numbers
+            else:
+                spacing = float(timestep)
+            xf = fftfreq(N[0], spacing)
+            pdf["freq"] = xf
+            return pdf[select_cols + ["freq", "ft_real", "ft_imag"]]
+
+        valueCol = self.__validated_column(self.df, valueCol)
+        data = self.df
+        if self.sequence_col:
+            if self.partitionCols == []:
+                data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
+                data = (
+                    data.select(
+                        sfn.col("dummy_group"),
+                        self.ts_col,
+                        self.sequence_col,
+                        sfn.col(valueCol),
+                    )
+                    .withColumn("tdval", sfn.col(valueCol))
+                    .withColumn("tpoints", sfn.col(self.ts_col))
+                )
+                return_schema = ",".join(
+                    [f"{i[0]} {i[1]}" for i in data.dtypes]
+                    + ["freq double", "ft_real double", "ft_imag double"]
+                )
+                result = data.groupBy("dummy_group").applyInPandas(
+                    tempo_fourier_util, return_schema
+                )
+                result = result.drop("dummy_group", "tdval", "tpoints")
+            else:
+                group_cols = self.partitionCols
+                data = (
+                    data.select(
+                        *group_cols,
+                        self.ts_col,
+                        self.sequence_col,
+                        sfn.col(valueCol),
+                    )
+                    .withColumn("tdval", sfn.col(valueCol))
+                    .withColumn("tpoints", sfn.col(self.ts_col))
+                )
+                return_schema = ",".join(
+                    [f"{i[0]} {i[1]}" for i in data.dtypes]
+                    + ["freq double", "ft_real double", "ft_imag double"]
+                )
+                result = data.groupBy(*group_cols).applyInPandas(
+                    tempo_fourier_util, return_schema
+                )
+                result = result.drop("tdval", "tpoints")
+        else:
+            if self.partitionCols == []:
+                data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
+                data = (
+                    data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
+                    .withColumn("tdval", sfn.col(valueCol))
+                    .withColumn("tpoints", sfn.col(self.ts_col))
+                )
+                return_schema = ",".join(
+                    [f"{i[0]} {i[1]}" for i in data.dtypes]
+                    + ["freq double", "ft_real double", "ft_imag double"]
+                )
+                result = data.groupBy("dummy_group").applyInPandas(
+                    tempo_fourier_util, return_schema
+                )
+                result = result.drop("dummy_group", "tdval", "tpoints")
+            else:
+                group_cols = self.partitionCols
+                data = (
+                    data.select(*group_cols, self.ts_col, sfn.col(valueCol))
+                    .withColumn("tdval", sfn.col(valueCol))
+                    .withColumn("tpoints", sfn.col(self.ts_col))
+                )
+                return_schema = ",".join(
+                    [f"{i[0]} {i[1]}" for i in data.dtypes]
+                    + ["freq double", "ft_real double", "ft_imag double"]
+                )
+                result = data.groupBy(*group_cols).applyInPandas(
+                    tempo_fourier_util, return_schema
+                )
+                result = result.drop("tdval", "tpoints")
+
+        return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
 
     def extractStateIntervals(
         self,
