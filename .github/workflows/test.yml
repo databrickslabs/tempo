@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install tox tox-gh-actions
+        python -m pip install hatch 
     - name: Lint check
       working-directory: ./python
       run: make lint LINT_PARAMS="-- --check --diff"
@@ -59,8 +59,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install tox
-    - name: Execute tox envs
+        python -m pip install semver
+        python -m pip install hatch
+    - name: Execute hatch envs
       working-directory: ./python
       run: make test coverage-report DBR=${{ matrix.config.dbr }}
     - name: Publish test coverage
