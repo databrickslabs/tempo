@@ -26,6 +26,7 @@ from scipy.fft import fft, fftfreq
 
 import tempo.io as t_io
 import tempo.resample as t_resample
+import tempo.resample_utils as t_resample_utils
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
 from tempo.tsschema import (
@@ -1565,7 +1566,7 @@ class TSDF(WindowBuilder):
         :param perform_checks: calculate time horizon and warnings if True (default is True)
         :return: TSDF object with sample data using aggregate function
         """
-        t_resample.validateFuncExists(func)
+        t_resample_utils.validateFuncExists(func)
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
