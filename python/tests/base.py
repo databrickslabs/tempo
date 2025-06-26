@@ -120,6 +120,16 @@ class TestDataFrameBuilder:
 
     # Builder functions
 
+    def to_timestamp_ntz_compat(self, col):
+        """
+        Try to use sfn.to_timestamp_ntz if available, otherwise fall back to sfn.to_timestamp.
+        """
+        try:
+            return sfn.to_timestamp_ntz(col)
+        except AttributeError:
+            # For older PySpark versions where to_timestamp_ntz does not exist
+            return sfn.to_timestamp(col)
+
     def as_sdf(self) -> DataFrame:
         """
         Constructs a Spark Dataframe from the test data
@@ -144,12 +154,12 @@ class TestDataFrameBuilder:
                 # handle nested columns
                 if "." in ts_col:
                     col, field = ts_col.split(".")
-                    convert_field_expr = sfn.to_timestamp_ntz(sfn.col(col).getField(field))
+                    convert_field_expr = self.to_timestamp_ntz_compat(sfn.col(col).getField(field))
                     df = df.withColumn(
                         col, sfn.col(col).withField(field, convert_field_expr)
                     )
                 else:
-                    df = df.withColumn(ts_col, sfn.to_timestamp_ntz(ts_col))
+                    df = df.withColumn(ts_col, self.to_timestamp_ntz_compat(ts_col))
         # convert date columns
         if "date_convert" in self.df:
             for date_col in self.df["date_convert"]:
@@ -175,7 +185,6 @@ class TestDataFrameBuilder:
                     df = df.withColumn(decimal_col, sfn.col(decimal_col).cast("decimal"))
 
         return df
-
 
     def as_tsdf(self) -> TSDF:
         """
