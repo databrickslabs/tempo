@@ -363,23 +363,27 @@ def aggregate(
     sel_and_sort = tsdf.series_ids + [tsdf.ts_col] + sorted(non_part_cols)
     res = res.select(sel_and_sort)
 
-    fillW = tsdf.baseWindow()
+    # Calculate time bounds per partition without using window functions to avoid duplicates
+    if tsdf.series_ids:
+        # Group by series to get min/max per partition
+        time_bounds = res.groupBy(*tsdf.series_ids).agg(
+            sfn.min(tsdf.ts_col).alias("from"),
+            sfn.max(tsdf.ts_col).alias("until")
+        )
+    else:
+        # No series_ids, so get global min/max
+        time_bounds = res.agg(
+            sfn.min(tsdf.ts_col).alias("from"),
+            sfn.max(tsdf.ts_col).alias("until")
+        )
 
-    imputes = (
-        res.select(
-            *tsdf.series_ids,
-            sfn.min(tsdf.ts_col).over(fillW).alias("from"),
-            sfn.max(tsdf.ts_col).over(fillW).alias("until"),
-        )
-        .distinct()
-        .withColumn(
-            tsdf.ts_col,
-            sfn.explode(
-                sfn.expr("sequence(from, until, interval {} {})".format(period, unit))
-            ),
-        )
-        .drop("from", "until")
-    )
+    # Generate sequence of timestamps for filling
+    imputes = time_bounds.withColumn(
+        tsdf.ts_col,
+        sfn.explode(
+            sfn.expr("sequence(from, until, interval {} {})".format(period, unit))
+        ),
+    ).drop("from", "until")
 
     metrics = []
     for col in res.dtypes:
