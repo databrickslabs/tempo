@@ -352,7 +352,7 @@ class TSDF(WindowBuilder):
     @property
     def ts_col(self) -> str:
         # TODO - this should be replaced TSIndex expressions
-        pass
+        return self.ts_schema.ts_idx.colname
 
     @property
     def columns(self) -> List[str]:

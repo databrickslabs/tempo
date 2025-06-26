@@ -29,6 +29,9 @@ from tempo.resample_utils import (
     validateFuncExists,
 )
 
+# Column name constants
+AGG_KEY = "agg_key"
+
 
 def _appendAggKey(
     tsdf: t_tsdf.TSDF, freq: Optional[str] = None
@@ -47,7 +50,7 @@ def _appendAggKey(
         "{} {}".format(period, freq_dict[unit]),  # type: ignore[literal-required]
     )
 
-    df = df.withColumn("agg_key", agg_window)
+    df = df.withColumn(AGG_KEY, agg_window)
 
     return (
         t_tsdf.TSDF(df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids),
@@ -160,11 +163,15 @@ def downsample(
 ) -> t_int.IntervalsDF:
     """
     Downsample a TSDF object to a lower frequency
+    
+    Note: This function uses a simpler aggregation approach than aggregate().
+    If metricCols is None, it defaults to tsdf.metric_cols (numeric columns only).
+    Non-metric observational columns are not preserved in the output.
 
     :param tsdf: input TSDF object
     :param freq: downsample to this frequency
     :param func: aggregate function
-    :param metricCols: columns used for aggregates
+    :param metricCols: columns used for aggregates. If None, uses numeric columns only.
 
     :return: IntervalsDF object with the aggregated values
     """
@@ -187,9 +194,30 @@ def aggregate(
 ) -> t_tsdf.TSDF:
     """
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
+    
+    Column Handling Behavior:
+    ------------------------
+    This function follows the "explicit is better than implicit" principle for column selection,
+    which aligns with industry best practices from pandas, Flint, and other time series libraries.
+    
+    1. When metricCols is None (default):
+       - For column-wise operations (min, max, average): Applies the operation to ALL observational columns
+       - For row-wise operations (floor, ceiling): Preserves ALL observational columns in the output
+       - This ensures no data is accidentally lost during aggregation
+    
+    2. When metricCols is explicitly provided:
+       - For column-wise operations: Only the specified columns are aggregated and returned
+       - For row-wise operations: Only the specified columns are included in the output
+       - Non-metric observational columns are NOT preserved
+       - This gives users precise control over which columns appear in the output
+    
+    This design allows users to:
+    - Get comprehensive results by default (all columns preserved)
+    - Optimize performance and output size when they know exactly which columns they need
+    
     :param tsdf: input TSDF object
-    :param func: aggregate function
-    :param metricCols: columns used for aggregates
+    :param func: aggregate function (min, max, average/mean, floor, ceiling)
+    :param metricCols: columns used for aggregates. If None, uses all observational columns
     :param prefix: the metric columns with the aggregate named function
     :param fill: upsample based on the time increment for 0s in numeric columns
     :return: TSDF object with newly aggregated timestamp as ts_col with aggregated values
@@ -198,9 +226,15 @@ def aggregate(
 
     df = tsdf.df
 
-    groupingCols = tsdf.series_ids + ["agg_key"]
+    groupingCols = tsdf.series_ids + [AGG_KEY]
 
+    # Track whether metricCols was explicitly provided
+    # This is crucial for determining column handling behavior
+    metric_cols_provided = metricCols is not None
+    
     if metricCols is None:
+        # Default behavior: use all metric columns (numeric observational columns)
+        # This ensures comprehensive aggregation without data loss
         metricCols = tsdf.metric_cols
 
     if prefix is None:
@@ -211,20 +245,42 @@ def aggregate(
     groupingCols = [sfn.col(column) for column in groupingCols]
 
     if func == floor:
-        metricCol = sfn.struct(*([tsdf.ts_col] + metricCols))
+        # Floor is a row-wise operation: it selects the entire row with the earliest timestamp
+        # in each aggregation window, preserving relationships between columns
+        if metric_cols_provided:
+            # Explicit column selection: only include the requested columns
+            # This allows users to optimize output size and performance
+            cols_to_include = [col for col in metricCols if col in df.columns]
+        else:
+            # Default behavior: preserve all observational columns to avoid data loss
+            # This matches pandas resample().first() behavior
+            cols_to_include = [col for col in tsdf.observational_cols if col in df.columns and col != AGG_KEY]
+
+        metricCol = sfn.struct(*([tsdf.ts_col] + cols_to_include))
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(sfn.min("struct_cols").alias("closest_data")).select(
             *groupingCols, sfn.col("closest_data.*")
         )
         new_cols = [sfn.col(tsdf.ts_col)] + [
-            sfn.col(c).alias("{}".format(prefix) + c) for c in metricCols
+            sfn.col(c).alias("{}".format(prefix) + c) for c in cols_to_include
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == average:
-        exprs = {x: "avg" for x in metricCols}
+        # Average is a column-wise operation: it computes the mean for each column independently
+        # This preserves the semantic meaning of each metric
+        if metric_cols_provided:
+            # Explicit selection: only average the specified columns
+            # Non-specified columns are excluded from the output
+            cols_to_avg = metricCols
+        else:
+            # Default behavior: average all observational columns
+            # This ensures comprehensive statistics without user needing to list every column
+            cols_to_avg = [col for col in tsdf.observational_cols if col in df.columns and col != AGG_KEY]
+
+        exprs = {x: "avg" for x in cols_to_avg}
         res = df.groupBy(groupingCols).agg(exprs)
         agg_metric_cls = list(
-            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
+            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, AGG_KEY]))
         )
         new_cols = [
             sfn.col(c).alias(
@@ -234,46 +290,71 @@ def aggregate(
         ]
         res = res.select(*groupingCols, *new_cols)
     elif func == min:
-        exprs = {x: "min" for x in metricCols}
-        res = df.groupBy(groupingCols).agg(exprs)
-        agg_metric_cls = list(
-            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
-        )
-        new_cols = [
-            sfn.col(c).alias(
-                "{}".format(prefix) + (c.split("min(")[1]).replace(")", "")
-            )
-            for c in agg_metric_cls
-        ]
-        res = res.select(*groupingCols, *new_cols)
+        # Min is a column-wise operation: it finds the minimum value for each column independently
+        # Unlike floor (which preserves row relationships), min may return values from different rows
+        agg_exprs = []
+
+        # Always compute min for the specified metric columns
+        for col in metricCols:
+            agg_exprs.append(sfn.min(col).alias("{}{}".format(prefix, col)))
+
+        # Preserve non-metric observational columns only in default mode
+        # This prevents accidental data loss while allowing explicit column filtering
+        if not metric_cols_provided:
+            # In default mode, preserve other columns using first() to maintain data completeness
+            # Note: first() is used because these columns aren't being aggregated
+            non_metric_obs_cols = [col for col in tsdf.observational_cols
+                                   if col not in metricCols and col in df.columns and col != AGG_KEY]
+            for col in non_metric_obs_cols:
+                agg_exprs.append(sfn.first(col).alias("{}{}".format(prefix, col)))
+
+        res = df.groupBy(groupingCols).agg(*agg_exprs)
     elif func == max:
-        exprs = {x: "max" for x in metricCols}
-        res = df.groupBy(groupingCols).agg(exprs)
-        agg_metric_cls = list(
-            set(res.columns).difference(set(tsdf.series_ids + [tsdf.ts_col, "agg_key"]))
-        )
-        new_cols = [
-            sfn.col(c).alias(
-                "{}".format(prefix) + (c.split("max(")[1]).replace(")", "")
-            )
-            for c in agg_metric_cls
-        ]
-        res = res.select(*groupingCols, *new_cols)
+        # Max is a column-wise operation: it finds the maximum value for each column independently
+        # This is semantically different from ceiling, which preserves row relationships
+        agg_exprs = []
+
+        # Always compute max for the specified metric columns
+        for col in metricCols:
+            agg_exprs.append(sfn.max(col).alias("{}{}".format(prefix, col)))
+
+        # Preserve non-metric observational columns only in default mode
+        # This follows the same pattern as min for consistency
+        if not metric_cols_provided:
+            # In default mode, preserve other columns to avoid data loss
+            # This matches the behavior users expect from pandas/Flint
+            non_metric_obs_cols = [col for col in tsdf.observational_cols
+                                   if col not in metricCols and col in df.columns and col != AGG_KEY]
+            for col in non_metric_obs_cols:
+                agg_exprs.append(sfn.first(col).alias("{}{}".format(prefix, col)))
+
+        res = df.groupBy(groupingCols).agg(*agg_exprs)
     elif func == ceiling:
-        metricCol = sfn.struct([tsdf.ts_col] + metricCols)
+        # Ceiling is a row-wise operation: it selects the entire row with the latest timestamp
+        # in each aggregation window, preserving relationships between columns
+        if metric_cols_provided:
+            # Explicit column selection: only include the requested columns
+            # This mirrors the floor behavior for consistency
+            cols_to_include = [col for col in metricCols if col in df.columns]
+        else:
+            # Default behavior: preserve all observational columns
+            # This ensures the full context of the latest observation is maintained
+            cols_to_include = [col for col in tsdf.observational_cols if col in df.columns and col != AGG_KEY]
+
+        metricCol = sfn.struct([tsdf.ts_col] + cols_to_include)
         res = df.withColumn("struct_cols", metricCol).groupBy(groupingCols)
         res = res.agg(sfn.max("struct_cols").alias("ceil_data")).select(
             *groupingCols, sfn.col("ceil_data.*")
         )
         new_cols = [sfn.col(tsdf.ts_col)] + [
-            sfn.col(c).alias("{}".format(prefix) + c) for c in metricCols
+            sfn.col(c).alias("{}".format(prefix) + c) for c in cols_to_include
         ]
         res = res.select(*groupingCols, *new_cols)
 
     # aggregate by the window and drop the end time (use start time as new ts_col)
     res = (
         res.drop(tsdf.ts_col)
-        .withColumnRenamed("agg_key", tsdf.ts_col)
+        .withColumnRenamed(AGG_KEY, tsdf.ts_col)
         .withColumn(tsdf.ts_col, sfn.col(tsdf.ts_col).start)
     )
 
@@ -324,9 +405,17 @@ def resample(
 ) -> t_tsdf.TSDF:
     """
     function to upsample based on frequency and aggregate function similar to pandas
+    
+    Note on Column Handling:
+    -----------------------
+    This function delegates column handling behavior to the aggregate() function.
+    See aggregate() documentation for detailed explanation of how columns are handled
+    based on whether metricCols is None (default) or explicitly provided.
+    
     :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
     :param func: function used to aggregate input
-    :param metricCols supply a smaller list of numeric columns if the entire set of numeric columns should not be returned for the resample function
+    :param metricCols: supply a smaller list of numeric columns if the entire set of numeric columns should not be 
+                       returned for the resample function. If None, all observational columns are included.
     :param prefix - supply a prefix for the newly sampled columns
     :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
     :param perform_checks: calculate time horizon and warnings if True (default is True)

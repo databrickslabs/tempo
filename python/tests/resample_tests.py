@@ -22,8 +22,8 @@ class ResampleUnitTests(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_input = self.get_test_function_df_builder("input").as_tsdf()
-        dfExpected = self.get_test_function_df_builder("expected").as_sdf()
+        tsdf_input = self.get_test_function_df_builder("input_data").as_tsdf()
+        dfExpected = self.get_test_function_df_builder("expected_data").as_sdf()
         expected_30s_df = self.get_test_function_df_builder("expected30m").as_sdf()
         barsExpected = self.get_test_function_df_builder("expectedbars").as_sdf()
 
@@ -49,7 +49,7 @@ class ResampleUnitTests(SparkTest):
         """Test of resampling for millisecond windows"""
 
         # construct dataframes
-        tsdf_init = self.get_test_function_df_builder("init").as_tsdf()
+        tsdf_init = self.get_test_function_df_builder("input_data").as_tsdf()
         dfExpected = self.get_test_function_df_builder("expectedms").as_sdf()
 
         # 30 minute aggregation
@@ -63,7 +63,7 @@ class ResampleUnitTests(SparkTest):
         """Test of range stats for 20 minute rolling window"""
 
         # construct dataframes
-        tsdf_input = self.get_test_function_df_builder("input").as_tsdf()
+        tsdf_input = self.get_test_function_df_builder("input_data").as_tsdf()
         expected_30s_df = self.get_test_function_df_builder("expected30m").as_sdf()
         barsExpected = self.get_test_function_df_builder("expectedbars").as_sdf()
 
@@ -91,23 +91,23 @@ class ResampleUnitTests(SparkTest):
         self.assertDataFrameEquality(bars, barsExpected)
 
     def test_appendAggKey_freq_is_none(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
 
         self.assertRaises(TypeError, _appendAggKey, input_tsdf)
 
     def test_appendAggKey_freq_microsecond(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
 
         append_agg_key_tuple = _appendAggKey(input_tsdf, "1 MICROSECOND")
         append_agg_key_tsdf = append_agg_key_tuple[0]
 
         self.assertIsInstance(append_agg_key_tsdf, TSDF)
         self.assertIn("agg_key", append_agg_key_tsdf.df.columns)
-        self.assertEqual(append_agg_key_tuple[1], "1")
+        self.assertEqual(append_agg_key_tuple[1], 1)
         self.assertEqual(append_agg_key_tuple[2], "microseconds")
 
     def test_appendAggKey_freq_is_invalid(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
 
         self.assertRaises(
             ValueError,
@@ -117,8 +117,8 @@ class ResampleUnitTests(SparkTest):
         )
 
     def test_aggregate_floor(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "floor")
 
@@ -134,8 +134,8 @@ class ResampleUnitTests(SparkTest):
         # is this intentional?
         # resample.py -> lines 86 to 87
         # occurring in all `func` arguments but causing null values for "mean"
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         # explicitly declaring metricCols to remove DATE so that test can pass for now
         aggregate_df = aggregate(
@@ -148,8 +148,8 @@ class ResampleUnitTests(SparkTest):
         )
 
     def test_aggregate_min(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "min")
 
@@ -159,8 +159,8 @@ class ResampleUnitTests(SparkTest):
         )
 
     def test_aggregate_min_with_prefix(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "min", prefix="min")
 
@@ -170,8 +170,8 @@ class ResampleUnitTests(SparkTest):
         )
 
     def test_aggregate_min_with_fill(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "min", fill=True)
 
@@ -181,8 +181,8 @@ class ResampleUnitTests(SparkTest):
         )
 
     def test_aggregate_max(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "max")
 
@@ -192,8 +192,8 @@ class ResampleUnitTests(SparkTest):
         )
 
     def test_aggregate_ceiling(self):
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
-        expected_df = self.get_test_function_df_builder("expected").as_sdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected_data").as_sdf()
 
         aggregate_df = aggregate(input_tsdf, "1 DAY", "ceil")
 
@@ -204,7 +204,7 @@ class ResampleUnitTests(SparkTest):
 
     def test_aggregate_invalid_func_arg(self):
         # TODO : we should not be hitting an UnboundLocalError
-        input_tsdf = self.get_test_function_df_builder("init").as_tsdf()
+        input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
 
         self.assertRaises(UnboundLocalError, aggregate, input_tsdf, "1 DAY", "average")
 

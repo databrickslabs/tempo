@@ -3,13 +3,12 @@ from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from scipy.fft import fft, fftfreq  # type: ignore
-
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column
+from scipy.fft import fft, fftfreq  # type: ignore
 
-from tempo.tsdf import TSDF
 import tempo.resample as t_resample
+from tempo.tsdf import TSDF
 
 
 def vwap(
@@ -258,6 +257,39 @@ def calc_bars(
     metric_cols: Optional[List[str]] = None,
     fill: Optional[bool] = None,
 ) -> TSDF:
+    """
+    Calculate OHLC (Open, High, Low, Close) bars for time series data.
+    
+    Column Handling Behavior:
+    ------------------------
+    This function follows the same "explicit is better than implicit" principle as the 
+    aggregate/resample functions, aligning with pandas and other time series libraries:
+    
+    1. When metric_cols is None (default):
+       - Calculates OHLC for ALL numeric observational columns
+       - Preserves non-numeric observational columns in the output
+       - Ensures comprehensive bar calculations without data loss
+    
+    2. When metric_cols is explicitly provided:
+       - Only calculates OHLC for the specified columns
+       - Non-specified columns are NOT included in the output
+       - Allows users to optimize performance and output size
+    
+    The function creates four prefixed versions of each metric:
+    - open_<col>: First value in the time window (floor function)
+    - low_<col>: Minimum value in the time window (min function)
+    - high_<col>: Maximum value in the time window (max function)
+    - close_<col>: Last value in the time window (ceiling function)
+    
+    :param tsdf: input TSDF object
+    :param freq: frequency for bar calculations (e.g., '1 hour', '30 minutes')
+    :param metric_cols: columns to calculate bars for. If None, uses all numeric columns
+    :param fill: whether to fill missing values with 0s
+    :return: TSDF with OHLC bars for each metric column
+    """
+    # Each resample call here follows the column handling behavior documented above:
+    # - floor/ceiling preserve row relationships (get first/last complete observation)
+    # - min/max compute column-wise (may mix values from different rows)
     resample_open = tsdf.resample(
         freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
     )
