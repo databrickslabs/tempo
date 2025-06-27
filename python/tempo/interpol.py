@@ -1,15 +1,36 @@
-from typing import Union, Callable, List, Optional
-from functools import reduce
 import copy
+from functools import reduce
+from typing import Union, Callable, List, Optional
 
 import pandas as pd
-
 import pyspark.sql.functions as sfn
-from pyspark.sql.types import TimestampType, DateType
+from pyspark import __version__ as pyspark_version
 from pyspark.sql import Window
+from pyspark.sql.types import TimestampType, DateType
 
 from tempo.tsdf import TSDF
 from tempo.tsschema import SimpleTSIndex, ParsedTSIndex
+
+# Check PySpark version for compatibility
+PYSPARK_VERSION = tuple(int(x) for x in pyspark_version.split('.')[:2])
+HAS_COUNT_IF = PYSPARK_VERSION >= (3, 5)
+HAS_BOOL_OR = PYSPARK_VERSION >= (3, 5)
+
+
+def _bool_or_compat(col):
+    """Compatibility wrapper for bool_or function"""
+    if HAS_BOOL_OR:
+        return sfn.bool_or(col)
+    else:
+        # Fallback for PySpark < 3.5: max(cast(condition as int))
+        # col can be either a string or a Column object
+        if isinstance(col, str):
+            col_expr = sfn.col(col)
+        else:
+            col_expr = col
+        # Return max which will be 1 for True or 0/null for False
+        # We don't add > 0 here because that needs to be done after the window function
+        return sfn.max(col_expr.cast("int"))
 
 
 # Some common interpolation functions
@@ -118,9 +139,17 @@ def interpolate(
     # assign a group number to each segment
     seg_group_col = "__tmp_seg_group"
     all_prev_win = tsdf.allBeforeWindow()
-    segments = segments.withColumn(
-        seg_group_col, sfn.count_if(seg_trans_col).over(all_prev_win)
-    )
+
+    # Use count_if if available (PySpark 3.5+), otherwise use sum with cast
+    if HAS_COUNT_IF:
+        segments = segments.withColumn(
+            seg_group_col, sfn.count_if(seg_trans_col).over(all_prev_win)
+        )
+    else:
+        # Fallback for PySpark < 3.5: sum(cast(condition as int))
+        segments = segments.withColumn(
+            seg_group_col, sfn.sum(sfn.col(seg_trans_col).cast("int")).over(all_prev_win)
+        )
 
     # build margins around intepolation segments
     if leading_margin > 0 or lagging_margin > 0:
@@ -130,7 +159,8 @@ def interpolate(
         lead_margins = segments.withColumn(
             leading_margin_col,
             sfn.when(
-                ~sfn.col(needs_intpl_col) & sfn.bool_or(seg_trans_col).over(margin_win),
+                ~sfn.col(needs_intpl_col) & (_bool_or_compat(seg_trans_col).over(margin_win) if HAS_BOOL_OR else (
+                            _bool_or_compat(seg_trans_col).over(margin_win) > 0)),
                 sfn.array(sfn.col(seg_group_col), sfn.col(seg_group_col) + 1),
             ).otherwise(sfn.array(sfn.col(seg_group_col))),
         )
@@ -140,7 +170,8 @@ def interpolate(
         lag_margins = lead_margins.withColumn(
             lagging_margin_col,
             sfn.when(
-                ~sfn.col(needs_intpl_col) & sfn.bool_or(seg_trans_col).over(margin_win),
+                ~sfn.col(needs_intpl_col) & (_bool_or_compat(seg_trans_col).over(margin_win) if HAS_BOOL_OR else (
+                            _bool_or_compat(seg_trans_col).over(margin_win) > 0)),
                 sfn.array(sfn.col(seg_group_col) - 1, sfn.col(seg_group_col)),
             ).otherwise(sfn.array(sfn.col(seg_group_col))),
         )
@@ -160,9 +191,15 @@ def interpolate(
     # identify segments that need interpolation
     group_by_cols = tsdf.series_ids + [seg_group_col]
     segment_win = Window.partitionBy(group_by_cols)
-    segments = segments.withColumn(
-        needs_intpl_col, sfn.bool_or(sfn.col(needs_intpl_col)).over(segment_win)
-    )
+    if HAS_BOOL_OR:
+        segments = segments.withColumn(
+            needs_intpl_col, _bool_or_compat(sfn.col(needs_intpl_col)).over(segment_win)
+        )
+    else:
+        # For older PySpark, we need to convert back to boolean
+        segments = segments.withColumn(
+            needs_intpl_col, (_bool_or_compat(sfn.col(needs_intpl_col)).over(segment_win) > 0)
+        )
 
     # split the segments according to the need for interpolation
     needs_interpol = segments.where(needs_intpl_col)
