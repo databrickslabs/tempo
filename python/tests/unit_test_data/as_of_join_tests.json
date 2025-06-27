@@ -43,8 +43,14 @@
         "data": [
           ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
           ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
-          ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12],
-          ["S1", "2020-09-01 00:19:12", 362.1, "2020-09-01 00:15:01", 359.21, 365.31]
+          [
+            "S1",
+            "2020-09-01 00:02:10",
+            361.1,
+            "2020-09-01 00:02:01",
+            358.93,
+            365.12
+          ]
         ]
       }
     }
@@ -87,16 +93,7 @@
     },
     "expected": {
       "tsdf": {
-        "ts_schema": {
-          "ts_idx_class": "SubMicrosecondPrecisionTimestampIndex",
-          "ts_col": "left_ts_idx",
-          "ts_idx":{
-            "double_ts_field": "double_ts",
-            "secondary_parsed_ts_field": "parsed_ts",
-            "src_str_field": "event_ts",
-            "num_precision_digits": 9
-          }
-        },
+        "ts_col": "left_ts_idx",
         "series_ids": ["symbol"]
       },
       "df": {

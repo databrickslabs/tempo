@@ -15,6 +15,7 @@ from pyspark.sql.dataframe import DataFrame
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
 
+
 # helper functions
 
 def prefix_value(key: str, d: dict):
@@ -350,6 +351,18 @@ class SparkTest(unittest.TestCase):
         """
         function_data_keys = [self.class_name, self.func_name] + list(sub_elements)
         return self.get_test_df_builder(*function_data_keys)
+
+    def get_data_as_sdf(self, name: str, convert_ts_col=True):
+        """
+        Get test data as a Spark DataFrame
+        """
+        return self.get_test_function_df_builder(name).as_sdf()
+
+    def get_data_as_tsdf(self, name: str):
+        """
+        Get test data as a TSDF
+        """
+        return self.get_test_function_df_builder(name).as_tsdf()
 
     #
     # Assertion Functions
