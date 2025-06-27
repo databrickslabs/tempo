@@ -297,6 +297,11 @@ class TSDF(WindowBuilder):
         series_ids: Optional[Collection[str]] = None,
         ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT,
     ) -> "TSDF":
+        # TODO (v0.2 refactor): Fix timezone handling for nanosecond precision timestamps
+        # When using composite timestamp indexes for nanosecond precision, there can be
+        # timezone inconsistencies between different join strategies (broadcast vs union).
+        # This should be addressed in the v0.2 refactor to ensure consistent behavior.
+        
         # parse the ts_col based on the pattern
         is_sub_ms = False
         sub_ms_digits = 0

@@ -434,6 +434,12 @@ class CompositeTSIndex(TSIndex, ABC):
     Such columns are organized as a StructType column with multiple fields.
     Some subset of these columns (at least 1) is considered to be a "component field",
     the others are called "accessory fields".
+    
+    TODO (v0.2 refactor): Fix timezone handling consistency
+    When composite timestamp indexes are used in different join strategies,
+    there can be timezone inconsistencies in the parsed timestamp fields.
+    This particularly affects nanosecond precision timestamps and causes
+    test failures between broadcast and union join results.
     """
 
     def __init__(self, ts_struct: StructField, *component_fields: str) -> None:

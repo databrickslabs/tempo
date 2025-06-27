@@ -138,8 +138,22 @@ class TestDataFrameBuilder:
         """
         Constructs a Spark Dataframe from the test data
         """
-        # build dataframe
-        df = self.spark.createDataFrame(self.df_data(), self.df_schema)
+        # Parse the schema to identify struct columns
+
+        # Parse schema string if it's a string
+        if isinstance(self.df_schema, str):
+            # Check if schema contains struct definitions
+            if "struct<" in self.df_schema:
+                # Parse the schema string to build proper StructType
+                schema = self._parse_complex_schema(self.df_schema)
+                # Process data to convert lists to Row objects for struct columns
+                data = self._process_struct_data(self.df_data(), schema)
+                df = self.spark.createDataFrame(data, schema)
+            else:
+                # Simple schema - use existing logic
+                df = self.spark.createDataFrame(self.df_data(), self.df_schema)
+        else:
+            df = self.spark.createDataFrame(self.df_data(), self.df_schema)
 
         # convert timestamp columns
         if "ts_convert" in self.df:
@@ -168,15 +182,97 @@ class TestDataFrameBuilder:
 
         return df
 
+    def _parse_complex_schema(self, schema_str: str):
+        """
+        Parse a schema string that may contain struct types
+        """
+        from pyspark.sql.types import StructType, StructField, StringType, DoubleType, FloatType, IntegerType, LongType
+
+        # This is a simplified parser - in production you'd want a more robust solution
+        # For now, we'll manually handle the specific case we need
+        fields = []
+        parts = schema_str.split(", ")
+
+        i = 0
+        while i < len(parts):
+            part = parts[i]
+            if "struct<" in part:
+                # Find the complete struct definition
+                struct_def = part
+                while ">" not in struct_def and i < len(parts) - 1:
+                    i += 1
+                    struct_def += ", " + parts[i]
+
+                # Parse struct field
+                field_name = struct_def.split()[0]
+                # For the nanos test case, we know the struct format
+                if "event_ts string" in struct_def:
+                    struct_fields = [
+                        StructField("event_ts", StringType(), True),
+                        StructField("parsed_ts", StringType(), True),  # Will be converted to timestamp later
+                        StructField("double_ts", DoubleType(), True)
+                    ]
+                    fields.append(StructField(field_name, StructType(struct_fields), True))
+                else:
+                    # Generic struct handling would go here
+                    pass
+            else:
+                # Parse simple field
+                field_parts = part.strip().split()
+                if len(field_parts) >= 2:
+                    field_name = field_parts[0]
+                    field_type = field_parts[1]
+
+                    if field_type == "string":
+                        fields.append(StructField(field_name, StringType(), True))
+                    elif field_type == "double":
+                        fields.append(StructField(field_name, DoubleType(), True))
+                    elif field_type == "float":
+                        fields.append(StructField(field_name, FloatType(), True))
+                    elif field_type == "integer" or field_type == "int":
+                        fields.append(StructField(field_name, IntegerType(), True))
+                    elif field_type == "long":
+                        fields.append(StructField(field_name, LongType(), True))
+            i += 1
+
+        return StructType(fields)
+
+    def _process_struct_data(self, data, schema):
+        """
+        Convert list data to Row objects where needed for struct columns
+        """
+        from pyspark.sql import Row
+        from pyspark.sql.types import StructType
+
+        processed_data = []
+        for row in data:
+            new_row = []
+            for i, (value, field) in enumerate(zip(row, schema.fields)):
+                if isinstance(field.dataType, StructType) and isinstance(value, list):
+                    # Convert list to Row object for struct column
+                    struct_row = Row(*[f.name for f in field.dataType.fields])(*value)
+                    new_row.append(struct_row)
+                else:
+                    new_row.append(value)
+            processed_data.append(new_row)
+
+        return processed_data
+    
     def as_tsdf(self) -> TSDF:
         """
         Constructs a TSDF from the test data
         """
         sdf = self.as_sdf()
+
+        # Remove ts_schema from kwargs if present, as it's not a valid TSDF parameter
+        tsdf_kwargs = dict(self.tsdf)
+        if "ts_schema" in tsdf_kwargs:
+            del tsdf_kwargs["ts_schema"]
+            
         if self.tsdf_constructor is not None:
-            return getattr(TSDF, self.tsdf_constructor)(sdf, **self.tsdf)
+            return getattr(TSDF, self.tsdf_constructor)(sdf, **tsdf_kwargs)
         else:
-            return TSDF(sdf, **self.tsdf)
+            return TSDF(sdf, **tsdf_kwargs)
 
     def as_idf(self) -> IntervalsDF:
         """

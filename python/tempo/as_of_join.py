@@ -1,14 +1,15 @@
 import copy
 from abc import ABC, abstractmethod
-from typing import Optional
 from functools import reduce
+from typing import Optional
 
-from pyspark.sql import DataFrame, SparkSession, Column
 import pyspark.sql.functions as sfn
+from pyspark.sql import DataFrame, SparkSession, Column
 
+import tempo.tsdf as t_tsdf
 from tempo.timeunit import TimeUnit
 from tempo.tsschema import CompositeTSIndex, TSSchema
-import tempo.tsdf as t_tsdf
+
 
 # Helpers
 
@@ -127,6 +128,10 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         self.range_join_bin_size = range_join_bin_size
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        # TODO (v0.2 refactor): Fix timestamp timezone handling for composite indexes with nanosecond precision
+        # Currently, broadcast joins with composite timestamp indexes may have timezone inconsistencies
+        # that cause test failures. This should be addressed in the v0.2 refactor.
+        
         # set the range join bin size to 60 seconds
         self.spark.conf.set(
             "spark.databricks.optimizer.rangeJoin.binSize",
@@ -134,10 +139,26 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         )
         # find a leading column in the right TSDF
         w = right.baseWindow()
+
+        # Get the comparable expression for the timestamp index
+        # This handles both simple and composite timestamp indexes
+        right_comparable_expr = right.ts_index.comparableExpr()
+
+        # For composite indexes, comparableExpr() returns a list
+        # We need the first element which is the most comparable field
+        # (e.g., double_ts for nanosecond precision timestamps)
+        if isinstance(right_comparable_expr, list):
+            if len(right_comparable_expr) > 0:
+                right_comparable_expr = right_comparable_expr[0]
+            else:
+                # Fallback to column name if no comparable expression
+                right_comparable_expr = sfn.col(right.ts_index.colname)
+        
         lead_colname = "lead_" + right.ts_index.colname
         right_with_lead = right.withColumn(
-            lead_colname, sfn.lead(right.ts_index.colname).over(w)
+            lead_colname, sfn.lead(right_comparable_expr).over(w)
         )
+
         # perform the join
         join_series_ids = self.commonSeriesIDs(left, right)
         res_df = (
@@ -230,6 +251,10 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
     ) -> t_tsdf.TSDF:
         """
         Filters out the last right-hand row for each left-hand row
+        
+        TODO (v0.2 refactor): Fix timestamp timezone handling for composite indexes with nanosecond precision
+        The union sort filter join may produce timestamps with different timezone offsets compared to
+        broadcast join, causing test failures. This should be addressed in the v0.2 refactor.
         """
         # find the last value for each column in the right-hand side
         w = combined.allBeforeWindow()
