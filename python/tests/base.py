@@ -176,7 +176,7 @@ class TestDataFrameBuilder:
         if "decimal_convert" in self.df:
             for decimal_col in self.df["decimal_convert"]:
                 if "." in date_col:
-                    col, field = date_col.split(".")
+                    col, field = decimal_col.split(".")
                     convert_field_expr = sfn.col(col).getField(field).cast("decimal")
                     df = df.withColumn(
                         col, sfn.col(col).withField(field, convert_field_expr)

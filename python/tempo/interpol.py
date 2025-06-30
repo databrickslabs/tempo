@@ -130,7 +130,9 @@ class Interpolation:
 
         if not self._is_valid_method_for_column(series, method, target_col):
             raise ValueError(
-                f"Interpolation method '{method}' is not supported for column '{target_col}' of type '{series.schema[target_col].dataType}'"
+                f"Interpolation method '{method}' is not supported for column "
+                f"'{target_col}' of type '{series.schema[target_col].dataType}'. "
+                f"Only NumericType columns are supported."
             )
 
         output_df: DataFrame = series

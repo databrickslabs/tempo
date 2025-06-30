@@ -505,7 +505,7 @@ class InterpolationUnitTest(SparkTest):
             ValueError,
             self.interpolate_helper.interpolate,
             simple_input_tsdf,
-            freq="30 seconds", func="ceil", method="linear", ts_col="event_ts",
+            freq="30 seconds", func="ceil", method="zero", ts_col="event_ts",
             partition_cols=["partition_a", "partition_b"], target_cols=["string_col", "timestamp_col"],
             show_interpolated=False
         )
