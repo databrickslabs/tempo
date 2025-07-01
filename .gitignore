@@ -38,6 +38,7 @@ python/.env
 venv
 .venv
 .env
+.venv-*
 
 # other misc ignore
 .DS_Store
