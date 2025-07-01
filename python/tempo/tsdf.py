@@ -13,8 +13,8 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, ov
 import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
+from IPython.core.display import HTML  # type: ignore[import-not-found]
+from IPython.display import display as ipydisplay  # type: ignore[import-not-found]
 from pandas.core.frame import DataFrame as PandasDataFrame
 from pyspark import RDD
 from pyspark.sql import GroupedData, SparkSession

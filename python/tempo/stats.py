@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column
-from scipy.fft import fft, fftfreq  # type: ignore
+from scipy.fft import fft, fftfreq  # type: ignore[import-untyped]
 
 import tempo.resample as t_resample
 from tempo.tsdf import TSDF
@@ -217,6 +217,8 @@ def withGroupedStats(
         ]
 
     # build window
+    if freq is None:
+        raise ValueError("freq parameter cannot be None")
     parsed_freq = t_resample.checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
     agg_window = sfn.window(

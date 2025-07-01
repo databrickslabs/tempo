@@ -5,7 +5,7 @@ from typing import Callable, List, Optional, Union
 import pandas as pd
 import pyspark.sql.functions as sfn
 from pyspark import __version__ as pyspark_version
-from pyspark.sql import Window
+from pyspark.sql import Column, Window
 from pyspark.sql.types import DateType, NumericType, TimestampType
 
 from tempo.tsdf import TSDF
@@ -20,7 +20,7 @@ HAS_BOOL_OR = PYSPARK_VERSION >= (3, 5)
 method_options = ["zero", "null", "bfill", "ffill", "linear"]
 
 
-def _bool_or_compat(col):
+def _bool_or_compat(col: Union[str, Column]) -> Column:
     """Compatibility wrapper for bool_or function"""
     if HAS_BOOL_OR:
         return sfn.bool_or(col)
@@ -91,7 +91,7 @@ def _build_interpolator(
                     # - Missing values at the end (with no following value) are forward-filled with the last known value
                     # - Missing values at the beginning (with no preceding value) remain as NaN
                     pdf[interpol_col] = pdf[interpol_col].interpolate(
-                        method=interpol_fn
+                        method="linear"  # interpol_fn is "linear" here based on the if condition
                     )
                 elif interpol_fn == "ffill":
                     pdf[interpol_col] = pdf[interpol_col].ffill()

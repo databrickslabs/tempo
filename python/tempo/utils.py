@@ -8,9 +8,9 @@ from datetime import timedelta as td
 from typing import Optional, Union, overload
 
 import pyspark.sql.functions as sfn
-from IPython import get_ipython
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
+from IPython import get_ipython  # type: ignore[import-not-found]
+from IPython.core.display import HTML  # type: ignore[import-not-found]
+from IPython.display import display as ipydisplay  # type: ignore[import-not-found]
 from pandas.core.frame import DataFrame as pandasDataFrame
 from pyspark.sql import DataFrame, SparkSession
 

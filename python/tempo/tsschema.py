@@ -957,7 +957,9 @@ class TSSchema(WindowBuilder):
     Schema type for a :class:`TSDF` class.
     """
 
-    def __init__(self, ts_idx: TSIndex, series_ids: Collection[str] = None) -> None:
+    def __init__(
+            self, ts_idx: TSIndex, series_ids: Optional[Collection[str]] = None
+    ) -> None:
         self.__ts_idx = ts_idx
         if series_ids:
             self.__series_ids = list(series_ids)

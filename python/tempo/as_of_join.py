@@ -1,7 +1,7 @@
 import copy
 from abc import ABC, abstractmethod
 from functools import reduce
-from typing import Optional
+from typing import Optional, Tuple
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, DataFrame, SparkSession
@@ -82,7 +82,7 @@ class AsOfJoiner(ABC):
 
     def _prefixOverlappingColumns(
         self, left: t_tsdf.TSDF, right: t_tsdf.TSDF
-    ) -> (t_tsdf.TSDF, t_tsdf.TSDF):
+    ) -> Tuple[t_tsdf.TSDF, t_tsdf.TSDF]:
         """
         Prefixes the overlapping columns in the left and right TSDFs
         """
@@ -257,6 +257,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         """
         # find the last value for each column in the right-hand side
         w = combined.allBeforeWindow()
+        # Type assertion: ts_index is a CompositeTSIndex for as-of joins
+        assert isinstance(combined.ts_index, CompositeTSIndex)
         right_row_field = combined.ts_index.fieldPath(_DEFAULT_RIGHT_ROW_COLNAME)
         if self.skipNulls:
             last_right_cols = [
@@ -285,11 +287,6 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         # return with the left-hand schema
         return t_tsdf.TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
-    def _toleranceFilter(self, as_of: t_tsdf.TSDF) -> t_tsdf.TSDF:
-        """
-        Filters out rows from the as_of TSDF that are outside the tolerance
-        """
-
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
         # find the new columns to add to the left and right TSDFs
         right_only_cols = set(right.columns) - set(left.columns)
@@ -306,6 +303,14 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         # apply tolerance filter
         if self.tolerance is not None:
             as_of = self._toleranceFilter(as_of)
+        return as_of
+
+    def _toleranceFilter(self, as_of: t_tsdf.TSDF) -> t_tsdf.TSDF:
+        """
+        Filters out rows from the as_of TSDF that are outside the tolerance
+        """
+        # TODO: Implement tolerance filtering logic
+        # For now, return the input TSDF unchanged
         return as_of
 
 
@@ -326,7 +331,8 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
         super().__init__(left_prefix, right_prefix, skipNulls, tolerance)
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
-        pass
+        # TODO: Implement skew-specific join logic
+        return super()._join(left, right)
 
 
 # Helper functions
@@ -412,11 +418,20 @@ def choose_as_of_join_strategy(
 
         bytes_threshold = __DEFAULT_BROADCAST_BYTES_THRESHOLD
         if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-            return BroadcastAsOfJoiner(spark, left_prefix, right_prefix)
+            return BroadcastAsOfJoiner(spark, left_prefix or "left", right_prefix)
 
     # use the skew join if the partition value is passed in
     if tsPartitionVal is not None:
-        return SkewAsOfJoiner(tsPartitionVal, left_prefix, right_prefix)
+        return SkewAsOfJoiner(
+            left_prefix=left_prefix or "left",
+            right_prefix=right_prefix,
+            skipNulls=skipNulls,
+            tolerance=tolerance,
+            tsPartitionVal=tsPartitionVal,
+            fraction=fraction,
+        )
 
     # default to use the union sort filter join
-    return UnionSortFilterAsOfJoiner(left_prefix, right_prefix, skipNulls, tolerance)
+    return UnionSortFilterAsOfJoiner(
+        left_prefix or "left", right_prefix, skipNulls, tolerance
+    )

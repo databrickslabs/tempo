@@ -42,6 +42,8 @@ def _appendAggKey(
     :return: triple - 1) return a TSDF with a new aggregate key (called agg_key) 2) return the period for use in interpolation, 3) return the time increment (also necessary for interpolation)
     """
     df = tsdf.df
+    if freq is None:
+        raise ValueError("freq parameter cannot be None")
     parsed_freq = checkAllowableFreq(freq)
     period, unit = parsed_freq[0], parsed_freq[1]
 
@@ -175,11 +177,12 @@ def downsample(
     """
     if metricCols is None:
         metricCols = tsdf.metric_cols
-    if isinstance(func, Callable):
+    if callable(func):
         agg_exprs = [func(col).alias(col) for col in metricCols]
+        return tsdf.aggByCycles(freq, *agg_exprs)
     else:
-        agg_exprs = {col: func for col in metricCols}
-    return tsdf.aggByCycles(freq, *agg_exprs)
+        agg_dict = {col: func for col in metricCols}
+        return tsdf.aggByCycles(freq, agg_dict)
 
 
 def aggregate(

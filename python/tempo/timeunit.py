@@ -11,10 +11,14 @@ class TimeUnit(NamedTuple):
     and the approximate number of seconds in that unit.
     """
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TimeUnit):
+            return NotImplemented
         return self.approx_seconds == other.approx_seconds
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, TimeUnit):
+            return NotImplemented
         return self.approx_seconds < other.approx_seconds
 
 
