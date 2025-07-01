@@ -124,8 +124,8 @@ class TSDF(WindowBuilder):
         ts_schema: Optional[TSSchema] = None,
         ts_col: Optional[str] = None,
         series_ids: Optional[Collection[str]] = None,
-            resample_freq: Optional[str] = None,
-            resample_func: Optional[Union[Callable, str]] = None,
+        resample_freq: Optional[str] = None,
+        resample_func: Optional[Union[Callable, str]] = None,
     ) -> None:
         self.df = df
         # construct schema if we don't already have one
@@ -924,7 +924,7 @@ class TSDF(WindowBuilder):
 
     def asofJoin(
         self,
-            right_tsdf: TSDF,
+        right_tsdf: TSDF,
         left_prefix: Optional[str] = None,
         right_prefix: str = "right",
         tsPartitionVal: Optional[int] = None,
@@ -1701,7 +1701,7 @@ class TSDF(WindowBuilder):
             [resample_open.ts_col]
         )
         sel_and_sort = (
-                resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
+            resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
         )
         bars = bars.select(sel_and_sort)
 

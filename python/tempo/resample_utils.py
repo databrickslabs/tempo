@@ -97,8 +97,8 @@ def checkAllowableFreq(freq: str) -> Tuple[Union[int, str], str]:
     )
 
     if is_valid_allowed_freq_keys(
-            freq.lower(),
-            ALLOWED_FREQ_KEYS,
+        freq.lower(),
+        ALLOWED_FREQ_KEYS,
     ):
         allowable_freq = 1, freq
         return allowable_freq
@@ -112,8 +112,8 @@ def checkAllowableFreq(freq: str) -> Tuple[Union[int, str], str]:
         )
 
     if is_valid_allowed_freq_keys(
-            units.lower(),
-            ALLOWED_FREQ_KEYS,
+        units.lower(),
+        ALLOWED_FREQ_KEYS,
     ):
         if units.startswith(MUSEC):
             allowable_freq = periods, MUSEC

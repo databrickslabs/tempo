@@ -198,7 +198,7 @@ ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
     IS_DATABRICKS
-        and get_ipython() is not None
+    and get_ipython() is not None
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]

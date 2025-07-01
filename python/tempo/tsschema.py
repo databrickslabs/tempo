@@ -958,7 +958,7 @@ class TSSchema(WindowBuilder):
     """
 
     def __init__(
-            self, ts_idx: TSIndex, series_ids: Optional[Collection[str]] = None
+        self, ts_idx: TSIndex, series_ids: Optional[Collection[str]] = None
     ) -> None:
         self.__ts_idx = ts_idx
         if series_ids:
