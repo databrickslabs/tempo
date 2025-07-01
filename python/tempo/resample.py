@@ -440,7 +440,7 @@ def resample(
         enriched_df,
         ts_col=tsdf.ts_col,
         series_ids=tsdf.series_ids,
-        _resample_freq=freq,
-        _resample_func=func,
+        resample_freq=freq,
+        resample_func=func,
     )
 

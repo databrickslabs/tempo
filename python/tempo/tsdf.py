@@ -116,14 +116,16 @@ class TSDF(WindowBuilder):
     each identified by a unique set of series IDs.
     """
 
+    summarizable_types = ["int", "bigint", "float", "double"]
+
     def __init__(
         self,
         df: DataFrame,
         ts_schema: Optional[TSSchema] = None,
         ts_col: Optional[str] = None,
         series_ids: Optional[Collection[str]] = None,
-            _resample_freq: Optional[str] = None,
-            _resample_func: Optional[Union[Callable, str]] = None,
+            resample_freq: Optional[str] = None,
+            resample_func: Optional[Union[Callable, str]] = None,
     ) -> None:
         self.df = df
         # construct schema if we don't already have one
@@ -136,8 +138,8 @@ class TSDF(WindowBuilder):
         self.ts_schema.validate(df.schema)
 
         # Optional resample metadata (used when this TSDF is created from resample())
-        self._resample_freq = _resample_freq
-        self._resample_func = _resample_func
+        self.resample_freq = resample_freq
+        self.resample_func = resample_func
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
@@ -158,8 +160,8 @@ class TSDF(WindowBuilder):
         return TSDF(
             new_df,
             ts_schema=copy.deepcopy(self.ts_schema),
-            _resample_freq=self._resample_freq,
-            _resample_func=self._resample_func
+            resample_freq=self.resample_freq,
+            resample_func=self.resample_func
         )
 
     def __withStandardizedColOrder(self) -> TSDF:
@@ -1302,8 +1304,8 @@ class TSDF(WindowBuilder):
         roll_agg_tsdf = self
         if len(exprs) == 1 and isinstance(exprs[0], dict):
             # dict
-            for input_col in exprs.keys():
-                expr_str = exprs[input_col]
+            for input_col in exprs[0].keys():
+                expr_str = exprs[0][input_col]
                 new_col_name = f"{expr_str}({input_col})"
                 roll_agg_tsdf = roll_agg_tsdf.withColumn(
                     new_col_name, sfn.expr(expr_str).over(window)
@@ -1575,8 +1577,8 @@ class TSDF(WindowBuilder):
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
-            t_utils.calculate_time_horizon(
-                self.df, self.ts_col, freq, self.series_ids
+            t_resample.calculate_time_horizon(
+                self, freq
             )
 
         enriched_df: DataFrame = t_resample.aggregate(
@@ -1585,8 +1587,8 @@ class TSDF(WindowBuilder):
         return TSDF(
             enriched_df,
             ts_schema=copy.deepcopy(self.ts_schema),
-            _resample_freq=freq,
-            _resample_func=func,
+            resample_freq=freq,
+            resample_func=func,
         )
 
     def interpolate(
@@ -1617,39 +1619,25 @@ class TSDF(WindowBuilder):
 
         # Set defaults for target columns, timestamp column and partition columns when not provided
         if freq is None:
-            if hasattr(self, '_resample_freq') and self._resample_freq is not None:
-                freq = self._resample_freq
-            else:
-                raise ValueError("freq must be provided")
+            raise ValueError("freq must be provided")
         if func is None:
-            if hasattr(self, '_resample_func') and self._resample_func is not None:
-                func = self._resample_func
-            else:
-                raise ValueError("func must be provided")
+            raise ValueError("func must be provided")
         if ts_col is None:
             ts_col = self.ts_col
         if partition_cols is None:
             partition_cols = self.series_ids
         if target_cols is None:
             prohibited_cols: List[str] = partition_cols + [ts_col]
-            summarizable_types = ["int", "bigint", "float", "double"]
-
-            # get summarizable find summarizable columns
-            target_cols = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
+            # Don't filter by data type - allow all columns for PR-421 compatibility
+            target_cols = [col for col in self.df.columns if col not in prohibited_cols]
 
         # First resample the data
+        # Don't fill with zeros - let interpolation handle the nulls
         resampled_tsdf = self.resample(
             freq=freq,
             func=func,
             metricCols=target_cols,
-            fill=True,  # Fill to create regular time series
+            fill=False,  # Don't fill - interpolation will handle nulls
             perform_checks=perform_checks
         )
 

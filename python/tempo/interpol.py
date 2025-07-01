@@ -6,7 +6,7 @@ import pandas as pd
 import pyspark.sql.functions as sfn
 from pyspark import __version__ as pyspark_version
 from pyspark.sql import Window
-from pyspark.sql.types import TimestampType, DateType
+from pyspark.sql.types import TimestampType, DateType, NumericType
 
 from tempo.tsdf import TSDF
 from tempo.tsschema import SimpleTSIndex, ParsedTSIndex
@@ -15,6 +15,9 @@ from tempo.tsschema import SimpleTSIndex, ParsedTSIndex
 PYSPARK_VERSION = tuple(int(x) for x in pyspark_version.split('.')[:2])
 HAS_COUNT_IF = PYSPARK_VERSION >= (3, 5)
 HAS_BOOL_OR = PYSPARK_VERSION >= (3, 5)
+
+# Interpolation fill options
+method_options = ["zero", "null", "bfill", "ffill", "linear"]
 
 
 def _bool_or_compat(col):
@@ -51,6 +54,18 @@ def backward_fill(null_series: pd.Series) -> pd.Series:
 # The interpolation
 
 
+def _is_valid_method_for_column(
+        tsdf: TSDF, method: str, col_name: str
+) -> bool:
+    """
+    zero and linear interpolation are only valid for numeric columns
+    """
+    if method in ["linear", "zero"]:
+        return isinstance(tsdf.df.schema[col_name].dataType, NumericType)
+    else:
+        return True
+
+
 def _build_interpolator(
     interpol_cols: List[str],
     interpol_fn: Union[Callable[[pd.Series], pd.Series], str],
@@ -67,9 +82,21 @@ def _build_interpolator(
         for interpol_col in interpol_cols:
             # those rows that need interpolation
             any_interpol_mask = any_interpol_mask | pdf[interpol_col].isna()
+
             # otherwise we interpolate the missing values
             if isinstance(interpol_fn, str):
-                pdf[interpol_col] = pdf[interpol_col].interpolate(method=interpol_fn)
+                # Only use pandas interpolate for methods it supports
+                if interpol_fn in ["linear"]:
+                    pdf[interpol_col] = pdf[interpol_col].interpolate(method=interpol_fn)
+                elif interpol_fn == "ffill":
+                    pdf[interpol_col] = pdf[interpol_col].ffill()
+                elif interpol_fn == "bfill":
+                    pdf[interpol_col] = pdf[interpol_col].bfill()
+                elif interpol_fn == "zero":
+                    pdf[interpol_col] = pdf[interpol_col].fillna(0)
+                elif interpol_fn == "null":
+                    # null means leave as null, so do nothing
+                    pass
             else:
                 pdf[interpol_col] = interpol_fn(pdf[interpol_col])
         # return only the rows that were missing (others are margins)
@@ -121,6 +148,12 @@ def interpolate(
         assert (
             col in tsdf.columns
         ), f"Column to be interpolated '{col}' not found in the DataFrame"
+
+    # validate interpolation method is in allowed options
+    if isinstance(fn, str) and fn not in method_options:
+        raise ValueError(
+            f"Invalid interpolation method '{fn}'. Must be one of {method_options}"
+        )
 
     # identify rows that need interpolation
     needs_intpl_col = "__tmp_needs_interpolation"
@@ -212,6 +245,17 @@ def interpolate(
             ts_col = tsdf.ts_index.colname
         elif isinstance(tsdf.ts_index, ParsedTSIndex):
             ts_col = tsdf.ts_index.parsed_ts_field
+
+    # Validate column types before building the interpolator
+    if isinstance(fn, str):
+        for col in cols:
+            if not _is_valid_method_for_column(tsdf, fn, col):
+                raise ValueError(
+                    f"Interpolation method '{fn}' is not supported for column "
+                    f"'{col}' of type '{tsdf.df.schema[col].dataType}'. "
+                    f"Only NumericType columns are supported."
+                )
+    
     # build the interpolator function
     interpolator = _build_interpolator(cols, fn, ts_col)
 
