@@ -3,15 +3,8 @@ import unittest
 import pyspark.sql.functions as sfn
 
 from tempo import TSDF
-from tempo.resample import (
-    _appendAggKey,
-    aggregate,
-    resample
-)
-from tempo.resample_utils import (
-    checkAllowableFreq,
-    validateFuncExists
-)
+from tempo.resample import _appendAggKey, aggregate, resample
+from tempo.resample_utils import checkAllowableFreq, validateFuncExists
 from tempo.stats import calc_bars
 from tests.base import SparkTest
 

@@ -2,7 +2,9 @@
 Utility functions and constants for resampling operations.
 This module contains shared utilities that don't depend on TSDF class.
 """
+
 from typing import (
+    Callable,
     List,
     Tuple,
     TypedDict,
@@ -131,7 +133,7 @@ def checkAllowableFreq(freq: str) -> Tuple[Union[int, str], str]:
     return allowable_freq
 
 
-def validateFuncExists(func: Union[callable, str]) -> None:
+def validateFuncExists(func: Union[Callable, str]) -> None:
     if func is None:
         raise TypeError(
             "Aggregate function missing. Provide one of the allowable functions: "

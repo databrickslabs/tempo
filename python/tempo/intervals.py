@@ -1,23 +1,24 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from functools import cached_property
 from itertools import islice
-from typing import Optional, Iterable, cast, Any, Callable
+from typing import Any, Callable, Optional, cast
 
 import numpy as np
 import pandas as pd
 import pyspark.sql.functions as f
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (
+    BooleanType,
     # NB: NumericType is a non-public object, so we shouldn't import it directly
     ByteType,
-    ShortType,
+    DecimalType,
+    DoubleType,
+    FloatType,
     IntegerType,
     LongType,
-    FloatType,
-    DoubleType,
-    DecimalType,
-    BooleanType,
+    ShortType,
     StructField,
 )
 from pyspark.sql.window import Window, WindowSpec
@@ -27,15 +28,16 @@ def is_metric_col(col: StructField) -> bool:
     return isinstance(
         col.dataType,
         (
+            BooleanType,
             ByteType,
-            ShortType,
+            DecimalType,
+            DoubleType,
+            FloatType,
             IntegerType,
             LongType,
-            FloatType,
-            DoubleType,
-            DecimalType,
+            ShortType,
         ),
-    ) or isinstance(col.dataType, BooleanType)
+    )
 
 
 class IntervalsDF:
@@ -146,7 +148,7 @@ class IntervalsDF:
         metrics_name_col: str,
         metrics_value_col: str,
         metric_names: Optional[list[str]] = None,
-    ) -> "IntervalsDF":
+    ) -> IntervalsDF:
         """
         Returns a new :class:`IntervalsDF` with metrics of the current DataFrame
         pivoted by start and end timestamp and series.
@@ -220,7 +222,7 @@ class IntervalsDF:
 
         return cls(df, start_ts, end_ts, series)
 
-    def make_disjoint(self) -> "IntervalsDF":
+    def make_disjoint(self) -> IntervalsDF:
         """
         Returns a new :class:`IntervalsDF` where metrics of overlapping time intervals
         are correlated and merged prior to constructing new time interval boundaries (
@@ -277,7 +279,7 @@ class IntervalsDF:
             local_series_ids,
         )
 
-    def union(self, other: "IntervalsDF") -> "IntervalsDF":
+    def union(self, other: IntervalsDF) -> IntervalsDF:
         """
         Returns a new :class:`IntervalsDF` containing union of rows in this and another
         :class:`IntervalsDF`.
@@ -307,7 +309,7 @@ class IntervalsDF:
             self.df.union(other.df), self.start_ts, self.end_ts, self.series_ids
         )
 
-    def unionByName(self, other: "IntervalsDF") -> "IntervalsDF":
+    def unionByName(self, other: IntervalsDF) -> IntervalsDF:
         """
         Returns a new :class:`IntervalsDF` containing union of rows in this
         and another :class:`IntervalsDF`.

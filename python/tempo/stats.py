@@ -259,28 +259,28 @@ def calc_bars(
 ) -> TSDF:
     """
     Calculate OHLC (Open, High, Low, Close) bars for time series data.
-    
+
     Column Handling Behavior:
     ------------------------
-    This function follows the same "explicit is better than implicit" principle as the 
+    This function follows the same "explicit is better than implicit" principle as the
     aggregate/resample functions, aligning with pandas and other time series libraries:
-    
+
     1. When metric_cols is None (default):
        - Calculates OHLC for ALL numeric observational columns
        - Preserves non-numeric observational columns in the output
        - Ensures comprehensive bar calculations without data loss
-    
+
     2. When metric_cols is explicitly provided:
        - Only calculates OHLC for the specified columns
        - Non-specified columns are NOT included in the output
        - Allows users to optimize performance and output size
-    
+
     The function creates four prefixed versions of each metric:
     - open_<col>: First value in the time window (floor function)
     - low_<col>: Minimum value in the time window (min function)
     - high_<col>: Maximum value in the time window (max function)
     - close_<col>: Last value in the time window (ceiling function)
-    
+
     :param tsdf: input TSDF object
     :param freq: frequency for bar calculations (e.g., '1 hour', '30 minutes')
     :param metric_cols: columns to calculate bars for. If None, uses all numeric columns

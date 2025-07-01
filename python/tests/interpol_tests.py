@@ -2,7 +2,7 @@ import unittest
 
 from parameterized import parameterized_class
 
-from tempo.interpol import interpolate, zero_fill, forward_fill, backward_fill
+from tempo.interpol import backward_fill, forward_fill, interpolate, zero_fill
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
@@ -40,6 +40,10 @@ class InterpolationTests(SparkTest):
                                                                 "expected").as_tsdf()
 
         # interpolate
+        # Note: Linear interpolation behavior:
+        # - Values between known points are linearly interpolated
+        # - Values at the end with no following point are forward-filled with the last known value
+        # - This is the default pandas behavior (limit_direction='forward')
         actual_tsdf: TSDF = interpolate(init_tsdf,
                                         self.interpol_cols,
                                         "linear",
@@ -62,7 +66,7 @@ class InterpolationTests(SparkTest):
         actual_tsdf: TSDF = interpolate(init_tsdf,
                                         self.interpol_cols,
                                         forward_fill,
-                                        0,
+                                        1,
                                         0)
         actual_tsdf.withNaturalOrdering().show()
 
@@ -82,7 +86,7 @@ class InterpolationTests(SparkTest):
                                         self.interpol_cols,
                                         backward_fill,
                                         0,
-                                        0)
+                                        1)
         actual_tsdf.withNaturalOrdering().show()
 
         # compare

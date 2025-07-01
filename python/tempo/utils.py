@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 import math
 import os
-from datetime import datetime as dt, timedelta as td
+from datetime import datetime as dt
+from datetime import timedelta as td
 from typing import Optional, Union, overload
 
 import pyspark.sql.functions as sfn
@@ -11,7 +12,7 @@ from IPython import get_ipython
 from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas.core.frame import DataFrame as pandasDataFrame
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import DataFrame, SparkSession
 
 import tempo.tsdf as t_tsdf
 
@@ -100,8 +101,6 @@ class ResampleWarning(Warning):
     """
     This class is a warning that is raised when the interpolate or resample with fill methods are called.
     """
-
-    pass
 
 
 def _is_capable_of_html_rendering() -> bool:
@@ -199,7 +198,7 @@ ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
     IS_DATABRICKS
-    and not (get_ipython() is None)
+        and get_ipython() is not None
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]

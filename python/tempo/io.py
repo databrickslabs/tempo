@@ -56,7 +56,5 @@ def write(
             )
         except ParseException as e:
             logger.error(
-                "Delta optimizations attempted, but was not successful.\nError: {}".format(
-                    e
-                )
+                f"Delta optimizations attempted, but was not successful.\nError: {e}"
             )

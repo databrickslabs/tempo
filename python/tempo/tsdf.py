@@ -4,11 +4,11 @@ import copy
 import logging
 import operator
 from abc import ABCMeta, abstractmethod
-from collections.abc import Iterable
-from datetime import datetime as dt, timedelta as td
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from datetime import datetime as dt
+from datetime import timedelta as td
 from functools import cached_property
-from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union, Mapping
-from typing import Collection, Dict, cast, overload
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from IPython.core.display import HTML
 from IPython.display import display as ipydisplay
 from pandas.core.frame import DataFrame as PandasDataFrame
 from pyspark import RDD
-from pyspark.sql import SparkSession, GroupedData
+from pyspark.sql import GroupedData, SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import AtomicType, DataType, StructType
@@ -31,16 +31,16 @@ import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
 from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
-    is_time_format,
-    identify_fractional_second_separator,
-    sub_seconds_precision_digits,
     CompositeTSIndex,
     ParsedTSIndex,
     TSIndex,
     TSSchema,
     WindowBuilder,
+    identify_fractional_second_separator,
+    is_time_format,
+    sub_seconds_precision_digits,
 )
-from tempo.typing import ColumnOrName, PandasMapIterFunction, PandasGroupedMapFunction
+from tempo.typing import ColumnOrName, PandasGroupedMapFunction, PandasMapIterFunction
 
 logger = logging.getLogger(__name__)
 
@@ -144,12 +144,12 @@ class TSDF(WindowBuilder):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, TSDF):
             return False
         return self.ts_schema == other.ts_schema and self.df == other.df
 
-    def __withTransformedDF(self, new_df: DataFrame) -> "TSDF":
+    def __withTransformedDF(self, new_df: DataFrame) -> TSDF:
         """
         This helper function will create a new :class:`TSDF` using the current schema, but a new / transformed :class:`DataFrame`
 
@@ -161,7 +161,7 @@ class TSDF(WindowBuilder):
             new_df,
             ts_schema=copy.deepcopy(self.ts_schema),
             resample_freq=self.resample_freq,
-            resample_func=self.resample_func
+            resample_func=self.resample_func,
         )
 
     def __withStandardizedColOrder(self) -> TSDF:
@@ -275,7 +275,7 @@ class TSDF(WindowBuilder):
         ts_col: str,
         subsequence_col: str,
         series_ids: Optional[Collection[str]] = None,
-    ) -> "TSDF":
+    ) -> TSDF:
         # construct a struct with the ts_col and subsequence_col
         struct_col_name = cls.__DEFAULT_TS_IDX_COL
         with_subseq_struct_df = make_struct_from_cols(
@@ -298,12 +298,12 @@ class TSDF(WindowBuilder):
         ts_col: str,
         series_ids: Optional[Collection[str]] = None,
         ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT,
-    ) -> "TSDF":
+    ) -> TSDF:
         # TODO (v0.2 refactor): Fix timezone handling for nanosecond precision timestamps
         # When using composite timestamp indexes for nanosecond precision, there can be
         # timezone inconsistencies between different join strategies (broadcast vs union).
         # This should be addressed in the v0.2 refactor to ensure consistent behavior.
-        
+
         # parse the ts_col based on the pattern
         is_sub_ms = False
         sub_ms_digits = 0
@@ -353,7 +353,7 @@ class TSDF(WindowBuilder):
         )
 
     @property
-    def ts_index(self) -> "TSIndex":
+    def ts_index(self) -> TSIndex:
         return self.ts_schema.ts_idx
 
     @property
@@ -401,7 +401,7 @@ class TSDF(WindowBuilder):
                 "left and right dataframe timestamp index columns should have same type"
             )
 
-    def __addPrefixToColumns(self, col_list: list[str], prefix: str) -> "TSDF":
+    def __addPrefixToColumns(self, col_list: list[str], prefix: str) -> TSDF:
         """
         Add prefix to all specified columns.
         """
@@ -425,11 +425,11 @@ class TSDF(WindowBuilder):
         # find the structural columns
         ts_col = col_map.get(self.ts_col, self.ts_col)
         partition_cols = [col_map.get(c, c) for c in self.series_ids]
-        sequence_col = col_map.get(self.sequence_col, self.sequence_col)
+        # sequence_col = col_map.get(self.sequence_col, self.sequence_col)
         # TODO: Handle sequence_col in the refactored version
         return TSDF(renamed_df, ts_col=ts_col, series_ids=partition_cols)
 
-    def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> "TSDF":
+    def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> TSDF:
         """
         Add columns from some other DF as lit(None), as pre-step before union.
         """
@@ -441,7 +441,7 @@ class TSDF(WindowBuilder):
 
         return self.__withTransformedDF(new_df)
 
-    def __combineTSDF(self, ts_df_right: "TSDF", combined_ts_col: str) -> "TSDF":
+    def __combineTSDF(self, ts_df_right: TSDF, combined_ts_col: str) -> TSDF:
         combined_df = self.df.unionByName(ts_df_right.df).withColumn(
             combined_ts_col, sfn.coalesce(self.ts_col, ts_df_right.ts_col)
         )
@@ -456,7 +456,7 @@ class TSDF(WindowBuilder):
         tsPartitionVal: Optional[int],
         ignoreNulls: bool,
         suppress_null_warning: bool,
-    ) -> "TSDF":
+    ) -> TSDF:
         """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
 
         self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
@@ -533,7 +533,7 @@ class TSDF(WindowBuilder):
 
         return TSDF(df, ts_col=left_ts_col, series_ids=self.series_ids)
 
-    def __getTimePartitions(self, tsPartitionVal: int, fraction: float = 0.1) -> "TSDF":
+    def __getTimePartitions(self, tsPartitionVal: int, fraction: float = 0.1) -> TSDF:
         """
         Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
         are rounded down to the nearest <tsPartitionVal> seconds.
@@ -604,7 +604,7 @@ class TSDF(WindowBuilder):
         selected_df = self.df.select(*cols)
         return self.__withTransformedDF(selected_df)
 
-    def where(self, condition: Union[Column, str]) -> "TSDF":
+    def where(self, condition: Union[Column, str]) -> TSDF:
         """
         Selects rows using the given condition.
 
@@ -616,7 +616,7 @@ class TSDF(WindowBuilder):
         where_df = self.df.where(condition)
         return self.__withTransformedDF(where_df)
 
-    def at(self, ts: Any) -> "TSDF":
+    def at(self, ts: Any) -> TSDF:
         """
         Select only records at a given time
 
@@ -626,7 +626,7 @@ class TSDF(WindowBuilder):
         """
         return self.where(self.ts_index == ts)
 
-    def before(self, ts: Any) -> "TSDF":
+    def before(self, ts: Any) -> TSDF:
         """
         Select only records before a given time
 
@@ -636,7 +636,7 @@ class TSDF(WindowBuilder):
         """
         return self.where(self.ts_index < ts)
 
-    def atOrBefore(self, ts: Any) -> "TSDF":
+    def atOrBefore(self, ts: Any) -> TSDF:
         """
         Select only records at or before a given time
 
@@ -646,7 +646,7 @@ class TSDF(WindowBuilder):
         """
         return self.where(self.ts_index <= ts)
 
-    def after(self, ts: Any) -> "TSDF":
+    def after(self, ts: Any) -> TSDF:
         """
         Select only records after a given time
 
@@ -656,7 +656,7 @@ class TSDF(WindowBuilder):
         """
         return self.where(self.ts_index > ts)
 
-    def atOrAfter(self, ts: Any) -> "TSDF":
+    def atOrAfter(self, ts: Any) -> TSDF:
         """
         Select only records at or after a given time
 
@@ -666,7 +666,7 @@ class TSDF(WindowBuilder):
         """
         return self.where(self.ts_index >= ts)
 
-    def between(self, start_ts: Any, end_ts: Any, inclusive: bool = True) -> "TSDF":
+    def between(self, start_ts: Any, end_ts: Any, inclusive: bool = True) -> TSDF:
         """
         Select only records in a given range
 
@@ -681,7 +681,7 @@ class TSDF(WindowBuilder):
             return self.atOrAfter(start_ts).atOrBefore(end_ts)
         return self.after(start_ts).before(end_ts)
 
-    def __top_rows_per_series(self, win: WindowSpec, n: int) -> "TSDF":
+    def __top_rows_per_series(self, win: WindowSpec, n: int) -> TSDF:
         """
         Private method to select just the top n rows per series (as defined by a window ordering)
 
@@ -698,7 +698,7 @@ class TSDF(WindowBuilder):
         )
         return self.__withTransformedDF(prev_records_df)
 
-    def earliest(self, n: int = 1) -> "TSDF":
+    def earliest(self, n: int = 1) -> TSDF:
         """
         Select the earliest n records for each series
 
@@ -709,7 +709,7 @@ class TSDF(WindowBuilder):
         prev_window = self.baseWindow(reverse=False)
         return self.__top_rows_per_series(prev_window, n)
 
-    def latest(self, n: int = 1) -> "TSDF":
+    def latest(self, n: int = 1) -> TSDF:
         """
         Select the latest n records for each series
 
@@ -720,7 +720,7 @@ class TSDF(WindowBuilder):
         next_window = self.baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
-    def priorTo(self, ts: Any, n: int = 1) -> "TSDF":
+    def priorTo(self, ts: Any, n: int = 1) -> TSDF:
         """
         Select the n most recent records prior to a given time
         You can think of this like an 'asOf' select - it selects the records as of a particular time
@@ -732,7 +732,7 @@ class TSDF(WindowBuilder):
         """
         return self.atOrBefore(ts).latest(n)
 
-    def subsequentTo(self, ts: Any, n: int = 1) -> "TSDF":
+    def subsequentTo(self, ts: Any, n: int = 1) -> TSDF:
         """
         Select the n records subsequent to a give time
 
@@ -924,7 +924,7 @@ class TSDF(WindowBuilder):
 
     def asofJoin(
         self,
-        right_tsdf: "TSDF",
+            right_tsdf: TSDF,
         left_prefix: Optional[str] = None,
         right_prefix: str = "right",
         tsPartitionVal: Optional[int] = None,
@@ -933,7 +933,7 @@ class TSDF(WindowBuilder):
         sql_join_opt: bool = False,
         suppress_null_warning: bool = False,
         tolerance: Optional[int] = None,
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         Performs an as-of join between two time-series. If a tsPartitionVal is
         specified, it will do this partitioned by time brackets, which can help alleviate skew.
@@ -1037,9 +1037,7 @@ class TSDF(WindowBuilder):
             [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
         )
 
-        left_columns = list(
-            set(left_tsdf.df.columns).difference(set(self.series_ids))
-        )
+        left_columns = list(set(left_tsdf.df.columns).difference(set(self.series_ids)))
         right_columns = list(
             set(right_tsdf.df.columns).difference(set(self.series_ids))
         )
@@ -1141,7 +1139,7 @@ class TSDF(WindowBuilder):
     # Re-Partitioning
     #
 
-    def repartitionBySeries(self, numPartitions: Optional[int] = None) -> "TSDF":
+    def repartitionBySeries(self, numPartitions: Optional[int] = None) -> TSDF:
         """
         Repartition the data frame by series id(s) into a given number of partitions.
 
@@ -1159,16 +1157,13 @@ class TSDF(WindowBuilder):
         if numPartitions is None:
             numPartitions = self.df.rdd.getNumPartitions()
 
-        # define a sorting expression
-        order_exprs = self.ts_index.orderByExpr()
-
         # repartition by series ids, ordering by time
         repartitioned_df = self.df.repartition(
             numPartitions, *self.series_ids
         ).sortWithinPartitions(*[self.series_ids + [self.ts_index.orderByExpr()]])
         return self.__withTransformedDF(repartitioned_df)
 
-    def repartitionByTime(self, numPartitions: Optional[int] = None) -> "TSDF":
+    def repartitionByTime(self, numPartitions: Optional[int] = None) -> TSDF:
         """
         Repartition the data frame by time into a given number of partitions.
 
@@ -1188,7 +1183,7 @@ class TSDF(WindowBuilder):
     # Core Transformations
     #
 
-    def withNaturalOrdering(self, reverse: bool = False) -> "TSDF":
+    def withNaturalOrdering(self, reverse: bool = False) -> TSDF:
         order_expr = [sfn.col(c) for c in self.series_ids]
         ts_idx_expr = self.ts_index.orderByExpr(reverse)
         if isinstance(ts_idx_expr, list):
@@ -1198,7 +1193,7 @@ class TSDF(WindowBuilder):
 
         return self.__withTransformedDF(self.df.orderBy(order_expr))
 
-    def withColumn(self, colName: str, col: Column) -> "TSDF":
+    def withColumn(self, colName: str, col: Column) -> TSDF:
         """
         Returns a new :class:`TSDF` by adding a column or replacing the
         existing column that has the same name.
@@ -1209,7 +1204,7 @@ class TSDF(WindowBuilder):
         new_df = self.df.withColumn(colName, col)
         return self.__withTransformedDF(new_df)
 
-    def withColumnRenamed(self, existing: str, new: str) -> "TSDF":
+    def withColumnRenamed(self, existing: str, new: str) -> TSDF:
         """
         Returns a new :class:`TSDF` with the given column renamed.
 
@@ -1562,7 +1557,7 @@ class TSDF(WindowBuilder):
         prefix: Optional[str] = None,
         fill: Optional[bool] = None,
         perform_checks: bool = True,
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         function to upsample based on frequency and aggregate function similar to pandas
         :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
@@ -1577,9 +1572,7 @@ class TSDF(WindowBuilder):
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
-            t_resample.calculate_time_horizon(
-                self, freq
-            )
+            t_resample.calculate_time_horizon(self, freq)
 
         enriched_df: DataFrame = t_resample.aggregate(
             self, freq, func, metricCols, prefix, fill
@@ -1601,7 +1594,7 @@ class TSDF(WindowBuilder):
         partition_cols: Optional[List[str]] = None,
         show_interpolated: bool = False,
         perform_checks: bool = True,
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
         will be filled based on the fill calculation.
@@ -1638,28 +1631,24 @@ class TSDF(WindowBuilder):
             func=func,
             metricCols=target_cols,
             fill=False,  # Don't fill - interpolation will handle nulls
-            perform_checks=perform_checks
+            perform_checks=perform_checks,
         )
 
         # Import interpolation function and pre-defined fill functions
-        from tempo.interpol import (
-            interpolate as interpol_func,
-            zero_fill,
-            forward_fill,
-            backward_fill
-        )
+        from tempo.interpol import backward_fill, forward_fill, zero_fill
+        from tempo.interpol import interpolate as interpol_func
 
         # Map method names to interpolation functions (no lambdas)
-        if method == 'linear':
-            fn = 'linear'  # String method for pandas interpolation
-        elif method == 'null':
+        if method == "linear":
+            fn = "linear"  # String method for pandas interpolation
+        elif method == "null":
             # For null method, we don't fill - just return the resampled data
             return resampled_tsdf
-        elif method == 'zero':
+        elif method == "zero":
             fn = zero_fill
-        elif method == 'bfill':
+        elif method == "bfill":
             fn = backward_fill
-        elif method == 'ffill':
+        elif method == "ffill":
             fn = forward_fill
         else:
             # Assume it's a valid pandas interpolation method string
@@ -1671,13 +1660,15 @@ class TSDF(WindowBuilder):
             cols=target_cols,
             fn=fn,
             leading_margin=2,
-            lagging_margin=2
+            lagging_margin=2,
         )
 
         if show_interpolated:
             # Add a column indicating which rows were interpolated
             # This would require tracking which rows had nulls before interpolation
-            logger.warning("show_interpolated=True is not yet implemented in the refactored version")
+            logger.warning(
+                "show_interpolated=True is not yet implemented in the refactored version"
+            )
 
         return interpolated_tsdf
 
@@ -1686,7 +1677,7 @@ class TSDF(WindowBuilder):
         freq: str,
         metricCols: Optional[List[str]] = None,
         fill: Optional[bool] = None,
-    ) -> "TSDF":
+    ) -> TSDF:
         resample_open = tsdf.resample(
             freq=freq, func="floor", metricCols=metricCols, prefix="open", fill=fill
         )
@@ -1714,11 +1705,13 @@ class TSDF(WindowBuilder):
         )
         bars = bars.select(sel_and_sort)
 
-        return TSDF(bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids)
+        return TSDF(
+            bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids
+        )
 
     def fourier_transform(
         self, timestep: Union[int, float, complex], valueCol: str
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         Function to fourier transform the time series to its frequency domain representation.
         :param timestep: timestep value to be used for getting the frequency scale
@@ -1795,37 +1788,36 @@ class TSDF(WindowBuilder):
                     tempo_fourier_util, return_schema
                 )
                 result = result.drop("tdval", "tpoints")
+        elif self.series_ids == []:
+            data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
+            data = (
+                data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
+                .withColumn("tdval", sfn.col(valueCol))
+                .withColumn("tpoints", sfn.col(self.ts_col))
+            )
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                + ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(
+                tempo_fourier_util, return_schema
+            )
+            result = result.drop("dummy_group", "tdval", "tpoints")
         else:
-            if self.series_ids == []:
-                data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
-                data = (
-                    data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
-                    .withColumn("tdval", sfn.col(valueCol))
-                    .withColumn("tpoints", sfn.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy("dummy_group").applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("dummy_group", "tdval", "tpoints")
-            else:
-                group_cols = self.series_ids
-                data = (
-                    data.select(*group_cols, self.ts_col, sfn.col(valueCol))
-                    .withColumn("tdval", sfn.col(valueCol))
-                    .withColumn("tpoints", sfn.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy(*group_cols).applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("tdval", "tpoints")
+            group_cols = self.series_ids
+            data = (
+                data.select(*group_cols, self.ts_col, sfn.col(valueCol))
+                .withColumn("tdval", sfn.col(valueCol))
+                .withColumn("tpoints", sfn.col(self.ts_col))
+            )
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                + ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(
+                tempo_fourier_util, return_schema
+            )
+            result = result.drop("tdval", "tpoints")
 
         # TODO: Handle sequence_col in refactored version
         return TSDF(result, ts_col=self.ts_col, series_ids=self.series_ids)
@@ -1885,7 +1877,7 @@ class TSDF(WindowBuilder):
 
         # Validate state definition and construct state comparison function
         if type(state_definition) is str:
-            if state_definition not in operator_dict.keys():
+            if state_definition not in operator_dict:
                 raise ValueError(
                     f"Invalid comparison operator for `state_definition` argument: {state_definition}."
                 )
@@ -1956,7 +1948,7 @@ class Comparable(metaclass=ABCMeta):
     """For typing functions generated by operator_dict"""
 
     @abstractmethod
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: object) -> bool:
         pass
 
     @abstractmethod
@@ -1968,7 +1960,7 @@ class Comparable(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         pass
 
     @abstractmethod

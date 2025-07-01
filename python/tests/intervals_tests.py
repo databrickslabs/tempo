@@ -9,20 +9,20 @@ from pyspark.sql.utils import AnalysisException
 
 from tempo.intervals import (
     IntervalsDF,
-    identify_interval_overlaps,
-    interval_starts_before,
+    add_as_disjoint,
     check_for_nan_values,
+    identify_interval_overlaps,
     interval_ends_before,
     interval_is_contained_by,
-    intervals_share_start_boundary,
-    intervals_share_end_boundary,
+    interval_starts_before,
     intervals_boundaries_are_equivalent,
-    update_interval_boundary,
-    merge_metric_columns_of_intervals,
-    resolve_overlap,
-    resolve_all_overlaps,
-    add_as_disjoint,
+    intervals_share_end_boundary,
+    intervals_share_start_boundary,
     make_disjoint_wrap,
+    merge_metric_columns_of_intervals,
+    resolve_all_overlaps,
+    resolve_overlap,
+    update_interval_boundary,
 )
 from tests.base import SparkTest
 

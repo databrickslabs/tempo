@@ -4,7 +4,7 @@ from functools import reduce
 from typing import Optional
 
 import pyspark.sql.functions as sfn
-from pyspark.sql import DataFrame, SparkSession, Column
+from pyspark.sql import Column, DataFrame, SparkSession
 
 import tempo.tsdf as t_tsdf
 from tempo.timeunit import TimeUnit
@@ -108,7 +108,6 @@ class AsOfJoiner(ABC):
         """
         Returns a new TSDF with the join of the left and right TSDFs
         """
-        pass
 
 
 class BroadcastAsOfJoiner(AsOfJoiner):
@@ -131,7 +130,7 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         # TODO (v0.2 refactor): Fix timestamp timezone handling for composite indexes with nanosecond precision
         # Currently, broadcast joins with composite timestamp indexes may have timezone inconsistencies
         # that cause test failures. This should be addressed in the v0.2 refactor.
-        
+
         # set the range join bin size to 60 seconds
         self.spark.conf.set(
             "spark.databricks.optimizer.rangeJoin.binSize",
@@ -153,7 +152,7 @@ class BroadcastAsOfJoiner(AsOfJoiner):
             else:
                 # Fallback to column name if no comparable expression
                 right_comparable_expr = sfn.col(right.ts_index.colname)
-        
+
         lead_colname = "lead_" + right.ts_index.colname
         right_with_lead = right.withColumn(
             lead_colname, sfn.lead(right_comparable_expr).over(w)
@@ -251,7 +250,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
     ) -> t_tsdf.TSDF:
         """
         Filters out the last right-hand row for each left-hand row
-        
+
         TODO (v0.2 refactor): Fix timestamp timezone handling for composite indexes with nanosecond precision
         The union sort filter join may produce timestamps with different timezone offsets compared to
         broadcast join, causing test failures. This should be addressed in the v0.2 refactor.
@@ -290,7 +289,6 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         """
         Filters out rows from the as_of TSDF that are outside the tolerance
         """
-        pass
 
     def _join(self, left: t_tsdf.TSDF, right: t_tsdf.TSDF) -> t_tsdf.TSDF:
         # find the new columns to add to the left and right TSDFs

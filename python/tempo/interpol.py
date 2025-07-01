@@ -1,18 +1,18 @@
 import copy
 from functools import reduce
-from typing import Union, Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 import pandas as pd
 import pyspark.sql.functions as sfn
 from pyspark import __version__ as pyspark_version
 from pyspark.sql import Window
-from pyspark.sql.types import TimestampType, DateType, NumericType
+from pyspark.sql.types import DateType, NumericType, TimestampType
 
 from tempo.tsdf import TSDF
-from tempo.tsschema import SimpleTSIndex, ParsedTSIndex
+from tempo.tsschema import ParsedTSIndex, SimpleTSIndex
 
 # Check PySpark version for compatibility
-PYSPARK_VERSION = tuple(int(x) for x in pyspark_version.split('.')[:2])
+PYSPARK_VERSION = tuple(int(x) for x in pyspark_version.split(".")[:2])
 HAS_COUNT_IF = PYSPARK_VERSION >= (3, 5)
 HAS_BOOL_OR = PYSPARK_VERSION >= (3, 5)
 
@@ -54,9 +54,7 @@ def backward_fill(null_series: pd.Series) -> pd.Series:
 # The interpolation
 
 
-def _is_valid_method_for_column(
-        tsdf: TSDF, method: str, col_name: str
-) -> bool:
+def _is_valid_method_for_column(tsdf: TSDF, method: str, col_name: str) -> bool:
     """
     zero and linear interpolation are only valid for numeric columns
     """
@@ -87,7 +85,14 @@ def _build_interpolator(
             if isinstance(interpol_fn, str):
                 # Only use pandas interpolate for methods it supports
                 if interpol_fn in ["linear"]:
-                    pdf[interpol_col] = pdf[interpol_col].interpolate(method=interpol_fn)
+                    # Note: pandas linear interpolation by default uses limit_direction='forward'
+                    # This means:
+                    # - Missing values between known values are linearly interpolated
+                    # - Missing values at the end (with no following value) are forward-filled with the last known value
+                    # - Missing values at the beginning (with no preceding value) remain as NaN
+                    pdf[interpol_col] = pdf[interpol_col].interpolate(
+                        method=interpol_fn
+                    )
                 elif interpol_fn == "ffill":
                     pdf[interpol_col] = pdf[interpol_col].ffill()
                 elif interpol_fn == "bfill":
@@ -128,6 +133,16 @@ def interpolate(
     non-null values will not be ignored in the final result).
 
     **Note**: This function may cause the re-ordering of the rows in the resulting TSDF.
+
+    **Interpolation Method Behaviors**:
+
+    - **linear**: Uses pandas' linear interpolation. Missing values between known values
+      are linearly interpolated. Missing values at the end (with no following value) are
+      forward-filled with the last known value. Missing values at the beginning remain as NaN.
+    - **ffill**: Forward fill - propagates last valid observation forward to fill gaps
+    - **bfill**: Backward fill - propagates next valid observation backward to fill gaps
+    - **zero**: Fills all missing values with 0
+    - **null**: Leaves missing values as null (no interpolation)
 
     :param tsdf: the :class:`TSDF` timeseries dataframe
     :param cols: the names of the columns to interpolate
@@ -181,7 +196,8 @@ def interpolate(
     else:
         # Fallback for PySpark < 3.5: sum(cast(condition as int))
         segments = segments.withColumn(
-            seg_group_col, sfn.sum(sfn.col(seg_trans_col).cast("int")).over(all_prev_win)
+            seg_group_col,
+            sfn.sum(sfn.col(seg_trans_col).cast("int")).over(all_prev_win),
         )
 
     # build margins around intepolation segments
@@ -192,8 +208,12 @@ def interpolate(
         lead_margins = segments.withColumn(
             leading_margin_col,
             sfn.when(
-                ~sfn.col(needs_intpl_col) & (_bool_or_compat(seg_trans_col).over(margin_win) if HAS_BOOL_OR else (
-                            _bool_or_compat(seg_trans_col).over(margin_win) > 0)),
+                ~sfn.col(needs_intpl_col)
+                & (
+                    _bool_or_compat(seg_trans_col).over(margin_win)
+                    if HAS_BOOL_OR
+                    else (_bool_or_compat(seg_trans_col).over(margin_win) > 0)
+                ),
                 sfn.array(sfn.col(seg_group_col), sfn.col(seg_group_col) + 1),
             ).otherwise(sfn.array(sfn.col(seg_group_col))),
         )
@@ -203,8 +223,12 @@ def interpolate(
         lag_margins = lead_margins.withColumn(
             lagging_margin_col,
             sfn.when(
-                ~sfn.col(needs_intpl_col) & (_bool_or_compat(seg_trans_col).over(margin_win) if HAS_BOOL_OR else (
-                            _bool_or_compat(seg_trans_col).over(margin_win) > 0)),
+                ~sfn.col(needs_intpl_col)
+                & (
+                    _bool_or_compat(seg_trans_col).over(margin_win)
+                    if HAS_BOOL_OR
+                    else (_bool_or_compat(seg_trans_col).over(margin_win) > 0)
+                ),
                 sfn.array(sfn.col(seg_group_col) - 1, sfn.col(seg_group_col)),
             ).otherwise(sfn.array(sfn.col(seg_group_col))),
         )
@@ -231,7 +255,8 @@ def interpolate(
     else:
         # For older PySpark, we need to convert back to boolean
         segments = segments.withColumn(
-            needs_intpl_col, (_bool_or_compat(sfn.col(needs_intpl_col)).over(segment_win) > 0)
+            needs_intpl_col,
+            (_bool_or_compat(sfn.col(needs_intpl_col)).over(segment_win) > 0),
         )
 
     # split the segments according to the need for interpolation
@@ -255,7 +280,7 @@ def interpolate(
                     f"'{col}' of type '{tsdf.df.schema[col].dataType}'. "
                     f"Only NumericType columns are supported."
                 )
-    
+
     # build the interpolator function
     interpolator = _build_interpolator(cols, fn, ts_col)
 

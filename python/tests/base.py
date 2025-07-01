@@ -2,7 +2,7 @@ import os
 import shutil
 import unittest
 import warnings
-from typing import Union, Optional
+from typing import Optional, Union
 
 import jsonref
 import pandas as pd
@@ -23,7 +23,7 @@ def prefix_value(key: str, d: dict):
     if key in d:
         return d[key]
     # scan for a prefix-match
-    for k in d.keys():
+    for k in d:
         if key.startswith(k):
             return d[k]
     return None
@@ -218,7 +218,7 @@ class TestDataFrameBuilder:
         """
         Parse a schema string that may contain struct types
         """
-        from pyspark.sql.types import StructType, StructField, StringType, DoubleType, FloatType, IntegerType, LongType
+        from pyspark.sql.types import DoubleType, FloatType, IntegerType, LongType, StringType, StructField, StructType
 
         # This is a simplified parser - in production you'd want a more robust solution
         # For now, we'll manually handle the specific case we need
@@ -289,7 +289,7 @@ class TestDataFrameBuilder:
             processed_data.append(new_row)
 
         return processed_data
-    
+
     def as_tsdf(self) -> TSDF:
         """
         Constructs a TSDF from the test data
@@ -300,7 +300,7 @@ class TestDataFrameBuilder:
         tsdf_kwargs = dict(self.tsdf)
         if "ts_schema" in tsdf_kwargs:
             del tsdf_kwargs["ts_schema"]
-            
+
         if self.tsdf_constructor is not None:
             return getattr(TSDF, self.tsdf_constructor)(sdf, **tsdf_kwargs)
         else:
@@ -355,7 +355,7 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # Clean up any existing Delta tables and warehouse before starting tests
         cls._cleanup_delta_warehouse()
-        
+
         # create and configure PySpark Session
         cls.spark = (
             configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
@@ -459,7 +459,7 @@ class SparkTest(unittest.TestCase):
             return {}
 
         # proces the data file
-        with open(test_data_filename, "r") as f:
+        with open(test_data_filename) as f:
             base_path = "file://"+ self.getTestDataDirPath() + "/"
             test_data = jsonref.load(f, base_uri=base_path)
 

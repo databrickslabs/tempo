@@ -1,14 +1,24 @@
 import re
 import warnings
 from abc import ABC, abstractmethod
-from typing import Collection, Tuple, List, Optional, Union, Iterator
+from collections.abc import Collection, Iterator
+from typing import List, Optional, Tuple, Union
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
-from pyspark.sql.types import *
-from pyspark.sql.types import NumericType
+from pyspark.sql.types import (
+    BooleanType,
+    DataType,
+    DateType,
+    DoubleType,
+    NumericType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
 
-from tempo.timeunit import TimeUnit, StandardTimeUnits
+from tempo.timeunit import StandardTimeUnits, TimeUnit
 
 #
 # Timestamp parsing helpers
@@ -434,7 +444,7 @@ class CompositeTSIndex(TSIndex, ABC):
     Such columns are organized as a StructType column with multiple fields.
     Some subset of these columns (at least 1) is considered to be a "component field",
     the others are called "accessory fields".
-    
+
     TODO (v0.2 refactor): Fix timezone handling consistency
     When composite timestamp indexes are used in different join strategies,
     there can be timezone inconsistencies in the parsed timestamp fields.
@@ -885,7 +895,6 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        pass
 
     @abstractmethod
     def rowsBetweenWindow(
@@ -900,7 +909,6 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        pass
 
     def allBeforeWindow(self, inclusive: bool = True) -> WindowSpec:
         """
@@ -937,7 +945,6 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        pass
 
 
 #
@@ -1058,9 +1065,7 @@ class TSSchema(WindowBuilder):
 
     @classmethod
     def __is_metric_col_type(cls, col: StructField) -> bool:
-        return isinstance(col.dataType, NumericType) or isinstance(
-            col.dataType, BooleanType
-        )
+        return isinstance(col.dataType, (BooleanType, NumericType))
 
     def find_metric_columns(self, df_schema: StructType) -> list[str]:
         return [
