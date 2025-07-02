@@ -61,7 +61,12 @@ dependencies = [
 ]
 
 [tool.hatch.envs.testenv.scripts]
-test = "./run_tests.sh"
+test = [
+    "coverage erase",
+    "coverage run --parallel-mode -m unittest discover -s tests -p '*_tests.py'",
+    "coverage run --parallel-mode -m pytest tests/ -v --ignore=__pycache__",
+    "coverage combine"
+]
 
 [tool.hatch.envs.dbr154]
 template = "testenv"
