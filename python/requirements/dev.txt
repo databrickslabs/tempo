@@ -5,3 +5,4 @@ jsonref>=1,<2
 packaging>=24,<25
 python-dateutil>=2,<3
 parameterized>=0.9,<1
+pytest>=8.3.5,<8.4
