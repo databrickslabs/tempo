@@ -44,7 +44,6 @@ Run the following command in your terminal to create a virtual environment (you 
 make venv DBR={your_dbr_number}
 ```
 
-
 ## Environments we test
 Use the following to run tests for a given environment. 
 ```bash

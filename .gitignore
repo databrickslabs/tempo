@@ -54,3 +54,6 @@ python/.mypy_cache
 
 # ignore Claude Code files
 .claude
+
+# ignore pycharm databricks plugin directory
+.databricks
