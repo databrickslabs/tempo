@@ -2,536 +2,703 @@
   "FourierTransformTest": {
     "test_fourier_transform": {
       "init": {
-        "schema": "group string, time long, val double",
-        "ts_col": "time",
-        "series_ids": [
-          "group"
-        ],
-        "data": [
-          [
-            "Emissions",
-            1949,
-            2206.690829
-          ],
-          [
-            "Emissions",
-            1950,
-            2382.046176
-          ],
-          [
-            "Emissions",
-            1951,
-            2526.687327
-          ],
-          [
-            "Emissions",
-            1952,
-            2473.373964
-          ],
-          [
-            "WindGen",
-            1980,
-            0.0
-          ],
-          [
-            "WindGen",
-            1981,
-            0.0
-          ],
-          [
-            "WindGen",
-            1982,
-            0.0
-          ],
-          [
-            "WindGen",
-            1983,
-            0.029667962
+        "df": {
+          "schema": "group string, time long, val double",
+          "data": [
+            [
+              "Emissions",
+              1949,
+              2206.690829
+            ],
+            [
+              "Emissions",
+              1950,
+              2382.046176
+            ],
+            [
+              "Emissions",
+              1951,
+              2526.687327
+            ],
+            [
+              "Emissions",
+              1952,
+              2473.373964
+            ],
+            [
+              "WindGen",
+              1980,
+              0.0
+            ],
+            [
+              "WindGen",
+              1981,
+              0.0
+            ],
+            [
+              "WindGen",
+              1982,
+              0.0
+            ],
+            [
+              "WindGen",
+              1983,
+              0.029667962
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": [
+            "group"
+          ]
+        }
       },
       "expected": {
-        "schema": "group string, time long, val double, freq double, ft_real double, ft_imag double",
-        "ts_col": "time",
-        "series_ids": [
-          "group"
-        ],
-        "data": [
-          [
-            "Emissions",
-            1949,
-            2206.690829,
-            0.0,
-            9588.798296,
-            -0.0
-          ],
-          [
-            "Emissions",
-            1950,
-            2382.046176,
-            0.25,
-            -319.996498,
-            91.32778800000006
-          ],
-          [
-            "Emissions",
-            1951,
-            2526.687327,
-            -0.5,
-            -122.0419839999995,
-            -0.0
-          ],
-          [
-            "Emissions",
-            1952,
-            2473.373964,
-            -0.25,
-            -319.996498,
-            -91.32778800000006
-          ],
-          [
-            "WindGen",
-            1980,
-            0.0,
-            0.0,
-            0.029667962,
-            -0.0
-          ],
-          [
-            "WindGen",
-            1981,
-            0.0,
-            0.25,
-            0.0,
-            0.029667962
-          ],
-          [
-            "WindGen",
-            1982,
-            0.0,
-            -0.5,
-            -0.029667962,
-            -0.0
-          ],
-          [
-            "WindGen",
-            1983,
-            0.029667962,
-            -0.25,
-            0.0,
-            -0.029667962
+        "df": {
+          "schema": "group string, time long, val double, freq double, ft_real double, ft_imag double",
+          "data": [
+            [
+              "Emissions",
+              1949,
+              2206.690829,
+              0.0,
+              9588.798296,
+              -0.0
+            ],
+            [
+              "Emissions",
+              1950,
+              2382.046176,
+              0.25,
+              -319.996498,
+              91.32778800000006
+            ],
+            [
+              "Emissions",
+              1951,
+              2526.687327,
+              -0.5,
+              -122.0419839999995,
+              -0.0
+            ],
+            [
+              "Emissions",
+              1952,
+              2473.373964,
+              -0.25,
+              -319.996498,
+              -91.32778800000006
+            ],
+            [
+              "WindGen",
+              1980,
+              0.0,
+              0.0,
+              0.029667962,
+              -0.0
+            ],
+            [
+              "WindGen",
+              1981,
+              0.0,
+              0.25,
+              0.0,
+              0.029667962
+            ],
+            [
+              "WindGen",
+              1982,
+              0.0,
+              -0.5,
+              -0.029667962,
+              -0.0
+            ],
+            [
+              "WindGen",
+              1983,
+              0.029667962,
+              -0.25,
+              0.0,
+              -0.029667962
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": [
+            "group"
+          ]
+        }
       }
     },
     "test_fourier_transform_no_sequence_col_empty_partition_cols": {
       "init": {
-        "schema": {
-          "$ref": "#/FourierTransformTest/test_fourier_transform/init/schema"
+        "df": {
+          "schema": "group string, time long, val double",
+          "data": [
+            [
+              "Emissions",
+              1949,
+              2206.690829
+            ],
+            [
+              "Emissions",
+              1950,
+              2382.046176
+            ],
+            [
+              "Emissions",
+              1951,
+              2526.687327
+            ],
+            [
+              "Emissions",
+              1952,
+              2473.373964
+            ],
+            [
+              "WindGen",
+              1980,
+              0.0
+            ],
+            [
+              "WindGen",
+              1981,
+              0.0
+            ],
+            [
+              "WindGen",
+              1982,
+              0.0
+            ],
+            [
+              "WindGen",
+              1983,
+              0.029667962
+            ]
+          ]
         },
-        "ts_col": "time",
-        "series_ids": [],
-        "data": {
-          "$ref": "#/FourierTransformTest/test_fourier_transform/init/data"
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": []
         }
       },
       "expected": {
-        "schema": "time long, val double, freq double, ft_real double, ft_imag double",
-        "ts_col": "time",
-        "data": [
-          [
-            1949,
-            2206.690829,
-            0.0,
-            9588.827963962001,
-            -0.0
-          ],
-          [
-            1950,
-            2382.046176,
-            0.125,
-            2142.1333092115465,
-            -5959.966855086621
-          ],
-          [
-            1951,
-            2526.687327,
-            0.25,
-            -319.996498,
-            91.35745596200013
-          ],
-          [
-            1952,
-            2473.373964,
-            0.375,
-            2271.2483487884538,
-            -906.5922010866211
-          ],
-          [
-            1980,
-            0.0,
-            -0.5,
-            -122.07165196199912,
-            -0.0
-          ],
-          [
-            1981,
-            0.0,
-            -0.375,
-            2271.2483487884538,
-            906.5922010866211
-          ],
-          [
-            1982,
-            0.0,
-            -0.25,
-            -319.996498,
-            -91.35745596200013
-          ],
-          [
-            1983,
-            0.029667962,
-            -0.125,
-            2142.1333092115465,
-            5959.966855086621
+        "df": {
+          "schema": "time long, val double, freq double, ft_real double, ft_imag double",
+          "data": [
+            [
+              1949,
+              2206.690829,
+              0.0,
+              9588.827963962001,
+              -0.0
+            ],
+            [
+              1950,
+              2382.046176,
+              0.125,
+              2142.1333092115465,
+              -5959.966855086621
+            ],
+            [
+              1951,
+              2526.687327,
+              0.25,
+              -319.996498,
+              91.35745596200013
+            ],
+            [
+              1952,
+              2473.373964,
+              0.375,
+              2271.2483487884538,
+              -906.5922010866211
+            ],
+            [
+              1980,
+              0.0,
+              -0.5,
+              -122.07165196199912,
+              -0.0
+            ],
+            [
+              1981,
+              0.0,
+              -0.375,
+              2271.2483487884538,
+              906.5922010866211
+            ],
+            [
+              1982,
+              0.0,
+              -0.25,
+              -319.996498,
+              -91.35745596200013
+            ],
+            [
+              1983,
+              0.029667962,
+              -0.125,
+              2142.1333092115465,
+              5959.966855086621
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "time"
+        }
       }
     },
     "test_fourier_transform_valid_sequence_col_empty_partition_cols": {
       "init": {
-        "schema": "sequence int, time long, val double",
-        "ts_col": "time",
-        "sequence_col": "sequence",
-        "series_ids": [],
-        "data": [
-          [1, 1949, 2206.690829],
-          [2, 1950, 2382.046176],
-          [3, 1951, 2526.687327],
-          [4, 1952, 2473.373964],
-          [5, 1980, 0.0],
-          [6, 1981, 0.0],
-          [7, 1982, 0.0],
-          [8, 1983, 0.029667962]
-        ]
+        "df": {
+          "schema": "sequence long, time long, val double",
+          "data": [
+            [
+              1,
+              1949,
+              2206.690829
+            ],
+            [
+              2,
+              1950,
+              2382.046176
+            ],
+            [
+              3,
+              1951,
+              2526.687327
+            ],
+            [
+              4,
+              1952,
+              2473.373964
+            ],
+            [
+              5,
+              1980,
+              0.0
+            ],
+            [
+              6,
+              1981,
+              0.0
+            ],
+            [
+              7,
+              1982,
+              0.0
+            ],
+            [
+              8,
+              1983,
+              0.029667962
+            ]
+          ]
+        },
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": []
+        }
       },
       "expected": {
-        "schema": "sequence int, time long, val double, freq double, ft_real double, ft_imag double",
-        "ts_col": "time",
-        "series_ids": [],
-        "data": [
-          [1, 1949, 2206.690829, 0.0, 9588.827963962001, 0.0],
-          [2, 1950, 2382.046176, 0.125, 2142.1333092115465, -5959.966855086621],
-          [3, 1951, 2526.687327, 0.25, -319.996498, 91.35745596200013],
-          [4, 1952, 2473.373964, 0.375, 2271.2483487884538, -906.5922010866211],
-          [5, 1980, 0.0, -0.5, -122.07165196199912, -0.0],
-          [6, 1981, 0.0, -0.375, 2271.2483487884538, 906.5922010866211],
-          [7, 1982, 0.0, -0.25, -319.996498, -91.35745596200013],
-          [8, 1983, 0.029667962, -0.125, 2142.1333092115465, 5959.966855086621]
-        ]
+        "df": {
+          "schema": "time long, val double, freq double, ft_real double, ft_imag double",
+          "data": [
+            [
+              1949,
+              2206.690829,
+              0.0,
+              9588.827963962001,
+              0.0
+            ],
+            [
+              1950,
+              2382.046176,
+              0.125,
+              2142.1333092115465,
+              -5959.966855086621
+            ],
+            [
+              1951,
+              2526.687327,
+              0.25,
+              -319.996498,
+              91.35745596200013
+            ],
+            [
+              1952,
+              2473.373964,
+              0.375,
+              2271.2483487884538,
+              -906.5922010866211
+            ],
+            [
+              1980,
+              0.0,
+              -0.5,
+              -122.07165196199912,
+              -0.0
+            ],
+            [
+              1981,
+              0.0,
+              -0.375,
+              2271.2483487884538,
+              906.5922010866211
+            ],
+            [
+              1982,
+              0.0,
+              -0.25,
+              -319.996498,
+              -91.35745596200013
+            ],
+            [
+              1983,
+              0.029667962,
+              -0.125,
+              2142.1333092115465,
+              5959.966855086621
+            ]
+          ]
+        },
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": []
+        }
       }
     },
     "test_fourier_transform_valid_sequence_col_valid_partition_cols": {
       "init": {
-        "schema": "group string, sequence int, time long, val double",
-        "ts_col": "time",
-        "sequence_col": "sequence",
-        "series_ids": [
-          "group"
-        ],
-        "data": [
-          [
-            "Emissions",
-            1,
-            1949,
-            2206.690829
-          ],
-          [
-            "Emissions",
-            2,
-            1950,
-            2382.046176
-          ],
-          [
-            "Emissions",
-            3,
-            1951,
-            2526.687327
-          ],
-          [
-            "Emissions",
-            4,
-            1952,
-            2473.373964
-          ],
-          [
-            "WindGen",
-            1,
-            1980,
-            0.0
-          ],
-          [
-            "WindGen",
-            2,
-            1981,
-            0.0
-          ],
-          [
-            "WindGen",
-            3,
-            1982,
-            0.0
-          ],
-          [
-            "WindGen",
-            4,
-            1983,
-            0.029667962
+        "df": {
+          "schema": "group string, sequence long, time long, val double",
+          "data": [
+            [
+              "Emissions",
+              1,
+              1949,
+              2206.690829
+            ],
+            [
+              "Emissions",
+              2,
+              1950,
+              2382.046176
+            ],
+            [
+              "Emissions",
+              3,
+              1951,
+              2526.687327
+            ],
+            [
+              "Emissions",
+              4,
+              1952,
+              2473.373964
+            ],
+            [
+              "WindGen",
+              1,
+              1980,
+              0.0
+            ],
+            [
+              "WindGen",
+              2,
+              1981,
+              0.0
+            ],
+            [
+              "WindGen",
+              3,
+              1982,
+              0.0
+            ],
+            [
+              "WindGen",
+              4,
+              1983,
+              0.029667962
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": [
+            "group"
+          ]
+        }
       },
       "expected": {
-        "schema": "group string, sequence int, time long, val double, freq double, ft_real double, ft_imag double",
-        "ts_col": "time",
-        "series_ids": [
-          "group"
-        ],
-        "data": [
-          [
-            "Emissions",
-            1,
-            1949,
-            2206.690829,
-            0.0,
-            9588.798296,
-            0.0
-          ],
-          [
-            "Emissions",
-            2,
-            1950,
-            2382.046176,
-            0.25,
-            -319.996498,
-            91.32778800000006
-          ],
-          [
-            "Emissions",
-            3,
-            1951,
-            2526.687327,
-            -0.5,
-            -122.0419839999995,
-            0.0
-          ],
-          [
-            "Emissions",
-            4,
-            1952,
-            2473.373964,
-            -0.25,
-            -319.996498,
-            -91.32778800000006
-          ],
-          [
-            "WindGen",
-            1,
-            1980,
-            0.0,
-            0.0,
-            0.029667962,
-            0.0
-          ],
-          [
-            "WindGen",
-            2,
-            1981,
-            0.0,
-            0.25,
-            0.0,
-            0.029667962
-          ],
-          [
-            "WindGen",
-            3,
-            1982,
-            0.0,
-            -0.5,
-            -0.029667962,
-            -0.0
-          ],
-          [
-            "WindGen",
-            4,
-            1983,
-            0.029667962,
-            -0.25,
-            0.0,
-            -0.029667962
+        "df": {
+          "schema": "group string, time long, val double, freq double, ft_real double, ft_imag double",
+          "data": [
+            [
+              "Emissions",
+              1949,
+              2206.690829,
+              0.0,
+              9588.798296,
+              0.0
+            ],
+            [
+              "Emissions",
+              1950,
+              2382.046176,
+              0.25,
+              -319.996498,
+              91.32778800000006
+            ],
+            [
+              "Emissions",
+              1951,
+              2526.687327,
+              -0.5,
+              -122.0419839999995,
+              0.0
+            ],
+            [
+              "Emissions",
+              1952,
+              2473.373964,
+              -0.25,
+              -319.996498,
+              -91.32778800000006
+            ],
+            [
+              "WindGen",
+              1980,
+              0.0,
+              0.0,
+              0.029667962,
+              0.0
+            ],
+            [
+              "WindGen",
+              1981,
+              0.0,
+              0.25,
+              0.0,
+              0.029667962
+            ],
+            [
+              "WindGen",
+              1982,
+              0.0,
+              -0.5,
+              -0.029667962,
+              -0.0
+            ],
+            [
+              "WindGen",
+              1983,
+              0.029667962,
+              -0.25,
+              0.0,
+              -0.029667962
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "time",
+          "series_ids": [
+            "group"
+          ]
+        }
       }
     }
   },
   "RangeStatsTest": {
     "test_range_stats": {
       "init": {
-        "schema": "symbol string, event_ts string, trade_pr float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": [
+            "event_ts"
           ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            351.32
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            362.1
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              351.32
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              362.1
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       },
       "expected": {
-        "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            1,
-            349.21,
-            349.21,
-            349.21,
-            null,
-            null
+        "df": {
+          "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, zscore_trade_pr float",
+          "ts_convert": [
+            "event_ts"
           ],
-          [
-            "S1",
-            "2020-08-01 00:01:12",
-            350.26,
-            2,
-            349.21,
-            351.32,
-            700.53,
-            1.49,
-            0.71
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            1,
-            361.1,
-            361.1,
-            361.1,
-            null,
-            null
-          ],
-          [
-            "S1",
-            "2020-09-01 00:19:12",
-            361.6,
-            2,
-            361.1,
-            362.1,
-            723.2,
-            0.71,
-            0.71
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21,
+              1,
+              349.21,
+              349.21,
+              349.21,
+              null,
+              null
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:12",
+              350.26,
+              2,
+              349.21,
+              351.32,
+              700.53,
+              1.49,
+              0.71
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1,
+              1,
+              361.1,
+              361.1,
+              361.1,
+              null,
+              null
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:12",
+              361.6,
+              2,
+              361.1,
+              362.1,
+              723.2,
+              0.71,
+              0.71
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_group_stats": {
       "init": {
-        "schema": "symbol string, event_ts string, trade_pr float, index integer",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:10",
-            349.21,
-            1
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float, index integer",
+          "ts_convert": [
+            "event_ts"
           ],
-          [
-            "S1",
-            "2020-08-01 00:00:33",
-            351.32,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:10",
-            361.1,
-            1
-          ],
-          [
-            "S1",
-            "2020-09-01 00:02:49",
-            362.1,
-            1
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10",
+              349.21,
+              1
+            ],
+            [
+              "S1",
+              "2020-08-01 00:00:33",
+              351.32,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:10",
+              361.1,
+              1
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:49",
+              362.1,
+              1
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       },
       "expected": {
-        "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            350.26,
-            2,
-            349.21,
-            351.32,
-            700.53,
-            1.49,
-            1,
-            2,
-            1,
-            1,
-            2,
-            0
+        "df": {
+          "schema": "symbol string, event_ts string, mean_trade_pr float, count_trade_pr long, min_trade_pr float, max_trade_pr float, sum_trade_pr float, stddev_trade_pr float, mean_index integer, count_index integer, min_index integer, max_index integer, sum_index integer, stddev_index integer",
+          "ts_convert": [
+            "event_ts"
           ],
-          [
-            "S1",
-            "2020-09-01 00:02:00",
-            361.6,
-            2,
-            361.1,
-            362.1,
-            723.2,
-            0.71,
-            1,
-            2,
-            1,
-            1,
-            2,
-            0
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              350.26,
+              2,
+              349.21,
+              351.32,
+              700.53,
+              1.49,
+              1,
+              2,
+              1,
+              1,
+              2,
+              0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:02:00",
+              361.6,
+              2,
+              361.1,
+              362.1,
+              723.2,
+              0.71,
+              1,
+              2,
+              1,
+              1,
+              2,
+              0
+            ]
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     }
   }

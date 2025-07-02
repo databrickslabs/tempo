@@ -1,8 +1,6 @@
-import pyspark.sql.functions as sfn
-
 from tempo.stats import *
-from tempo.tsdf import TSDF
 from tests.base import SparkTest
+
 
 class FourierTransformTest(SparkTest):
     def test_fourier_transform(self):

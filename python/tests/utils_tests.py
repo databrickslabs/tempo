@@ -1,10 +1,12 @@
 import sys
 import unittest
+import warnings
 from io import StringIO
-from unittest.mock import patch, create_autospec, MagicMock
+from unittest.mock import patch
 
+from tempo.resample import calculate_time_horizon
 from tempo.utils import *  # noqa: F403
-from tests.tsdf_tests import SparkTest
+from tests.base import SparkTest
 
 
 class UtilsTest(SparkTest):
@@ -25,13 +27,12 @@ class UtilsTest(SparkTest):
         """Test calculate time horizon warning and number of expected output rows"""
 
         # fetch test data
-        tsdf = self.get_test_df_builder("init").as_tsdf()
+        tsdf = self.get_test_function_df_builder("init").as_tsdf()
 
         with warnings.catch_warnings(record=True) as w:
             calculate_time_horizon(
                 tsdf,
-                "30 seconds",
-                ["partition_a", "partition_b"],
+                "30 seconds"
             )
             warning_message = """
             Resample Metrics Warning:
@@ -48,7 +49,7 @@ class UtilsTest(SparkTest):
             assert warning_message.strip() == str(w[-1].message).strip()
 
     def test_display_html_TSDF(self):
-        tsdf = self.get_test_df_builder("init").as_tsdf()
+        tsdf = self.get_test_function_df_builder("init").as_tsdf()
 
         with self.assertLogs(level="ERROR") as error_captured:
             display_html(tsdf)
@@ -60,7 +61,7 @@ class UtilsTest(SparkTest):
         )
 
     def test_display_html_dataframe(self):
-        sdf = self.get_test_df_builder("init").as_sdf()
+        sdf = self.get_test_function_df_builder("init").as_sdf()
 
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -86,7 +87,7 @@ class UtilsTest(SparkTest):
         )
 
     def test_display_html_pandas_dataframe(self):
-        sdf = self.get_test_df_builder("init").as_sdf()
+        sdf = self.get_test_function_df_builder("init").as_sdf()
         pandas_dataframe = sdf.toPandas()
 
         captured_output = StringIO()
@@ -119,16 +120,16 @@ class UtilsTest(SparkTest):
         )
 
     def test_get_display_df(self):
-        init = self.get_test_df_builder("init").as_tsdf()
-        expected_df = self.get_test_df_builder("expected").as_sdf()
+        init = self.get_test_function_df_builder("init").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected").as_sdf()
 
         actual_df = get_display_df(init, 2)
 
         self.assertDataFrameEquality(actual_df, expected_df)
 
     def test_get_display_df_sequence_col(self):
-        init = self.get_test_df_builder("init").as_tsdf()
-        expected_df = self.get_test_df_builder("expected").as_sdf()
+        init = self.get_test_function_df_builder("init").as_tsdf()
+        expected_df = self.get_test_function_df_builder("expected").as_sdf()
 
         actual_df = get_display_df(init, 2)
 
