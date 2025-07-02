@@ -4,7 +4,7 @@ from types import NoneType
 import pytest
 from pandas import isna, Series, Timestamp
 
-from python.tempo.intervals.core.boundaries import (
+from tempo.intervals.core.boundaries import (
     BoundaryConverter,
     BoundaryValue,
     IntervalBoundaries,

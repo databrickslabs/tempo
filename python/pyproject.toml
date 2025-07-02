@@ -55,14 +55,13 @@ dependencies = [
   "jsonref>=1,<2",
   "packaging>=24,<25",
     "python-dateutil>=2,<3",
-    "parameterized>=0.9,<1"
+    "parameterized>=0.9,<1",
+    "pytest>=7.0.0",
+    "pytest-cov"
 ]
 
 [tool.hatch.envs.testenv.scripts]
-test = [
-  "coverage erase",
-  "coverage run -m unittest discover -s tests -p '*_tests.py'"
-]
+test = "./run_tests.sh"
 
 [tool.hatch.envs.dbr154]
 template = "testenv"
