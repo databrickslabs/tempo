@@ -39,7 +39,7 @@ class TimeSeriesCrossValidator(CrossValidator):
         timeSeriesCol: str = "event_ts",
         seriesIdCols: List[str] = [],
         gap: int = 0,
-        **other_kwargs: Any
+        **other_kwargs: Any,
     ) -> None:
         super(TimeSeriesCrossValidator, self).__init__(**other_kwargs)
         self._setDefault(timeSeriesCol="event_ts", seriesIdCols=[], gap=0)

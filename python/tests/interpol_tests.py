@@ -446,8 +446,11 @@ class InterpolationUnitTest(SparkTest):
         expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         actual_df: DataFrame = simple_input_tsdf.interpolate(
-            freq="30 seconds", func="ceil", method="ffill", ts_col="event_ts",
-            partition_cols=["partition_a", "partition_b"]
+            freq="30 seconds",
+            func="ceil",
+            method="ffill",
+            ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"],
         ).df
 
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
@@ -460,8 +463,11 @@ class InterpolationUnitTest(SparkTest):
         expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         actual_df: DataFrame = simple_input_tsdf.interpolate(
-            freq="30 seconds", func="ceil", method="bfill", ts_col="event_ts",
-            partition_cols=["partition_a", "partition_b"]
+            freq="30 seconds",
+            func="ceil",
+            method="bfill",
+            ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"],
         ).df
 
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
@@ -474,8 +480,11 @@ class InterpolationUnitTest(SparkTest):
         expected_df: DataFrame = self.get_test_df_builder("expected").as_sdf()
 
         actual_df: DataFrame = simple_input_tsdf.interpolate(
-            freq="30 seconds", func="ceil", method="null", ts_col="event_ts",
-            partition_cols=["partition_a", "partition_b"]
+            freq="30 seconds",
+            func="ceil",
+            method="null",
+            ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"],
         ).df
 
         self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
@@ -490,9 +499,13 @@ class InterpolationUnitTest(SparkTest):
             ValueError,
             self.interpolate_helper.interpolate,
             simple_input_tsdf,
-            freq="30 seconds", func="ceil", method="linear", ts_col="event_ts",
-            partition_cols=["partition_a", "partition_b"], target_cols=["string_col", "timestamp_col"],
-            show_interpolated=False
+            freq="30 seconds",
+            func="ceil",
+            method="linear",
+            ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"],
+            target_cols=["string_col", "timestamp_col"],
+            show_interpolated=False,
         )
 
     def test_non_numeric_zero(self):
@@ -505,14 +518,14 @@ class InterpolationUnitTest(SparkTest):
             ValueError,
             self.interpolate_helper.interpolate,
             simple_input_tsdf,
-            freq="30 seconds", func="ceil", method="zero", ts_col="event_ts",
-            partition_cols=["partition_a", "partition_b"], target_cols=["string_col", "timestamp_col"],
-            show_interpolated=False
+            freq="30 seconds",
+            func="ceil",
+            method="zero",
+            ts_col="event_ts",
+            partition_cols=["partition_a", "partition_b"],
+            target_cols=["string_col", "timestamp_col"],
+            show_interpolated=False,
         )
-
-
-
-
 
 
 class InterpolationIntegrationTest(SparkTest):

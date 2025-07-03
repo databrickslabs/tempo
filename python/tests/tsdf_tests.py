@@ -697,9 +697,7 @@ class TSDFBaseTests(SparkTest):
         ts2_dbl = self.__timestamp_to_double(ts2)
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl)
 
-        self.assertDataFrameEquality(
-            between_dbl_tsdf, expected_dbl_tsdf
-        )
+        self.assertDataFrameEquality(between_dbl_tsdf, expected_dbl_tsdf)
 
     def test_between_exclusive_string_timestamp(self):
         """
@@ -732,9 +730,7 @@ class TSDFBaseTests(SparkTest):
         ts2_dbl = self.__timestamp_to_double(ts2)
         between_dbl_tsdf = init_dbl_tsdf.between(ts1_dbl, ts2_dbl, inclusive=False)
 
-        self.assertDataFrameEquality(
-            between_dbl_tsdf, expected_dbl_tsdf
-        )
+        self.assertDataFrameEquality(between_dbl_tsdf, expected_dbl_tsdf)
 
     def test_earliest_string_timestamp(self):
         """
@@ -760,9 +756,7 @@ class TSDFBaseTests(SparkTest):
 
         earliest_dbl_tsdf = init_dbl_tsdf.earliest(n=3)
 
-        self.assertDataFrameEquality(
-            earliest_dbl_tsdf, expected_dbl_tsdf
-        )
+        self.assertDataFrameEquality(earliest_dbl_tsdf, expected_dbl_tsdf)
 
     def test_latest_string_timestamp(self):
         """
@@ -773,9 +767,7 @@ class TSDFBaseTests(SparkTest):
 
         latest_tsdf = init_tsdf.latest(n=3)
 
-        self.assertDataFrameEquality(
-            latest_tsdf, expected_tsdf, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(latest_tsdf, expected_tsdf, ignore_row_order=True)
 
     def test_latest_numeric_timestamp(self):
         """
@@ -804,7 +796,11 @@ class TSDFBaseTests(SparkTest):
         target_ts = "2020-09-01 00:02:00"
         prior_tsdf = init_tsdf.priorTo(target_ts)
 
-        self.assertDataFrameEquality(prior_tsdf, expected_tsdf, ignore_column_order=True,)
+        self.assertDataFrameEquality(
+            prior_tsdf,
+            expected_tsdf,
+            ignore_column_order=True,
+        )
 
     def test_priorTo_numeric_timestamp(self):
         """
@@ -822,7 +818,11 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         prior_dbl_tsdf = init_dbl_tsdf.priorTo(target_dbl)
 
-        self.assertDataFrameEquality(prior_dbl_tsdf, expected_dbl_tsdf, ignore_column_order=True,)
+        self.assertDataFrameEquality(
+            prior_dbl_tsdf,
+            expected_dbl_tsdf,
+            ignore_column_order=True,
+        )
 
     def test_subsequentTo_string_timestamp(self):
         """
@@ -852,9 +852,7 @@ class TSDFBaseTests(SparkTest):
         target_dbl = self.__timestamp_to_double(target_ts)
         subsequent_dbl_tsdf = init_dbl_tsdf.subsequentTo(target_dbl)
 
-        self.assertDataFrameEquality(
-            subsequent_dbl_tsdf, expected_dbl_tsdf
-        )
+        self.assertDataFrameEquality(subsequent_dbl_tsdf, expected_dbl_tsdf)
 
     def test__rowsBetweenWindow(self):
         init_tsdf = self.get_test_df_builder("init").as_tsdf()

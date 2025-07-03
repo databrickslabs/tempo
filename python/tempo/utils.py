@@ -207,7 +207,7 @@ def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
 
 
 def display_html_improvised(
-    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame],
 ) -> None:
     if isinstance(obj, t_tsdf.TSDF):
         display_html(get_display_df(obj, k=5))

@@ -40,6 +40,7 @@ help:
 	@echo "  make test-all              Run tests for all supported DBR versions"
 	@echo "  make coverage-report       Generate test coverage report"
 	@echo "  make lint                  Run linters"
+	@echo "  make format                Format code with Black"
 	@echo "  make type-check            Run type checks"
 	@echo "  make build-dist            Build distribution"
 	@echo "  make build-docs            Build documentation"
@@ -201,9 +202,15 @@ lint:
 	@echo "Running linters..."
 	hatch run lint:runLint $()
 
+# Format code with Black
+.PHONY: format
+format:
+	@echo "Formatting code with Black..."
+	hatch run lint:formatBlack
+
 # Run type checks
 .PHONY: type-check
-type-check: 
+type-check:
 	@echo "Running type checks..."
 	hatch run type-check:check
 

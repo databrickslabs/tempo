@@ -55,7 +55,7 @@ class TestDataFrameBuilder:
             return data
         # load data from a csv file
         elif isinstance(data, str):
-            csv_path = SparkTest.getTestDataFilePath(data, extension='')
+            csv_path = SparkTest.getTestDataFilePath(data, extension="")
             return pd.read_csv(csv_path)
         else:
             raise ValueError(f"Invalid data type {type(data)}")
@@ -154,7 +154,9 @@ class TestDataFrameBuilder:
                 # handle nested columns
                 if "." in ts_col:
                     col, field = ts_col.split(".")
-                    convert_field_expr = self.to_timestamp_ntz_compat(sfn.col(col).getField(field))
+                    convert_field_expr = self.to_timestamp_ntz_compat(
+                        sfn.col(col).getField(field)
+                    )
                     df = df.withColumn(
                         col, sfn.col(col).withField(field, convert_field_expr)
                     )
@@ -182,7 +184,9 @@ class TestDataFrameBuilder:
                         col, sfn.col(col).withField(field, convert_field_expr)
                     )
                 else:
-                    df = df.withColumn(decimal_col, sfn.col(decimal_col).cast("decimal"))
+                    df = df.withColumn(
+                        decimal_col, sfn.col(decimal_col).cast("decimal")
+                    )
 
         return df
 
@@ -226,11 +230,7 @@ class SparkTest(unittest.TestCase):
         """
         try:
             # List of paths to clean up
-            cleanup_paths = [
-                "spark-warehouse",
-                "metastore_db",
-                "derby.log"
-            ]
+            cleanup_paths = ["spark-warehouse", "metastore_db", "derby.log"]
 
             for path in cleanup_paths:
                 if os.path.exists(path):
@@ -246,7 +246,7 @@ class SparkTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # Clean up any existing Delta tables and warehouse before starting tests
         cls._cleanup_delta_warehouse()
-        
+
         # create and configure PySpark Session
         cls.spark = (
             configure_spark_with_delta_pip(SparkSession.builder.appName("unit-tests"))
@@ -306,7 +306,7 @@ class SparkTest(unittest.TestCase):
     TEST_DATA_FOLDER = "unit_test_data"
 
     @classmethod
-    def getTestDataFilePath(cls, test_file_name: str, extension: str = '.json') -> str:
+    def getTestDataFilePath(cls, test_file_name: str, extension: str = ".json") -> str:
         # what folder are we running from?
         cwd = os.path.basename(os.getcwd())
 
