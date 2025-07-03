@@ -12,7 +12,9 @@ class AsOfJoinTest(SparkTest):
         tsdf_left = self.get_test_df_builder("left").as_tsdf()
         tsdf_right = self.get_test_df_builder("right").as_tsdf()
         df_expected = self.get_test_df_builder("expected").as_sdf()
-        no_right_prefixdf_expected = self.get_test_df_builder("expected_no_right_prefix").as_sdf()
+        no_right_prefixdf_expected = self.get_test_df_builder(
+            "expected_no_right_prefix"
+        ).as_sdf()
 
         # perform the join
         joined_df = tsdf_left.asofJoin(
@@ -37,7 +39,9 @@ class AsOfJoinTest(SparkTest):
         # fetch test data
         tsdf_left = self.get_test_df_builder("left").as_tsdf()
         tsdf_right = self.get_test_df_builder("right").as_tsdf()
-        df_expected_skip_nulls = self.get_test_df_builder("expected_skip_nulls").as_sdf()
+        df_expected_skip_nulls = self.get_test_df_builder(
+            "expected_skip_nulls"
+        ).as_sdf()
         df_expected_skip_nulls_disabled = self.get_test_df_builder(
             "expected_skip_nulls_disabled"
         ).as_sdf()
@@ -135,7 +139,9 @@ class AsOfJoinTest(SparkTest):
             ).df
 
             # compare
-            expected_tolerance = self.get_test_df_builder(f"expected_tolerance_{tolerance}").as_sdf()
+            expected_tolerance = self.get_test_df_builder(
+                f"expected_tolerance_{tolerance}"
+            ).as_sdf()
             self.assertDataFrameEquality(joined_df, expected_tolerance)
 
     def test_asof_join_sql_join_opt_and_bytes_threshold(self):
@@ -145,7 +151,9 @@ class AsOfJoinTest(SparkTest):
             tsdf_left = self.get_test_df_builder("left").as_tsdf()
             tsdf_right = self.get_test_df_builder("right").as_tsdf()
             df_expected = self.get_test_df_builder("expected").as_sdf()
-            no_right_prefixdf_expected = self.get_test_df_builder("expected_no_right_prefix").as_sdf()
+            no_right_prefixdf_expected = self.get_test_df_builder(
+                "expected_no_right_prefix"
+            ).as_sdf()
 
             # perform the join
             joined_df = tsdf_left.asofJoin(
@@ -157,7 +165,9 @@ class AsOfJoinTest(SparkTest):
 
             # joined dataframe should equal the expected dataframe
             self.assertDataFrameEquality(joined_df, df_expected)
-            self.assertDataFrameEquality(non_prefix_joined_df, no_right_prefixdf_expected)
+            self.assertDataFrameEquality(
+                non_prefix_joined_df, no_right_prefixdf_expected
+            )
 
             spark_sql_joined_df = tsdf_left.asofJoin(
                 tsdf_right, left_prefix="left", right_prefix="right"

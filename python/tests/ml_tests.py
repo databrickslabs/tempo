@@ -9,6 +9,7 @@ from tempo.ml import TimeSeriesCrossValidator
 
 from tests.base import SparkTest
 
+
 class TimeSeriesCrossValidatorTests(SparkTest):
     def test_empty_constructor(self):
         # construct with default parameters
@@ -31,14 +32,14 @@ class TimeSeriesCrossValidatorTests(SparkTest):
     def test_estim_eval_constructor(self):
         # set up estimator and evaluator
         estimator = GBTRegressor(labelCol="close", featuresCol="features")
-        evaluator = RegressionEvaluator(labelCol="close",
-                                        predictionCol="prediction",
-                                        metricName="rmse")
+        evaluator = RegressionEvaluator(
+            labelCol="close", predictionCol="prediction", metricName="rmse"
+        )
         parm_grid = ParamGridBuilder().build()
         # construct with default parameters
-        tscv = TimeSeriesCrossValidator(estimator=estimator,
-                                        evaluator=evaluator,
-                                        estimatorParamMaps=parm_grid)
+        tscv = TimeSeriesCrossValidator(
+            estimator=estimator, evaluator=evaluator, estimatorParamMaps=parm_grid
+        )
         # test the parameters
         self.assertEqual(tscv.getEstimator(), estimator)
         self.assertEqual(tscv.getEvaluator(), evaluator)
@@ -88,9 +89,9 @@ class TimeSeriesCrossValidatorTests(SparkTest):
 
     def test_evaluator_param(self):
         # set up estimator and evaluator
-        evaluator = RegressionEvaluator(labelCol="close",
-                                        predictionCol="prediction",
-                                        metricName="rmse")
+        evaluator = RegressionEvaluator(
+            labelCol="close", predictionCol="prediction", metricName="rmse"
+        )
         # construct with default parameters
         tscv = TimeSeriesCrossValidator()
         # set the evaluator
@@ -136,9 +137,9 @@ class TimeSeriesCrossValidatorTests(SparkTest):
         # load test data
         trades_df = self.get_test_df_builder("trades").as_sdf()
         # construct with default parameters
-        tscv = TimeSeriesCrossValidator(timeSeriesCol='event_ts',
-                                        seriesIdCols=['symbol'],
-                                        gap=0)
+        tscv = TimeSeriesCrossValidator(
+            timeSeriesCol="event_ts", seriesIdCols=["symbol"], gap=0
+        )
         # test the k-folds
         k_folds = tscv._kFold(trades_df)
         # check the number of folds

@@ -1,0 +1,10 @@
+# Ignore specific files or directories
+# Add patterns here that you want Black to skip
+
+# Example patterns:
+# tests/unit_test_data/     # Ignore test data directories
+# build/                    # Ignore build artifacts
+# dist/                     # Ignore distribution files
+# .venv/                    # Ignore virtual environments
+# __pycache__/             # Ignore Python cache
+# *.pyc                    # Ignore compiled Python files 
