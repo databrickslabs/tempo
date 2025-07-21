@@ -1,13 +1,13 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:  # Allow manual triggering of the workflow
+
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # if: ${{ github.ref_name == 'main' }}
     environment: release
     permissions:
       # Used to authenticate to PyPI via OIDC and sign the release's artifacts with sigstore-python.
@@ -29,6 +29,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install hatch
+
+      - name: Check version increment
+        run: |
+          cd python
+          CURRENT_VERSION=$(python -c "from version import get_version; print(get_version())")
+          LATEST_TAG=$(git describe --abbrev=0 --tags || echo "v0.0.0")
+          LATEST_VERSION=$(echo $LATEST_TAG | sed 's/^v//')
+          echo "Current version: $CURRENT_VERSION"
+          echo "Latest tag version: $LATEST_VERSION"
+          exit 1
+          if [[ "$CURRENT_VERSION" == "$LATEST_VERSION" ]]; then
+            echo "Version in version.py has not been incremented."
+            exit 1
+          fi
 
       - name: Build dist
         working-directory: ./python
