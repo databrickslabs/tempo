@@ -86,7 +86,7 @@ class ResampleUnitTests(SparkTest):
     def test_appendAggKey_freq_is_none(self):
         input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
 
-        self.assertRaises(TypeError, _appendAggKey, input_tsdf)
+        self.assertRaises(ValueError, _appendAggKey, input_tsdf)
 
     def test_appendAggKey_freq_microsecond(self):
         input_tsdf = self.get_test_function_df_builder("input_data").as_tsdf()
