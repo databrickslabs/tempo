@@ -3,17 +3,18 @@ from __future__ import annotations
 import logging
 import math
 import os
-from datetime import datetime as dt, timedelta as td
+from datetime import datetime as dt
+from datetime import timedelta as td
 from typing import Optional, Union, overload
 
 import pyspark.sql.functions as sfn
-from IPython import get_ipython  # type: ignore
-from IPython.core.display import HTML  # type: ignore
-from IPython.display import display as ipydisplay  # type: ignore
+from IPython import get_ipython  # type: ignore[import-not-found]
+from IPython.core.display import HTML  # type: ignore[import-not-found]
+from IPython.display import display as ipydisplay  # type: ignore[import-not-found]
 from pandas.core.frame import DataFrame as pandasDataFrame
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import DataFrame, SparkSession
 
-from tempo.tsdf import TSDF
+import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
@@ -101,8 +102,6 @@ class ResampleWarning(Warning):
     This class is a warning that is raised when the interpolate or resample with fill methods are called.
     """
 
-    pass
-
 
 def _is_capable_of_html_rendering() -> bool:
     """
@@ -151,12 +150,12 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf: TSDF, k: int) -> DataFrame:
+def get_display_df(tsdf, k):
     return tsdf.latest(k).withNaturalOrdering().df
 
 
 @overload
-def display_improvised(obj: TSDF) -> None: ...
+def display_improvised(obj: t_tsdf.TSDF) -> None: ...
 
 
 @overload
@@ -167,15 +166,15 @@ def display_improvised(obj: pandasDataFrame) -> None: ...
 def display_improvised(obj: DataFrame) -> None: ...
 
 
-def display_improvised(obj: Union[TSDF, pandasDataFrame, DataFrame]) -> None:
-    if isinstance(obj, TSDF):
+def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
         method(get_display_df(obj, k=5))
     else:
         method(obj)
 
 
 @overload
-def display_html_improvised(obj: Optional[TSDF]) -> None: ...
+def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
 
 
 @overload
@@ -186,8 +185,10 @@ def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
 def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
 
 
-def display_html_improvised(obj: Union[TSDF, pandasDataFrame, DataFrame]) -> None:
-    if isinstance(obj, TSDF):
+def display_html_improvised(
+    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
         display_html(get_display_df(obj, k=5))
     else:
         display_html(obj)
@@ -197,7 +198,7 @@ ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
     IS_DATABRICKS
-    and not (get_ipython() is None)
+    and get_ipython() is not None
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]

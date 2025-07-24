@@ -1,23 +1,24 @@
 import re
 import warnings
 from abc import ABC, abstractmethod
-from typing import Collection, Tuple, List, Optional, Union, Iterator, Any, cast
+from collections.abc import Collection, Iterator
+from typing import List, Optional, Tuple, Union
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
 from pyspark.sql.types import (
-    DataType,
-    StructType,
-    StructField,
-    StringType,
-    DoubleType,
-    DateType,
-    TimestampType,
     BooleanType,
+    DataType,
+    DateType,
+    DoubleType,
     NumericType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
 )
 
-from tempo.timeunit import TimeUnit, StandardTimeUnits
+from tempo.timeunit import StandardTimeUnits, TimeUnit
 
 #
 # Timestamp parsing helpers
@@ -85,7 +86,7 @@ def sub_seconds_precision_digits(ts_fmt: str) -> int:
         return max([len(m) for m in match])
 
 
-def _unpack_comparable(other: Union["TSIndex", Column, Any]) -> Column:
+def _unpack_comparable(other) -> Column:
     """
     Helper function for managing unknown argument types into
     Column expressions
@@ -96,10 +97,17 @@ def _unpack_comparable(other: Union["TSIndex", Column, Any]) -> Column:
     """
     if isinstance(other, TSIndex):
         return _unpack_comparable(other.comparableExpr())
+    if isinstance(other, (list, tuple)):
+        if len(other) != 1:
+            raise ValueError(
+                "Cannot compare a TSIndex with a list or tuple "
+                f"of length {len(other)}: {other}"
+            )
+        return _unpack_comparable(other[0])
     if isinstance(other, Column):
         return other
-
-    return sfn.lit(other)
+    else:
+        return sfn.lit(other)
 
 
 def _reverse_or_not(
@@ -215,47 +223,25 @@ class TSIndex(ABC):
         :return: whether this TSIndex can be compared with the other TSIndex
         """
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Compare this TSIndex to another object for equality.
-
-        :param other: The object to compare with
-        :return: True if objects are equal, False otherwise
-        """
-        if not isinstance(other, (TSIndex, Column)):
-            return NotImplemented
+    def __eq__(self, other) -> Column:
         return self.comparableExpr() == _unpack_comparable(other)
 
-    def __ne__(self, other: object) -> Column:
-        if not isinstance(other, (TSIndex, Column)):
-            return NotImplemented
+    def __ne__(self, other) -> Column:
         return self.comparableExpr() != _unpack_comparable(other)
 
-    def __lt__(self, other: object) -> Column:
-        if not isinstance(other, (TSIndex, Column)):
-            return NotImplemented
+    def __lt__(self, other) -> Column:
         return self.comparableExpr() < _unpack_comparable(other)
 
-    def __le__(self, other: object) -> Column:
-        if not isinstance(other, (TSIndex, Column)):
-            return NotImplemented
+    def __le__(self, other) -> Column:
         return self.comparableExpr() <= _unpack_comparable(other)
 
-    def __gt__(self, other: object) -> Column:
-        if not isinstance(other, (TSIndex, Column)):
-            return NotImplemented
+    def __gt__(self, other) -> Column:
         return self.comparableExpr() > _unpack_comparable(other)
 
-    def __ge__(self, other: object) -> Column:
-        if not isinstance(other, (TSIndex, Column)):
-            return NotImplemented
+    def __ge__(self, other) -> Column:
         return self.comparableExpr() >= _unpack_comparable(other)
 
-    def between(
-        self,
-        lowerBound: Union["TSIndex", Column, Any],
-        upperBound: Union["TSIndex", Column, Any],
-    ) -> Column:
+    def between(self, lowerBound, upperBound) -> "Column":
         """
         A boolean expression that is evaluated to true if the value of this expression is between the given columns.
 
@@ -264,32 +250,9 @@ class TSIndex(ABC):
 
         :return: A boolean expression
         """
-        expr = self.comparableExpr()
-        if isinstance(expr, list):
-            # Handle the case where comparableExpr returns a list
-            comps = zip(
-                expr,
-                (
-                    [_unpack_comparable(lowerBound)] * len(expr)
-                    if not isinstance(lowerBound, (tuple, list))
-                    else [_unpack_comparable(o) for o in lowerBound]
-                ),
-                (
-                    [_unpack_comparable(upperBound)] * len(expr)
-                    if not isinstance(upperBound, (tuple, list))
-                    else [_unpack_comparable(o) for o in upperBound]
-                ),
-            )
-            comp_exprs = [(c.between(lb, ub)) for (c, lb, ub) in comps]
-            if len(comp_exprs) > 1:
-                return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
-            else:
-                return comp_exprs[0]
-        else:
-            # Handle the case where comparableExpr returns a single Column
-            return expr.between(
-                _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
-            )
+        return self.comparableExpr().between(
+            _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
+        )
 
     # other expression builder methods
 
@@ -335,7 +298,7 @@ class SimpleTSIndex(TSIndex, ABC):
         )
 
     @property
-    def colname(self) -> str:
+    def colname(self):
         return self.__name
 
     @property
@@ -373,7 +336,7 @@ class SimpleTSIndex(TSIndex, ABC):
         return other.is_comparable(self)
 
     def orderByExpr(self, reverse: bool = False) -> Column:
-        return cast(Column, _reverse_or_not(self.comparableExpr(), reverse))
+        return _reverse_or_not(self.comparableExpr(), reverse)
 
     @classmethod
     def fromTSCol(cls, ts_col: StructField) -> "SimpleTSIndex":
@@ -442,7 +405,7 @@ class SimpleTimestampIndex(SimpleTSIndex):
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
         expr = self.comparableExpr().cast("double")
-        return cast(Column, _reverse_or_not(expr, reverse))
+        return _reverse_or_not(expr, reverse)
 
 
 class SimpleDateIndex(SimpleTSIndex):
@@ -467,7 +430,7 @@ class SimpleDateIndex(SimpleTSIndex):
         expr = sfn.datediff(
             self.comparableExpr(), sfn.lit(EPOCH_START_DATE).cast("date")
         )
-        return cast(Column, _reverse_or_not(expr, reverse))
+        return _reverse_or_not(expr, reverse)
 
 
 #
@@ -481,6 +444,12 @@ class CompositeTSIndex(TSIndex, ABC):
     Such columns are organized as a StructType column with multiple fields.
     Some subset of these columns (at least 1) is considered to be a "component field",
     the others are called "accessory fields".
+
+    TODO (v0.2 refactor): Fix timezone handling consistency
+    When composite timestamp indexes are used in different join strategies,
+    there can be timezone inconsistencies in the parsed timestamp fields.
+    This particularly affects nanosecond precision timestamps and causes
+    test failures between broadcast and union join results.
     """
 
     def __init__(self, ts_struct: StructField, *component_fields: str) -> None:
@@ -589,12 +558,12 @@ class CompositeTSIndex(TSIndex, ABC):
             # otherwise, we compare to a single type
             return my_comp_types == [other.dataType]
 
-    def orderByExpr(self, reverse: bool = False) -> List[Column]:
-        return cast(List[Column], _reverse_or_not(self.comparableExpr(), reverse))
+    def orderByExpr(self, reverse: bool = False) -> Union[Column, List[Column]]:
+        return _reverse_or_not(self.comparableExpr(), reverse)
 
     # comparators
 
-    def _validate_other(self, other: Union[Tuple, List[Any]]) -> None:
+    def _validate_other(self, other: Union[Tuple, List]) -> None:
         if len(other) != len(self.component_fields):
             raise ValueError(
                 f"{self.__class__.__name__} has {len(self.component_fields)} "
@@ -602,7 +571,7 @@ class CompositeTSIndex(TSIndex, ABC):
                 f"but received {len(other)}"
             )
 
-    def _expand_comps(self, other: Any) -> List[Column]:
+    def _expand_comps(self, other) -> List[Column]:
         # if other is another TSIndex,
         # then we evaluate against its comparable expressions
         if isinstance(other, TSIndex):
@@ -615,33 +584,33 @@ class CompositeTSIndex(TSIndex, ABC):
         # if not a column, then a literal
         return [_unpack_comparable(o) for o in other]
 
-    def _build_comps(self, other: Any) -> Iterator[Tuple[Column, Column]]:
+    def _build_comps(self, other) -> Iterator[Column]:
         # match each component field with its corresponding comparison value
         return zip(self.comparableExpr(), self._expand_comps(other))
 
-    def __eq__(self, other: Any) -> Column:
+    def __eq__(self, other) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
-        comp_exprs: List[Column] = [(c == o) for (c, o) in comps]
+        comp_exprs: list[Column] = [(c == o) for (c, o) in comps]
         # conjunction of all expressions (AND)
         if len(comp_exprs) > 1:
-            return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
 
-    def __ne__(self, other: Any) -> Column:
+    def __ne__(self, other) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs = [(c != o) for (c, o) in comps]
         # disjunction of all expressions (OR)
         if len(comp_exprs) > 1:
-            return sfn.expr(" OR ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" OR ".join(comp_exprs))
         else:
             return comp_exprs[0]
 
-    def __lt__(self, other: Any) -> Column:
+    def __lt__(self, other) -> Column:
         # match each component field with its corresponding comparison value
         comps = list(self._build_comps(other))
         # do a leq for all but the last component
@@ -652,22 +621,22 @@ class CompositeTSIndex(TSIndex, ABC):
         comp_exprs += [(c < o) for (c, o) in comps[-1:]]
         # conjunction of all expressions (AND)
         if len(comp_exprs) > 1:
-            return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
 
-    def __le__(self, other: Any) -> Column:
+    def __le__(self, other) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs = [(c <= o) for (c, o) in comps]
         # conjunction of all expressions (AND)
         if len(comp_exprs) > 1:
-            return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
 
-    def __gt__(self, other: Any) -> Column:
+    def __gt__(self, other) -> Column:
         # match each component field with its corresponding comparison value
         comps = list(self._build_comps(other))
         # do a geq for all but the last component
@@ -678,22 +647,22 @@ class CompositeTSIndex(TSIndex, ABC):
         comp_exprs += [(c > o) for (c, o) in comps[-1:]]
         # conjunction of all expressions (AND)
         if len(comp_exprs) > 1:
-            return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
 
-    def __ge__(self, other: Any) -> Column:
+    def __ge__(self, other) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
         comp_exprs = [(c >= o) for (c, o) in comps]
         # conjunction of all expressions (AND)
         if len(comp_exprs) > 1:
-            return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
 
-    def between(self, lowerBound: Any, upperBound: Any) -> Column:
+    def between(self, lowerBound, upperBound) -> "Column":
         # match each component field with its
         # corresponding lower and upper bound values
         comps = zip(
@@ -705,75 +674,9 @@ class CompositeTSIndex(TSIndex, ABC):
         comp_exprs = [(c.between(lb, ub)) for (c, lb, ub) in comps]
         # conjunction of all expressions (AND)
         if len(comp_exprs) > 1:
-            return sfn.expr(" AND ".join([str(ce) for ce in comp_exprs]))
+            return sfn.expr(" AND ".join(comp_exprs))
         else:
             return comp_exprs[0]
-
-
-class GenericCompositeTSIndex(CompositeTSIndex):
-    """
-    A generic implementation of CompositeTSIndex that can be used
-    when you need a composite time series index.
-
-    This class implements all required abstract methods from the CompositeTSIndex
-    abstract base class.
-    """
-
-    def __init__(self, ts_struct: StructField, *component_fields: str):
-        """
-        Initialize a GenericCompositeTSIndex with a struct field and component fields.
-
-        Parameters:
-        -----------
-        ts_struct : StructField
-            The StructField containing the composite time series data
-        component_fields : str
-            One or more field names from ts_struct that determine the temporal ordering
-        """
-        super().__init__(ts_struct, *component_fields)
-
-    @property
-    def unit(self) -> Optional[TimeUnit]:
-        """
-        Returns the time unit of this index.
-
-        Returns:
-        --------
-        Optional[TimeUnit]
-            The unit of this index, or None if it's unitless
-        """
-        # Default implementation returns None (unitless)
-        # Override this if you need a specific unit
-        return None
-
-    def rangeExpr(self, reverse: bool = False) -> Column:
-        """
-        Gets an expression for performing range operations.
-
-        Parameters:
-        -----------
-        reverse : bool
-            Whether to reverse the ordering
-
-        Returns:
-        --------
-        Column
-            An expression for range operations
-        """
-        # Use the first component field for range operations
-        # This is a simple implementation - you might need more sophisticated logic
-        # depending on your specific requirements
-        expr = sfn.col(self.fieldPath(self.component_fields[0]))
-
-        # If the field is a timestamp, cast to double for range operations
-        field_type = self.fieldType(self.component_fields[0])
-        if isinstance(field_type, TimestampType):
-            expr = expr.cast("double")
-        elif isinstance(field_type, DateType):
-            # Convert date to days since epoch
-            expr = sfn.datediff(expr, sfn.lit("1970-01-01").cast("date"))
-
-        return cast(Column, _reverse_or_not(expr, reverse))
 
 
 #
@@ -808,11 +711,11 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
         self._parsed_ts_field = parsed_ts_field
 
     @property
-    def src_str_field(self) -> str:
+    def src_str_field(self):
         return self.fieldPath(self._src_str_field)
 
     @property
-    def parsed_ts_field(self) -> str:
+    def parsed_ts_field(self):
         return self.fieldPath(self._parsed_ts_field)
 
     @classmethod
@@ -880,7 +783,7 @@ class ParsedTimestampIndex(ParsedTSIndex):
     def rangeExpr(self, reverse: bool = False) -> Column:
         # cast timestamp to double (fractional seconds since epoch)
         expr = sfn.col(self.parsed_ts_field).cast("double")
-        return cast(Column, _reverse_or_not(expr, reverse))
+        return _reverse_or_not(expr, reverse)
 
 
 class ParsedDateIndex(ParsedTSIndex):
@@ -898,7 +801,7 @@ class ParsedDateIndex(ParsedTSIndex):
             sfn.col(self.parsed_ts_field),
             sfn.lit(EPOCH_START_DATE).cast("date"),
         )
-        return cast(Column, _reverse_or_not(expr, reverse))
+        return _reverse_or_not(expr, reverse)
 
 
 class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
@@ -957,11 +860,11 @@ class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
         self.secondary_parsed_ts_field = secondary_parsed_ts_field
 
     @property
-    def double_ts_field(self) -> str:
+    def double_ts_field(self):
         return self.fieldPath(self._double_ts_field)
 
     @property
-    def num_precision_digits(self) -> int:
+    def num_precision_digits(self):
         return self._num_precision_digits
 
     @property
@@ -970,7 +873,7 @@ class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
 
     def rangeExpr(self, reverse: bool = False) -> Column:
         # just use the order by expression, since this is the same
-        return cast(Column, _reverse_or_not(sfn.col(self.double_ts_field), reverse))
+        return _reverse_or_not(sfn.col(self.double_ts_field), reverse)
 
 
 #
@@ -992,7 +895,6 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        pass
 
     @abstractmethod
     def rowsBetweenWindow(
@@ -1007,7 +909,6 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        pass
 
     def allBeforeWindow(self, inclusive: bool = True) -> WindowSpec:
         """
@@ -1044,7 +945,6 @@ class WindowBuilder(ABC):
 
         :return: a WindowSpec object
         """
-        pass
 
 
 #
@@ -1067,7 +967,7 @@ class TSSchema(WindowBuilder):
             self.__series_ids = []
 
     @property
-    def ts_idx(self) -> TSIndex:
+    def ts_idx(self):
         return self.__ts_idx
 
     @property
@@ -1116,15 +1016,7 @@ class TSSchema(WindowBuilder):
         ), f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
         # construct the TSIndex
         parsed_type = ts_idx_schema[parsed_field].dataType
-
-        # Use a variable with a more general type
-        ts_idx: TSIndex
-
         if isinstance(parsed_type, DoubleType):
-            if secondary_parsed_field is None:
-                raise ValueError(
-                    "secondary_parsed_field must be provided when parsed_field is of DoubleType"
-                )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
@@ -1152,7 +1044,7 @@ class TSSchema(WindowBuilder):
         return cls(ts_idx, series_ids)
 
     @property
-    def structural_columns(self) -> List[str]:
+    def structural_columns(self) -> list[str]:
         """
         Structural columns are those that define the structure of the :class:`TSDF`. This includes the timeseries column,
         a timeseries index (if different), any subsequence column (if present), and the series ID columns.
@@ -1170,16 +1062,14 @@ class TSSchema(WindowBuilder):
                 sid in df_schema.fieldNames()
             ), f"Series ID {sid} does not exist in the given DataFrame"
 
-    def find_observational_columns(self, df_schema: StructType) -> List[str]:
+    def find_observational_columns(self, df_schema: StructType) -> list[str]:
         return list(set(df_schema.fieldNames()) - set(self.structural_columns))
 
     @classmethod
     def __is_metric_col_type(cls, col: StructField) -> bool:
-        return isinstance(col.dataType, NumericType) or isinstance(
-            col.dataType, BooleanType
-        )
+        return isinstance(col.dataType, (BooleanType, NumericType))
 
-    def find_metric_columns(self, df_schema: StructType) -> List[str]:
+    def find_metric_columns(self, df_schema: StructType) -> list[str]:
         return [
             col.name
             for col in df_schema.fields
@@ -1209,38 +1099,3 @@ class TSSchema(WindowBuilder):
             .orderBy(self.ts_idx.rangeExpr(reverse=reverse))
             .rangeBetween(start, end)
         )
-
-
-def ensure_composite_index(index: TSIndex) -> CompositeTSIndex:
-    """
-    Ensures the index is a CompositeTSIndex and returns it with proper typing.
-
-    Args:
-        index: A TSIndex object that should be a CompositeTSIndex
-
-    Returns:
-        The same index but typed as CompositeTSIndex
-
-    Raises:
-        TypeError: If the index is not a CompositeTSIndex
-    """
-    if not isinstance(index, CompositeTSIndex):
-        raise TypeError(f"Expected CompositeTSIndex but got {type(index).__name__}")
-    return index
-
-
-def get_component_fields(index: TSIndex) -> List[str]:
-    """
-    Gets component fields from a TSIndex, handling both simple and composite indices.
-
-    Args:
-        index: The TSIndex object to get component fields from
-
-    Returns:
-        For CompositeTSIndex: its component_fields list
-        For SimpleTSIndex: a list containing only the colname
-    """
-    if isinstance(index, CompositeTSIndex):
-        return index.component_fields
-    else:
-        return [index.colname]

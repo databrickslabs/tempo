@@ -1,8 +1,8 @@
-from typing import Union, Callable, Iterable, Any
-
-from pyspark.sql import Column
+from collections.abc import Iterable
+from typing import Any, Callable, Union
 
 from pandas.core.frame import DataFrame as PandasDataFrame
+from pyspark.sql import Column
 
 # These definitions were copied from private pypark modules:
 # - pyspark.sql._typing

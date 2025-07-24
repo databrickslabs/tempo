@@ -41,9 +41,10 @@ def write(
     view_cols.rotate(1)
     view_df = view_df.select(*list(view_cols))
 
-    view_df.write.mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable(
-        tabName
-    )
+    # Use replaceWhere instead of overwrite mode
+    writer = view_df.write.format("delta").partitionBy("event_dt")
+    writer = writer.option("replaceWhere", "true")
+    writer.saveAsTable(tabName)
 
     if optimizationCols:
         try:
@@ -55,7 +56,5 @@ def write(
             )
         except ParseException as e:
             logger.error(
-                "Delta optimizations attempted, but was not successful.\nError: {}".format(
-                    e
-                )
+                f"Delta optimizations attempted, but was not successful.\nError: {e}"
             )

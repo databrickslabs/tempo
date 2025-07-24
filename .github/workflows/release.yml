@@ -28,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install tox
+          python -m pip install hatch
 
       - name: Build dist
         working-directory: ./python
-        run: tox -e build-dist
+        run: make build-dist
 
       - name: Publish a Python distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

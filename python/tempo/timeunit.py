@@ -22,21 +22,18 @@ class TimeUnit(NamedTuple):
         return self.approx_seconds < other.approx_seconds
 
 
-TimeUnitsType = NamedTuple(
-    "TimeUnitsType",
-    [
-        ("YEARS", TimeUnit),
-        ("MONTHS", TimeUnit),
-        ("WEEKS", TimeUnit),
-        ("DAYS", TimeUnit),
-        ("HOURS", TimeUnit),
-        ("MINUTES", TimeUnit),
-        ("SECONDS", TimeUnit),
-        ("MILLISECONDS", TimeUnit),
-        ("MICROSECONDS", TimeUnit),
-        ("NANOSECONDS", TimeUnit),
-    ],
-)
+class TimeUnitsType(NamedTuple):
+    YEARS: TimeUnit
+    MONTHS: TimeUnit
+    WEEKS: TimeUnit
+    DAYS: TimeUnit
+    HOURS: TimeUnit
+    MINUTES: TimeUnit
+    SECONDS: TimeUnit
+    MILLISECONDS: TimeUnit
+    MICROSECONDS: TimeUnit
+    NANOSECONDS: TimeUnit
+
 
 StandardTimeUnits = TimeUnitsType(
     TimeUnit("year", 365 * 24 * 60 * 60),

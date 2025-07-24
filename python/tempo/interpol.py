@@ -1,15 +1,39 @@
-from typing import Union, Callable, List, Optional, Literal, cast
-from functools import reduce
 import copy
+from functools import reduce
+from typing import Callable, List, Optional, Union
 
 import pandas as pd
-
 import pyspark.sql.functions as sfn
-from pyspark.sql.types import TimestampType, DateType, BooleanType
-from pyspark.sql import Window, Column
+from pyspark import __version__ as pyspark_version
+from pyspark.sql import Column, Window
+from pyspark.sql.types import DateType, NumericType, TimestampType
 
 from tempo.tsdf import TSDF
-from tempo.tsschema import SimpleTSIndex, ParsedTSIndex
+from tempo.tsschema import ParsedTSIndex, SimpleTSIndex
+
+# Check PySpark version for compatibility
+PYSPARK_VERSION = tuple(int(x) for x in pyspark_version.split(".")[:2])
+HAS_COUNT_IF = PYSPARK_VERSION >= (3, 5)
+HAS_BOOL_OR = PYSPARK_VERSION >= (3, 5)
+
+# Interpolation fill options
+method_options = ["zero", "null", "bfill", "ffill", "linear"]
+
+
+def _bool_or_compat(col: Union[str, Column]) -> Column:
+    """Compatibility wrapper for bool_or function"""
+    if HAS_BOOL_OR:
+        return sfn.bool_or(col)
+    else:
+        # Fallback for PySpark < 3.5: max(cast(condition as int))
+        # col can be either a string or a Column object
+        if isinstance(col, str):
+            col_expr = sfn.col(col)
+        else:
+            col_expr = col
+        # Return max which will be 1 for True or 0/null for False
+        # We don't add > 0 here because that needs to be done after the window function
+        return sfn.max(col_expr.cast("int"))
 
 
 # Some common interpolation functions
@@ -27,40 +51,28 @@ def backward_fill(null_series: pd.Series) -> pd.Series:
     return null_series.bfill()
 
 
-# Define valid interpolation methods
-InterpolationMethod = Literal[
-    "linear",
-    "time",
-    "index",
-    "pad",
-    "nearest",
-    "zero",
-    "slinear",
-    "quadratic",
-    "cubic",
-    "barycentric",
-    "polynomial",
-    "krogh",
-    "piecewise_polynomial",
-    "spline",
-    "pchip",
-    "akima",
-    "cubicspline",
-    "from_derivatives",
-]
-
-
 # The interpolation
+
+
+def _is_valid_method_for_column(tsdf: TSDF, method: str, col_name: str) -> bool:
+    """
+    zero and linear interpolation are only valid for numeric columns
+    """
+    if method in ["linear", "zero"]:
+        return isinstance(tsdf.df.schema[col_name].dataType, NumericType)
+    else:
+        return True
+
+
 def _build_interpolator(
     interpol_cols: List[str],
-    interpol_fn: Union[Callable[[pd.Series], pd.Series], InterpolationMethod],
+    interpol_fn: Union[Callable[[pd.Series], pd.Series], str],
     ts_col: Optional[str] = None,
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     def interpolator_fn(pdf: pd.DataFrame) -> pd.DataFrame:
         # create a timestamp index
         if ts_col:
-            # Fix: Create a proper DatetimeIndex
-            pdf.index = pd.DatetimeIndex(pd.to_datetime(pdf[ts_col]))
+            pdf.index = pd.to_datetime(pdf[ts_col])
         # mask for rows that need interpolation
         num_rows = pdf.shape[0]
         any_interpol_mask = pd.Series([False] * num_rows, index=pdf.index)
@@ -68,10 +80,28 @@ def _build_interpolator(
         for interpol_col in interpol_cols:
             # those rows that need interpolation
             any_interpol_mask = any_interpol_mask | pdf[interpol_col].isna()
+
             # otherwise we interpolate the missing values
             if isinstance(interpol_fn, str):
-                # The type is now properly constrained to valid methods
-                pdf[interpol_col] = pdf[interpol_col].interpolate(method=interpol_fn)
+                # Only use pandas interpolate for methods it supports
+                if interpol_fn in ["linear"]:
+                    # Note: pandas linear interpolation by default uses limit_direction='forward'
+                    # This means:
+                    # - Missing values between known values are linearly interpolated
+                    # - Missing values at the end (with no following value) are forward-filled with the last known value
+                    # - Missing values at the beginning (with no preceding value) remain as NaN
+                    pdf[interpol_col] = pdf[interpol_col].interpolate(
+                        method="linear"  # interpol_fn is "linear" here based on the if condition
+                    )
+                elif interpol_fn == "ffill":
+                    pdf[interpol_col] = pdf[interpol_col].ffill()
+                elif interpol_fn == "bfill":
+                    pdf[interpol_col] = pdf[interpol_col].bfill()
+                elif interpol_fn == "zero":
+                    pdf[interpol_col] = pdf[interpol_col].fillna(0)
+                elif interpol_fn == "null":
+                    # null means leave as null, so do nothing
+                    pass
             else:
                 pdf[interpol_col] = interpol_fn(pdf[interpol_col])
         # return only the rows that were missing (others are margins)
@@ -83,7 +113,7 @@ def _build_interpolator(
 def interpolate(
     tsdf: TSDF,
     cols: Union[str, List[str]],
-    fn: Union[Callable[[pd.Series], pd.Series], InterpolationMethod],
+    fn: Union[Callable[[pd.Series], pd.Series], str],
     leading_margin: int = 1,
     lagging_margin: int = 0,
 ) -> TSDF:
@@ -103,6 +133,16 @@ def interpolate(
     non-null values will not be ignored in the final result).
 
     **Note**: This function may cause the re-ordering of the rows in the resulting TSDF.
+
+    **Interpolation Method Behaviors**:
+
+    - **linear**: Uses pandas' linear interpolation. Missing values between known values
+      are linearly interpolated. Missing values at the end (with no following value) are
+      forward-filled with the last known value. Missing values at the beginning remain as NaN.
+    - **ffill**: Forward fill - propagates last valid observation forward to fill gaps
+    - **bfill**: Backward fill - propagates next valid observation backward to fill gaps
+    - **zero**: Fills all missing values with 0
+    - **null**: Leaves missing values as null (no interpolation)
 
     :param tsdf: the :class:`TSDF` timeseries dataframe
     :param cols: the names of the columns to interpolate
@@ -124,113 +164,134 @@ def interpolate(
             col in tsdf.columns
         ), f"Column to be interpolated '{col}' not found in the DataFrame"
 
-    # Define helper functions that return column references
-    # These help with static type checking and IDE support
-    def get_needs_interpolation_col() -> Column:
-        """Return a Column reference to the needs interpolation column."""
-        return sfn.col("__tmp_needs_interpolation")
-
-    def get_segment_transition_col() -> Column:
-        """Return a Column reference to the segment transition column."""
-        return sfn.col("__tmp_seg_transition")
-
-    def get_segment_group_col() -> Column:
-        """Return a Column reference to the segment group column."""
-        return sfn.col("__tmp_seg_group")
+    # validate interpolation method is in allowed options
+    if isinstance(fn, str) and fn not in method_options:
+        raise ValueError(
+            f"Invalid interpolation method '{fn}'. Must be one of {method_options}"
+        )
 
     # identify rows that need interpolation
+    needs_intpl_col = "__tmp_needs_interpolation"
     null_col_exprs = [sfn.col(col).isNull() for col in cols]
     any_null_expr = reduce(lambda x, y: x | y, null_col_exprs)
-    need_intpl = tsdf.df.withColumn("__tmp_needs_interpolation", any_null_expr)
+    need_intpl = tsdf.df.withColumn(needs_intpl_col, any_null_expr)
 
     # identify transitions between segments
     seg_trans_col = "__tmp_seg_transition"
     all_win = tsdf.baseWindow()
     segments = need_intpl.withColumn(
         seg_trans_col,
-        sfn.lag(sfn.col("__tmp_needs_interpolation"), 1, False).over(all_win)
-        != sfn.col("__tmp_needs_interpolation"),
+        sfn.lag(needs_intpl_col, 1, False).over(all_win) != sfn.col(needs_intpl_col),
     )
 
     # assign a group number to each segment
     seg_group_col = "__tmp_seg_group"
     all_prev_win = tsdf.allBeforeWindow()
-    segments = segments.withColumn(
-        seg_group_col, sfn.count_if(seg_trans_col).over(all_prev_win)
-    )
+
+    # Use count_if if available (PySpark 3.5+), otherwise use sum with cast
+    if HAS_COUNT_IF:
+        segments = segments.withColumn(
+            seg_group_col, sfn.count_if(seg_trans_col).over(all_prev_win)
+        )
+    else:
+        # Fallback for PySpark < 3.5: sum(cast(condition as int))
+        segments = segments.withColumn(
+            seg_group_col,
+            sfn.sum(sfn.col(seg_trans_col).cast("int")).over(all_prev_win),
+        )
 
     # build margins around intepolation segments
     if leading_margin > 0 or lagging_margin > 0:
         # identify rows in the leading margin
+        leading_margin_col = "__tmp_leading_margin"
         margin_win = tsdf.rowsBetweenWindow(1, leading_margin)
         lead_margins = segments.withColumn(
-            "__tmp_leading_margin",
+            leading_margin_col,
             sfn.when(
-                ~get_needs_interpolation_col()
-                & sfn.bool_or(get_segment_transition_col()).over(margin_win),
-                sfn.array(get_segment_group_col(), get_segment_group_col() + 1),
-            ).otherwise(sfn.array(get_segment_group_col())),
+                ~sfn.col(needs_intpl_col)
+                & (
+                    _bool_or_compat(seg_trans_col).over(margin_win)
+                    if HAS_BOOL_OR
+                    else (_bool_or_compat(seg_trans_col).over(margin_win) > 0)
+                ),
+                sfn.array(sfn.col(seg_group_col), sfn.col(seg_group_col) + 1),
+            ).otherwise(sfn.array(sfn.col(seg_group_col))),
         )
         # identify rows in the lagging margin
+        lagging_margin_col = "__tmp_lagging_margin"
         margin_win = tsdf.rowsBetweenWindow(-max(0, lagging_margin - 1), 0)
         lag_margins = lead_margins.withColumn(
-            "__tmp_lagging_margin",
+            lagging_margin_col,
             sfn.when(
-                ~get_needs_interpolation_col()
-                & sfn.bool_or(get_segment_transition_col()).over(margin_win),
-                sfn.array(get_segment_group_col() - 1, get_segment_group_col()),
-            ).otherwise(sfn.array(get_segment_group_col())),
+                ~sfn.col(needs_intpl_col)
+                & (
+                    _bool_or_compat(seg_trans_col).over(margin_win)
+                    if HAS_BOOL_OR
+                    else (_bool_or_compat(seg_trans_col).over(margin_win) > 0)
+                ),
+                sfn.array(sfn.col(seg_group_col) - 1, sfn.col(seg_group_col)),
+            ).otherwise(sfn.array(sfn.col(seg_group_col))),
         )
         # collect the group number of each segment with a margin
+        margin_col = "__tmp_group_with_margin"
         all_margins = lag_margins.withColumn(
-            "__tmp_group_with_margin",
-            sfn.array_union(
-                sfn.col("__tmp_leading_margin"), sfn.col("__tmp_lagging_margin")
-            ),
+            margin_col,
+            sfn.array_union(sfn.col(leading_margin_col), sfn.col(lagging_margin_col)),
         )
         # explode the groups with margins
         explode_exprs = tsdf.columns + [
-            get_needs_interpolation_col(),
-            sfn.explode(sfn.col("__tmp_group_with_margin")).alias("__tmp_seg_group"),
+            needs_intpl_col,
+            sfn.explode(margin_col).alias(seg_group_col),
         ]
         segments = all_margins.select(*explode_exprs)
 
     # identify segments that need interpolation
-    group_by_cols = tsdf.series_ids + ["__tmp_seg_group"]
+    group_by_cols = tsdf.series_ids + [seg_group_col]
     segment_win = Window.partitionBy(group_by_cols)
-
-    # Use our helper functions
-    segments = segments.withColumn(
-        "__tmp_needs_interpolation",
-        sfn.max(get_needs_interpolation_col().cast(BooleanType())).over(segment_win),
-    )
+    if HAS_BOOL_OR:
+        segments = segments.withColumn(
+            needs_intpl_col, _bool_or_compat(sfn.col(needs_intpl_col)).over(segment_win)
+        )
+    else:
+        # For older PySpark, we need to convert back to boolean
+        segments = segments.withColumn(
+            needs_intpl_col,
+            (_bool_or_compat(sfn.col(needs_intpl_col)).over(segment_win) > 0),
+        )
 
     # split the segments according to the need for interpolation
-    needs_interpol = segments.where(get_needs_interpolation_col())
-    no_interpol = segments.where(~get_needs_interpolation_col())
+    needs_interpol = segments.where(needs_intpl_col)
+    no_interpol = segments.where(~sfn.col(needs_intpl_col))
 
     # enable pandas timeseries indexing if possible
     ts_col = None
-    if tsdf.ts_index.has_types(TimestampType()) or tsdf.ts_index.has_types(DateType()):
+    if tsdf.ts_index.has_types(TimestampType) or tsdf.ts_index.has_types(DateType):
         if isinstance(tsdf.ts_index, SimpleTSIndex):
             ts_col = tsdf.ts_index.colname
         elif isinstance(tsdf.ts_index, ParsedTSIndex):
-            # Using cast() here is technically redundant (as mypy correctly warns)
-            # but needed to help the IDE with type information
-            parsed_index = cast(ParsedTSIndex, tsdf.ts_index)  # type: ignore[redundant-cast]
-            ts_col = parsed_index.parsed_ts_field
+            ts_col = tsdf.ts_index.parsed_ts_field
+
+    # Validate column types before building the interpolator
+    if isinstance(fn, str):
+        for col in cols:
+            if not _is_valid_method_for_column(tsdf, fn, col):
+                raise ValueError(
+                    f"Interpolation method '{fn}' is not supported for column "
+                    f"'{col}' of type '{tsdf.df.schema[col].dataType}'. "
+                    f"Only NumericType columns are supported."
+                )
+
     # build the interpolator function
     interpolator = _build_interpolator(cols, fn, ts_col)
 
     # apply the interpolator to each segment
-    group_by_cols = tsdf.series_ids + ["__tmp_seg_group"]
     interpolated_df = needs_interpol.groupBy(group_by_cols).applyInPandas(
         interpolator, needs_interpol.schema
     )
 
     # merge the interpolated segments with the non-interpolated ones
     final_df = no_interpol.union(interpolated_df).drop(
-        "__tmp_seg_group", "__tmp_needs_interpolation", "__tmp_seg_transition"
+        seg_group_col, needs_intpl_col, seg_trans_col
     )
 
     # return it as a new TSDF
