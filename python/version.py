@@ -14,13 +14,8 @@ def run_cmd(cmd):
     return cmd_proc.stdout.decode("utf-8").strip()
 
 
-# fetch the most recent version tag to use as build version
-def get_version():
-    return CURRENT_VERSION
-
-
 # fetch the most recent build version for hatch environment creation
-def get_current_git_version():
+def get_version():
     """Return the package version based on latest git tag."""
     import os
     
@@ -30,11 +25,11 @@ def get_current_git_version():
     
     # Fall back to git tag
     try:
-        return get_version()
+        return CURRENT_VERSION
     except (OSError, ValueError) as E:
         # Return a fallback version if git operations fail
         # TODO - Raise with error message
         raise E
     
 
-__version__ = get_current_git_version()
+__version__ = get_version()
