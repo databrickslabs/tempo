@@ -2,6 +2,7 @@ import subprocess
 import re
 
 
+CURRENT_VERSION = "0.1.29"
 # run a shell command and return stdout
 def run_cmd(cmd):
     cmd_proc = subprocess.run(cmd, shell=True, capture_output=True)
@@ -11,21 +12,6 @@ def run_cmd(cmd):
             f"STDERR: {cmd_proc.stderr.decode('utf-8')}"
         )
     return cmd_proc.stdout.decode("utf-8").strip()
-
-
-# fetch the most recent version tag to use as build version
-def get_latest_git_tag():
-    latest_tag = run_cmd("git describe --abbrev=0 --tags")
-    build_version = re.sub("v\.?\s*", "", latest_tag)
-    # validate that this is a valid semantic version - will throw exception if not
-    try:
-        import semver
-
-        semver.VersionInfo.parse(build_version)
-    except ModuleNotFoundError as module_not_found_error:
-        # unable to validate because semver is not installed in barebones env for hatch
-        pass
-    return build_version
 
 
 # fetch the most recent build version for hatch environment creation
@@ -39,7 +25,7 @@ def get_version():
 
     # Fall back to git tag
     try:
-        return get_latest_git_tag()
+        return CURRENT_VERSION
     except (OSError, ValueError) as E:
         # Return a fallback version if git operations fail
         # TODO - Raise with error message

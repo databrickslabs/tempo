@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath("../python"))
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, root_path)
 
-from version import get_latest_git_tag
+from version import get_version
 
 # -- Project information -----------------------------------------------------
 
@@ -27,7 +27,7 @@ copyright = '2024, Databricks Labs'
 author = 'Databricks Labs'
 
 # The full version, including alpha/beta/rc tags
-release = get_latest_git_tag()
+release = get_version()
 
 # -- General configuration ---------------------------------------------------
 

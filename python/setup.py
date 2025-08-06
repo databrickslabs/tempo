@@ -1,8 +1,8 @@
 from setuptools import find_packages, setup
-from version import get_latest_git_tag
+from version import get_version
 
 # fetch the most recent version tag to use as build version
-build_version = get_latest_git_tag()
+build_version = get_version()
 
 # use the contents of the README file as the 'long description' for the package
 with open("./README.md", "r") as fh:
