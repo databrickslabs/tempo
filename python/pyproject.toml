@@ -130,7 +130,6 @@ extra-dependencies = [
 
 [tool.hatch.envs.lint]
 template = "testenv"
-skip-install = true
 dependencies = [
   "flake8",
   "black==24.4.1"
@@ -141,6 +140,8 @@ runLint = [
   "black --check --diff ./tempo",
   "flake8 --config ./.flake8 ./tempo"
 ]
+formatBlack = ["black ./tempo ./tests"]
+
 
 [tool.hatch.envs.type-check]
 template = "testenv"
@@ -215,3 +216,21 @@ run-coverage = [
   "coverage report -m",
   "coverage xml"
 ]
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''

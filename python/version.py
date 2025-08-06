@@ -18,11 +18,11 @@ def run_cmd(cmd):
 def get_version():
     """Return the package version based on latest git tag."""
     import os
-    
+
     # Optionally override with environment variable
     if "PACKAGE_VERSION" in os.environ:
         return os.environ.get("PACKAGE_VERSION")
-    
+
     # Fall back to git tag
     try:
         return CURRENT_VERSION
@@ -30,6 +30,6 @@ def get_version():
         # Return a fallback version if git operations fail
         # TODO - Raise with error message
         raise E
-    
+
 
 __version__ = get_version()
