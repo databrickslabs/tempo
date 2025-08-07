@@ -1113,9 +1113,7 @@ class TSSchema(WindowBuilder):
             )
         elif isinstance(parsed_type, TimestampType):
             if src_str_field is None:
-                raise ValueError(
-                    "src_str_field is required for ParsedTimestampIndex"
-                )
+                raise ValueError("src_str_field is required for ParsedTimestampIndex")
             ts_idx = ParsedTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
@@ -1123,9 +1121,7 @@ class TSSchema(WindowBuilder):
             )
         elif isinstance(parsed_type, DateType):
             if src_str_field is None:
-                raise ValueError(
-                    "src_str_field is required for ParsedDateIndex"
-                )
+                raise ValueError("src_str_field is required for ParsedDateIndex")
             ts_idx = ParsedDateIndex(
                 df_schema[ts_col],
                 parsed_field,
