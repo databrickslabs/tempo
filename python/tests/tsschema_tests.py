@@ -96,10 +96,12 @@ class TSIndexTester(unittest.TestCase, ABC):
             "parsed_timestamp_index",
             StructField(
                 "ts_idx",
-                StructType([
-                    StructField("parsed_ts", TimestampType(), True),
-                    StructField("src_str", StringType(), True),
-                ]),
+                StructType(
+                    [
+                        StructField("parsed_ts", TimestampType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]
+                ),
                 True,
             ),
             ParsedTimestampIndex,
@@ -112,10 +114,12 @@ class TSIndexTester(unittest.TestCase, ABC):
             "parsed_date_index",
             StructField(
                 "ts_idx",
-                StructType([
-                    StructField("parsed_date", DateType(), True),
-                    StructField("src_str", StringType(), True),
-                ]),
+                StructType(
+                    [
+                        StructField("parsed_date", DateType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]
+                ),
                 True,
             ),
             ParsedDateIndex,
@@ -128,11 +132,13 @@ class TSIndexTester(unittest.TestCase, ABC):
             "sub_ms_index",
             StructField(
                 "ts_idx",
-                StructType([
-                    StructField("double_ts", DoubleType(), True),
-                    StructField("parsed_ts", TimestampType(), True),
-                    StructField("src_str", StringType(), True),
-                ]),
+                StructType(
+                    [
+                        StructField("double_ts", DoubleType(), True),
+                        StructField("parsed_ts", TimestampType(), True),
+                        StructField("src_str", StringType(), True),
+                    ]
+                ),
                 True,
             ),
             SubMicrosecondPrecisionTimestampIndex,
@@ -149,10 +155,12 @@ class TSIndexTester(unittest.TestCase, ABC):
             "subsequence_timestamp_index",
             StructField(
                 "ts_idx",
-                StructType([
-                    StructField("event_ts", TimestampType(), True),
-                    StructField("seq_num", IntegerType(), True),
-                ]),
+                StructType(
+                    [
+                        StructField("event_ts", TimestampType(), True),
+                        StructField("seq_num", IntegerType(), True),
+                    ]
+                ),
                 True,
             ),
             SubsequenceTSIndex,
@@ -168,10 +176,12 @@ class TSIndexTester(unittest.TestCase, ABC):
             "subsequence_date_index",
             StructField(
                 "ts_idx",
-                StructType([
-                    StructField("event_date", DateType(), True),
-                    StructField("seq_num", IntegerType(), True),
-                ]),
+                StructType(
+                    [
+                        StructField("event_date", DateType(), True),
+                        StructField("seq_num", IntegerType(), True),
+                    ]
+                ),
                 True,
             ),
             SubsequenceTSIndex,
@@ -248,12 +258,14 @@ class TSIndexTests(SparkTest, TSIndexTester):
     [
         (
             "simple_timestamp_index",
-            StructType([
-                StructField("symbol", StringType(), True),
-                StructField("event_ts", TimestampType(), True),
-                StructField("trade_pr", DoubleType(), True),
-                StructField("trade_vol", IntegerType(), True),
-            ]),
+            StructType(
+                [
+                    StructField("symbol", StringType(), True),
+                    StructField("event_ts", TimestampType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                    StructField("trade_vol", IntegerType(), True),
+                ]
+            ),
             "fromDFSchema",
             {"ts_col": "event_ts", "series_ids": ["symbol"]},
             SimpleTimestampIndex,
@@ -266,11 +278,13 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "simple_ts_no_series",
-            StructType([
-                StructField("event_ts", TimestampType(), True),
-                StructField("trade_pr", DoubleType(), True),
-                StructField("trade_vol", IntegerType(), True),
-            ]),
+            StructType(
+                [
+                    StructField("event_ts", TimestampType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                    StructField("trade_vol", IntegerType(), True),
+                ]
+            ),
             "fromDFSchema",
             {"ts_col": "event_ts", "series_ids": []},
             SimpleTimestampIndex,
@@ -283,11 +297,13 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "ordinal_double_index",
-            StructType([
-                StructField("symbol", StringType(), True),
-                StructField("event_ts_dbl", DoubleType(), True),
-                StructField("trade_pr", DoubleType(), True),
-            ]),
+            StructType(
+                [
+                    StructField("symbol", StringType(), True),
+                    StructField("event_ts_dbl", DoubleType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                ]
+            ),
             "fromDFSchema",
             {"ts_col": "event_ts_dbl", "series_ids": ["symbol"]},
             OrdinalTSIndex,
@@ -300,11 +316,13 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "ordinal_int_index",
-            StructType([
-                StructField("symbol", StringType(), True),
-                StructField("order", IntegerType(), True),
-                StructField("trade_pr", DoubleType(), True),
-            ]),
+            StructType(
+                [
+                    StructField("symbol", StringType(), True),
+                    StructField("order", IntegerType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                ]
+            ),
             "fromDFSchema",
             {"ts_col": "order", "series_ids": ["symbol"]},
             OrdinalTSIndex,
@@ -317,11 +335,13 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "simple_date_index",
-            StructType([
-                StructField("symbol", StringType(), True),
-                StructField("date", DateType(), True),
-                StructField("trade_pr", DoubleType(), True),
-            ]),
+            StructType(
+                [
+                    StructField("symbol", StringType(), True),
+                    StructField("date", DateType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                ]
+            ),
             "fromDFSchema",
             {"ts_col": "date", "series_ids": ["symbol"]},
             SimpleDateIndex,
@@ -334,19 +354,23 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "parsed_timestamp_index",
-            StructType([
-                StructField("symbol", StringType(), True),
-                StructField(
-                    "ts_idx",
-                    StructType([
-                        StructField("parsed_ts", TimestampType(), True),
-                        StructField("src_str", StringType(), True),
-                    ]),
-                    True,
-                ),
-                StructField("trade_pr", DoubleType(), True),
-                StructField("trade_vol", IntegerType(), True),
-            ]),
+            StructType(
+                [
+                    StructField("symbol", StringType(), True),
+                    StructField(
+                        "ts_idx",
+                        StructType(
+                            [
+                                StructField("parsed_ts", TimestampType(), True),
+                                StructField("src_str", StringType(), True),
+                            ]
+                        ),
+                        True,
+                    ),
+                    StructField("trade_pr", DoubleType(), True),
+                    StructField("trade_vol", IntegerType(), True),
+                ]
+            ),
             "fromParsedTimestamp",
             {
                 "ts_col": "ts_idx",
@@ -364,18 +388,22 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "parsed_ts_no_series",
-            StructType([
-                StructField(
-                    "ts_idx",
-                    StructType([
-                        StructField("parsed_ts", TimestampType(), True),
-                        StructField("src_str", StringType(), True),
-                    ]),
-                    True,
-                ),
-                StructField("trade_pr", DoubleType(), True),
-                StructField("trade_vol", IntegerType(), True),
-            ]),
+            StructType(
+                [
+                    StructField(
+                        "ts_idx",
+                        StructType(
+                            [
+                                StructField("parsed_ts", TimestampType(), True),
+                                StructField("src_str", StringType(), True),
+                            ]
+                        ),
+                        True,
+                    ),
+                    StructField("trade_pr", DoubleType(), True),
+                    StructField("trade_vol", IntegerType(), True),
+                ]
+            ),
             "fromParsedTimestamp",
             {
                 "ts_col": "ts_idx",
@@ -392,18 +420,22 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "parsed_date_index",
-            StructType([
-                StructField(
-                    "ts_idx",
-                    StructType([
-                        StructField("parsed_date", DateType(), True),
-                        StructField("src_str", StringType(), True),
-                    ]),
-                    True,
-                ),
-                StructField("symbol", StringType(), True),
-                StructField("trade_pr", DoubleType(), True),
-            ]),
+            StructType(
+                [
+                    StructField(
+                        "ts_idx",
+                        StructType(
+                            [
+                                StructField("parsed_date", DateType(), True),
+                                StructField("src_str", StringType(), True),
+                            ]
+                        ),
+                        True,
+                    ),
+                    StructField("symbol", StringType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                ]
+            ),
             "fromParsedTimestamp",
             {
                 "ts_col": "ts_idx",
@@ -421,19 +453,23 @@ class TSIndexTests(SparkTest, TSIndexTester):
         ),
         (
             "sub_ms_index",
-            StructType([
-                StructField(
-                    "ts_idx",
-                    StructType([
-                        StructField("double_ts", DoubleType(), True),
-                        StructField("parsed_ts", TimestampType(), True),
-                        StructField("src_str", StringType(), True),
-                    ]),
-                    True,
-                ),
-                StructField("symbol", StringType(), True),
-                StructField("trade_pr", DoubleType(), True),
-            ]),
+            StructType(
+                [
+                    StructField(
+                        "ts_idx",
+                        StructType(
+                            [
+                                StructField("double_ts", DoubleType(), True),
+                                StructField("parsed_ts", TimestampType(), True),
+                                StructField("src_str", StringType(), True),
+                            ]
+                        ),
+                        True,
+                    ),
+                    StructField("symbol", StringType(), True),
+                    StructField("trade_pr", DoubleType(), True),
+                ]
+            ),
             "fromParsedTimestamp",
             {
                 "ts_col": "ts_idx",
@@ -477,21 +513,22 @@ class TSSchemaTests(SparkTest, TSIndexTester):
 
     def test_structural_cols(self):
         # test the structural columns
-        self.assertEqual(set(self.ts_schema.structural_columns),
-                         set(self.expected_structural_cols))
+        self.assertEqual(
+            set(self.ts_schema.structural_columns), set(self.expected_structural_cols)
+        )
 
     def test_observational_cols(self):
         # test the observational columns
         self.assertEqual(
             set(self.ts_schema.find_observational_columns(self.df_schema)),
-            set(self.expected_obs_cols)
+            set(self.expected_obs_cols),
         )
 
     def test_metric_cols(self):
         # test the metric columns
         self.assertEqual(
             set(self.ts_schema.find_metric_columns(self.df_schema)),
-            set(self.expected_metric_cols)
+            set(self.expected_metric_cols),
         )
 
     def test_base_window(self):
@@ -537,3 +574,205 @@ class TSSchemaTests(SparkTest, TSIndexTester):
             self.assertRaises(
                 NotImplementedError, ts_schema.rangeBetweenWindow, 0, 10, reverse=True
             )
+
+
+class TSSchemaValidationTests(SparkTest):
+    """Test validation of required parameters for parsed timestamp indices"""
+
+    def test_parsed_timestamp_missing_src_str_field(self):
+        """Test that ParsedTimestampIndex raises ValueError when src_str_field is None"""
+        df_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("parsed_ts", TimestampType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+
+        with self.assertRaises(ValueError) as context:
+            TSSchema.fromParsedTimestamp(
+                df_schema,
+                ts_col="ts_idx",
+                parsed_field="parsed_ts",
+                src_str_field=None,  # This should raise an error
+                series_ids=["symbol"],
+            )
+
+        self.assertIn(
+            "src_str_field is required for ParsedTimestampIndex", str(context.exception)
+        )
+
+    def test_parsed_date_missing_src_str_field(self):
+        """Test that ParsedDateIndex raises ValueError when src_str_field is None"""
+        df_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("parsed_date", DateType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+
+        with self.assertRaises(ValueError) as context:
+            TSSchema.fromParsedTimestamp(
+                df_schema,
+                ts_col="ts_idx",
+                parsed_field="parsed_date",
+                src_str_field=None,  # This should raise an error
+                series_ids=["symbol"],
+            )
+
+        self.assertIn(
+            "src_str_field is required for ParsedDateIndex", str(context.exception)
+        )
+
+    def test_submicrosecond_missing_src_str_field(self):
+        """Test that SubMicrosecondPrecisionTimestampIndex raises ValueError when src_str_field is None"""
+        df_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("double_ts", DoubleType(), True),
+                            StructField("parsed_ts", TimestampType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+
+        with self.assertRaises(ValueError) as context:
+            TSSchema.fromParsedTimestamp(
+                df_schema,
+                ts_col="ts_idx",
+                parsed_field="double_ts",
+                src_str_field=None,  # This should raise an error
+                secondary_parsed_field="parsed_ts",
+                series_ids=["symbol"],
+            )
+
+        self.assertIn(
+            "src_str_field is required for SubMicrosecondPrecisionTimestampIndex",
+            str(context.exception),
+        )
+
+    def test_submicrosecond_missing_secondary_parsed_field(self):
+        """Test that SubMicrosecondPrecisionTimestampIndex raises ValueError when secondary_parsed_field is None"""
+        df_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("double_ts", DoubleType(), True),
+                            StructField("parsed_ts", TimestampType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+
+        with self.assertRaises(ValueError) as context:
+            TSSchema.fromParsedTimestamp(
+                df_schema,
+                ts_col="ts_idx",
+                parsed_field="double_ts",
+                src_str_field="src_str",
+                secondary_parsed_field=None,  # This should raise an error
+                series_ids=["symbol"],
+            )
+
+        self.assertIn(
+            "secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex",
+            str(context.exception),
+        )
+
+    def test_valid_parsed_timestamp_creation(self):
+        """Test that valid parameters create ParsedTimestampIndex successfully"""
+        df_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("parsed_ts", TimestampType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+
+        # This should work without errors
+        ts_schema = TSSchema.fromParsedTimestamp(
+            df_schema,
+            ts_col="ts_idx",
+            parsed_field="parsed_ts",
+            src_str_field="src_str",
+            series_ids=["symbol"],
+        )
+
+        self.assertIsInstance(ts_schema, TSSchema)
+        self.assertIsInstance(ts_schema.ts_idx, ParsedTimestampIndex)
+
+    def test_valid_submicrosecond_creation(self):
+        """Test that valid parameters create SubMicrosecondPrecisionTimestampIndex successfully"""
+        df_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("double_ts", DoubleType(), True),
+                            StructField("parsed_ts", TimestampType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("value", DoubleType(), True),
+            ]
+        )
+
+        # This should work without errors
+        ts_schema = TSSchema.fromParsedTimestamp(
+            df_schema,
+            ts_col="ts_idx",
+            parsed_field="double_ts",
+            src_str_field="src_str",
+            secondary_parsed_field="parsed_ts",
+            series_ids=["symbol"],
+        )
+
+        self.assertIsInstance(ts_schema, TSSchema)
+        self.assertIsInstance(ts_schema.ts_idx, SubMicrosecondPrecisionTimestampIndex)
