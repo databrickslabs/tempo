@@ -1313,10 +1313,11 @@ class TSDF(WindowBuilder):
                 isinstance(c, Column) for c in exprs
             ), "all exprs should be Column"
             for expr in exprs:
-                new_col_name = f"{expr}"
-                roll_agg_tsdf = roll_agg_tsdf.withColumn(
-                    new_col_name, expr.over(window)
-                )
+                if isinstance(expr, Column):  # Type guard for mypy
+                    new_col_name = f"{expr}"
+                    roll_agg_tsdf = roll_agg_tsdf.withColumn(
+                        new_col_name, expr.over(window)
+                    )
 
         return roll_agg_tsdf
 
