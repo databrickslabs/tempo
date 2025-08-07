@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
-import warnings
-from typing import List, Optional, Union, overload
-
-from IPython import get_ipython
-from IPython.core.display import HTML
-from IPython.display import display as ipydisplay
-from pandas.core.frame import DataFrame as pandasDataFrame
+from datetime import datetime as dt
+from datetime import timedelta as td
+from typing import Optional, Union, overload
 
 import pyspark.sql.functions as sfn
-from pyspark.sql.dataframe import DataFrame
+from IPython import get_ipython  # type: ignore[import-not-found]
+from IPython.core.display import HTML  # type: ignore[import-not-found]
+from IPython.display import display as ipydisplay  # type: ignore[import-not-found]
+from pandas.core.frame import DataFrame as pandasDataFrame
+from pyspark.sql import DataFrame, SparkSession
 
-import tempo.resample as t_resample
 import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
@@ -27,100 +27,80 @@ where the code is running from.
 """
 
 
+def time_range(
+    spark: SparkSession,
+    start_time: dt,
+    end_time: Optional[dt] = None,
+    step_size: Optional[td] = None,
+    num_intervals: Optional[int] = None,
+    ts_colname: str = "ts",
+    include_interval_ends: bool = False,
+) -> DataFrame:
+    """
+    Generate a DataFrame of a range of timestamps with a regular interval,
+    similar to pandas.date_range, but for Spark DataFrames.
+    The DataFrame will have a single column named `ts_colname` (default is "ts")
+    that contains timestamps starting at `start_time` and ending at `end_time`
+    (if provided), with a step size of `step_size` (if provided) or
+    `num_intervals` (if provided). At least 2 of the 3 arguments `end_time`,
+    `step_size`, and `num_intervals` must be provided. The third
+    argument can be computed based on the other two, if needed. Optionally, the end of
+    each time interval can be included as a separate column in the DataFrame.
+
+    :param spark: SparkSession object
+    :param start_time: start time of the range
+    :param end_time: end time of the range (optional)
+    :param step_size: time step size (optional)
+    :param num_intervals: number of intervals (optional)
+    :param ts_colname: name of the timestamp column, default is "ts"
+    :param include_interval_ends: whether to include the end of each time
+    interval as a separate column in the DataFrame
+
+    :return: DataFrame with a time range of timestamps
+    """
+
+    # compute step_size if not provided
+    if not step_size:
+        # must have both end_time and num_intervals defined
+        assert (
+            end_time and num_intervals
+        ), "must provide at least 2 of: end_time, step_size, num_intervals"
+        diff_time = end_time - start_time
+        step_size = diff_time / num_intervals
+
+    # compute the number of intervals if not provided
+    if not num_intervals:
+        # must have both end_time and num_intervals defined
+        assert (
+            end_time and step_size
+        ), "must provide at least 2 of: end_time, step_size, num_intervals"
+        diff_time = end_time - start_time
+        num_intervals = math.ceil(diff_time / step_size)
+
+    # define expressions for the time range
+    start_time_expr = sfn.to_timestamp(sfn.lit(str(start_time)))
+    step_fractional_seconds = step_size.seconds + (step_size.microseconds / 1e6)
+    interval_expr = sfn.make_dt_interval(
+        days=sfn.lit(step_size.days), secs=sfn.lit(step_fractional_seconds)
+    )
+
+    # create the DataFrame
+    range_df = spark.range(0, num_intervals).withColumn(
+        ts_colname, start_time_expr + sfn.col("id") * interval_expr
+    )
+    if include_interval_ends:
+        interval_end_colname = ts_colname + "_interval_end"
+        range_df = range_df.withColumn(
+            interval_end_colname,
+            start_time_expr + (sfn.col("id") + sfn.lit(1)) * interval_expr,
+        )
+    return range_df.drop("id")
+
+
 class ResampleWarning(Warning):
     """
     This class is a warning that is raised when the interpolate or resample with fill methods are called.
     """
-
-    pass
-
-
-def calculate_time_horizon(
-    tsdf: t_tsdf.TSDF,
-    freq: str,
-    local_freq_dict: Optional[t_resample.FreqDict] = None,
-) -> None:
-    # Convert Frequency using resample dictionary
-    if local_freq_dict is None:
-        local_freq_dict = t_resample.freq_dict
-    parsed_freq = t_resample.checkAllowableFreq(freq)
-    period, unit = parsed_freq[0], parsed_freq[1]
-    if t_resample.is_valid_allowed_freq_keys(
-        unit,
-        t_resample.ALLOWED_FREQ_KEYS,
-    ):
-        freq = f"{period} {local_freq_dict[unit]}"  # type: ignore[literal-required]
-    else:
-        raise ValueError(f"Frequency {unit} not supported")
-
-    # Get max and min timestamp per partition
-    if tsdf.series_ids:
-        grouped_df = tsdf.df.groupBy(*tsdf.series_ids)
-    else:
-        grouped_df = tsdf.df.groupBy()
-    ts_range_per_series: DataFrame = grouped_df.agg(
-        sfn.max(tsdf.ts_col).alias("max_ts"),
-        sfn.min(tsdf.ts_col).alias("min_ts"),
-    )
-
-    # Generate upscale metrics
-    normalized_time_df: DataFrame = (
-        ts_range_per_series.withColumn("min_epoch_ms", sfn.expr("unix_millis(min_ts)"))
-        .withColumn("max_epoch_ms", sfn.expr("unix_millis(max_ts)"))
-        .withColumn(
-            "interval_ms",
-            sfn.expr(
-                f"unix_millis(cast('1970-01-01 00:00:00.000+0000' as TIMESTAMP) + INTERVAL {freq})"
-            ),
-        )
-        .withColumn(
-            "rounded_min_epoch",
-            sfn.expr("min_epoch_ms - (min_epoch_ms % interval_ms)"),
-        )
-        .withColumn(
-            "rounded_max_epoch",
-            sfn.expr("max_epoch_ms - (max_epoch_ms % interval_ms)"),
-        )
-        .withColumn("diff_ms", sfn.expr("rounded_max_epoch - rounded_min_epoch"))
-        .withColumn("num_values", sfn.expr("(diff_ms/interval_ms) +1"))
-    )
-
-    (
-        min_ts,
-        max_ts,
-        min_value_partition,
-        max_value_partition,
-        p25_value_partition,
-        p50_value_partition,
-        p75_value_partition,
-        total_values,
-    ) = normalized_time_df.select(
-        sfn.min("min_ts"),
-        sfn.max("max_ts"),
-        sfn.min("num_values"),
-        sfn.max("num_values"),
-        sfn.percentile_approx("num_values", 0.25),
-        sfn.percentile_approx("num_values", 0.5),
-        sfn.percentile_approx("num_values", 0.75),
-        sfn.sum("num_values"),
-    ).first()
-
-    warnings.simplefilter("always", ResampleWarning)
-    warnings.warn(
-        f"""
-            Resample Metrics Warning:
-                Earliest Timestamp: {min_ts}
-                Latest Timestamp: {max_ts}
-                No. of Unique Partitions: {normalized_time_df.count()}
-                Resampled Min No. Values in Single a Partition: {min_value_partition}
-                Resampled Max No. Values in Single a Partition: {max_value_partition}
-                Resampled P25 No. Values in Single a Partition: {p25_value_partition}
-                Resampled P50 No. Values in Single a Partition: {p50_value_partition}
-                Resampled P75 No. Values in Single a Partition: {p75_value_partition}
-                Resampled Total No. Values Across All Partitions: {total_values}
-        """,
-        ResampleWarning,
-    )
 
 
 def _is_capable_of_html_rendering() -> bool:
@@ -141,13 +121,11 @@ def _is_capable_of_html_rendering() -> bool:
 
 
 @overload
-def display_html(df: pandasDataFrame) -> None:
-    ...
+def display_html(df: pandasDataFrame) -> None: ...
 
 
 @overload
-def display_html(df: DataFrame) -> None:
-    ...
+def display_html(df: DataFrame) -> None: ...
 
 
 def display_html(df: Union[pandasDataFrame, DataFrame]) -> None:
@@ -172,15 +150,55 @@ def display_unavailable() -> None:
     )
 
 
-def get_display_df(tsdf, k):
+def get_display_df(tsdf: t_tsdf.TSDF, k: int) -> DataFrame:
     return tsdf.latest(k).withNaturalOrdering().df
+
+
+@overload
+def display_improvised(obj: t_tsdf.TSDF) -> None: ...
+
+
+@overload
+def display_improvised(obj: pandasDataFrame) -> None: ...
+
+
+@overload
+def display_improvised(obj: DataFrame) -> None: ...
+
+
+def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
+        method(get_display_df(obj, k=5))
+    else:
+        method(obj)
+
+
+@overload
+def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None: ...
+
+
+@overload
+def display_html_improvised(obj: Optional[pandasDataFrame]) -> None: ...
+
+
+@overload
+def display_html_improvised(obj: Optional[DataFrame]) -> None: ...
+
+
+def display_html_improvised(
+    obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
+) -> None:
+    if isinstance(obj, t_tsdf.TSDF):
+        display_html(get_display_df(obj, k=5))
+    else:
+        display_html(obj)
 
 
 ENV_CAN_RENDER_HTML = _is_capable_of_html_rendering()
 
 if (
     IS_DATABRICKS
-    and not (get_ipython() is None)
+    and get_ipython() is not None
     and ("display" in get_ipython().user_ns.keys())
 ):
     method = get_ipython().user_ns["display"]
@@ -188,47 +206,9 @@ if (
     # Under 'display' key in user_ns the original databricks display method is present
     # to know more refer: /databricks/python_shell/scripts/db_ipykernel_launcher.py
 
-    @overload
-    def display_improvised(obj: t_tsdf.TSDF) -> None:
-        ...
-
-    @overload
-    def display_improvised(obj: pandasDataFrame) -> None:
-        ...
-
-    @overload
-    def display_improvised(obj: DataFrame) -> None:
-        ...
-
-    def display_improvised(obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]) -> None:
-        if isinstance(obj, t_tsdf.TSDF):
-            method(get_display_df(obj, k=5))
-        else:
-            method(obj)
-
     display = display_improvised
 
 elif ENV_CAN_RENDER_HTML:
-
-    @overload
-    def display_html_improvised(obj: Optional[t_tsdf.TSDF]) -> None:
-        ...
-
-    @overload
-    def display_html_improvised(obj: Optional[pandasDataFrame]) -> None:
-        ...
-
-    @overload
-    def display_html_improvised(obj: Optional[DataFrame]) -> None:
-        ...
-
-    def display_html_improvised(
-        obj: Union[t_tsdf.TSDF, pandasDataFrame, DataFrame]
-    ) -> None:
-        if isinstance(obj, t_tsdf.TSDF):
-            display_html(get_display_df(obj, k=5))
-        else:
-            display_html(obj)
 
     display = display_html_improvised
 

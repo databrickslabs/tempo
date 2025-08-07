@@ -1,553 +1,243 @@
 import unittest
 
-from pyspark.sql.dataframe import DataFrame
+from parameterized import parameterized_class
 
-from tempo.interpol import Interpolation
+from tempo.interpol import backward_fill, forward_fill, interpolate, zero_fill
 from tempo.tsdf import TSDF
-from tests.tsdf_tests import SparkTest
+from tests.base import SparkTest
 
 
-class InterpolationUnitTest(SparkTest):
-    def setUp(self) -> None:
-        super().setUp()
-        # register interpolation helper
-        self.interpolate_helper = Interpolation(is_resampled=False)
+@parameterized_class(("data_type", "interpol_cols"),[
+    ('simple_ts_idx', ["open", "close"] ),
+    ('simple_ts_no_series', ["trade_pr"])
+])
+class InterpolationTests(SparkTest):
 
-    def test_is_resampled_type(self):
-        self.assertIsInstance(self.interpolate_helper.is_resampled, bool)
-
-    def test_validate_fill_method(self):
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_fill,
-            "abcd",
-        )
-
-    def test_validate_col_exist_in_df(self):
-        input_df: DataFrame = self.get_data_as_sdf("input_data")
-
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "does_not_exist"],
-            ["value_a", "value_b"],
-            "event_ts",
-        )
-
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "partition_b"],
-            ["does_not_exist", "value_b"],
-            "event_ts",
-        )
-
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "wrongly_named",
-        )
-
-    def test_validate_col_target_cols_data_type(self):
-        input_df: DataFrame = self.get_data_as_sdf("input_data")
-
-        self.assertRaises(
-            TypeError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "partition_b"],
-            ["string_target", "float_target"],
-            "event_ts",
-        )
-
-    def test_fill_validation(self):
-        """Test fill parameter is valid."""
-
-        # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
+    def test_zero_fill(self):
+        # load the initial & expected dataframes
+        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                            "init").as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                                "expected").as_tsdf()
 
         # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            "event_ts",
-            "mean",
-            "fill_wrong",
-            True,
-        )
+        actual_tsdf: TSDF = interpolate(init_tsdf,
+                                        self.interpol_cols,
+                                        zero_fill,
+                                        0,
+                                        0)
+        actual_tsdf.withNaturalOrdering().show()
 
-    def test_target_column_validation(self):
-        """Test target columns exist in schema, and are of the right type (numeric)."""
+        # compare
+        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
+                                     actual_tsdf.withNaturalOrdering())
 
-        # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_a", "partition_b"],
-            ["target_column_wrong", "value_b"],
-            "30 seconds",
-            "event_ts",
-            "mean",
-            "zero",
-            True,
-        )
-
-    def test_partition_column_validation(self):
-        """Test partition columns exist in schema."""
-
-        # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
+    def test_linear(self):
+        # load the initial & expected dataframes
+        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                            "init").as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                                "expected").as_tsdf()
 
         # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_c", "partition_column_wrong"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            "event_ts",
-            "mean",
-            "zero",
-            True,
-        )
+        # Note: Linear interpolation behavior:
+        # - Values between known points are linearly interpolated
+        # - Values at the end with no following point are forward-filled with the last known value
+        # - This is the default pandas behavior (limit_direction='forward')
+        actual_tsdf: TSDF = interpolate(init_tsdf,
+                                        self.interpol_cols,
+                                        "linear",
+                                        1,
+                                        1)
+        actual_tsdf.withNaturalOrdering().show()
 
-    def test_ts_column_validation(self):
-        """Test time series column exist in schema."""
+        # compare
+        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
+                                     actual_tsdf.withNaturalOrdering())
 
-        # load test data
-        input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            input_tsdf,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            "event_ts_wrong",
-            "mean",
-            "zero",
-            True,
-        )
-
-    def test_zero_fill_interpolation(self):
-        """Test zero fill interpolation.
-
-        For zero fill interpolation we expect any missing timeseries values to be generated and filled in with zeroes.
-        If after sampling there are null values in the target column these will also be filled with zeroes.
-
-        """
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+    def test_forward_fill(self):
+        # load the initial & expected dataframes
+        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                            "init").as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                                "expected").as_tsdf()
 
         # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
-            method="zero",
-            show_interpolated=True,
-        )
+        actual_tsdf: TSDF = interpolate(init_tsdf,
+                                        self.interpol_cols,
+                                        forward_fill,
+                                        1,
+                                        0)
+        actual_tsdf.withNaturalOrdering().show()
 
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        # compare
+        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
+                                     actual_tsdf.withNaturalOrdering())
 
-    def test_zero_fill_interpolation_no_perform_checks(self):
-        """Test zero fill interpolation.
-
-        For zero fill interpolation we expect any missing timeseries values to be generated and filled in with zeroes.
-        If after sampling there are null values in the target column these will also be filled with zeroes.
-
-        """
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+    def test_backward_fill(self):
+        # load the initial & expected dataframes
+        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                            "init").as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
+                                                                "expected").as_tsdf()
 
         # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
-            method="zero",
-            show_interpolated=True,
-            perform_checks=False,
+        actual_tsdf: TSDF = interpolate(init_tsdf,
+                                        self.interpol_cols,
+                                        backward_fill,
+                                        0,
+                                        1)
+        actual_tsdf.withNaturalOrdering().show()
+
+        # compare
+        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
+                                     actual_tsdf.withNaturalOrdering())
+
+
+# Add tests for non-numeric columns from PR-421
+class NonNumericInterpolationTests(SparkTest):
+    """Tests for non-numeric column interpolation support"""
+
+    def test_non_numeric_forward_fill(self):
+        """Verify that forward fill interpolation works on non-numeric columns."""
+
+        # Load test data from JSON
+        tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
+
+        # Apply forward fill to all columns
+        # Use leading_margin=1 to include previous values for forward fill
+        result_tsdf = interpolate(
+            tsdf,
+            ["string_col", "bool_col", "int_col"],
+            "ffill",
+            1,
+            0
         )
 
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        result_df = result_tsdf.df.orderBy("event_ts").collect()
 
-    def test_null_fill_interpolation(self):
-        """Test null fill interpolation.
+        # Verify string column forward fill
+        self.assertEqual(result_df[1]["string_col"], "alpha")  # filled from previous
+        self.assertEqual(result_df[3]["string_col"], "beta")  # filled from previous
 
-        For null fill interpolation we expect any missing timeseries values to be generated and filled in with nulls.
-        If after sampling there are null values in the target column these will also be kept as nulls.
+        # Verify boolean column forward fill
+        self.assertEqual(result_df[1]["bool_col"], True)  # filled from previous
+        self.assertEqual(result_df[3]["bool_col"], False)  # filled from previous
 
-        """
+        # Verify int column forward fill
+        self.assertEqual(result_df[1]["int_col"], 1)  # filled from previous
+        self.assertEqual(result_df[3]["int_col"], 2)  # filled from previous
 
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+    def test_non_numeric_backward_fill(self):
+        """Verify that backward fill interpolation works on non-numeric columns."""
 
-        # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
-            method="null",
-            show_interpolated=True,
+        # Load test data from JSON
+        tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
+
+        # Apply backward fill to all columns
+        # Use lagging_margin=1 to include next values for backward fill
+        result_tsdf = interpolate(
+            tsdf,
+            ["string_col", "bool_col", "int_col"],
+            "bfill",
+            0,
+            1
         )
 
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        result_df = result_tsdf.df.orderBy("event_ts").collect()
 
-    def test_back_fill_interpolation(self):
-        """Test back fill interpolation.
+        # Verify string column backward fill
+        self.assertEqual(result_df[1]["string_col"], "beta")  # filled from next
+        self.assertEqual(result_df[3]["string_col"], "gamma")  # filled from next
 
-        For back fill interpolation we expect any missing timeseries values to be generated and filled with the nearest subsequent non-null value.
-        If the right (latest) edge contains is null then preceding interpolated values will be null until the next non-null value.
-        Pre-existing nulls are treated as the same as missing values, and will be replaced with an interpolated value.
+        # Verify boolean column backward fill
+        self.assertEqual(result_df[1]["bool_col"], False)  # filled from next
+        self.assertEqual(result_df[3]["bool_col"], True)  # filled from next
 
-        """
+        # Verify int column backward fill
+        self.assertEqual(result_df[1]["int_col"], 2)  # filled from next
+        self.assertEqual(result_df[3]["int_col"], 3)  # filled from next
 
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+    def test_non_numeric_null_fill(self):
+        """Verify that null fill works on non-numeric columns (keeps nulls)."""
 
-        # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
-            method="bfill",
-            show_interpolated=True,
+        # Load test data from JSON
+        tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
+
+        # Apply null fill
+        result_tsdf = interpolate(
+            tsdf,
+            ["string_col", "bool_col", "int_col"],
+            "null",
+            0,
+            0
         )
 
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        result_df = result_tsdf.df.orderBy("event_ts").collect()
 
-    def test_forward_fill_interpolation(self):
-        """Test forward fill interpolation.
+        # Verify nulls remain
+        self.assertIsNone(result_df[1]["string_col"])
+        self.assertIsNone(result_df[1]["bool_col"])
+        self.assertIsNone(result_df[1]["int_col"])
 
-        For forward fill interpolation we expect any missing timeseries values to be generated and filled with the nearest preceding non-null value.
-        If the left (earliest) edge  is null then subsequent interpolated values will be null until the next non-null value.
-        Pre-existing nulls are treated as the same as missing values, and will be replaced with an interpolated value.
+    def test_zero_fill_numeric_only(self):
+        """Verify that zero fill only works on numeric columns."""
 
-        """
+        # Load test data from JSON
+        tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
 
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+        # Zero fill should raise an error for string column
+        with self.assertRaises(ValueError) as context:
+            interpolate(tsdf, ["string_col"], "zero", 0, 0)
 
-        # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
-            method="ffill",
-            show_interpolated=True,
-        )
+        self.assertIn("not supported for column 'string_col'", str(context.exception))
 
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        # Zero fill should work for numeric column
+        result_tsdf = interpolate(tsdf, ["numeric_col"], "zero", 0, 0)
+        result_df = result_tsdf.df.orderBy("event_ts").collect()
+        self.assertEqual(result_df[1]["numeric_col"], 0.0)  # filled with zero
 
-    def test_linear_fill_interpolation(self):
-        """Test linear fill interpolation.
+    def test_linear_numeric_only(self):
+        """Verify that linear interpolation only works on numeric columns."""
 
-        For linear fill interpolation we expect any missing timeseries values to be generated and filled using linear interpolation.
-        If the right (latest) or left (earliest) edges  is null then subsequent interpolated values will be null until the next non-null value.
-        Pre-existing nulls are treated as the same as missing values, and will be replaced with an interpolated value.
+        # Load test data from JSON - reuse same data as zero_fill test
+        tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
 
-        """
+        # Linear interpolation should raise an error for string column
+        with self.assertRaises(ValueError) as context:
+            interpolate(tsdf, ["string_col"], "linear", 1, 1)
 
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
+        self.assertIn("not supported for column 'string_col'", str(context.exception))
 
-        # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
+        # Linear interpolation should work for numeric column
+        result_tsdf = interpolate(tsdf, ["numeric_col"], "linear", 1, 1)
+        result_df = result_tsdf.df.orderBy("event_ts").collect()
+        self.assertAlmostEqual(result_df[1]["numeric_col"], 1.5)  # linear interpolation
+
+
+class TSDBInterpolationTests(SparkTest):
+    """Tests for TSDF.interpolate method"""
+
+    def test_tsdf_interpolate_method(self):
+        """Test interpolation through TSDF method"""
+
+        # Load test data from JSON
+        tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
+
+        # Test linear interpolation through TSDF method
+        result_tsdf = tsdf.interpolate(
             method="linear",
-            show_interpolated=True,
+            freq="30 min",
+            func="mean"
         )
 
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        result_df = result_tsdf.df.orderBy("event_ts").collect()
 
-    def test_different_freq_abbreviations(self):
-        """Test abbreviated frequency values
-
-        e.g. sec and seconds will both work.
-
-        """
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
-
-        # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 sec",
-            ts_col="event_ts",
-            func="mean",
-            method="linear",
-            show_interpolated=True,
-        )
-
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
-
-    def test_show_interpolated(self):
-        """Test linear `show_interpolated` flag
-
-        For linear fill interpolation we expect any missing timeseries values to be generated and filled using linear interpolation.
-        If the right (latest) or left (earliest) edges  is null then subsequent interpolated values will be null until the next non-null value.
-        Pre-existing nulls are treated as the same as missing values, and will be replaced with an interpolated value.
-
-        """
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected_data")
-
-        # interpolate
-        actual_df: DataFrame = self.interpolate_helper.interpolate(
-            tsdf=simple_input_tsdf,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a", "value_b"],
-            freq="30 seconds",
-            ts_col="event_ts",
-            func="mean",
-            method="linear",
-            show_interpolated=False,
-        )
-
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
-
-    def test_validate_ts_col_data_type_is_not_timestamp(self):
-        input_df: DataFrame = self.get_data_as_sdf("input_data")
-
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper._Interpolation__validate_col,
-            input_df,
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "event_ts",
-            "not_timestamp",
-        )
-
-    def test_interpolation_freq_is_none(self):
-        """Test a ValueError is raised when freq is None."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            None,
-            "mean",
-            "zero",
-            True,
-        )
-
-    def test_interpolation_func_is_none(self):
-        """Test a ValueError is raised when func is None."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            None,
-            "zero",
-            True,
-        )
-
-    def test_interpolation_func_is_callable(self):
-        """Test ValueError is raised when func is callable."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 seconds",
-            sum,
-            "zero",
-            True,
-        )
-
-    def test_interpolation_freq_is_not_supported_type(self):
-        """Test ValueError is raised when func is callable."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("input_data")
-
-        # interpolate
-        self.assertRaises(
-            ValueError,
-            self.interpolate_helper.interpolate,
-            simple_input_tsdf,
-            "event_ts",
-            ["partition_a", "partition_b"],
-            ["value_a", "value_b"],
-            "30 not_supported_type",
-            "mean",
-            "zero",
-            True,
-        )
-
-
-class InterpolationIntegrationTest(SparkTest):
-    def test_interpolation_using_default_tsdf_params(self):
-        """
-        Verify that interpolate uses the ts_col and partition_col from TSDF if not explicitly specified,
-        and all columns numeric are automatically interpolated if target_col is not specified.
-        """
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        # interpolate
-        actual_df: DataFrame = simple_input_tsdf.interpolate(
-            freq="30 seconds", func="mean", method="linear"
-        ).df
-
-        # compare with expected
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
-
-    def test_interpolation_using_custom_params(self):
-        """Verify that by specifying optional paramters it will change the result of the interpolation based on those
-        modified params."""
-
-        # Modify input DataFrame using different ts_col
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        input_tsdf = TSDF(
-            simple_input_tsdf.df.withColumnRenamed("event_ts", "other_ts_col"),
-            partition_cols=["partition_a", "partition_b"],
-            ts_col="other_ts_col",
-        )
-
-        actual_df: DataFrame = input_tsdf.interpolate(
-            ts_col="other_ts_col",
-            show_interpolated=True,
-            partition_cols=["partition_a", "partition_b"],
-            target_cols=["value_a"],
-            freq="30 seconds",
-            func="mean",
-            method="linear",
-        ).df
-
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
-
-    def test_tsdf_constructor_params_are_updated(self):
-        """Verify that resulting TSDF class has the correct values for ts_col and partition_col based on the
-        interpolation."""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-
-        actual_tsdf: TSDF = simple_input_tsdf.interpolate(
-            ts_col="event_ts",
-            show_interpolated=True,
-            partition_cols=["partition_b"],
-            target_cols=["value_a"],
-            freq="30 seconds",
-            func="mean",
-            method="linear",
-        )
-
-        self.assertEqual(actual_tsdf.ts_col, "event_ts")
-        self.assertEqual(actual_tsdf.partitionCols, ["partition_b"])
-
-    def test_interpolation_on_sampled_data(self):
-        """Verify interpolation can be chained with resample within the TSDF class"""
-
-        # load test data
-        simple_input_tsdf: TSDF = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected")
-
-        actual_df: DataFrame = (
-            simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
-            .interpolate(
-                method="linear", target_cols=["value_a"], show_interpolated=True
-            )
-            .df
-        )
-
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
-
-    def test_defaults_with_resampled_df(self):
-        """Verify interpolation can be chained with resample within the TSDF class"""
-        # self.buildTestingDataFrame()
-
-        # load test data
-        simple_input_tsdf = self.get_data_as_tsdf("simple_input_data")
-        expected_df: DataFrame = self.get_data_as_sdf("expected", convert_ts_col=True)
-
-        actual_df: DataFrame = (
-            simple_input_tsdf.resample(freq="30 seconds", func="mean", fill=None)
-            .interpolate(method="ffill")
-            .df
-        )
-
-        self.assertDataFrameEquality(expected_df, actual_df, ignore_nullable=True)
+        # Verify interpolated values
+        self.assertAlmostEqual(result_df[1]["value_a"], 1.5)
+        self.assertAlmostEqual(result_df[1]["value_b"], 15.0)
+        self.assertAlmostEqual(result_df[3]["value_a"], 2.5)
+        self.assertAlmostEqual(result_df[3]["value_b"], 25.0)
 
 
 # MAIN

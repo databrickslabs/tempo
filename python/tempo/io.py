@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from collections import deque
 from typing import Optional
 
@@ -30,13 +29,7 @@ def write(
 
     df = tsdf.df
     ts_col = tsdf.ts_col
-    series_ids = tsdf.series_ids
-    if optimizationCols:
-        optimizationCols = optimizationCols + ["event_time"]
-    else:
-        optimizationCols = ["event_time"]
-
-    useDeltaOpt = os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
+    series_ids: list[str] = tsdf.series_ids
 
     view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(
         "event_time",
@@ -48,25 +41,20 @@ def write(
     view_cols.rotate(1)
     view_df = view_df.select(*list(view_cols))
 
-    view_df.write.mode("overwrite").partitionBy("event_dt").format("delta").saveAsTable(
-        tabName
-    )
+    # Use replaceWhere instead of overwrite mode
+    writer = view_df.write.format("delta").partitionBy("event_dt")
+    writer = writer.option("replaceWhere", "true")
+    writer.saveAsTable(tabName)
 
-    if useDeltaOpt:
+    if optimizationCols:
         try:
             spark.sql(
                 "optimize {} zorder by {}".format(
-                    tabName, "(" + ",".join(series_ids + optimizationCols) + ")"
+                    tabName,
+                    "(" + ",".join(series_ids + optimizationCols + [ts_col]) + ")",
                 )
             )
         except ParseException as e:
             logger.error(
-                "Delta optimizations attempted, but was not successful.\nError: {}".format(
-                    e
-                )
+                f"Delta optimizations attempted, but was not successful.\nError: {e}"
             )
-    else:
-        logger.warning(
-            "Delta optimizations attempted on a non-Databricks platform. "
-            "Switch to use Databricks Runtime to get optimization advantages."
-        )

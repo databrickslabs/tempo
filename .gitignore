@@ -38,6 +38,7 @@ python/.env
 venv
 .venv
 .env
+.venv-*
 
 # other misc ignore
 .DS_Store
@@ -49,3 +50,10 @@ docs/_build
 # ignore mypy cache
 .mypy_cache
 python/.mypy_cache
+.aider*
+
+# ignore Claude Code files
+.claude
+
+# ignore pycharm databricks plugin directory
+.databricks

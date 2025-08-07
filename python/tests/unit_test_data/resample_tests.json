@@ -1,65 +1,572 @@
 {
   "__SharedData": {
     "input_data": {
-      "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
-      "ts_col": "event_ts",
-      "series_ids": [
-        "symbol"
-      ],
-      "data": [
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:00:10",
-          349.21,
-          10.0
+      "df": {
+        "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+        "data": [
+          [
+            "S1",
+            "SAME_DT",
+            "2020-08-01 00:00:10",
+            349.21,
+            10.0
+          ],
+          [
+            "S1",
+            "SAME_DT",
+            "2020-08-01 00:00:11",
+            340.21,
+            9.0
+          ],
+          [
+            "S1",
+            "SAME_DT",
+            "2020-08-01 00:01:12",
+            353.32,
+            8.0
+          ],
+          [
+            "S1",
+            "SAME_DT",
+            "2020-08-01 00:01:13",
+            351.32,
+            7.0
+          ],
+          [
+            "S1",
+            "SAME_DT",
+            "2020-08-01 00:01:14",
+            350.32,
+            6.0
+          ],
+          [
+            "S1",
+            "SAME_DT",
+            "2020-09-01 00:01:12",
+            361.1,
+            5.0
+          ],
+          [
+            "S1",
+            "SAME_DT",
+            "2020-09-01 00:19:12",
+            362.1,
+            4.0
+          ]
         ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:00:11",
-          340.21,
-          9.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:01:12",
-          353.32,
-          8.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:01:13",
-          351.32,
-          7.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-08-01 00:01:14",
-          350.32,
-          6.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-09-01 00:01:12",
-          361.1,
-          5.0
-        ],
-        [
-          "S1",
-          "SAME_DT",
-          "2020-09-01 00:19:12",
-          362.1,
-          4.0
+        "ts_convert": [
+          "event_ts"
         ]
-      ]
+      },
+      "tsdf": {
+        "ts_col": "event_ts",
+        "series_ids": [
+          "symbol"
+        ]
+      }
     }
   },
   "ResampleUnitTests": {
+    "test_resample": {
+      "expected30m": {
+        "df": {
+          "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              null,
+              348.88,
+              8.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              null,
+              361.1,
+              5.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:15:00",
+              null,
+              362.1,
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "expectedbars": {
+        "df": {
+          "schema": "symbol string, event_ts string, close_trade_pr float, close_trade_pr_2 float, high_trade_pr float, high_trade_pr_2 float, low_trade_pr float, low_trade_pr_2 float, open_trade_pr float, open_trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              340.21,
+              9.0,
+              349.21,
+              10.0,
+              340.21,
+              9.0,
+              349.21,
+              10.0
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:00",
+              350.32,
+              6.0,
+              353.32,
+              8.0,
+              350.32,
+              6.0,
+              353.32,
+              8.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:01:00",
+              361.1,
+              5.0,
+              361.1,
+              5.0,
+              361.1,
+              5.0,
+              361.1,
+              5.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:00",
+              362.1,
+              4.0,
+              362.1,
+              4.0,
+              362.1,
+              4.0,
+              362.1,
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "input_data": {
+        "df": {
+          "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:10",
+              349.21,
+              10.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:11",
+              340.21,
+              9.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:01:12",
+              353.32,
+              8.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:01:13",
+              351.32,
+              7.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:01:14",
+              350.32,
+              6.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-09-01 00:01:12",
+              361.1,
+              5.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-09-01 00:19:12",
+              362.1,
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "expected_data": {
+        "df": {
+          "schema": "symbol string, event_ts string, floor_trade_pr float, floor_date string, floor_trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              349.21,
+              "SAME_DT",
+              10.0
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:00",
+              353.32,
+              "SAME_DT",
+              8.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:01:00",
+              361.1,
+              "SAME_DT",
+              5.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:00",
+              362.1,
+              "SAME_DT",
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      }
+    },
+    "test_resample_millis": {
+      "expectedms": {
+        "df": {
+          "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:10.123",
+              null,
+              344.71,
+              9.5
+            ],
+            [
+              "S1",
+              "2020-08-01 00:00:10.124",
+              null,
+              353.32,
+              8.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "input_data": {
+        "df": {
+          "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:10.12345",
+              349.21,
+              10.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:10.123",
+              340.21,
+              9.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:10.124",
+              353.32,
+              8.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      }
+    },
+    "test_upsample": {
+      "expected30m": {
+        "df": {
+          "schema": "symbol string, event_ts string, date double, trade_pr double, trade_pr_2 double",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              0.0,
+              348.88,
+              8.0
+            ],
+            [
+              "S1",
+              "2020-08-01 00:05:00",
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              0.0,
+              361.1,
+              5.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:15:00",
+              0.0,
+              362.1,
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "expectedbars": {
+        "df": {
+          "schema": "symbol string, event_ts string, close_trade_pr float, close_trade_pr_2 float, high_trade_pr float, high_trade_pr_2 float, low_trade_pr float, low_trade_pr_2 float, open_trade_pr float, open_trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              340.21,
+              9.0,
+              349.21,
+              10.0,
+              340.21,
+              9.0,
+              349.21,
+              10.0
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:00",
+              350.32,
+              6.0,
+              353.32,
+              8.0,
+              350.32,
+              6.0,
+              353.32,
+              8.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:01:00",
+              361.1,
+              5.0,
+              361.1,
+              5.0,
+              361.1,
+              5.0,
+              361.1,
+              5.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:00",
+              362.1,
+              4.0,
+              362.1,
+              4.0,
+              362.1,
+              4.0,
+              362.1,
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "input_data": {
+        "df": {
+          "schema": "symbol string, date string, event_ts string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:10",
+              349.21,
+              10.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:00:11",
+              340.21,
+              9.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:01:12",
+              353.32,
+              8.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:01:13",
+              351.32,
+              7.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-08-01 00:01:14",
+              350.32,
+              6.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-09-01 00:01:12",
+              361.1,
+              5.0
+            ],
+            [
+              "S1",
+              "SAME_DT",
+              "2020-09-01 00:19:12",
+              362.1,
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      },
+      "expected_data": {
+        "df": {
+          "schema": "symbol string, event_ts string, floor_trade_pr float, floor_date string, floor_trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              349.21,
+              "SAME_DT",
+              10.0
+            ],
+            [
+              "S1",
+              "2020-08-01 00:01:00",
+              353.32,
+              "SAME_DT",
+              8.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:01:00",
+              361.1,
+              "SAME_DT",
+              5.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:19:00",
+              362.1,
+              "SAME_DT",
+              4.0
+            ]
+          ],
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
+      }
+    },
     "test_appendAggKey_freq_is_none": {
       "input_data": {
         "$ref": "#/__SharedData/input_data"
@@ -80,27 +587,34 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            "SAME_DT",
-            349.21,
-            10.0
+        "df": {
+          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              "SAME_DT",
+              349.21,
+              10.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              "SAME_DT",
+              361.1,
+              5.0
+            ]
           ],
-          [
-            "S1",
-            "2020-09-01 00:00:00",
-            "SAME_DT",
-            361.1,
-            5.0
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_aggregate_average": {
@@ -108,25 +622,32 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, trade_pr double, trade_pr_2 double",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            348.8760009765625,
-            8.0
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr double, trade_pr_2 double",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              348.8760009765625,
+              8.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              361.6000061035156,
+              4.5
+            ]
           ],
-          [
-            "S1",
-            "2020-09-01 00:00:00",
-            361.6000061035156,
-            4.5
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_aggregate_min": {
@@ -134,27 +655,34 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            "SAME_DT",
-            340.21,
-            6.0
+        "df": {
+          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              "SAME_DT",
+              340.21,
+              6.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              "SAME_DT",
+              361.1,
+              4.0
+            ]
           ],
-          [
-            "S1",
-            "2020-09-01 00:00:00",
-            "SAME_DT",
-            361.1,
-            4.0
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_aggregate_min_with_prefix": {
@@ -162,13 +690,20 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, min_date string, min_trade_pr float, min_trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": {
-          "$ref": "#/ResampleUnitTests/test_aggregate_min/expected_data/data"
+        "df": {
+          "schema": "symbol string, event_ts string, min_date string, min_trade_pr float, min_trade_pr_2 float",
+          "data": {
+            "$ref": "#/ResampleUnitTests/test_aggregate_min/expected_data/df/data"
+          },
+          "ts_convert": [
+            "event_ts"
+          ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
         }
       }
     },
@@ -177,237 +712,244 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            "SAME_DT",
-            340.21,
-            6.0
+        "df": {
+          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              "SAME_DT",
+              340.21,
+              6.0
+            ],
+            [
+              "S1",
+              "2020-08-02 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-03 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-04 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-05 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-06 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-07 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-08 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-09 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-10 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-11 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-12 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-13 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-14 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-15 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-16 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-17 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-18 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-19 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-20 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-21 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-22 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-23 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-24 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-25 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-26 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-27 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-28 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-29 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-30 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-08-31 00:00:00",
+              null,
+              0.0,
+              0.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              "SAME_DT",
+              361.1,
+              4.0
+            ]
           ],
-          [
-            "S1",
-            "2020-08-02 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-03 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-04 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-05 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-06 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-07 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-08 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-09 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-10 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-11 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-12 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-13 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-14 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-15 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-16 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-17 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-18 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-19 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-20 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-21 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-22 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-23 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-24 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-25 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-26 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-27 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-28 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-29 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-30 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-08-31 00:00:00",
-            null,
-            0.0,
-            0.0
-          ],
-          [
-            "S1",
-            "2020-09-01 00:00:00",
-            "SAME_DT",
-            361.1,
-            4.0
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_aggregate_max": {
@@ -415,27 +957,34 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            "SAME_DT",
-            353.32,
-            10.0
+        "df": {
+          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              "SAME_DT",
+              353.32,
+              10.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              "SAME_DT",
+              362.1,
+              5.0
+            ]
           ],
-          [
-            "S1",
-            "2020-09-01 00:00:00",
-            "SAME_DT",
-            362.1,
-            5.0
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_aggregate_ceiling": {
@@ -443,27 +992,34 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-08-01 00:00:00",
-            "SAME_DT",
-            350.32,
-            6.0
+        "df": {
+          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-08-01 00:00:00",
+              "SAME_DT",
+              350.32,
+              6.0
+            ],
+            [
+              "S1",
+              "2020-09-01 00:00:00",
+              "SAME_DT",
+              362.1,
+              4.0
+            ]
           ],
-          [
-            "S1",
-            "2020-09-01 00:00:00",
-            "SAME_DT",
-            362.1,
-            4.0
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     },
     "test_aggregate_invalid_func_arg": {
@@ -471,27 +1027,34 @@
         "$ref": "#/__SharedData/input_data"
       },
       "expected_data": {
-        "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
-        "ts_col": "event_ts",
-        "series_ids": [
-          "symbol"
-        ],
-        "data": [
-          [
-            "S1",
-            "2020-07-31 20:00:00",
-            "SAME_DT",
-            348.88,
-            8.0
+        "df": {
+          "schema": "symbol string, event_ts string, date string, trade_pr float, trade_pr_2 float",
+          "data": [
+            [
+              "S1",
+              "2020-07-31 20:00:00",
+              "SAME_DT",
+              348.88,
+              8.0
+            ],
+            [
+              "S1",
+              "2020-08-31 20:00:00",
+              "SAME_DT",
+              361.6,
+              4.5
+            ]
           ],
-          [
-            "S1",
-            "2020-08-31 20:00:00",
-            "SAME_DT",
-            361.60,
-            4.5
+          "ts_convert": [
+            "event_ts"
           ]
-        ]
+        },
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": [
+            "symbol"
+          ]
+        }
       }
     }
   }

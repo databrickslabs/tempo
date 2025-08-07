@@ -1,0 +1,24 @@
+{
+  "trades": {
+    "df": {
+      "schema": "symbol string, event_ts string, trade_pr float",
+      "ts_convert": [
+        "event_ts"
+      ],
+      "data": "trades.csv"
+    },
+    "tsdf": {
+      "ts_col": "event_ts",
+      "series_ids": [
+        "symbol"
+      ]
+    }
+  },
+  "TimeSeriesCrossValidatorTests": {
+    "test_kfolds": {
+      "trades": {
+        "$ref": "#/trades"
+      }
+    }
+  }
+}
