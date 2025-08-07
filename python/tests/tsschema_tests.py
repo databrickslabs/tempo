@@ -22,6 +22,7 @@ from tempo.tsschema import (
     SimpleTimestampIndex,
     StandardTimeUnits,
     SubMicrosecondPrecisionTimestampIndex,
+    SubsequenceTSIndex,
     TSIndex,
     TSSchema,
 )
@@ -143,6 +144,44 @@ class TSIndexTester(unittest.TestCase, ABC):
             StandardTimeUnits.SECONDS,
             "[Column<'ts_idx.double_ts'>]",
             "Column<'ts_idx.double_ts'>",
+        ),
+        (
+            "subsequence_timestamp_index",
+            StructField(
+                "ts_idx",
+                StructType([
+                    StructField("event_ts", TimestampType(), True),
+                    StructField("seq_num", IntegerType(), True),
+                ]),
+                True,
+            ),
+            SubsequenceTSIndex,
+            {
+                "ts_col": "event_ts",
+                "subsequence_col": "seq_num",
+            },
+            StandardTimeUnits.SECONDS,
+            "[Column<'ts_idx.event_ts'>, Column<'ts_idx.seq_num'>]",
+            "Column<'unix_timestamp(ts_idx.event_ts, yyyy-MM-dd HH:mm:ss)'>",
+        ),
+        (
+            "subsequence_date_index",
+            StructField(
+                "ts_idx",
+                StructType([
+                    StructField("event_date", DateType(), True),
+                    StructField("seq_num", IntegerType(), True),
+                ]),
+                True,
+            ),
+            SubsequenceTSIndex,
+            {
+                "ts_col": "event_date",
+                "subsequence_col": "seq_num",
+            },
+            StandardTimeUnits.DAYS,
+            "[Column<'ts_idx.event_date'>, Column<'ts_idx.seq_num'>]",
+            "Column<'unix_timestamp(ts_idx.event_date, yyyy-MM-dd HH:mm:ss)'>",
         ),
     ],
 )

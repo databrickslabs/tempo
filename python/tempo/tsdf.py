@@ -35,8 +35,11 @@ from tempo.tsschema import (
     OrdinalTSIndex,
     ParsedTSIndex,
     SimpleTSIndex,
+    StandardTimeUnits,
+    SubsequenceTSIndex,
     TSIndex,
     TSSchema,
+    TimeUnit,
     WindowBuilder,
     identify_fractional_second_separator,
     is_time_format,
@@ -285,9 +288,8 @@ class TSDF(WindowBuilder):
         )
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
-        # For now, we'll use an OrdinalTSIndex with the struct column
-        # This is a limitation that should be addressed in a future refactor
-        subseq_idx = OrdinalTSIndex(subseq_struct)
+        # Use the proper SubsequenceTSIndex for composite timestamp/subsequence columns
+        subseq_idx = SubsequenceTSIndex(subseq_struct, ts_col, subsequence_col)
         # construct & return the TSDF with appropriate schema
         return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
 
