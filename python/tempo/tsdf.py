@@ -1659,12 +1659,13 @@ class TSDF(WindowBuilder):
         from tempo.interpol import interpolate as interpol_func
 
         # Map method names to interpolation functions (no lambdas)
+        if method == "null":
+            # For null method, we don't fill - just return the resampled data
+            return resampled_tsdf
+
         fn: Union[str, Callable[[pd.Series], pd.Series]]
         if method == "linear":
             fn = "linear"  # String method for pandas interpolation
-        elif method == "null":
-            # For null method, we don't fill - just return the resampled data
-            return resampled_tsdf
         elif method == "zero":
             fn = zero_fill
         elif method == "bfill":
