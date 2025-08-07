@@ -254,7 +254,9 @@ class TSIndex(ABC):
         comparable = self.comparableExpr()
         if isinstance(comparable, list):
             # For composite indexes, between doesn't make sense as-is
-            raise NotImplementedError("between() is not supported for composite indexes")
+            raise NotImplementedError(
+                "between() is not supported for composite indexes"
+            )
         return comparable.between(
             _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
         )
@@ -894,7 +896,7 @@ class SubsequenceTSIndex(CompositeTSIndex):
     ) -> None:
         """
         Initialize a SubsequenceTSIndex.
-        
+
         :param ts_struct: The StructField for the composite index
         :param ts_col: The name of the timestamp field within the struct
         :param subsequence_col: The name of the subsequence field within the struct
@@ -907,12 +909,12 @@ class SubsequenceTSIndex(CompositeTSIndex):
     def unit(self) -> Optional[TimeUnit]:
         """
         Get the time unit of the timestamp component.
-        
+
         :return: The time unit of the timestamp field
         """
         # Get the timestamp field type
         ts_field_type = self.schema[self._ts_col].dataType
-        
+
         # Determine unit based on timestamp field type
         if isinstance(ts_field_type, TimestampType):
             return StandardTimeUnits.SECONDS
@@ -927,12 +929,12 @@ class SubsequenceTSIndex(CompositeTSIndex):
     def rangeExpr(self, reverse: bool = False) -> Column:
         """
         Get the range expression for the timestamp component.
-        
+
         :param reverse: Whether to reverse the range
         :return: Column expression for range operations
         """
         ts_expr = sfn.col(self.fieldPath(self._ts_col))
-        
+
         # Convert to appropriate range expression based on unit
         if self.unit == StandardTimeUnits.DAYS:
             # For dates, use unix_timestamp to get seconds
@@ -940,7 +942,7 @@ class SubsequenceTSIndex(CompositeTSIndex):
         elif self.unit == StandardTimeUnits.SECONDS:
             # For timestamps, check if we need to extract epoch seconds
             ts_field_type = self.schema[self._ts_col].dataType
-            
+
             if isinstance(ts_field_type, TimestampType):
                 range_expr = sfn.unix_timestamp(ts_expr)
             else:
@@ -949,7 +951,7 @@ class SubsequenceTSIndex(CompositeTSIndex):
         else:
             # Use as-is
             range_expr = ts_expr
-            
+
         return -range_expr if reverse else range_expr
 
 
@@ -1096,9 +1098,13 @@ class TSSchema(WindowBuilder):
         ts_idx: TSIndex
         if isinstance(parsed_type, DoubleType):
             if src_str_field is None:
-                raise ValueError("src_str_field is required for SubMicrosecondPrecisionTimestampIndex")
+                raise ValueError(
+                    "src_str_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
             if secondary_parsed_field is None:
-                raise ValueError("secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex")
+                raise ValueError(
+                    "secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,

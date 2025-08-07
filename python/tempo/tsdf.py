@@ -8,7 +8,7 @@ from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime as dt
 from datetime import timedelta as td
 from functools import cached_property
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -32,14 +32,10 @@ from tempo.intervals import IntervalsDF
 from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
     CompositeTSIndex,
-    OrdinalTSIndex,
     ParsedTSIndex,
-    SimpleTSIndex,
-    StandardTimeUnits,
     SubsequenceTSIndex,
     TSIndex,
     TSSchema,
-    TimeUnit,
     WindowBuilder,
     identify_fractional_second_separator,
     is_time_format,
@@ -271,7 +267,11 @@ class TSDF(WindowBuilder):
             lattice_df = lattice_df.repartitionByRange(num_partitions, ts_col)
 
         # construct the appropriate TSDF
-        return TSDF(lattice_df, ts_col=ts_col, series_ids=series_df.columns if series_df else None)
+        return TSDF(
+            lattice_df,
+            ts_col=ts_col,
+            series_ids=series_df.columns if series_df else None,
+        )
 
     @classmethod
     def fromSubsequenceCol(
@@ -1237,7 +1237,9 @@ class TSDF(WindowBuilder):
         new_schema = TSSchema(new_ts_index, new_series_ids)
         return TSDF(new_df, ts_schema=new_schema)
 
-    def withColumnTypeChanged(self, colName: str, newType: Union[DataType, str]) -> TSDF:
+    def withColumnTypeChanged(
+        self, colName: str, newType: Union[DataType, str]
+    ) -> TSDF:
         """
 
         :param colName:
@@ -1336,7 +1338,9 @@ class TSDF(WindowBuilder):
         :param inputCols:
         :return:
         """
-        inputCols_list = [sfn.col(col) if not isinstance(col, Column) else col for col in inputCols]
+        inputCols_list = [
+            sfn.col(col) if not isinstance(col, Column) else col for col in inputCols
+        ]
         pd_udf = sfn.pandas_udf(func, schema)
         return self.withColumn(outputCol, pd_udf(*inputCols_list).over(window))
 
