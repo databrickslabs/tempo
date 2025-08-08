@@ -54,7 +54,7 @@ class IntervalsDFTests(SparkTest):
     ]
 
     def test_init_series_str(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         idf = IntervalsDF(df_input, "start_ts", "end_ts", "series_1")
 
@@ -71,7 +71,7 @@ class IntervalsDFTests(SparkTest):
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_init_series_comma_seperated_str(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         idf = IntervalsDF(df_input, "start_ts", "end_ts", "series_1, series_2")
 
@@ -88,7 +88,7 @@ class IntervalsDFTests(SparkTest):
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_init_series_tuple(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         idf = IntervalsDF(df_input, "start_ts", "end_ts", ("series_1",))
 
@@ -105,7 +105,7 @@ class IntervalsDFTests(SparkTest):
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_init_series_list(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         idf = IntervalsDF(df_input, "start_ts", "end_ts", ["series_1"])
 
@@ -122,7 +122,7 @@ class IntervalsDFTests(SparkTest):
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_init_series_none(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         idf = IntervalsDF(df_input, "start_ts", "end_ts", None)
 
@@ -139,7 +139,7 @@ class IntervalsDFTests(SparkTest):
         self.assertCountEqual(idf.metric_columns, ["metric_1", "metric_2"])
 
     def test_init_series_int(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         self.assertRaises(
             ValueError,
@@ -151,12 +151,12 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_window_property(self):
-        idf: IntervalsDF = self.get_test_df_builder("init").as_idf()
+        idf: IntervalsDF = self.get_test_function_df_builder("init").as_idf()
 
         self.assertIsInstance(idf.window, WindowSpec)
 
     def test_fromStackedMetrics_series_str(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         self.assertRaises(
             ValueError,
@@ -170,7 +170,7 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_fromStackedMetrics_series_tuple(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         self.assertRaises(
             ValueError,
@@ -184,8 +184,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_fromStackedMetrics_series_list(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         df_input = df_input.withColumn(
             "start_ts", sfn.to_timestamp("start_ts")
@@ -205,8 +205,8 @@ class IntervalsDFTests(SparkTest):
         self.assertDataFrameEquality(idf, idf_expected)
 
     def test_fromStackedMetrics_metric_names(self):
-        df_input = self.get_test_df_builder("init").as_sdf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         df_input = df_input.withColumn(
             "start_ts", sfn.to_timestamp("start_ts")
@@ -227,8 +227,8 @@ class IntervalsDFTests(SparkTest):
         self.assertDataFrameEquality(idf, idf_expected)
 
     def test_make_disjoint(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -237,8 +237,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_contains_interval_already_disjoint(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -247,8 +247,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_contains_intervals_equal(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -257,8 +257,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_intervals_same_start(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -267,8 +267,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_intervals_same_end(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -277,8 +277,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_multiple_series(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -287,8 +287,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_single_metric(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -297,8 +297,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_make_disjoint_interval_is_subset(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
 
@@ -307,8 +307,8 @@ class IntervalsDFTests(SparkTest):
         )
 
     def test_union_other_idf(self):
-        idf_input_1 = self.get_test_df_builder("init").as_idf()
-        idf_input_2 = self.get_test_df_builder("init").as_idf()
+        idf_input_1 = self.get_test_function_df_builder("init").as_idf()
+        idf_input_2 = self.get_test_function_df_builder("init").as_idf()
 
         count_idf_1 = idf_input_1.df.count()
         count_idf_2 = idf_input_2.df.count()
@@ -320,21 +320,21 @@ class IntervalsDFTests(SparkTest):
         self.assertEqual(count_idf_1 + count_idf_2, count_union)
 
     def test_union_other_df(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        df_input = self.get_test_df_builder("init").as_sdf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         self.assertRaises(TypeError, idf_input.union, df_input)
 
     def test_union_other_list_dicts(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
 
         self.assertRaises(
             TypeError, idf_input.union, IntervalsDFTests.union_tests_dict_input
         )
 
     def test_unionByName_other_idf(self):
-        idf_input_1 = self.get_test_df_builder("init").as_idf()
-        idf_input_2 = self.get_test_df_builder("init").as_idf()
+        idf_input_1 = self.get_test_function_df_builder("init").as_idf()
+        idf_input_2 = self.get_test_function_df_builder("init").as_idf()
 
         count_idf_1 = idf_input_1.df.count()
         count_idf_2 = idf_input_2.df.count()
@@ -346,42 +346,42 @@ class IntervalsDFTests(SparkTest):
         self.assertEqual(count_idf_1 + count_idf_2, count_union_by_name)
 
     def test_unionByName_other_df(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        df_input = self.get_test_df_builder("init").as_sdf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        df_input = self.get_test_function_df_builder("init").as_sdf()
 
         self.assertRaises(TypeError, idf_input.unionByName, df_input)
 
     def test_unionByName_other_list_dicts(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
 
         self.assertRaises(
             TypeError, idf_input.unionByName, IntervalsDFTests.union_tests_dict_input
         )
 
     def test_unionByName_extra_column(self):
-        idf_extra_col = self.get_test_df_builder("init_extra_col").as_idf()
-        idf_input = self.get_test_df_builder("init").as_idf()
+        idf_extra_col = self.get_test_function_df_builder("init_extra_col").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
 
         self.assertRaises(AnalysisException, idf_extra_col.unionByName, idf_input)
 
     def test_unionByName_other_extra_column(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_extra_col = self.get_test_df_builder("init_extra_col").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_extra_col = self.get_test_function_df_builder("init_extra_col").as_idf()
 
         self.assertRaises(AnalysisException, idf_input.unionByName, idf_extra_col)
 
     def test_toDF(self):
         # NB: init is used for both since the expected df is the same
-        idf_input = self.get_test_df_builder("init").as_idf()
-        expected_df = self.get_test_df_builder("init").as_sdf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        expected_df = self.get_test_function_df_builder("init").as_sdf()
 
         actual_df = idf_input.toDF()
 
         self.assertDataFrameEquality(actual_df, expected_df)
 
     def test_toDF_stack(self):
-        idf_input = self.get_test_df_builder("init").as_idf()
-        expected_df = self.get_test_df_builder("expected").as_sdf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        expected_df = self.get_test_function_df_builder("expected").as_sdf()
 
         expected_df = expected_df.withColumn(
             "start_ts", sfn.to_timestamp("start_ts")
@@ -394,8 +394,8 @@ class IntervalsDFTests(SparkTest):
     def test_make_disjoint_issue_268(self):
         # https://github.com/databrickslabs/tempo/issues/268
 
-        idf_input = self.get_test_df_builder("init").as_idf()
-        idf_expected = self.get_test_df_builder("expected").as_idf()
+        idf_input = self.get_test_function_df_builder("init").as_idf()
+        idf_expected = self.get_test_function_df_builder("expected").as_idf()
 
         idf_actual = idf_input.make_disjoint()
         idf_actual.df.show(truncate=False)
