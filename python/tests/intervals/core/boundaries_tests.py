@@ -4,7 +4,7 @@ from types import NoneType
 import pytest
 from pandas import isna, Series, Timestamp
 
-from tempo.intervals.core.boundaries import (
+from python.tempo.intervals.core.boundaries import (
     BoundaryConverter,
     BoundaryValue,
     IntervalBoundaries,
@@ -393,12 +393,16 @@ class TestNegativeTimestampValidation:
 
     def test_boundary_value_creation_with_negative_timestamp(self):
         """Test that creating a BoundaryValue with a negative timestamp raises ValueError"""
+        from python.tempo.intervals.core.boundaries import BoundaryValue
+
         # Try to create a BoundaryValue with a string date that would result in a negative timestamp
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             BoundaryValue.from_user_value("1800-01-01")
 
     def test_interval_boundaries_creation_with_negative_start(self):
         """Test that creating IntervalBoundaries with a negative start timestamp raises ValueError"""
+        from python.tempo.intervals.core.boundaries import IntervalBoundaries
+
         # Try to create IntervalBoundaries with a negative start timestamp
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             IntervalBoundaries.create(
@@ -408,6 +412,8 @@ class TestNegativeTimestampValidation:
 
     def test_interval_boundaries_creation_with_negative_end(self):
         """Test that creating IntervalBoundaries with a negative end timestamp raises ValueError"""
+        from python.tempo.intervals.core.boundaries import IntervalBoundaries
+
         # Try to create IntervalBoundaries with a negative end timestamp
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             IntervalBoundaries.create(
