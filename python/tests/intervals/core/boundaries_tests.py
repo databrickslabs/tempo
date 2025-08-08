@@ -1,5 +1,4 @@
 from datetime import datetime
-from types import NoneType
 
 import pytest
 from pandas import isna, Series, Timestamp
@@ -10,6 +9,12 @@ from tempo.intervals.core.boundaries import (
     IntervalBoundaries,
     _BoundaryAccessor as InternalBoundaryAccessor,
 )
+
+# Python 3.9 compatibility - NoneType is not in types module
+try:
+    from types import NoneType
+except ImportError:
+    NoneType = type(None)
 
 
 class TestBoundaryConverter:
