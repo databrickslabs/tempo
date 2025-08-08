@@ -229,6 +229,11 @@ build-docs:
 # Combine coverage data and generate report
 .PHONY: coverage-report
 coverage-report:
+	@if [ ! -f .coverage ]; then \
+		echo "Error: No coverage data found (.coverage file missing)"; \
+		echo "Run tests first with: make test or make test-all"; \
+		exit 1; \
+	fi
 	@echo "Generating coverage report..."
 	hatch run coverage-report:run-coverage
 
