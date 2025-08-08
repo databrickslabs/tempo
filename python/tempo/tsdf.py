@@ -8,7 +8,7 @@ from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime as dt
 from datetime import timedelta as td
 from functools import cached_property
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -267,7 +267,11 @@ class TSDF(WindowBuilder):
             lattice_df = lattice_df.repartitionByRange(num_partitions, ts_col)
 
         # construct the appropriate TSDF
-        return TSDF(lattice_df, ts_col=ts_col, series_ids=series_df.columns if series_df else None)
+        return TSDF(
+            lattice_df,
+            ts_col=ts_col,
+            series_ids=series_df.columns if series_df else None,
+        )
 
     @classmethod
     def fromSubsequenceCol(
@@ -1060,7 +1064,9 @@ class TSDF(WindowBuilder):
                 # For composite indices with multiple components (e.g., submicrosecond precision),
                 # use the second component field as the sequence column if it exists
                 if len(combined_df.ts_index.component_fields) > 1:
-                    seq_col = combined_df.ts_index.fieldPath(combined_df.ts_index.component_fields[1])
+                    seq_col = combined_df.ts_index.fieldPath(
+                        combined_df.ts_index.component_fields[1]
+                    )
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1078,7 +1084,9 @@ class TSDF(WindowBuilder):
                 # For composite indices with multiple components (e.g., submicrosecond precision),
                 # use the second component field as the sequence column if it exists
                 if len(tsPartitionDF.ts_index.component_fields) > 1:
-                    seq_col = tsPartitionDF.ts_index.fieldPath(tsPartitionDF.ts_index.component_fields[1])
+                    seq_col = tsPartitionDF.ts_index.fieldPath(
+                        tsPartitionDF.ts_index.component_fields[1]
+                    )
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1234,7 +1242,9 @@ class TSDF(WindowBuilder):
         new_schema = TSSchema(new_ts_index, new_series_ids)
         return TSDF(new_df, ts_schema=new_schema)
 
-    def withColumnTypeChanged(self, colName: str, newType: Union[DataType, str]) -> TSDF:
+    def withColumnTypeChanged(
+        self, colName: str, newType: Union[DataType, str]
+    ) -> TSDF:
         """
 
         :param colName:
@@ -1243,7 +1253,6 @@ class TSDF(WindowBuilder):
         """
         new_df = self.df.withColumn(colName, sfn.col(colName).cast(newType))
         return self.__withTransformedDF(new_df)
-
 
     def drop(self, *cols: ColumnOrName) -> TSDF:
         """
@@ -1334,7 +1343,9 @@ class TSDF(WindowBuilder):
         :param inputCols:
         :return:
         """
-        cols_list = [sfn.col(col) if not isinstance(col, Column) else col for col in inputCols]
+        cols_list = [
+            sfn.col(col) if not isinstance(col, Column) else col for col in inputCols
+        ]
         pd_udf = sfn.pandas_udf(func, schema)
         return self.withColumn(outputCol, pd_udf(*cols_list).over(window))
 

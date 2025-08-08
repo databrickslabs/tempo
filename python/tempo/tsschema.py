@@ -690,7 +690,7 @@ class SimpleCompositeTSIndex(CompositeTSIndex):
     A simple composite timeseries index for handling subsequence columns
     or other multi-field indexes that don't require parsing.
     """
-    
+
     @property
     def unit(self) -> Optional[TimeUnit]:
         """
@@ -706,18 +706,20 @@ class SimpleCompositeTSIndex(CompositeTSIndex):
         elif isinstance(field_type, DateType):
             return StandardTimeUnits.DAYS
         return None
-    
+
     def rangeExpr(self, reverse: bool = False) -> Column:
         """
         For range operations, use the first component field converted to a numeric value.
         """
         if not self.component_fields:
-            raise NotImplementedError("Cannot perform range operations without component fields")
-        
+            raise NotImplementedError(
+                "Cannot perform range operations without component fields"
+            )
+
         first_field = self.component_fields[0]
         field_type = self.fieldType(first_field)
         expr = sfn.col(self.fieldPath(first_field))
-        
+
         # Convert to numeric based on type
         if isinstance(field_type, TimestampType):
             expr = expr.cast("double")
@@ -727,7 +729,7 @@ class SimpleCompositeTSIndex(CompositeTSIndex):
             raise NotImplementedError(
                 f"Cannot perform range operations on field type {field_type}"
             )
-        
+
         return _reverse_or_not(expr, reverse)
 
 
@@ -1071,7 +1073,9 @@ class TSSchema(WindowBuilder):
         ts_idx: ParsedTSIndex
         if isinstance(parsed_type, DoubleType):
             if secondary_parsed_field is None:
-                raise ValueError("secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex")
+                raise ValueError(
+                    "secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
