@@ -33,6 +33,7 @@ from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
     CompositeTSIndex,
     ParsedTSIndex,
+    SimpleCompositeTSIndex,
     TSIndex,
     TSSchema,
     WindowBuilder,
@@ -266,7 +267,7 @@ class TSDF(WindowBuilder):
             lattice_df = lattice_df.repartitionByRange(num_partitions, ts_col)
 
         # construct the appropriate TSDF
-        return TSDF(lattice_df, ts_col=ts_col, series_ids=series_df.columns)
+        return TSDF(lattice_df, ts_col=ts_col, series_ids=series_df.columns if series_df else None)
 
     @classmethod
     def fromSubsequenceCol(
@@ -283,7 +284,7 @@ class TSDF(WindowBuilder):
         )
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
-        subseq_idx = CompositeTSIndex(subseq_struct, ts_col, subsequence_col)
+        subseq_idx = SimpleCompositeTSIndex(subseq_struct, ts_col, subsequence_col)
         # construct & return the TSDF with appropriate schema
         return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
 
@@ -385,14 +386,14 @@ class TSDF(WindowBuilder):
     # Helper functions
     #
 
-    def __checkPartitionCols(self, tsdf_right):
+    def __checkPartitionCols(self, tsdf_right: TSDF) -> None:
         for left_col, right_col in zip(self.series_ids, tsdf_right.series_ids):
             if left_col != right_col:
                 raise ValueError(
                     "left and right dataframe partition columns should have same name in same order"
                 )
 
-    def __validateTsColMatch(self, right_tsdf):
+    def __validateTsColMatch(self, right_tsdf: TSDF) -> None:
         # TODO - can simplify this to get types from schema object
         left_ts_datatype = self.df.select(self.ts_col).dtypes[0][1]
         right_ts_datatype = right_tsdf.df.select(right_tsdf.ts_col).dtypes[0][1]
@@ -452,7 +453,7 @@ class TSDF(WindowBuilder):
         self,
         left_ts_col: str,
         right_cols: list[str],
-        sequence_col: str,
+        sequence_col: Optional[str],
         tsPartitionVal: Optional[int],
         ignoreNulls: bool,
         suppress_null_warning: bool,
@@ -1056,9 +1057,10 @@ class TSDF(WindowBuilder):
         if tsPartitionVal is None:
             seq_col = None
             if isinstance(combined_df.ts_index, CompositeTSIndex):
-                seq_col = cast(CompositeTSIndex, combined_df.ts_index).get_ts_component(
-                    1
-                )
+                # For composite indices with multiple components (e.g., submicrosecond precision),
+                # use the second component field as the sequence column if it exists
+                if len(combined_df.ts_index.component_fields) > 1:
+                    seq_col = combined_df.ts_index.fieldPath(combined_df.ts_index.component_fields[1])
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1073,9 +1075,10 @@ class TSDF(WindowBuilder):
             )
             seq_col = None
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                seq_col = cast(
-                    CompositeTSIndex, tsPartitionDF.ts_index
-                ).get_ts_component(1)
+                # For composite indices with multiple components (e.g., submicrosecond precision),
+                # use the second component field as the sequence column if it exists
+                if len(tsPartitionDF.ts_index.component_fields) > 1:
+                    seq_col = tsPartitionDF.ts_index.fieldPath(tsPartitionDF.ts_index.component_fields[1])
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1231,7 +1234,7 @@ class TSDF(WindowBuilder):
         new_schema = TSSchema(new_ts_index, new_series_ids)
         return TSDF(new_df, ts_schema=new_schema)
 
-    def withColumnTypeChanged(self, colName: str, newType: Union[DataType, str]):
+    def withColumnTypeChanged(self, colName: str, newType: Union[DataType, str]) -> TSDF:
         """
 
         :param colName:
@@ -1241,11 +1244,6 @@ class TSDF(WindowBuilder):
         new_df = self.df.withColumn(colName, sfn.col(colName).cast(newType))
         return self.__withTransformedDF(new_df)
 
-    @overload
-    def drop(self, cols: ColumnOrName) -> TSDF: ...
-
-    @overload
-    def drop(self, *cols: str) -> TSDF: ...
 
     def drop(self, *cols: ColumnOrName) -> TSDF:
         """
@@ -1299,8 +1297,9 @@ class TSDF(WindowBuilder):
         roll_agg_tsdf = self
         if len(exprs) == 1 and isinstance(exprs[0], dict):
             # dict
-            for input_col in exprs[0].keys():
-                expr_str = exprs[0][input_col]
+            expr_dict = cast(Dict[str, str], exprs[0])
+            for input_col in expr_dict.keys():
+                expr_str = expr_dict[input_col]
                 new_col_name = f"{expr_str}({input_col})"
                 roll_agg_tsdf = roll_agg_tsdf.withColumn(
                     new_col_name, sfn.expr(expr_str).over(window)
@@ -1313,7 +1312,7 @@ class TSDF(WindowBuilder):
             for expr in exprs:
                 new_col_name = f"{expr}"
                 roll_agg_tsdf = roll_agg_tsdf.withColumn(
-                    new_col_name, expr.over(window)
+                    new_col_name, cast(Column, expr).over(window)
                 )
 
         return roll_agg_tsdf
@@ -1335,9 +1334,9 @@ class TSDF(WindowBuilder):
         :param inputCols:
         :return:
         """
-        inputCols = [sfn.col(col) for col in inputCols if not isinstance(col, Column)]
+        cols_list = [sfn.col(col) if not isinstance(col, Column) else col for col in inputCols]
         pd_udf = sfn.pandas_udf(func, schema)
-        return self.withColumn(outputCol, pd_udf(*inputCols).over(window))
+        return self.withColumn(outputCol, pd_udf(*cols_list).over(window))
 
     #
     # Aggregations
@@ -1358,9 +1357,8 @@ class TSDF(WindowBuilder):
         summarizing columns/metrics across all observations from all series
         :rtype: :class:`GroupedData`
         """
-        if cols is None or len(cols) < 1:
-            cols = self.metric_cols
-        return self.df.select(cols).groupBy()
+        cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
+        return self.df.select(cols_to_use).groupBy()
 
     def agg(self, *exprs: Union[Column, Dict[str, str]]) -> DataFrame:
         """
@@ -1376,9 +1374,8 @@ class TSDF(WindowBuilder):
         :param cols:
         :return:
         """
-        if cols is None or len(cols) < 1:
-            cols = self.metric_cols
-        return self.df.describe(cols)
+        cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
+        return self.df.describe(*cols_to_use)
 
     def metricSummary(self, *statistics: str) -> DataFrame:
         """
@@ -1639,6 +1636,7 @@ class TSDF(WindowBuilder):
         from tempo.interpol import interpolate as interpol_func
 
         # Map method names to interpolation functions (no lambdas)
+        fn: Union[str, Callable[[pd.Series], pd.Series]]
         if method == "linear":
             fn = "linear"  # String method for pandas interpolation
         elif method == "null":
