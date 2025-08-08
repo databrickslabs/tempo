@@ -222,10 +222,14 @@ build-docs:
 # Combine coverage data and generate report
 .PHONY: coverage-report
 coverage-report:
-	@if [ ! -f .coverage ]; then \
+	@if [ ! -f .coverage ] && ! ls .coverage.* 1> /dev/null 2>&1; then \
 		echo "Error: No coverage data found (.coverage file missing)"; \
 		echo "Run tests first with: make test or make test-all"; \
 		exit 1; \
+	fi
+	@if ls .coverage.* 1> /dev/null 2>&1 && [ ! -f .coverage ]; then \
+		echo "Combining parallel coverage files..."; \
+		hatch run coverage-report:coverage combine; \
 	fi
 	@echo "Generating coverage report..."
 	hatch run coverage-report:run-coverage
