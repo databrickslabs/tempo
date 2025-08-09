@@ -393,7 +393,25 @@ class SparkTest(unittest.TestCase):
 
     def setUp(self) -> None:
         # parse out components of the test case path
-        file_name, class_name, func_name = self.id().split(".")[-3:]
+        id_parts = self.id().split(".")
+        func_name = id_parts[-1]
+        class_name = id_parts[-2]
+        
+        # Handle nested test directories - build the path from module components
+        # For example: tests.intervals.core.intervals_df_tests -> intervals/core/intervals_df_tests
+        module_parts = id_parts[:-2]  # Everything except class and function name
+        
+        # Remove 'tests' prefix if present
+        if module_parts and module_parts[0] == 'tests':
+            module_parts = module_parts[1:]
+        
+        # Build the file path from remaining module parts
+        if module_parts:
+            file_name = "/".join(module_parts)
+        else:
+            # Fallback to old behavior for non-nested tests
+            file_name = id_parts[-3] if len(id_parts) >= 3 else ""
+        
         self.file_name = file_name
         self.class_name = class_name
         self.func_name = func_name
