@@ -2,7 +2,7 @@ import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterator
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, Window, WindowSpec
@@ -11,6 +11,7 @@ from pyspark.sql.types import (
     DataType,
     DateType,
     DoubleType,
+    LongType,
     NumericType,
     StringType,
     StructField,
@@ -86,7 +87,7 @@ def sub_seconds_precision_digits(ts_fmt: str) -> int:
         return max([len(m) for m in match])
 
 
-def _unpack_comparable(other) -> Column:
+def _unpack_comparable(other: Any) -> Column:
     """
     Helper function for managing unknown argument types into
     Column expressions
@@ -223,25 +224,25 @@ class TSIndex(ABC):
         :return: whether this TSIndex can be compared with the other TSIndex
         """
 
-    def __eq__(self, other) -> Column:
+    def __eq__(self, other: Any) -> Column:
         return self.comparableExpr() == _unpack_comparable(other)
 
-    def __ne__(self, other) -> Column:
+    def __ne__(self, other: Any) -> Column:
         return self.comparableExpr() != _unpack_comparable(other)
 
-    def __lt__(self, other) -> Column:
+    def __lt__(self, other: Any) -> Column:
         return self.comparableExpr() < _unpack_comparable(other)
 
-    def __le__(self, other) -> Column:
+    def __le__(self, other: Any) -> Column:
         return self.comparableExpr() <= _unpack_comparable(other)
 
-    def __gt__(self, other) -> Column:
+    def __gt__(self, other: Any) -> Column:
         return self.comparableExpr() > _unpack_comparable(other)
 
-    def __ge__(self, other) -> Column:
+    def __ge__(self, other: Any) -> Column:
         return self.comparableExpr() >= _unpack_comparable(other)
 
-    def between(self, lowerBound, upperBound) -> "Column":
+    def between(self, lowerBound: Any, upperBound: Any) -> Column:
         """
         A boolean expression that is evaluated to true if the value of this expression is between the given columns.
 
@@ -250,7 +251,13 @@ class TSIndex(ABC):
 
         :return: A boolean expression
         """
-        return self.comparableExpr().between(
+        comparable = self.comparableExpr()
+        if isinstance(comparable, list):
+            # For composite indexes, between doesn't make sense as-is
+            raise NotImplementedError(
+                "between() is not supported for composite indexes"
+            )
+        return comparable.between(
             _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
         )
 
@@ -298,7 +305,7 @@ class SimpleTSIndex(TSIndex, ABC):
         )
 
     @property
-    def colname(self):
+    def colname(self) -> str:
         return self.__name
 
     @property
@@ -571,7 +578,7 @@ class CompositeTSIndex(TSIndex, ABC):
                 f"but received {len(other)}"
             )
 
-    def _expand_comps(self, other) -> List[Column]:
+    def _expand_comps(self, other: Any) -> List[Column]:
         # if other is another TSIndex,
         # then we evaluate against its comparable expressions
         if isinstance(other, TSIndex):
@@ -584,11 +591,11 @@ class CompositeTSIndex(TSIndex, ABC):
         # if not a column, then a literal
         return [_unpack_comparable(o) for o in other]
 
-    def _build_comps(self, other) -> Iterator[Column]:
+    def _build_comps(self, other: Any) -> Iterator[Tuple[Column, Column]]:
         # match each component field with its corresponding comparison value
         return zip(self.comparableExpr(), self._expand_comps(other))
 
-    def __eq__(self, other) -> Column:
+    def __eq__(self, other: Any) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
@@ -599,7 +606,7 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
-    def __ne__(self, other) -> Column:
+    def __ne__(self, other: Any) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
@@ -610,7 +617,7 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
-    def __lt__(self, other) -> Column:
+    def __lt__(self, other: Any) -> Column:
         # match each component field with its corresponding comparison value
         comps = list(self._build_comps(other))
         # do a leq for all but the last component
@@ -625,7 +632,7 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
-    def __le__(self, other) -> Column:
+    def __le__(self, other: Any) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
@@ -636,7 +643,7 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
-    def __gt__(self, other) -> Column:
+    def __gt__(self, other: Any) -> Column:
         # match each component field with its corresponding comparison value
         comps = list(self._build_comps(other))
         # do a geq for all but the last component
@@ -651,7 +658,7 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
-    def __ge__(self, other) -> Column:
+    def __ge__(self, other: Any) -> Column:
         # match each component field with its corresponding comparison value
         comps = self._build_comps(other)
         # build comparison expressions for each pair
@@ -662,7 +669,7 @@ class CompositeTSIndex(TSIndex, ABC):
         else:
             return comp_exprs[0]
 
-    def between(self, lowerBound, upperBound) -> "Column":
+    def between(self, lowerBound: Any, upperBound: Any) -> Column:
         # match each component field with its
         # corresponding lower and upper bound values
         comps = zip(
@@ -711,11 +718,11 @@ class ParsedTSIndex(CompositeTSIndex, ABC):
         self._parsed_ts_field = parsed_ts_field
 
     @property
-    def src_str_field(self):
+    def src_str_field(self) -> str:
         return self.fieldPath(self._src_str_field)
 
     @property
-    def parsed_ts_field(self):
+    def parsed_ts_field(self) -> str:
         return self.fieldPath(self._parsed_ts_field)
 
     @classmethod
@@ -860,11 +867,11 @@ class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
         self.secondary_parsed_ts_field = secondary_parsed_ts_field
 
     @property
-    def double_ts_field(self):
+    def double_ts_field(self) -> str:
         return self.fieldPath(self._double_ts_field)
 
     @property
-    def num_precision_digits(self):
+    def num_precision_digits(self) -> int:
         return self._num_precision_digits
 
     @property
@@ -874,6 +881,78 @@ class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
     def rangeExpr(self, reverse: bool = False) -> Column:
         # just use the order by expression, since this is the same
         return _reverse_or_not(sfn.col(self.double_ts_field), reverse)
+
+
+class SubsequenceTSIndex(CompositeTSIndex):
+    """
+    CompositeTSIndex implementation for subsequence-based time series.
+    This index type handles composite columns with a timestamp and a subsequence identifier.
+    Used when a time series has multiple observations at the same timestamp,
+    distinguished by a subsequence column.
+    """
+
+    def __init__(
+        self, ts_struct: StructField, ts_col: str, subsequence_col: str
+    ) -> None:
+        """
+        Initialize a SubsequenceTSIndex.
+
+        :param ts_struct: The StructField for the composite index
+        :param ts_col: The name of the timestamp field within the struct
+        :param subsequence_col: The name of the subsequence field within the struct
+        """
+        super().__init__(ts_struct, ts_col, subsequence_col)
+        self._ts_col = ts_col
+        self._subsequence_col = subsequence_col
+
+    @property
+    def unit(self) -> Optional[TimeUnit]:
+        """
+        Get the time unit of the timestamp component.
+
+        :return: The time unit of the timestamp field
+        """
+        # Get the timestamp field type
+        ts_field_type = self.schema[self._ts_col].dataType
+
+        # Determine unit based on timestamp field type
+        if isinstance(ts_field_type, TimestampType):
+            return StandardTimeUnits.SECONDS
+        elif isinstance(ts_field_type, DateType):
+            return StandardTimeUnits.DAYS
+        elif isinstance(ts_field_type, (DoubleType, LongType)):
+            # Assume seconds for numeric types
+            return StandardTimeUnits.SECONDS
+        else:
+            return None
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        """
+        Get the range expression for the timestamp component.
+
+        :param reverse: Whether to reverse the range
+        :return: Column expression for range operations
+        """
+        ts_expr = sfn.col(self.fieldPath(self._ts_col))
+
+        # Convert to appropriate range expression based on unit
+        if self.unit == StandardTimeUnits.DAYS:
+            # For dates, use unix_timestamp to get seconds
+            range_expr = sfn.unix_timestamp(ts_expr)
+        elif self.unit == StandardTimeUnits.SECONDS:
+            # For timestamps, check if we need to extract epoch seconds
+            ts_field_type = self.schema[self._ts_col].dataType
+
+            if isinstance(ts_field_type, TimestampType):
+                range_expr = sfn.unix_timestamp(ts_expr)
+            else:
+                # Already numeric
+                range_expr = ts_expr
+        else:
+            # Use as-is
+            range_expr = ts_expr
+
+        return -range_expr if reverse else range_expr
 
 
 #
@@ -967,7 +1046,7 @@ class TSSchema(WindowBuilder):
             self.__series_ids = []
 
     @property
-    def ts_idx(self):
+    def ts_idx(self) -> TSIndex:
         return self.__ts_idx
 
     @property
@@ -1016,7 +1095,16 @@ class TSSchema(WindowBuilder):
         ), f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
         # construct the TSIndex
         parsed_type = ts_idx_schema[parsed_field].dataType
+        ts_idx: TSIndex
         if isinstance(parsed_type, DoubleType):
+            if src_str_field is None:
+                raise ValueError(
+                    "src_str_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
+            if secondary_parsed_field is None:
+                raise ValueError(
+                    "secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
@@ -1024,12 +1112,16 @@ class TSSchema(WindowBuilder):
                 src_str_field,
             )
         elif isinstance(parsed_type, TimestampType):
+            if src_str_field is None:
+                raise ValueError("src_str_field is required for ParsedTimestampIndex")
             ts_idx = ParsedTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
                 src_str_field,
             )
         elif isinstance(parsed_type, DateType):
+            if src_str_field is None:
+                raise ValueError("src_str_field is required for ParsedDateIndex")
             ts_idx = ParsedDateIndex(
                 df_schema[ts_col],
                 parsed_field,

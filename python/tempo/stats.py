@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column
-from scipy.fft import fft, fftfreq  # type: ignore[import-untyped]
+from scipy.fft import fft, fftfreq
 
 import tempo.resample as t_resample
 from tempo.tsdf import TSDF
