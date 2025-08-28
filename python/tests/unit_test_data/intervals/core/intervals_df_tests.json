@@ -4,9 +4,7 @@
       "idf": {
         "start_ts": "start_ts",
         "end_ts": "end_ts",
-        "series_ids": [
-          "series_1"
-        ]
+        "series_ids": ["series_1"]
       },
       "df": {
         "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
@@ -163,9 +161,7 @@
         "idf": {
           "start_ts": "start_ts",
           "end_ts": "end_ts",
-          "series_ids": [
-            "series_1"
-          ]
+          "series_ids": ["series_1"]
         },
         "df": {
           "schema": "start_ts STRING NOT NULL, end_ts STRING NOT NULL, series_1 STRING NOT NULL, metric_1 INT, metric_2 INT",
@@ -404,43 +400,43 @@
           "$ref": "#/__SharedData/init/idf"
         },
         "df": {
-          "schema": {
-            "$ref": "#/__SharedData/init/df/schema"
-          },
-          "ts_convert": {
-            "$ref": "#/__SharedData/init/df/ts_convert"
-          },
-          "data": [
-            [
-              "2020-08-01 00:00:09",
-              "2020-08-01 00:00:10",
-              "v1",
-              null,
-              0
-            ],
-            [
-              "2020-08-01 00:00:10",
-              "2020-08-01 00:00:12",
-              "v1",
-              5,
-              0
-            ],
-            [
-              "2020-08-01 00:00:12",
-              "2020-08-01 00:00:13",
-              "v1",
-              5,
-              null
-            ],
-            [
-              "2020-08-01 00:00:13",
-              "2020-08-01 00:00:14",
-              "v1",
-              7,
-              4
-            ]
+        "schema": {
+          "$ref": "#/__SharedData/init/df/schema"
+        },
+        "ts_convert": {
+          "$ref": "#/__SharedData/init/df/ts_convert"
+        },
+        "data": [
+          [
+            "2020-08-01 00:00:09",
+            "2020-08-01 00:00:10",
+            "v1",
+            null,
+            0
+          ],
+          [
+            "2020-08-01 00:00:10",
+            "2020-08-01 00:00:12",
+            "v1",
+            5,
+            0
+          ],
+          [
+            "2020-08-01 00:00:12",
+            "2020-08-01 00:00:13",
+            "v1",
+            5,
+            null
+          ],
+          [
+            "2020-08-01 00:00:13",
+            "2020-08-01 00:00:14",
+            "v1",
+            7,
+            4
           ]
-        }
+        ]
+          }
       }
     },
     "test_make_disjoint_intervals_same_start": {
@@ -939,9 +935,7 @@
         "idf": {
           "start_ts": "start_timestamp",
           "end_ts": "end_timestamp",
-          "series_ids": [
-            "id"
-          ]
+          "series_ids": ["id"]
         },
         "df": {
           "schema": "start_timestamp STRING NOT NULL, end_timestamp STRING NOT NULL, id STRING NOT NULL, s1 INT, s2 INT, s3 INT, s4 INT",
