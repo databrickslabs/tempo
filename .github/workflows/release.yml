@@ -32,22 +32,23 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install hatch
 
-      - name: Check version increment
-        run: |
-          cd python
-          CURRENT_VERSION=$(python -c "from version import get_version; print(get_version())")
-          LATEST_TAG=$(git describe --abbrev=0 --tags || echo "v0.0.0")
-          LATEST_VERSION=$(echo $LATEST_TAG | sed 's/^v//')
-          echo "Current version: $CURRENT_VERSION"
-          echo "Latest tag version: $LATEST_VERSION"
-          if [[ "$CURRENT_VERSION" == "$LATEST_VERSION" ]]; then
-            echo "Version in version.py has not been incremented."
-            exit 1
-          fi
-
       - name: Build dist
         working-directory: ./python
         run: make build-dist
+
+      - name: Create tag
+        run: |
+          # Extract version from version.py
+          VERSION=$(python -c "exec(open('python/tempo/version.py').read()); print(__version__)")
+          echo "Creating tag v${VERSION}"
+
+          # Check if tag already exists
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists, skipping tag creation"
+          else
+            git tag -a "v${VERSION}" -m "Release version ${VERSION}"
+            git push origin "v${VERSION}"
+          fi
 
       - name: Draft release
         uses: softprops/action-gh-release@v2
