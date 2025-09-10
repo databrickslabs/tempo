@@ -8,7 +8,7 @@ from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime as dt
 from datetime import timedelta as td
 from functools import cached_property
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -391,14 +391,14 @@ class TSDF(WindowBuilder):
     # Helper functions
     #
 
-    def __checkPartitionCols(self, tsdf_right: "TSDF") -> None:
+    def __checkPartitionCols(self, tsdf_right: TSDF) -> None:
         for left_col, right_col in zip(self.series_ids, tsdf_right.series_ids):
             if left_col != right_col:
                 raise ValueError(
                     "left and right dataframe partition columns should have same name in same order"
                 )
 
-    def __validateTsColMatch(self, right_tsdf: "TSDF") -> None:
+    def __validateTsColMatch(self, right_tsdf: TSDF) -> None:
         # TODO - can simplify this to get types from schema object
         left_ts_datatype = self.df.select(self.ts_col).dtypes[0][1]
         right_ts_datatype = right_tsdf.df.select(right_tsdf.ts_col).dtypes[0][1]
@@ -1062,6 +1062,8 @@ class TSDF(WindowBuilder):
         if tsPartitionVal is None:
             seq_col = None
             if isinstance(combined_df.ts_index, CompositeTSIndex):
+                # For composite indices with multiple components (e.g., submicrosecond precision),
+                # use the second component field as the sequence column if it exists
                 comp_idx = combined_df.ts_index
                 if len(comp_idx.component_fields) > 1:
                     seq_col = comp_idx.fieldPath(comp_idx.component_fields[1])
@@ -1079,6 +1081,8 @@ class TSDF(WindowBuilder):
             )
             seq_col = None
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
+                # For composite indices with multiple components (e.g., submicrosecond precision),
+                # use the second component field as the sequence column if it exists
                 comp_idx = tsPartitionDF.ts_index
                 if len(comp_idx.component_fields) > 1:
                     seq_col = comp_idx.fieldPath(comp_idx.component_fields[1])
@@ -1301,8 +1305,9 @@ class TSDF(WindowBuilder):
         roll_agg_tsdf = self
         if len(exprs) == 1 and isinstance(exprs[0], dict):
             # dict
-            for input_col in exprs[0].keys():
-                expr_str = exprs[0][input_col]
+            expr_dict = cast(Dict[str, str], exprs[0])
+            for input_col in expr_dict.keys():
+                expr_str = expr_dict[input_col]
                 new_col_name = f"{expr_str}({input_col})"
                 roll_agg_tsdf = roll_agg_tsdf.withColumn(
                     new_col_name, sfn.expr(expr_str).over(window)
@@ -1313,11 +1318,10 @@ class TSDF(WindowBuilder):
                 isinstance(c, Column) for c in exprs
             ), "all exprs should be Column"
             for expr in exprs:
-                if isinstance(expr, Column):  # Type guard for mypy
-                    new_col_name = f"{expr}"
-                    roll_agg_tsdf = roll_agg_tsdf.withColumn(
-                        new_col_name, expr.over(window)
-                    )
+                new_col_name = f"{expr}"
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(
+                    new_col_name, cast(Column, expr).over(window)
+                )
 
         return roll_agg_tsdf
 
@@ -1338,11 +1342,11 @@ class TSDF(WindowBuilder):
         :param inputCols:
         :return:
         """
-        inputCols_list = [
+        cols_list = [
             sfn.col(col) if not isinstance(col, Column) else col for col in inputCols
         ]
         pd_udf = sfn.pandas_udf(func, schema)
-        return self.withColumn(outputCol, pd_udf(*inputCols_list).over(window))
+        return self.withColumn(outputCol, pd_udf(*cols_list).over(window))
 
     #
     # Aggregations
@@ -1363,17 +1367,8 @@ class TSDF(WindowBuilder):
         summarizing columns/metrics across all observations from all series
         :rtype: :class:`GroupedData`
         """
-        if len(cols) < 1:
-            cols_list = self.metric_cols
-        else:
-            # Flatten the cols tuple which can contain strings and lists
-            cols_list = []
-            for col in cols:
-                if isinstance(col, list):
-                    cols_list.extend(col)
-                else:
-                    cols_list.append(col)
-        return self.df.select(cols_list).groupBy()
+        cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
+        return self.df.select(cols_to_use).groupBy()
 
     def agg(self, *exprs: Union[Column, Dict[str, str]]) -> DataFrame:
         """
@@ -1389,17 +1384,8 @@ class TSDF(WindowBuilder):
         :param cols:
         :return:
         """
-        if len(cols) < 1:
-            cols_list = self.metric_cols
-        else:
-            # Flatten the cols tuple which can contain strings and lists
-            cols_list = []
-            for col in cols:
-                if isinstance(col, list):
-                    cols_list.extend(col)
-                else:
-                    cols_list.append(col)
-        return self.df.describe(cols_list)
+        cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
+        return self.df.describe(*cols_to_use)
 
     def metricSummary(self, *statistics: str) -> DataFrame:
         """
@@ -1660,13 +1646,12 @@ class TSDF(WindowBuilder):
         from tempo.interpol import interpolate as interpol_func
 
         # Map method names to interpolation functions (no lambdas)
-        if method == "null":
-            # For null method, we don't fill - just return the resampled data
-            return resampled_tsdf
-
         fn: Union[str, Callable[[pd.Series], pd.Series]]
         if method == "linear":
             fn = "linear"  # String method for pandas interpolation
+        elif method == "null":
+            # For null method, we don't fill - just return the resampled data
+            return resampled_tsdf
         elif method == "zero":
             fn = zero_fill
         elif method == "bfill":

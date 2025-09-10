@@ -72,7 +72,7 @@ def _build_interpolator(
     def interpolator_fn(pdf: pd.DataFrame) -> pd.DataFrame:
         # create a timestamp index
         if ts_col:
-            pdf.index = pd.to_datetime(pdf[ts_col])  # type: ignore[assignment]
+            pdf.index = pd.DatetimeIndex(pd.to_datetime(pdf[ts_col]))
         # mask for rows that need interpolation
         num_rows = pdf.shape[0]
         any_interpol_mask = pd.Series([False] * num_rows, index=pdf.index)

@@ -251,13 +251,13 @@ class TSIndex(ABC):
 
         :return: A boolean expression
         """
-        comparable = self.comparableExpr()
-        if isinstance(comparable, list):
-            # For composite indexes, between doesn't make sense as-is
-            raise NotImplementedError(
-                "between() is not supported for composite indexes"
+        expr = self.comparableExpr()
+        if isinstance(expr, list):
+            # For composite indices, apply between to the first component
+            return expr[0].between(
+                _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
             )
-        return comparable.between(
+        return expr.between(
             _unpack_comparable(lowerBound), _unpack_comparable(upperBound)
         )
 
@@ -686,6 +686,54 @@ class CompositeTSIndex(TSIndex, ABC):
             return comp_exprs[0]
 
 
+class SimpleCompositeTSIndex(CompositeTSIndex):
+    """
+    A simple composite timeseries index for handling subsequence columns
+    or other multi-field indexes that don't require parsing.
+    """
+
+    @property
+    def unit(self) -> Optional[TimeUnit]:
+        """
+        For a simple composite index, try to infer the unit from the first component field.
+        Returns None if the component field doesn't have a clear time unit.
+        """
+        if not self.component_fields:
+            return None
+        first_field = self.component_fields[0]
+        field_type = self.fieldType(first_field)
+        if isinstance(field_type, TimestampType):
+            return StandardTimeUnits.SECONDS
+        elif isinstance(field_type, DateType):
+            return StandardTimeUnits.DAYS
+        return None
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        """
+        For range operations, use the first component field converted to a numeric value.
+        """
+        if not self.component_fields:
+            raise NotImplementedError(
+                "Cannot perform range operations without component fields"
+            )
+
+        first_field = self.component_fields[0]
+        field_type = self.fieldType(first_field)
+        expr = sfn.col(self.fieldPath(first_field))
+
+        # Convert to numeric based on type
+        if isinstance(field_type, TimestampType):
+            expr = expr.cast("double")
+        elif isinstance(field_type, DateType):
+            expr = sfn.datediff(expr, sfn.lit(EPOCH_START_DATE).cast("date"))
+        elif not isinstance(field_type, NumericType):
+            raise NotImplementedError(
+                f"Cannot perform range operations on field type {field_type}"
+            )
+
+        return _reverse_or_not(expr, reverse)
+
+
 #
 # Parsed TS Index types
 #
@@ -1095,15 +1143,15 @@ class TSSchema(WindowBuilder):
         ), f"Expected a StructType for ts_col {ts_col}, but got {ts_idx_schema}"
         # construct the TSIndex
         parsed_type = ts_idx_schema[parsed_field].dataType
-        ts_idx: TSIndex
+        ts_idx: ParsedTSIndex
         if isinstance(parsed_type, DoubleType):
-            if src_str_field is None:
-                raise ValueError(
-                    "src_str_field is required for SubMicrosecondPrecisionTimestampIndex"
-                )
             if secondary_parsed_field is None:
                 raise ValueError(
                     "secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
+            if src_str_field is None:
+                raise ValueError(
+                    "src_str_field is required for SubMicrosecondPrecisionTimestampIndex"
                 )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],

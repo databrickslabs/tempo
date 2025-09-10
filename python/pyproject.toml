@@ -205,7 +205,6 @@ build = "make --directory ../docs html"
 
 [tool.hatch.envs.coverage-report]
 template = "testenv"
-skip-install = true
 extra-dependencies = [
   "coverage>=7,<8"
 ]
@@ -216,7 +215,6 @@ COVERAGE_FILE = ".coverage"
 
 [tool.hatch.envs.coverage-report.scripts]
 run-coverage = [
-  "coverage combine",
   "coverage report -m",
   "coverage xml"
 ]
