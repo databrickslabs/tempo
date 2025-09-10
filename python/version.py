@@ -1,8 +1,6 @@
 import subprocess
-import re
 
-
-CURRENT_VERSION = "0.1.29"
+CURRENT_VERSION = "0.1.30"
 # run a shell command and return stdout
 def run_cmd(cmd):
     cmd_proc = subprocess.run(cmd, shell=True, capture_output=True)
