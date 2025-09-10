@@ -49,6 +49,20 @@ jobs:
         working-directory: ./python
         run: make build-dist
 
+      - name: Create tag
+        run: |
+          # Extract version from version.py
+          VERSION=$(python -c "exec(open('python/tempo/version.py').read()); print(__version__)")
+          echo "Creating tag v${VERSION}"
+
+          # Check if tag already exists
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists, skipping tag creation"
+          else
+            git tag -a "v${VERSION}" -m "Release version ${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+
       - name: Draft release
         uses: softprops/action-gh-release@v2
         with:
