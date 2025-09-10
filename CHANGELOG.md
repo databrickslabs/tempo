@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `_cleanup_delta_warehouse` method for Delta test environment cleanup
 - Dynamic Python environment management with pyenv integration
 - Coverage report generation with parallel coverage file handling
+- Artifact signing with Sigstore for PyPI releases
+- Draft release creation in GitHub Actions workflow
 
 ### Changed
 
@@ -23,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Updated Python version support (removed 3.8, added 3.11)
 - Enhanced type checking with mypy improvements
 - Improved error handling in coverage report generation
+- Switched release workflow to use protected runner group (databrickslabs-protected-runner-group)
 
 ### Fixed
 
@@ -39,8 +42,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Enhanced Makefile with better Python version management
 - Added pre- and post-test cleanup for Delta warehouse directories
 - Improved virtual environment handling and creation
+- Enhanced release workflow with protected runner group for security
+- Added automated artifact signing for Python distribution packages
 
 ## Detailed Changes
+
+### Update release workflow: switch to protected runner group, add artifact signing, and draft releases (#436)
+
+**Commit:** c8002f29  
+**Author:** Lorin Dawson  
+**Date:** 2025-09-10
+
+- Switched release workflow to use protected runner group (databrickslabs-protected-runner-group) for enhanced security
+- Added draft release creation using softprops/action-gh-release@v2 with wheel distribution files
+- Integrated Sigstore artifact signing for Python packages (dbl_tempo*.whl and tempo*.whl)
+- Enhanced release process with automated artifact signing and release management
 
 ### Fix coverage report generation error (#434)
 
