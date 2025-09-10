@@ -6,7 +6,9 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: databrickslabs-protected-runner-group
+      labels: linux-ubuntu-latest
     # if: ${{ github.ref_name == 'main' }}
     environment: release
     permissions:
@@ -47,8 +49,22 @@ jobs:
         working-directory: ./python
         run: make build-dist
 
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            python/dist/dbl_tempo*.whl
+            python/dist/tempo*.whl
+
       - name: Publish a Python distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist/
 
+      - name: Sign artifacts with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.0.0
+        with:
+          inputs: |
+            python/dist/dbl_tempo*.whl
+            python/dist/tempo*.whl
+          release-signing-artifacts: true
