@@ -39,7 +39,7 @@ jobs:
       - name: Create tag
         run: |
           # Extract version from version.py
-          VERSION=$(python -c "exec(open('python/tempo/version.py').read()); print(__version__)")
+          VERSION=$(python -c "exec(open('./python/version.py').read()); print(__version__)")
           echo "Creating tag v${VERSION}"
 
           # Check if tag already exists
