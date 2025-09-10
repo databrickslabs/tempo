@@ -37,9 +37,11 @@ jobs:
         run: make build-dist
 
       - name: Create tag
+        id: create_tag
         run: |
           # Extract version from version.py
           VERSION=$(python -c "exec(open('./python/version.py').read()); print(__version__)")
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           echo "Creating tag v${VERSION}"
 
           # Check if tag already exists
@@ -53,6 +55,8 @@ jobs:
       - name: Draft release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.create_tag.outputs.VERSION }}
+          draft: true
           files: |
             python/dist/dbl_tempo*.whl
             python/dist/tempo*.whl
