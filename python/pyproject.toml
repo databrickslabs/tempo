@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "Tempo"
+name = "dbl-tempo"
 dynamic = ["version"]
 description = 'Tempo is timeseries manipulation for Spark. This project builds upon the capabilities of PySpark to provide a suite of abstractions and functions that make operations on timeseries data easier and highly scalable.'
 readme = "README.md"
