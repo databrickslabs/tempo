@@ -36,6 +36,8 @@ Documentation = "https://databrickslabs.github.io/tempo/"
 Issues = "https://github.com/databrickslabs/tempo/issues"
 Source = "https://github.com/databrickslabs/tempo"
 
+[tool.hatch.build.targets.wheel]
+packages = ["python/tempo"]
 
 [tool.hatch.scripts]
 testAll = [
