@@ -36,9 +36,6 @@ Documentation = "https://databrickslabs.github.io/tempo/"
 Issues = "https://github.com/databrickslabs/tempo/issues"
 Source = "https://github.com/databrickslabs/tempo"
 
-[tool.hatch.build.targets.wheel]
-packages = ["python/tempo"]
-
 [tool.hatch.scripts]
 testAll = [
   "hatch run dbr154:test",
@@ -158,6 +155,32 @@ dependencies = [
 [tool.hatch.envs.type-check.scripts]
 check = "mypy --install-types --non-interactive ./tempo"
 
+[tool.hatch.build.targets.wheel]
+packages = ["tempo"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/tempo",
+    "/tests",
+    "/README.md",
+    "/pyproject.toml",
+    "/version.py"
+]
+exclude = [
+    "/.venv*",
+    "/.tox",
+    "/.mypy_cache",
+    "/.pytest_cache",
+    "/__pycache__",
+    "*.pyc",
+    "*.pyo",
+    "*.egg-info",
+    "/dist",
+    "/build",
+    "/htmlcov",
+    "/.coverage*",
+    "/coverage.xml"
+]
 
 [tool.hatch.envs.build-dist]
 template = "testenv"
@@ -168,8 +191,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.build-dist.scripts]
-build = "python setup.py clean bdist_wheel"
-
+build = "hatch build"
 
 [tool.hatch.envs.build-docs]
 # TODO: making this dynamic is difficult in tox, so for now we will just use the latest version
