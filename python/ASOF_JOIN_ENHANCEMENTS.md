@@ -16,12 +16,18 @@
 
 - **Run all tests for current DBR version (154)**: `make test` or `hatch run dbr154:test`
 - **Run specific test file**: `hatch run dbr154:test tests/as_of_join_tests.py`
+- **Run strategy tests**: `hatch run dbr154:test tests/join/test_strategies.py`
 - **Run all DBR versions**: `make test-all`
 - **Run linting**: `make lint` or `hatch run lint:runLint`
 - **Run type checking**: `make type-check` or `hatch run type-check:check`
 - **Generate coverage report**: `make coverage-report`
 - **Run Python commands**: `hatch run dbr154:python -c "command"`
 - **Enter virtual environment shell**: `hatch shell dbr154`
+
+### Test Structure:
+The test directory structure mirrors the implementation structure:
+- `tempo/joins/strategies.py` → `tests/join/test_strategies.py`
+- This makes it easy to locate corresponding tests for each module
 
 ## Overview
 This document provides a comprehensive implementation strategy for enhancing as-of join features in the Tempo library. It consolidates experimental work from the `as_of_join_refactor` branch with the existing v0.2-integration codebase, addressing all known issues and incomplete implementations.
@@ -1504,7 +1510,9 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 - [ ] Create comprehensive test suite
 
 ### Integration Tasks
-- [ ] Update TSDF.asofJoin to use strategy pattern
+- [x] Create integration code for TSDF.asofJoin - COMPLETED: tsdf_asof_join_integration.py created
+- [x] Create test suite for strategies - COMPLETED: tests/join/test_strategies.py created (mirroring tempo/joins structure)
+- [ ] Update actual TSDF.asofJoin method with strategy pattern
 - [ ] Maintain backward compatibility
 - [ ] Add configuration options
 - [ ] Update documentation
