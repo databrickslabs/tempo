@@ -1674,21 +1674,26 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 ### Completed Tasks (as of current commit):
 1. ✅ Created tempo/joins package structure with strategies.py
 2. ✅ Implemented all join strategies with fixes:
-   - AsOfJoiner base class with validation
-   - BroadcastAsOfJoiner with timezone fixes
+   - AsOfJoiner base class with validation and prefixing support
+   - BroadcastAsOfJoiner with NULL lead bug fix
    - UnionSortFilterAsOfJoiner with tolerance support
    - SkewAsOfJoiner with time partitioning
 3. ✅ Implemented automatic strategy selection
-4. ✅ Created comprehensive test suite (tests/join/test_strategies.py)
-5. ✅ Created TSDF integration code (tsdf_asof_join_integration.py)
-6. ✅ Verified existing tests still pass (no breaking changes)
-7. ✅ Fixed mock test issue - all 20 tests now passing
+4. ✅ Created comprehensive test suite (tests/join/test_strategies.py) - 20 unit tests
+5. ✅ Created integration tests (tests/join/test_strategies_integration.py)
+6. ✅ Fixed NULL lead bug in BroadcastAsOfJoiner (handles last row in partition)
+7. ✅ Added regression tests for NULL lead bug
+8. ✅ Integrated strategy pattern into TSDF with feature flag
+9. ✅ Reorganized test structure (moved as_of_join tests to tests/join/)
+10. ✅ Created comprehensive test data in unit_test_data/join/
 
 ### Next Steps:
-1. Integrate strategy pattern into actual TSDF.asofJoin method
-2. Add more integration tests with real Spark DataFrames
+1. Fix remaining integration test failures
+2. Create timezone regression tests
 3. Performance benchmarking
-4. Create migration guide for users
+4. Refactor to resolve circular dependency issue
+5. Create migration guide for users
+6. Update PR references once pull request is created
 
 ## PR Notes
 **TODO**: Update PR references once pull request is created. Currently shows "PR #XXX" in:
