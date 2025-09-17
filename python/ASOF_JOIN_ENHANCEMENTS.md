@@ -4,19 +4,24 @@
 **IMPORTANT**: This document serves as the source of truth for all as-of join improvements.
 
 ### Key Guidelines:
-1. **Update this document for every change and todo**
-2. **Keep changes scoped and complete** - Each commit should represent a fully working incremental change
-3. **TEST BEFORE COMMITTING** - Always run tests before committing to ensure no breaking changes
-4. **Run tests between each commit** to verify no breaking changes have been introduced
-5. **Commit frequently** for easy rollbacks if issues arise
+1. **UPDATE THIS DOCUMENT WITH EVERY COMMIT** - Update TODOs, implementation notes, and progress tracking
+2. **Update this document for every change and todo** - Keep it as the single source of truth
+3. **Keep changes scoped and complete** - Each commit should represent a fully working incremental change
+4. **TEST BEFORE COMMITTING** - Always run tests before committing to ensure no breaking changes
+5. **Run tests between each commit** to verify no breaking changes have been introduced
+6. **Commit frequently** for easy rollbacks if issues arise
 
 ### Testing Commands:
+**IMPORTANT**: Always use virtual environments through make or hatch for Python commands. Never run Python directly without an environment.
+
 - **Run all tests for current DBR version (154)**: `make test` or `hatch run dbr154:test`
 - **Run specific test file**: `hatch run dbr154:test tests/as_of_join_tests.py`
 - **Run all DBR versions**: `make test-all`
 - **Run linting**: `make lint` or `hatch run lint:runLint`
 - **Run type checking**: `make type-check` or `hatch run type-check:check`
 - **Generate coverage report**: `make coverage-report`
+- **Run Python commands**: `hatch run dbr154:python -c "command"`
+- **Enter virtual environment shell**: `hatch shell dbr154`
 
 ## Overview
 This document provides a comprehensive implementation strategy for enhancing as-of join features in the Tempo library. It consolidates experimental work from the `as_of_join_refactor` branch with the existing v0.2-integration codebase, addressing all known issues and incomplete implementations.
@@ -1481,20 +1486,20 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 ## Implementation Checklist
 
 ### Essential Fixes from Experimental Branch
-- [ ] Fix timezone handling in composite indexes (BroadcastAsOfJoiner)
-- [ ] Fix timezone handling in union sort filter (UnionSortFilterAsOfJoiner)
-- [ ] Implement `_toleranceFilter()` method properly
-- [ ] Complete `SkewAsOfJoiner._join()` implementation
-- [ ] Add proper comparable expression handling
+- [x] Fix timezone handling in composite indexes (BroadcastAsOfJoiner) - COMPLETED: Added proper comparable expression handling
+- [x] Fix timezone handling in union sort filter (UnionSortFilterAsOfJoiner) - COMPLETED: Fixed in implementation
+- [x] Implement `_toleranceFilter()` method properly - COMPLETED: Full implementation with proper column handling
+- [x] Complete `SkewAsOfJoiner._join()` implementation - COMPLETED: Full implementation with time partitioning
+- [x] Add proper comparable expression handling - COMPLETED: Handles both list and single expressions
 - [ ] Ensure consistent join semantics (left vs inner)
 
 ### New Functionality
-- [ ] Create tempo/joins/strategies.py module
-- [ ] Implement strategy pattern with AsOfJoiner base class
-- [ ] Port and fix BroadcastAsOfJoiner
-- [ ] Port and fix UnionSortFilterAsOfJoiner
-- [ ] Complete SkewAsOfJoiner implementation
-- [ ] Implement choose_as_of_join_strategy function
+- [x] Create tempo/joins/strategies.py module - COMPLETED: Module created and tested
+- [x] Implement strategy pattern with AsOfJoiner base class - COMPLETED: Base class with all methods
+- [x] Port and fix BroadcastAsOfJoiner - COMPLETED: With timezone fixes
+- [x] Port and fix UnionSortFilterAsOfJoiner - COMPLETED: With tolerance support
+- [x] Complete SkewAsOfJoiner implementation - COMPLETED: With time-based partitioning
+- [x] Implement choose_as_of_join_strategy function - COMPLETED: With automatic selection logic
 - [ ] Add strategy parameter to TSDF.asofJoin
 - [ ] Create comprehensive test suite
 
