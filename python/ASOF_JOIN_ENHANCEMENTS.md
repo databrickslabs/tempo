@@ -5,11 +5,23 @@
 
 ### Key Guidelines:
 1. **UPDATE THIS DOCUMENT WITH EVERY COMMIT** - Update TODOs, implementation notes, and progress tracking
-2. **Update this document for every change and todo** - Keep it as the single source of truth
-3. **Keep changes scoped and complete** - Each commit should represent a fully working incremental change
-4. **TEST BEFORE COMMITTING** - Always run tests before committing to ensure no breaking changes
-5. **Run tests between each commit** to verify no breaking changes have been introduced
-6. **Commit frequently** for easy rollbacks if issues arise
+2. **ASSESS AND DOCUMENT TECHNICAL DEBT** - Before each commit, evaluate and catalog any technical debt introduced
+3. **Update this document for every change and todo** - Keep it as the single source of truth
+4. **Keep changes scoped and complete** - Each commit should represent a fully working incremental change
+5. **TEST BEFORE COMMITTING** - Always run tests before committing to ensure no breaking changes
+6. **Run tests between each commit** to verify no breaking changes have been introduced
+7. **Commit frequently** for easy rollbacks if issues arise
+
+### Technical Debt Assessment Process:
+Before each commit, evaluate:
+- **Code Quality Issues**: Workarounds, hacks, or temporary solutions
+- **Design Compromises**: Architectural decisions that need revisiting
+- **Missing Tests**: Areas lacking proper test coverage
+- **Documentation Gaps**: Code or features that need better documentation
+- **Performance Concerns**: Known inefficiencies or optimization opportunities
+- **Dependency Issues**: Circular dependencies, tight coupling, etc.
+
+Document all technical debt in the "Technical Debt Catalog" section below.
 
 ### Testing Commands:
 **IMPORTANT**: Always use virtual environments through make or hatch for Python commands. Never run Python directly without an environment.
@@ -1515,6 +1527,92 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 3. Performance benchmarking
 4. Create migration guide for users
 
+## Technical Debt Catalog
+
+### 1. Circular Dependency Issue (HIGH PRIORITY)
+**Issue Type**: Design Compromise / Dependency Issue
+**Date Identified**: Current implementation
+**Status**: Active - Workaround in place
+
+**Problem**:
+- Circular dependency between `tempo.tsdf.TSDF` and `tempo.joins.strategies`
+- `TSDF` imports strategies to use the join implementations
+- Strategies need to import `TSDF` to type hint and instantiate TSDF objects
+
+**Current Workaround**:
+- Using `TYPE_CHECKING` and string annotations for type hints
+- Runtime imports within methods that need to instantiate TSDF
+
+**Impact**:
+- Makes code harder to maintain and understand
+- Complicates testing and mocking
+- May cause import issues in certain environments
+
+**Proposed Solutions**:
+1. **Interface/Protocol Pattern**: Define a `TSDFProtocol` interface
+2. **Dependency Injection**: Pass TSDF class as parameter
+3. **Result Builder Pattern**: Return raw DataFrames and metadata
+4. **Pure Logic Pattern**: Keep strategies as pure DataFrame transformers
+
+**Recommendation**: Option 3 or 4 for cleanest separation
+
+### 2. Limited Test Coverage (MEDIUM PRIORITY)
+**Issue Type**: Missing Tests
+**Date Identified**: During test analysis
+**Status**: Active
+
+**Problem**:
+- Current tests heavily rely on mocks, don't test actual Spark operations
+- Missing integration tests with real DataFrames
+- No regression tests for timezone bug
+- No performance benchmarks
+
+**Impact**:
+- Can't verify actual correctness of Spark operations
+- Original bugs (timezone, tolerance) aren't tested
+- No performance validation for strategy selection
+
+**Required Actions**:
+- Add integration tests with real Spark DataFrames
+- Create specific regression tests for known bugs
+- Add performance benchmarks
+
+### 3. Incomplete Timezone Bug Fix Validation (HIGH PRIORITY)
+**Issue Type**: Missing Tests / Code Quality
+**Date Identified**: From experimental branch analysis
+**Status**: Fix implemented but not validated
+
+**Problem**:
+- Timezone handling fixes implemented in code
+- No tests to verify the fix actually works
+- Original failing tests are still skipped
+
+**Impact**:
+- Can't confirm if timezone bug is actually fixed
+- Risk of regression
+
+**Required Actions**:
+- Create regression tests for timezone handling
+- Unskip and fix the nanos tests
+
+### 4. Feature Flag Integration (LOW PRIORITY)
+**Issue Type**: Design Compromise
+**Date Identified**: Current implementation
+**Status**: Active
+
+**Problem**:
+- Using feature flag (`use_strategy_pattern`) for gradual rollout
+- Duplicates logic between old and new implementations
+- Increases maintenance burden
+
+**Impact**:
+- Code duplication
+- Need to maintain two implementations
+
+**Required Actions**:
+- Plan for feature flag removal once stable
+- Create migration guide for users
+
 ## Implementation Checklist
 
 ### Essential Fixes from Experimental Branch
@@ -1538,12 +1636,30 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 ### Integration Tasks
 - [x] Create integration code for TSDF.asofJoin - COMPLETED: tsdf_asof_join_integration.py created
 - [x] Create test suite for strategies - COMPLETED: tests/join/test_strategies.py created (mirroring tempo/joins structure)
-- [ ] Update actual TSDF.asofJoin method with strategy pattern
-- [ ] Maintain backward compatibility
+- [x] Update actual TSDF.asofJoin method with strategy pattern - PARTIAL: Added with feature flag but circular dependency issue
+- [x] Maintain backward compatibility - COMPLETED: Feature flag allows gradual rollout
 - [ ] Add configuration options
+- [ ] Resolve circular dependency issue for production use
 - [ ] Update documentation
 - [ ] Create migration guide
 - [ ] Add performance benchmarks
+
+## Technical Debt Log by Commit
+
+### Commit History with Technical Debt Assessment:
+
+1. **Initial strategies.py implementation**
+   - Added: Circular dependency issue with TSDF
+   - Workaround: TYPE_CHECKING and string annotations
+
+2. **Test structure reorganization**
+   - Added: Heavy reliance on mocks instead of real Spark tests
+   - Impact: Can't verify actual Spark operations
+
+3. **TSDF integration with feature flag**
+   - Added: Feature flag complexity
+   - Added: Maintained circular dependency
+   - Impact: Duplicate code paths to maintain
 
 ## Summary
 
