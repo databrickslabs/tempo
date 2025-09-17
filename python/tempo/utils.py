@@ -5,7 +5,7 @@ import math
 import os
 from datetime import datetime as dt
 from datetime import timedelta as td
-from typing import Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
 import pyspark.sql.functions as sfn
 from IPython import get_ipython  # type: ignore[import-not-found]
