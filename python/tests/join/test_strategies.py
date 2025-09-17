@@ -147,8 +147,10 @@ class TestBroadcastAsOfJoiner(unittest.TestCase):
         self.assertEqual(joiner.right_prefix, "r")
         self.assertEqual(joiner.range_join_bin_size, 120)
 
+    @patch('tempo.joins.strategies.sfn.lead')
+    @patch('tempo.joins.strategies.sfn.col')
     @patch('tempo.joins.strategies.SparkSession')
-    def test_join_sets_config(self, mock_spark_class):
+    def test_join_sets_config(self, mock_spark_class, mock_col_func, mock_lead_func):
         """Test that join sets Spark configuration."""
         mock_spark = Mock()
         mock_spark.conf = Mock()
@@ -170,10 +172,19 @@ class TestBroadcastAsOfJoiner(unittest.TestCase):
         right_tsdf.ts_schema = Mock()
 
         # Mock comparable expression
-        right_tsdf.ts_index.comparableExpr = Mock(return_value=sfn.col("timestamp"))
+        mock_comparable = Mock()
+        right_tsdf.ts_index.comparableExpr = Mock(return_value=mock_comparable)
         right_tsdf.ts_index.colname = "timestamp"
-        right_tsdf.baseWindow = Mock(return_value=Mock())
+
+        # Mock window and withColumn
+        mock_window = Mock()
+        right_tsdf.baseWindow = Mock(return_value=mock_window)
         right_tsdf.withColumn = Mock(return_value=right_tsdf)
+
+        # Mock sfn.lead and sfn.col
+        mock_lead_result = Mock()
+        mock_lead_func.return_value.over = Mock(return_value=mock_lead_result)
+        mock_col_func.return_value = Mock()
 
         # Mock join operation
         mock_df = Mock()

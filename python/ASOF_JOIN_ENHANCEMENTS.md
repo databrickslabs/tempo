@@ -1502,12 +1502,13 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 4. ✅ Created comprehensive test suite (tests/join/test_strategies.py)
 5. ✅ Created TSDF integration code (tsdf_asof_join_integration.py)
 6. ✅ Verified existing tests still pass (no breaking changes)
+7. ✅ Fixed mock test issue - all 20 tests now passing
 
 ### Next Steps:
-1. Fix the one failing mock test in test_strategies.py
-2. Integrate strategy pattern into actual TSDF.asofJoin method
-3. Add more integration tests with real Spark DataFrames
-4. Performance benchmarking
+1. Integrate strategy pattern into actual TSDF.asofJoin method
+2. Add more integration tests with real Spark DataFrames
+3. Performance benchmarking
+4. Create migration guide for users
 
 ## Implementation Checklist
 
