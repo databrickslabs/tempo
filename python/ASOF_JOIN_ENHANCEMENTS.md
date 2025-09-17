@@ -9,6 +9,14 @@
 3. **Run tests between each commit** to verify no breaking changes have been introduced
 4. **Commit frequently** for easy rollbacks if issues arise
 
+### Testing Commands:
+- **Run all tests for current DBR version (154)**: `make test` or `hatch run dbr154:test`
+- **Run specific test file**: `hatch run dbr154:test tests/as_of_join_tests.py`
+- **Run all DBR versions**: `make test-all`
+- **Run linting**: `make lint` or `hatch run lint:runLint`
+- **Run type checking**: `make type-check` or `hatch run type-check:check`
+- **Generate coverage report**: `make coverage-report`
+
 ## Overview
 This document provides a comprehensive implementation strategy for enhancing as-of join features in the Tempo library. It consolidates experimental work from the `as_of_join_refactor` branch with the existing v0.2-integration codebase, addressing all known issues and incomplete implementations.
 
