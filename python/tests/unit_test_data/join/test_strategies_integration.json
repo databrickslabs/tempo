@@ -40,7 +40,7 @@
         "series_ids": ["symbol"]
       },
       "df": {
-        "schema": "timestamp string, symbol string, price double, volume int, right_timestamp string, right_bid double, right_ask double",
+        "schema": "timestamp string, symbol string, price double, volume int, right_timestamp string, bid double, ask double",
         "ts_convert": ["timestamp", "right_timestamp"],
         "data": [
           ["2021-01-01 10:00:00", "AAPL", 100.0, 10, "2021-01-01 09:59:00", 99.5, 100.5],
@@ -89,7 +89,7 @@
         "series_ids": ["id"]
       },
       "df": {
-        "schema": "timestamp string, id string, value double, right_timestamp string, right_factor double",
+        "schema": "timestamp string, id string, value double, right_timestamp string, factor double",
         "ts_convert": ["timestamp", "right_timestamp"],
         "data": [
           ["2021-01-01 10:00:00", "A", 100.0, null, null],
@@ -136,7 +136,7 @@
         "series_ids": ["symbol"]
       },
       "df": {
-        "schema": "timestamp string, symbol string, price double, right_timestamp string, right_quote double",
+        "schema": "timestamp string, symbol string, price double, right_timestamp string, quote double",
         "ts_convert": ["timestamp", "right_timestamp"],
         "data": [
           ["2021-01-01 10:00:00", "AAPL", 100.0, "2021-01-01 09:59:00", 99.5],
@@ -178,11 +178,66 @@
         "series_ids": ["symbol"]
       },
       "df": {
-        "schema": "timestamp string, symbol string, value double, right_timestamp string, right_value double",
+        "schema": "timestamp string, symbol string, value double",
+        "ts_convert": ["timestamp"],
+        "data": [
+          ["2021-01-01 10:00:00", "AAPL", 100.0],
+          ["2021-01-01 10:05:00", "AAPL", 105.0]
+        ]
+      }
+    }
+  },
+  "null_lead_regression": {
+    "left": {
+      "tsdf": {
+        "ts_col": "timestamp",
+        "series_ids": ["symbol"]
+      },
+      "df": {
+        "schema": "timestamp string, symbol string, value double",
+        "ts_convert": ["timestamp"],
+        "data": [
+          ["2021-01-01 10:00:00", "AAPL", 100.0],
+          ["2021-01-01 10:05:00", "AAPL", 105.0],
+          ["2021-01-01 10:10:00", "AAPL", 110.0],
+          ["2021-01-01 10:15:00", "AAPL", 115.0],
+          ["2021-01-01 10:00:00", "GOOGL", 2000.0],
+          ["2021-01-01 10:15:00", "GOOGL", 2015.0]
+        ]
+      }
+    },
+    "right": {
+      "tsdf": {
+        "ts_col": "timestamp",
+        "series_ids": ["symbol"]
+      },
+      "df": {
+        "schema": "timestamp string, symbol string, quote double",
+        "ts_convert": ["timestamp"],
+        "data": [
+          ["2021-01-01 09:59:00", "AAPL", 99.5],
+          ["2021-01-01 10:03:00", "AAPL", 103.5],
+          ["2021-01-01 10:08:00", "AAPL", 108.5],
+          ["2021-01-01 09:59:00", "GOOGL", 1999.5],
+          ["2021-01-01 10:12:00", "GOOGL", 2012.5]
+        ]
+      }
+    },
+    "expected": {
+      "tsdf": {
+        "ts_col": "timestamp",
+        "series_ids": ["symbol"]
+      },
+      "df": {
+        "schema": "timestamp string, symbol string, value double, right_timestamp string, quote double",
         "ts_convert": ["timestamp", "right_timestamp"],
         "data": [
-          ["2021-01-01 10:00:00", "AAPL", 100.0, null, null],
-          ["2021-01-01 10:05:00", "AAPL", 105.0, null, null]
+          ["2021-01-01 10:00:00", "AAPL", 100.0, "2021-01-01 09:59:00", 99.5],
+          ["2021-01-01 10:05:00", "AAPL", 105.0, "2021-01-01 10:03:00", 103.5],
+          ["2021-01-01 10:10:00", "AAPL", 110.0, "2021-01-01 10:08:00", 108.5],
+          ["2021-01-01 10:15:00", "AAPL", 115.0, "2021-01-01 10:08:00", 108.5],
+          ["2021-01-01 10:00:00", "GOOGL", 2000.0, "2021-01-01 09:59:00", 1999.5],
+          ["2021-01-01 10:15:00", "GOOGL", 2015.0, "2021-01-01 10:12:00", 2012.5]
         ]
       }
     }

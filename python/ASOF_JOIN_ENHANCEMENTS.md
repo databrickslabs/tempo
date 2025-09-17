@@ -24,11 +24,13 @@ Before each commit, evaluate:
 Document all technical debt in the "Technical Debt Catalog" section below.
 
 ### Testing Commands:
-**IMPORTANT**: Always use virtual environments through make or hatch for Python commands. Never run Python directly without an environment.
+**IMPORTANT**:
+- Always use virtual environments through make or hatch for Python commands. Never run Python directly without an environment.
+- **All new unit tests should be written with pytest instead of unittest**
 
 - **Run all tests for current DBR version (154)**: `make test` or `hatch run dbr154:test`
-- **Run specific test file**: `hatch run dbr154:test tests/as_of_join_tests.py`
-- **Run strategy tests**: `hatch run dbr154:test tests/join/test_strategies.py`
+- **Run specific test file with pytest**: `hatch run dbr154:python -m pytest tests/join/test_strategies.py -v`
+- **Run specific test file with unittest**: `hatch run dbr154:python -m unittest tests.join.test_strategies -v`
 - **Run all DBR versions**: `make test-all`
 - **Run linting**: `make lint` or `hatch run lint:runLint`
 - **Run type checking**: `make type-check` or `hatch run type-check:check`
@@ -49,6 +51,8 @@ tests/unit_test_data/join/        → JSON test data for join tests
 #### Test Types
 1. **Unit Tests** (`tests/join/test_strategies.py`): Mock-based tests for logic validation
 2. **Integration Tests** (`tests/join/test_strategies_integration.py`): Real Spark DataFrame tests
+
+**Note**: All new tests should be written with pytest. Existing unittest-based tests can remain but new functionality should use pytest fixtures and assertions.
 
 #### Test Data Management Pattern
 
@@ -1685,6 +1689,11 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 2. Add more integration tests with real Spark DataFrames
 3. Performance benchmarking
 4. Create migration guide for users
+
+## PR Notes
+**TODO**: Update PR references once pull request is created. Currently shows "PR #XXX" in:
+- tests/join/as_of_join_tests.py line 69
+- tests/join/test_strategies_integration.py line 194
 
 ## Technical Debt Catalog
 

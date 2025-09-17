@@ -8,7 +8,8 @@ from tests.base import SparkTest
     ("test_name",),
     [
         ("simple_ts",),
-        ("nanos",)
+        ("nanos",),
+        ("null_lead_test",)
     ]
 )
 class AsOfJoinTest(SparkTest):
@@ -63,6 +64,11 @@ class AsOfJoinTest(SparkTest):
             # The test currently fails due to timezone differences in parsed_ts field
             # (2022-01-01 03:00:00 vs 2021-12-31 20:00:00). This should be fixed in v0.2.
             self.skipTest("Union join has timezone handling issues for nanos test - to be fixed in v0.2")
+        elif self.test_name == "null_lead_test":
+            # This test specifically checks that the BroadcastAsOfJoiner handles NULL lead values
+            # (when there's no next row in a partition). This was a bug fixed in PR #XXX
+            expected_tsdf = self.get_test_df_builder(self.test_name, "expected").as_tsdf()
+            self.assertDataFrameEquality(joined_tsdf.df, expected_tsdf.df)
         else:
             expected_tsdf = self.get_test_df_builder(self.test_name, "expected").as_tsdf()
             self.assertDataFrameEquality(joined_tsdf.df, expected_tsdf.df)

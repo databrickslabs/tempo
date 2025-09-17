@@ -99,12 +99,8 @@ class AsOfJoiner(ABC):
 
     def _prefixableColumns(self, left: "TSDF", right: "TSDF") -> set:
         """
-        Returns the overlapping columns in the left and right TSDFs,
+        Returns the overlapping columns in the left and right TSDFs
         not including overlapping series IDs.
-
-        :param left: Left TSDF
-        :param right: Right TSDF
-        :return: Set of columns that should be prefixed
         """
         return set(left.columns).intersection(
             set(right.columns)
@@ -115,11 +111,6 @@ class AsOfJoiner(ABC):
     ) -> "TSDF":
         """
         Prefixes the columns in the TSDF.
-
-        :param tsdf: "TSDF" to modify
-        :param prefixable_cols: Set of columns to prefix
-        :param prefix: Prefix to apply
-        :return: "TSDF" with prefixed columns
         """
         if prefix:
             tsdf = reduce(
@@ -133,18 +124,14 @@ class AsOfJoiner(ABC):
 
     def _prefixOverlappingColumns(
         self, left: "TSDF", right: "TSDF"
-    ) -> Tuple["TSDF", "TSDF"]:
+    ) -> tuple["TSDF", "TSDF"]:
         """
         Prefixes the overlapping columns in the left and right TSDFs.
-
-        :param left: Left TSDF
-        :param right: Right TSDF
-        :return: Tuple of (prefixed_left, prefixed_right)
         """
-        # Find the columns to prefix
+        # find the columns to prefix
         prefixable_cols = self._prefixableColumns(left, right)
 
-        # Prefix columns (if we have a prefix to apply)
+        # prefix columns (if we have a prefix to apply)
         left_prefixed = self._prefixColumns(left, prefixable_cols, self.left_prefix)
         right_prefixed = self._prefixColumns(right, prefixable_cols, self.right_prefix)
 
@@ -253,9 +240,27 @@ class BroadcastAsOfJoiner(AsOfJoiner):
 
         # Perform the join
         join_series_ids = self.commonSeriesIDs(left, right)
+
+        # Get comparable expressions for timestamp comparison
+        left_ts_expr = left.ts_index.comparableExpr()
+        if isinstance(left_ts_expr, list):
+            left_ts_expr = left_ts_expr[0]
+
+        right_ts_expr = right.ts_index.comparableExpr()
+        if isinstance(right_ts_expr, list):
+            right_ts_expr = right_ts_expr[0]
+
+        # Create between condition that handles NULL lead values
+        # When lead is NULL, it means this is the last row in the partition
+        # and should match all future left timestamps
+        between_condition = (
+            (left_ts_expr >= right_ts_expr) &
+            (sfn.col(lead_colname).isNull() | (left_ts_expr < sfn.col(lead_colname)))
+        )
+
         res_df = (
             left.df.join(right_with_lead.df, list(join_series_ids))
-            .where(left.ts_index.between(right.ts_index, sfn.col(lead_colname)))
+            .where(between_condition)
             .drop(lead_colname)
         )
 
@@ -361,6 +366,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         )
 
         # Put it all together in a new TSDF
+        # Import here to avoid circular dependency
+        from tempo.tsdf import TSDF
         return TSDF(
             with_combined_ts.df,
             ts_schema=TSSchema(combined_tsidx, left.series_ids)
@@ -414,6 +421,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         ).drop(_DEFAULT_COMBINED_TS_COLNAME)
 
         # Return with the left-hand schema
+        # Import here to avoid circular dependency
+        from tempo.tsdf import TSDF
         return TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
     def _toleranceFilter(
@@ -580,6 +589,8 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
         )
 
         # Return TSDF with ts_partition added to series IDs
+        # Import here to avoid circular dependency
+        from tempo.tsdf import TSDF
         return TSDF(
             df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids + ["ts_partition"]
         )

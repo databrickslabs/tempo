@@ -5,15 +5,10 @@ This module tests the join strategies with actual Spark operations using
 test data loaded from JSON files, following the established pattern.
 """
 
-import os
 import unittest
 from parameterized import parameterized
 
-from tests.base import TestDataFrame
-
-# Import strategy implementations (handle circular import)
-import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from tests.base import SparkTest
 
 from tempo.joins.strategies import (
     BroadcastAsOfJoiner,
@@ -23,26 +18,16 @@ from tempo.joins.strategies import (
 )
 
 
-class StrategiesIntegrationTest(TestDataFrame):
+class StrategiesIntegrationTest(SparkTest):
     """Integration tests for join strategies with real Spark DataFrames."""
 
-    @classmethod
-    def get_test_data_dir(cls):
-        """Get the test data directory for join tests."""
-        return "join"
-
-    @classmethod
-    def get_test_data_file(cls):
-        """Get the test data file for integration tests."""
-        return "strategies_integration.json"
-
-    @parameterized.expand(["basic_join"])
+    @parameterized.expand([("basic_join",)])
     def test_broadcast_join_basic(self, test_name):
         """Test BroadcastAsOfJoiner with basic test data."""
         # Load test data
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
-        expected_tsdf = self.get_test_tsdf(test_name, "expected_broadcast")
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected_broadcast").as_tsdf()
 
         # Create and execute broadcast join
         joiner = BroadcastAsOfJoiner(
@@ -57,18 +42,16 @@ class StrategiesIntegrationTest(TestDataFrame):
         # Compare with expected results
         self.assertDataFrameEquality(
             result.df,
-            expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            expected_tsdf.df
         )
 
-    @parameterized.expand(["basic_join"])
+    @parameterized.expand([("basic_join",)])
     def test_union_sort_filter_join_basic(self, test_name):
         """Test UnionSortFilterAsOfJoiner with basic test data."""
         # Load test data
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
-        expected_tsdf = self.get_test_tsdf(test_name, "expected_broadcast")
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected_broadcast").as_tsdf()
 
         # Create and execute union-sort-filter join
         joiner = UnionSortFilterAsOfJoiner(
@@ -83,18 +66,16 @@ class StrategiesIntegrationTest(TestDataFrame):
         # Compare with expected results
         self.assertDataFrameEquality(
             result.df,
-            expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            expected_tsdf.df
         )
 
-    @parameterized.expand(["tolerance_test"])
+    @parameterized.expand([("tolerance_test",)])
     def test_tolerance_filtering(self, test_name):
         """Test tolerance filtering functionality."""
         # Load test data
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
-        expected_tsdf = self.get_test_tsdf(test_name, "expected_with_tolerance_120")
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected_with_tolerance_120").as_tsdf()
 
         # Create joiner with 120 second tolerance
         joiner = UnionSortFilterAsOfJoiner(
@@ -111,17 +92,15 @@ class StrategiesIntegrationTest(TestDataFrame):
         self.assertDataFrameEquality(
             result.df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["id", "timestamp"]
         )
 
-    @parameterized.expand(["null_handling"])
+    @parameterized.expand([("null_handling",)])
     def test_skip_nulls_behavior(self, test_name):
         """Test skipNulls parameter behavior."""
         # Load test data
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
-        expected_tsdf = self.get_test_tsdf(test_name, "expected_skip_nulls")
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected_skip_nulls").as_tsdf()
 
         # Test with skipNulls=True
         joiner_skip = UnionSortFilterAsOfJoiner(
@@ -135,18 +114,16 @@ class StrategiesIntegrationTest(TestDataFrame):
         # Compare with expected results
         self.assertDataFrameEquality(
             result_skip.df,
-            expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            expected_tsdf.df
         )
 
-    @parameterized.expand(["empty_dataframes"])
+    @parameterized.expand([("empty_dataframes",)])
     def test_empty_dataframe_handling(self, test_name):
         """Test handling of empty DataFrames."""
         # Load test data
-        empty_tsdf = self.get_test_tsdf(test_name, "empty")
-        non_empty_tsdf = self.get_test_tsdf(test_name, "non_empty")
-        expected_tsdf = self.get_test_tsdf(test_name, "expected_empty_right")
+        empty_tsdf = self.get_test_df_builder(test_name, "empty").as_tsdf()
+        non_empty_tsdf = self.get_test_df_builder(test_name, "non_empty").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected_empty_right").as_tsdf()
 
         # Test empty right DataFrame
         joiner = UnionSortFilterAsOfJoiner(
@@ -161,9 +138,7 @@ class StrategiesIntegrationTest(TestDataFrame):
         # Should return left DataFrame with null right columns
         self.assertDataFrameEquality(
             result.df,
-            expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            expected_tsdf.df
         )
 
         # Test empty left DataFrame
@@ -174,8 +149,8 @@ class StrategiesIntegrationTest(TestDataFrame):
         """Test that different strategies produce consistent results."""
         # Load basic join test data
         test_name = "basic_join"
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
 
         # Execute with broadcast strategy
         broadcast_joiner = BroadcastAsOfJoiner(
@@ -207,12 +182,56 @@ class StrategiesIntegrationTest(TestDataFrame):
             self.assertEqual(b_row["price"], u_row["price"])
             self.assertEqual(b_row["volume"], u_row["volume"])
 
+    @parameterized.expand([("null_lead_regression",)])
+    def test_null_lead_regression(self, test_name):
+        """
+        Regression test for NULL lead bug in BroadcastAsOfJoiner.
+
+        This test ensures that when the last row in a right partition has no
+        "next" row (lead is NULL), it still matches with future left timestamps.
+        This was a bug where the between condition would fail when comparing with NULL.
+
+        Fixed in PR #XXX (TODO: Update PR number once created)
+        """
+        # Load test data
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected").as_tsdf()
+
+        # Test with BroadcastAsOfJoiner
+        broadcast_joiner = BroadcastAsOfJoiner(
+            self.spark,
+            left_prefix="",
+            right_prefix="right"
+        )
+        broadcast_result = broadcast_joiner(left_tsdf, right_tsdf)
+
+        # Verify results
+        self.assertDataFrameEquality(
+            broadcast_result.df,
+            expected_tsdf.df
+        )
+
+        # Also test with UnionSortFilterAsOfJoiner to ensure consistency
+        union_joiner = UnionSortFilterAsOfJoiner(
+            left_prefix="",
+            right_prefix="right",
+            skipNulls=True
+        )
+        union_result = union_joiner(left_tsdf, right_tsdf)
+
+        # Both strategies should produce the same result
+        self.assertDataFrameEquality(
+            union_result.df,
+            expected_tsdf.df
+        )
+
     def test_automatic_strategy_selection(self):
         """Test automatic strategy selection."""
         # Load test data
         test_name = "basic_join"
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
 
         # Test automatic selection without optimization
         strategy_default = choose_as_of_join_strategy(
