@@ -33,7 +33,7 @@ from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
     CompositeTSIndex,
     ParsedTSIndex,
-    SimpleCompositeTSIndex,
+    SubsequenceTSIndex,
     TSIndex,
     TSSchema,
     WindowBuilder,
@@ -288,7 +288,8 @@ class TSDF(WindowBuilder):
         )
         # construct an appropriate TSIndex
         subseq_struct = with_subseq_struct_df.schema[struct_col_name]
-        subseq_idx = SimpleCompositeTSIndex(subseq_struct, ts_col, subsequence_col)
+        # Use the proper SubsequenceTSIndex for composite timestamp/subsequence columns
+        subseq_idx = SubsequenceTSIndex(subseq_struct, ts_col, subsequence_col)
         # construct & return the TSDF with appropriate schema
         return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
 
@@ -1063,10 +1064,9 @@ class TSDF(WindowBuilder):
             if isinstance(combined_df.ts_index, CompositeTSIndex):
                 # For composite indices with multiple components (e.g., submicrosecond precision),
                 # use the second component field as the sequence column if it exists
-                if len(combined_df.ts_index.component_fields) > 1:
-                    seq_col = combined_df.ts_index.fieldPath(
-                        combined_df.ts_index.component_fields[1]
-                    )
+                comp_idx = combined_df.ts_index
+                if len(comp_idx.component_fields) > 1:
+                    seq_col = comp_idx.fieldPath(comp_idx.component_fields[1])
             asofDF = combined_df.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1083,10 +1083,9 @@ class TSDF(WindowBuilder):
             if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
                 # For composite indices with multiple components (e.g., submicrosecond precision),
                 # use the second component field as the sequence column if it exists
-                if len(tsPartitionDF.ts_index.component_fields) > 1:
-                    seq_col = tsPartitionDF.ts_index.fieldPath(
-                        tsPartitionDF.ts_index.component_fields[1]
-                    )
+                comp_idx = tsPartitionDF.ts_index
+                if len(comp_idx.component_fields) > 1:
+                    seq_col = comp_idx.fieldPath(comp_idx.component_fields[1])
             asofDF = tsPartitionDF.__getLastRightRow(
                 left_tsdf.ts_col,
                 right_columns,
@@ -1355,7 +1354,7 @@ class TSDF(WindowBuilder):
 
     # Aggregations across series and time
 
-    def summarize(self, *cols: Optional[Union[str, List[str]]]) -> GroupedData:
+    def summarize(self, *cols: Union[str, List[str]]) -> GroupedData:
         """
         Groups the underlying :class:`DataFrame` such that the user can compute
         aggregations over the given columns.
@@ -1379,7 +1378,7 @@ class TSDF(WindowBuilder):
         """
         return self.df.agg(exprs)
 
-    def describe(self, *cols: Optional[Union[str, List[str]]]) -> DataFrame:
+    def describe(self, *cols: Union[str, List[str]]) -> DataFrame:
         """
 
         :param cols:

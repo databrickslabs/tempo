@@ -11,6 +11,7 @@ from pyspark.sql.types import (
     DataType,
     DateType,
     DoubleType,
+    LongType,
     NumericType,
     StringType,
     StructField,
@@ -930,6 +931,78 @@ class SubMicrosecondPrecisionTimestampIndex(ParsedTSIndex):
         return _reverse_or_not(sfn.col(self.double_ts_field), reverse)
 
 
+class SubsequenceTSIndex(CompositeTSIndex):
+    """
+    CompositeTSIndex implementation for subsequence-based time series.
+    This index type handles composite columns with a timestamp and a subsequence identifier.
+    Used when a time series has multiple observations at the same timestamp,
+    distinguished by a subsequence column.
+    """
+
+    def __init__(
+        self, ts_struct: StructField, ts_col: str, subsequence_col: str
+    ) -> None:
+        """
+        Initialize a SubsequenceTSIndex.
+
+        :param ts_struct: The StructField for the composite index
+        :param ts_col: The name of the timestamp field within the struct
+        :param subsequence_col: The name of the subsequence field within the struct
+        """
+        super().__init__(ts_struct, ts_col, subsequence_col)
+        self._ts_col = ts_col
+        self._subsequence_col = subsequence_col
+
+    @property
+    def unit(self) -> Optional[TimeUnit]:
+        """
+        Get the time unit of the timestamp component.
+
+        :return: The time unit of the timestamp field
+        """
+        # Get the timestamp field type
+        ts_field_type = self.schema[self._ts_col].dataType
+
+        # Determine unit based on timestamp field type
+        if isinstance(ts_field_type, TimestampType):
+            return StandardTimeUnits.SECONDS
+        elif isinstance(ts_field_type, DateType):
+            return StandardTimeUnits.DAYS
+        elif isinstance(ts_field_type, (DoubleType, LongType)):
+            # Assume seconds for numeric types
+            return StandardTimeUnits.SECONDS
+        else:
+            return None
+
+    def rangeExpr(self, reverse: bool = False) -> Column:
+        """
+        Get the range expression for the timestamp component.
+
+        :param reverse: Whether to reverse the range
+        :return: Column expression for range operations
+        """
+        ts_expr = sfn.col(self.fieldPath(self._ts_col))
+
+        # Convert to appropriate range expression based on unit
+        if self.unit == StandardTimeUnits.DAYS:
+            # For dates, use unix_timestamp to get seconds
+            range_expr = sfn.unix_timestamp(ts_expr)
+        elif self.unit == StandardTimeUnits.SECONDS:
+            # For timestamps, check if we need to extract epoch seconds
+            ts_field_type = self.schema[self._ts_col].dataType
+
+            if isinstance(ts_field_type, TimestampType):
+                range_expr = sfn.unix_timestamp(ts_expr)
+            else:
+                # Already numeric
+                range_expr = ts_expr
+        else:
+            # Use as-is
+            range_expr = ts_expr
+
+        return -range_expr if reverse else range_expr
+
+
 #
 # Window Builder Interface
 #
@@ -1076,6 +1149,10 @@ class TSSchema(WindowBuilder):
                 raise ValueError(
                     "secondary_parsed_field is required for SubMicrosecondPrecisionTimestampIndex"
                 )
+            if src_str_field is None:
+                raise ValueError(
+                    "src_str_field is required for SubMicrosecondPrecisionTimestampIndex"
+                )
             ts_idx = SubMicrosecondPrecisionTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
@@ -1083,12 +1160,16 @@ class TSSchema(WindowBuilder):
                 src_str_field,
             )
         elif isinstance(parsed_type, TimestampType):
+            if src_str_field is None:
+                raise ValueError("src_str_field is required for ParsedTimestampIndex")
             ts_idx = ParsedTimestampIndex(
                 df_schema[ts_col],
                 parsed_field,
                 src_str_field,
             )
         elif isinstance(parsed_type, DateType):
+            if src_str_field is None:
+                raise ValueError("src_str_field is required for ParsedDateIndex")
             ts_idx = ParsedDateIndex(
                 df_schema[ts_col],
                 parsed_field,

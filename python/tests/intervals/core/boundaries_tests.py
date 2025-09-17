@@ -1,6 +1,13 @@
 from datetime import datetime
 
 import pytest
+
+# Python 3.9 compatibility
+try:
+    from types import NoneType
+except ImportError:
+    # For Python < 3.10
+    NoneType = type(None)
 from pandas import isna, Series, Timestamp
 
 from tempo.intervals.core.boundaries import (
