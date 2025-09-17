@@ -36,10 +36,153 @@ Document all technical debt in the "Technical Debt Catalog" section below.
 - **Run Python commands**: `hatch run dbr154:python -c "command"`
 - **Enter virtual environment shell**: `hatch shell dbr154`
 
-### Test Structure:
-The test directory structure mirrors the implementation structure:
-- `tempo/joins/strategies.py` → `tests/join/test_strategies.py`
-- This makes it easy to locate corresponding tests for each module
+### Test Structure and Pattern Guide:
+
+#### Directory Structure
+The test directory structure mirrors the implementation structure for easy navigation:
+```
+tempo/joins/strategies.py        → tests/join/test_strategies.py
+tempo/joins/                      → tests/join/
+tests/unit_test_data/join/        → JSON test data for join tests
+```
+
+#### Test Types
+1. **Unit Tests** (`tests/join/test_strategies.py`): Mock-based tests for logic validation
+2. **Integration Tests** (`tests/join/test_strategies_integration.py`): Real Spark DataFrame tests
+
+#### Test Data Management Pattern
+
+##### 1. Test Data Location
+- **Base Directory**: `tests/unit_test_data/`
+- **Module-specific**: Create subdirectories matching test module structure
+  - Example: `tests/join/` → `tests/unit_test_data/join/`
+- **File Naming**: `<test_module>_<type>.json`
+  - Example: `strategies_integration.json`
+
+##### 2. JSON Test Data Structure
+```json
+{
+  "test_scenario_name": {
+    "left": {
+      "tsdf": {
+        "ts_col": "timestamp",           // Timestamp column name
+        "series_ids": ["symbol"],        // Series ID columns
+        "ts_fmt": "yyyy-MM-dd HH:mm:ss"  // Optional: timestamp format
+      },
+      "df": {
+        "schema": "timestamp string, symbol string, value double",  // Schema definition
+        "ts_convert": ["timestamp"],     // Columns to convert to timestamp
+        "ts_convert_ntz": ["timestamp"], // Optional: Convert to no-timezone timestamp
+        "data": [                        // Actual test data
+          ["2021-01-01 10:00:00", "AAPL", 100.0],
+          ["2021-01-01 10:05:00", "AAPL", 101.0]
+        ]
+      }
+    },
+    "right": {
+      // Similar structure as left
+    },
+    "expected": {
+      // Expected output structure
+    }
+  }
+}
+```
+
+##### 3. Test Class Implementation Pattern
+
+```python
+# Integration test example
+from tests.base import TestDataFrame
+
+class StrategiesIntegrationTest(TestDataFrame):
+    """Integration tests following the established pattern."""
+
+    @classmethod
+    def get_test_data_dir(cls):
+        """Return subdirectory in unit_test_data."""
+        return "join"
+
+    @classmethod
+    def get_test_data_file(cls):
+        """Return JSON file name."""
+        return "strategies_integration.json"
+
+    @parameterized.expand(["test_scenario_name"])
+    def test_example(self, test_name):
+        """Test using loaded data."""
+        # Load test data
+        left_tsdf = self.get_test_tsdf(test_name, "left")
+        right_tsdf = self.get_test_tsdf(test_name, "right")
+        expected_tsdf = self.get_test_tsdf(test_name, "expected")
+
+        # Execute test logic
+        result = your_function(left_tsdf, right_tsdf)
+
+        # Assert equality
+        self.assertDataFrameEquality(
+            result.df,
+            expected_tsdf.df,
+            from_tsdf=True,
+            order_by_cols=["symbol", "timestamp"]
+        )
+```
+
+##### 4. Key Components
+
+**Base Class (`TestDataFrame` in `tests/base.py`)**:
+- Handles JSON loading via `jsonref`
+- Provides `get_test_tsdf()` method to load test data
+- Manages Spark session lifecycle
+- Provides assertion helpers like `assertDataFrameEquality()`
+
+**Test Data Builder (`TestDataFrameBuilder`)**:
+- Converts JSON data to Spark DataFrames
+- Handles timestamp conversions
+- Manages schema parsing
+- Supports complex types (structs, arrays)
+
+##### 5. Adding New Integration Tests
+
+1. **Create test data JSON**:
+   ```bash
+   mkdir -p tests/unit_test_data/your_module/
+   vim tests/unit_test_data/your_module/your_test.json
+   ```
+
+2. **Create test file**:
+   ```bash
+   mkdir -p tests/your_module/
+   vim tests/your_module/test_your_integration.py
+   ```
+
+3. **Implement test class**:
+   - Inherit from `TestDataFrame`
+   - Override `get_test_data_dir()` and `get_test_data_file()`
+   - Use `@parameterized.expand()` for data-driven tests
+   - Use `self.get_test_tsdf()` to load test data
+
+##### 6. Best Practices
+
+- **Mirror directory structure** between implementation and tests
+- **Use parameterized tests** to run same test with different data scenarios
+- **Include edge cases** in test data (nulls, empty DataFrames, etc.)
+- **Document expected behavior** in test method docstrings
+- **Keep test data minimal** but representative
+- **Use descriptive scenario names** in JSON files
+
+##### 7. Running Integration Tests
+
+```bash
+# Run specific integration test
+hatch run dbr154:python -m unittest tests.join.test_strategies_integration
+
+# Run with verbose output
+hatch run dbr154:python -m unittest tests.join.test_strategies_integration -v
+
+# Run specific test method
+hatch run dbr154:python -m unittest tests.join.test_strategies_integration.StrategiesIntegrationTest.test_broadcast_join_basic
+```
 
 ## Overview
 This document provides a comprehensive implementation strategy for enhancing as-of join features in the Tempo library. It consolidates experimental work from the `as_of_join_refactor` branch with the existing v0.2-integration codebase, addressing all known issues and incomplete implementations.
@@ -1502,6 +1645,22 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 5. Regular progress reviews and adjustments
 
 ## Implementation Progress
+
+### Created Files and Structure
+
+#### Implementation Files:
+1. **`tempo/joins/__init__.py`** - Package initialization, exports all strategy classes
+2. **`tempo/joins/strategies.py`** - Main implementation with all join strategies
+3. **`tempo/tsdf_asof_join_integration.py`** - Integration code showing TSDF modifications
+4. **`tempo/tsdf_asof_join_patch.py`** - Patch documentation for TSDF integration
+
+#### Test Files:
+1. **`tests/join/test_strategies.py`** - Unit tests with mocks (20 tests)
+2. **`tests/join/test_strategies_integration.py`** - Integration tests with real Spark
+3. **`tests/unit_test_data/join/strategies_integration.json`** - Test data for integration tests
+
+#### Documentation Files:
+1. **`ASOF_JOIN_ENHANCEMENTS.md`** - This comprehensive strategy document
 
 ### Test Status:
 - **Unit Tests**: All 20 strategy tests passing ✅

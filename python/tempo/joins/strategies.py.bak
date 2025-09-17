@@ -87,7 +87,7 @@ class AsOfJoiner(ABC):
         # Perform the join
         return self._join(left, right)
 
-    def commonSeriesIDs(self, left: "TSDF", right: "TSDF") -> set:
+    def commonSeriesIDs(self, left: TSDF, right: TSDF) -> set:
         """
         Returns the common series IDs between the left and right TSDFs.
 
@@ -97,7 +97,7 @@ class AsOfJoiner(ABC):
         """
         return set(left.series_ids).intersection(set(right.series_ids))
 
-    def _prefixableColumns(self, left: "TSDF", right: "TSDF") -> set:
+    def _prefixableColumns(self, left: TSDF, right: TSDF) -> set:
         """
         Returns the overlapping columns in the left and right TSDFs,
         not including overlapping series IDs.
@@ -111,15 +111,15 @@ class AsOfJoiner(ABC):
         ) - self.commonSeriesIDs(left, right)
 
     def _prefixColumns(
-        self, tsdf: "TSDF", prefixable_cols: set, prefix: str
-    ) -> "TSDF":
+        self, tsdf: TSDF, prefixable_cols: set, prefix: str
+    ) -> TSDF:
         """
         Prefixes the columns in the TSDF.
 
-        :param tsdf: "TSDF" to modify
+        :param tsdf: TSDF to modify
         :param prefixable_cols: Set of columns to prefix
         :param prefix: Prefix to apply
-        :return: "TSDF" with prefixed columns
+        :return: TSDF with prefixed columns
         """
         if prefix:
             tsdf = reduce(
@@ -132,8 +132,8 @@ class AsOfJoiner(ABC):
         return tsdf
 
     def _prefixOverlappingColumns(
-        self, left: "TSDF", right: "TSDF"
-    ) -> Tuple["TSDF", "TSDF"]:
+        self, left: TSDF, right: TSDF
+    ) -> Tuple[TSDF, TSDF]:
         """
         Prefixes the overlapping columns in the left and right TSDFs.
 
@@ -150,7 +150,7 @@ class AsOfJoiner(ABC):
 
         return left_prefixed, right_prefixed
 
-    def _checkAreJoinable(self, left: "TSDF", right: "TSDF") -> None:
+    def _checkAreJoinable(self, left: TSDF, right: TSDF) -> None:
         """
         Checks if the left and right TSDFs are joinable.
         Raises an exception if they are not compatible.
@@ -174,7 +174,7 @@ class AsOfJoiner(ABC):
             )
 
     @abstractmethod
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left: TSDF, right: TSDF) -> TSDF:
         """
         Performs the actual join operation.
         Must be implemented by subclasses.
@@ -213,7 +213,7 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         self.spark = spark
         self.range_join_bin_size = range_join_bin_size
 
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left: TSDF, right: TSDF) -> TSDF:
         """
         Performs broadcast as-of join.
 
@@ -260,7 +260,6 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         )
 
         # Return with the left-hand schema
-        from tempo.tsdf import TSDF
         return TSDF(res_df, ts_schema=left.ts_schema)
 
 
@@ -292,13 +291,13 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         self.skipNulls = skipNulls
         self.tolerance = tolerance
 
-    def _appendNullColumns(self, tsdf: "TSDF", cols: set) -> "TSDF":
+    def _appendNullColumns(self, tsdf: TSDF, cols: set) -> TSDF:
         """
         Appends null columns to the TSDF.
 
-        :param tsdf: "TSDF" to modify
+        :param tsdf: TSDF to modify
         :param cols: Set of columns to add as nulls
-        :return: "TSDF" with added null columns
+        :return: TSDF with added null columns
         """
         return reduce(
             lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)),
@@ -306,7 +305,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             tsdf
         )
 
-    def _combine(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _combine(self, left: TSDF, right: TSDF) -> TSDF:
         """
         Combines the left and right TSDFs into a single TSDF.
 
@@ -367,8 +366,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         )
 
     def _filterLastRightRow(
-        self, combined: "TSDF", right_cols: set, last_left_tsschema: TSSchema
-    ) -> "TSDF":
+        self, combined: TSDF, right_cols: set, last_left_tsschema: TSSchema
+    ) -> TSDF:
         """
         Filters out the last right-hand row for each left-hand row.
 
@@ -418,11 +417,11 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
 
     def _toleranceFilter(
         self,
-        as_of: "TSDF",
+        as_of: TSDF,
         left_ts_col: str,
         right_ts_col: str,
         right_columns: List[str]
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         Filters out rows from the as_of TSDF that are outside the tolerance.
 
@@ -460,7 +459,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         as_of.df = df
         return as_of
 
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left: TSDF, right: TSDF) -> TSDF:
         """
         Performs union-sort-filter as-of join.
 
@@ -534,14 +533,14 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
         self.tsPartitionVal = tsPartitionVal
         self.fraction = fraction
 
-    def _applyTimePartitions(self, tsdf: "TSDF") -> "TSDF":
+    def _applyTimePartitions(self, tsdf: TSDF) -> TSDF:
         """
         Apply time-based partitioning with overlap to handle skew.
 
         Creates overlapping time windows to handle edge cases where
         timestamps near partition boundaries need data from adjacent partitions.
 
-        :param tsdf: "TSDF" to partition
+        :param tsdf: TSDF to partition
         :return: Partitioned TSDF with overlap
         """
         if self.tsPartitionVal is None:
@@ -584,7 +583,7 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
             df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids + ["ts_partition"]
         )
 
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left: TSDF, right: TSDF) -> TSDF:
         """
         Performs skew-aware as-of join using time-based partitioning.
 
@@ -689,8 +688,8 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
 
 
 def choose_as_of_join_strategy(
-    left_tsdf: "TSDF",
-    right_tsdf: "TSDF",
+    left_tsdf: TSDF,
+    right_tsdf: TSDF,
     left_prefix: Optional[str] = None,
     right_prefix: str = "right",
     tsPartitionVal: Optional[int] = None,

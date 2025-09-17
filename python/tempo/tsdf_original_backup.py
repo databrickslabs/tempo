@@ -29,12 +29,6 @@ import tempo.resample as t_resample
 import tempo.resample_utils as t_resample_utils
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.joins.strategies import (
-    choose_as_of_join_strategy,
-    BroadcastAsOfJoiner,
-    UnionSortFilterAsOfJoiner,
-    SkewAsOfJoiner,
-)
 from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
     CompositeTSIndex,
@@ -945,7 +939,6 @@ class TSDF(WindowBuilder):
         sql_join_opt: bool = False,
         suppress_null_warning: bool = False,
         tolerance: Optional[int] = None,
-        use_strategy_pattern: bool = False,  # Feature flag for gradual rollout
     ) -> TSDF:
         """
         Performs an as-of join between two time-series. If a tsPartitionVal is
@@ -964,40 +957,7 @@ class TSDF(WindowBuilder):
         :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
-        :param use_strategy_pattern - if True, uses new modular strategy pattern for join execution
         """
-
-        # Use new strategy pattern if enabled
-        if use_strategy_pattern:
-            # Log warning for skew join if applicable
-            if tsPartitionVal is not None and not suppress_null_warning:
-                logger.warning(
-                    "You are using the skew version of the AS OF join. This may result in null values if there are any "
-                    "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
-                    "lookback, trading off performance and potential blank AS OF values for sparse keys"
-                )
-
-            try:
-                # Choose and execute strategy
-                joiner = choose_as_of_join_strategy(
-                    self,
-                    right_tsdf,
-                    left_prefix,
-                    right_prefix,
-                    tsPartitionVal,
-                    fraction,
-                    skipNulls,
-                    sql_join_opt,
-                    tolerance
-                )
-
-                logger.info(f"Using as-of join strategy: {joiner.__class__.__name__}")
-                return joiner(self, right_tsdf)
-
-            except Exception as e:
-                # If strategy pattern fails, log and fall back to original
-                logger.error(f"Strategy pattern failed: {e}. Falling back to original implementation.")
-                # Fall through to original implementation
 
         # first block of logic checks whether a standard range join will suffice
         left_df = self.df
