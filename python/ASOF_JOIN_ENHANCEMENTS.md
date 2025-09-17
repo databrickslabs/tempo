@@ -6,8 +6,9 @@
 ### Key Guidelines:
 1. **Update this document for every change and todo**
 2. **Keep changes scoped and complete** - Each commit should represent a fully working incremental change
-3. **Run tests between each commit** to verify no breaking changes have been introduced
-4. **Commit frequently** for easy rollbacks if issues arise
+3. **TEST BEFORE COMMITTING** - Always run tests before committing to ensure no breaking changes
+4. **Run tests between each commit** to verify no breaking changes have been introduced
+5. **Commit frequently** for easy rollbacks if issues arise
 
 ### Testing Commands:
 - **Run all tests for current DBR version (154)**: `make test` or `hatch run dbr154:test`
