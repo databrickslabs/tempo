@@ -1,5 +1,8 @@
 # As-Of Join Enhancements Implementation Strategy
 
+## Implementation Instructions
+**IMPORTANT**: This document serves as the source of truth for all as-of join improvements. Update this document for every change and todo. Keep changes scoped and commit for each change for easy rollbacks.
+
 ## Overview
 This document provides a comprehensive implementation strategy for enhancing as-of join features in the Tempo library. It consolidates experimental work from the `as_of_join_refactor` branch with the existing v0.2-integration codebase, addressing all known issues and incomplete implementations.
 
