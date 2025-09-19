@@ -1695,11 +1695,12 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 8. ✅ Integrated strategy pattern into TSDF with feature flag
 9. ✅ Reorganized test structure (moved as_of_join tests to tests/join/)
 10. ✅ Created comprehensive test data in unit_test_data/join/
+11. ✅ Created timezone regression tests (test_timezone_regression.py) - 6 tests covering various timezone scenarios
 
 ### Next Steps:
 1. ✅ Remove parameterized dependency from tests (COMPLETED)
 2. ✅ Update test documentation for pytest-only approach (COMPLETED)
-3. Create timezone regression tests for composite indexes
+3. ✅ Create timezone regression tests for composite indexes (COMPLETED)
 4. Refactor to resolve circular dependency issue between TSDF and strategies
 5. Ensure consistent join semantics (left vs inner) across all strategies
 6. Add configuration options for strategy selection
