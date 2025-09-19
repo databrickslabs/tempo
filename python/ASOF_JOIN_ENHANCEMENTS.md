@@ -48,6 +48,17 @@ tempo/joins/                      → tests/join/
 tests/unit_test_data/join/        → JSON test data for join tests
 ```
 
+**CRITICAL**: Test data file naming and location conventions:
+- For a test file at `tests/join/test_strategies_integration.py`, the test data must be at `tests/unit_test_data/join/test_strategies_integration.json`
+- The file name must match EXACTLY (without the .py extension)
+- The directory structure under `tests/unit_test_data/` must mirror the directory structure under `tests/`
+- This is how the base class constructs the path:
+  1. Takes the test ID like `tests.join.test_strategies_integration.StrategiesIntegrationTest.test_method`
+  2. Extracts module parts: `['tests', 'join', 'test_strategies_integration']`
+  3. Removes 'tests' prefix: `['join', 'test_strategies_integration']`
+  4. Joins with '/': `join/test_strategies_integration`
+  5. Looks for: `tests/unit_test_data/join/test_strategies_integration.json`
+
 #### Test Types
 1. **Unit Tests** (`tests/join/test_strategies.py`): Mock-based tests for logic validation
 2. **Integration Tests** (`tests/join/test_strategies_integration.py`): Real Spark DataFrame tests
@@ -74,8 +85,8 @@ tests/unit_test_data/join/        → JSON test data for join tests
         "ts_fmt": "yyyy-MM-dd HH:mm:ss"  // Optional: timestamp format
       },
       "df": {
-        "schema": "timestamp string, symbol string, value double",  // Schema definition
-        "ts_convert": ["timestamp"],     // Columns to convert to timestamp
+        "schema": "timestamp timestamp, symbol string, value double",  // Schema definition
+        "ts_convert": ["timestamp"],     // REQUIRED for timestamp columns - list of columns to convert from string to timestamp
         "ts_convert_ntz": ["timestamp"], // Optional: Convert to no-timezone timestamp
         "data": [                        // Actual test data
           ["2021-01-01 10:00:00", "AAPL", 100.0],
@@ -93,32 +104,27 @@ tests/unit_test_data/join/        → JSON test data for join tests
 }
 ```
 
+**IMPORTANT**:
+- Always include `"ts_convert"` for any timestamp columns in the schema
+- The timestamp type in schema should be `timestamp` not `string`
+- List all timestamp columns in the `ts_convert` array to enable proper string-to-timestamp conversion
+
 ##### 3. Test Class Implementation Pattern
 
 ```python
-# Integration test example
-from tests.base import TestDataFrame
+# Integration test example - NO parameterized, only pytest
+from tests.base import SparkTest
 
-class StrategiesIntegrationTest(TestDataFrame):
+class StrategiesIntegrationTest(SparkTest):
     """Integration tests following the established pattern."""
 
-    @classmethod
-    def get_test_data_dir(cls):
-        """Return subdirectory in unit_test_data."""
-        return "join"
-
-    @classmethod
-    def get_test_data_file(cls):
-        """Return JSON file name."""
-        return "strategies_integration.json"
-
-    @parameterized.expand(["test_scenario_name"])
-    def test_example(self, test_name):
-        """Test using loaded data."""
-        # Load test data
-        left_tsdf = self.get_test_tsdf(test_name, "left")
-        right_tsdf = self.get_test_tsdf(test_name, "right")
-        expected_tsdf = self.get_test_tsdf(test_name, "expected")
+    def test_example(self):
+        """Test using loaded data from JSON."""
+        # Load test data using test scenario name from JSON
+        test_name = "test_scenario_name"
+        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_df_builder(test_name, "expected").as_tsdf()
 
         # Execute test logic
         result = your_function(left_tsdf, right_tsdf)
@@ -131,6 +137,8 @@ class StrategiesIntegrationTest(TestDataFrame):
             order_by_cols=["symbol", "timestamp"]
         )
 ```
+
+**IMPORTANT**: Do NOT use `parameterized` or `parameterized_class` decorators. Use pure pytest with test data stored in JSON files.
 
 ##### 4. Key Components
 
@@ -1668,8 +1676,9 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 
 ### Test Status:
 - **Unit Tests**: All 20 strategy tests passing ✅
-- **Existing Tests**: All 330 tests passing (2 skipped as expected) ✅
+- **Existing Tests**: All tests passing (maintaining backward compatibility) ✅
 - **No Breaking Changes**: Confirmed ✅
+- **Integration Tests**: Refactored to remove parameterized dependency ✅
 
 ### Completed Tasks (as of current commit):
 1. ✅ Created tempo/joins package structure with strategies.py
@@ -1688,12 +1697,15 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 10. ✅ Created comprehensive test data in unit_test_data/join/
 
 ### Next Steps:
-1. Fix remaining integration test failures
-2. Create timezone regression tests
-3. Performance benchmarking
-4. Refactor to resolve circular dependency issue
-5. Create migration guide for users
-6. Update PR references once pull request is created
+1. ✅ Remove parameterized dependency from tests (COMPLETED)
+2. ✅ Update test documentation for pytest-only approach (COMPLETED)
+3. Create timezone regression tests for composite indexes
+4. Refactor to resolve circular dependency issue between TSDF and strategies
+5. Ensure consistent join semantics (left vs inner) across all strategies
+6. Add configuration options for strategy selection
+7. Performance benchmarking
+8. Create migration guide for users
+9. Update PR references once pull request is created
 
 ## PR Notes
 **TODO**: Update PR references once pull request is created. Currently shows "PR #XXX" in:
