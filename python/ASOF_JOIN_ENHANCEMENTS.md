@@ -1697,21 +1697,136 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 10. ✅ Created comprehensive test data in unit_test_data/join/
 11. ✅ Created timezone regression tests (test_timezone_regression.py) - 6 tests covering various timezone scenarios
 
-### Next Steps:
-1. ✅ Remove parameterized dependency from tests (COMPLETED)
-2. ✅ Update test documentation for pytest-only approach (COMPLETED)
-3. ✅ Create timezone regression tests for composite indexes (COMPLETED)
-4. Refactor to resolve circular dependency issue between TSDF and strategies
-5. Ensure consistent join semantics (left vs inner) across all strategies
-6. Add configuration options for strategy selection
-7. Performance benchmarking
-8. Create migration guide for users
-9. Update PR references once pull request is created
+### Remaining TODOs:
+
+#### High Priority:
+1. **Fix timezone handling inconsistency in composite timestamp indexes**
+   - `tests/join/as_of_join_tests.py:63` - Nanos test still skipped
+   - Need to fix actual timezone handling in composite indexes
+   - Regression tests created but original issue needs resolution
+
+2. **Resolve circular dependency issue** between TSDF and strategies
+   - Current workaround uses TYPE_CHECKING and string annotations
+   - Better solution: Return raw DataFrames from strategies
+
+3. **Ensure consistent join semantics** (left vs inner) across all strategies
+   - BroadcastAsOfJoiner currently behaves like inner join
+   - UnionSortFilterAsOfJoiner behaves like left join
+   - Need to standardize behavior
+
+#### Medium Priority:
+4. **Add configuration options** for strategy selection
+   - `spark.tempo.asof.join.auto_optimize` config
+   - `spark.tempo.asof.join.broadcast_threshold` config
+   - Allow manual strategy override
+
+5. **Performance benchmarking**
+   - Compare strategies on various data sizes
+   - Measure memory usage
+   - Document optimal use cases for each strategy
+
+#### Low Priority:
+6. **Create migration guide** for users
+   - Document API changes
+   - Provide examples of new features
+   - Include performance tuning tips
+
+7. **Update PR references** once pull request is created
+   - `tests/join/as_of_join_tests.py:69` - Update PR reference for NULL lead bug fix
+   - `tests/join/test_strategies_integration.py:163` - Update PR reference for regression test
+
+## Lessons Learned and Best Practices
+
+### Testing Best Practices Discovered:
+
+1. **Use Pure pytest**: Avoid external dependencies like `parameterized`. Use test data in JSON files instead for data-driven tests.
+
+2. **Test File Naming Convention**:
+   - Test files must match their data files exactly
+   - Example: `test_strategies_integration.py` → `test_strategies_integration.json`
+   - The base test class constructs paths by removing `.py` and looking for `.json`
+
+3. **Directory Structure Requirements**:
+   - Test data directory structure must mirror test directory structure
+   - `tests/join/test_foo.py` → `tests/unit_test_data/join/test_foo.json`
+   - The base class strips 'tests' prefix and builds the path under `unit_test_data/`
+
+4. **Timestamp Handling in Test Data**:
+   - Always include `"ts_convert": ["timestamp_column_name"]` in JSON test data
+   - Use `timestamp` type in schema, not `string`
+   - The test framework will convert string timestamps to proper Spark timestamps
+
+5. **Timezone Testing**:
+   - Create explicit tests for timezone handling
+   - Test with different source timezones, DST transitions
+   - Verify consistency between different join strategies
+   - Set explicit session timezone for predictable results
+
+### Code Organization Insights:
+
+1. **Strategy Pattern Benefits**:
+   - Clean separation of join algorithms
+   - Easy to test each strategy independently
+   - Simple to add new strategies without modifying existing code
+
+2. **Circular Dependencies**:
+   - Major issue between TSDF and strategy modules
+   - Use TYPE_CHECKING and string annotations as workaround
+   - Better solution: Return raw DataFrames and let TSDF wrap them
+
+3. **Feature Flags**:
+   - Useful for gradual rollout of new implementations
+   - Allows A/B testing in production
+   - Maintains backward compatibility during migration
+
+### Technical Discoveries:
+
+1. **NULL Lead Bug in BroadcastAsOfJoiner**:
+   - Issue: Last row in partition has NULL for lead value
+   - Fix: Added proper null checking with `F.coalesce(lead_col, F.lit(float('inf')))`
+   - Lesson: Always handle edge cases in window functions
+
+2. **Timezone Consistency**:
+   - Both strategies now handle timezones consistently
+   - Spark normalizes to session timezone automatically
+   - Composite indexes maintain timezone information correctly
+
+3. **Join Semantics Differences**:
+   - BroadcastAsOfJoiner behaves like inner join by default
+   - UnionSortFilterAsOfJoiner behaves like left join
+   - Need standardization for consistent behavior
+
+4. **Performance Considerations**:
+   - Broadcast join efficient for small right-side data (<30MB)
+   - Union-sort-filter better for large datasets
+   - Skew handling critical for uneven data distribution
+
+### Project-Specific Best Practices:
+
+1. **Always Run Tests Before Commit**:
+   - Unit tests: `hatch run dbr154:python -m pytest tests/join/test_strategies.py`
+   - Integration tests: Check for real Spark DataFrame operations
+   - Run linting: `make lint` or `hatch run lint:runLint`
+
+2. **Documentation Updates**:
+   - Update this document with EVERY change
+   - Document technical debt immediately
+   - Keep test documentation current with implementation
+
+3. **Test Data Management**:
+   - Store test scenarios in JSON for reusability
+   - Include edge cases in test data
+   - Document expected behavior in test method docstrings
+
+4. **Error Handling**:
+   - Validate inputs early (checkAreJoinable)
+   - Provide clear error messages
+   - Fall back to safe defaults when strategy selection fails
 
 ## PR Notes
 **TODO**: Update PR references once pull request is created. Currently shows "PR #XXX" in:
 - tests/join/as_of_join_tests.py line 69
-- tests/join/test_strategies_integration.py line 194
+- tests/join/test_strategies_integration.py line 163
 
 ## Technical Debt Catalog
 
