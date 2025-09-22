@@ -58,7 +58,7 @@ jobs:
     - name: Setup development tools
       working-directory: ./python
       run: make setup
-    - name: Execute hatch envs
+    - name: Run tests
       working-directory: ./python
       run: make test coverage-report DBR=${{ matrix.config.dbr }}
     - name: Publish test coverage
