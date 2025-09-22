@@ -41,19 +41,19 @@ class TSDFBaseTests(SparkTest):
         assert (
             res.filter(sfn.col("unique_time_series_count") != " ")
             .select(sfn.max(sfn.col("unique_time_series_count")))
-            .collect()[0][0]
+            .head(1)[0][0]
             == "1"
         )
         assert (
             res.filter(sfn.col("min_ts") != " ")
             .select(sfn.col("min_ts").cast("string"))
-            .collect()[0][0]
+            .head(1)[0][0]
             == "2020-08-01 00:00:10"
         )
         assert (
             res.filter(sfn.col("max_ts") != " ")
             .select(sfn.col("max_ts").cast("string"))
-            .collect()[0][0]
+            .head(1)[0][0]
             == "2020-09-01 00:19:12"
         )
 
