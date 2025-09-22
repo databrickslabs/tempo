@@ -649,12 +649,12 @@ class TSDF:
         desc_stats = this_df.describe().union(missing_vals)
         unique_ts = this_df.select(*self.partitionCols).distinct().count()
 
-        max_ts = this_df.select(
-            sfn.max(sfn.col(self.ts_col)).alias("max_ts")
-        ).head(1)[0][0]
-        min_ts = this_df.select(
-            sfn.min(sfn.col(self.ts_col)).alias("max_ts")
-        ).head(1)[0][0]
+        max_ts = this_df.select(sfn.max(sfn.col(self.ts_col)).alias("max_ts")).head(1)[
+            0
+        ][0]
+        min_ts = this_df.select(sfn.min(sfn.col(self.ts_col)).alias("max_ts")).head(1)[
+            0
+        ][0]
         gran = this_df.selectExpr(
             """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
                   when {0} % 60 != 0 then '2-seconds'
