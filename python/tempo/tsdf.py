@@ -67,7 +67,7 @@ class TSDF:
         # Timestamp string matching then do some pattern matching to extract
         # the time stamp.
         if isinstance(df.schema[ts_col].dataType, StringType):  # pragma: no cover
-            sample_ts = df.select(ts_col).limit(1).collect()[0][0]
+            sample_ts = df.select(ts_col).limit(1).head(1)[0][0]
             self.__validate_ts_string(sample_ts)
             self.df = (
                 self.__add_double_ts()
@@ -327,7 +327,7 @@ class TSDF:
                     if not suppress_null_warning and logger.isEnabledFor(
                         logging.WARNING
                     ):
-                        any_blank_vals = df.agg({column: "min"}).collect()[0][0] == 0
+                        any_blank_vals = df.agg({column: "min"}).head()[0] == 0
                         newCol = column.replace("non_null_ct", "")
                         if any_blank_vals:
                             logger.warning(
@@ -651,10 +651,10 @@ class TSDF:
 
         max_ts = this_df.select(
             sfn.max(sfn.col(self.ts_col)).alias("max_ts")
-        ).collect()[0][0]
+        ).head(1)[0][0]
         min_ts = this_df.select(
             sfn.min(sfn.col(self.ts_col)).alias("max_ts")
-        ).collect()[0][0]
+        ).head(1)[0][0]
         gran = this_df.selectExpr(
             """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
                   when {0} % 60 != 0 then '2-seconds'
@@ -663,7 +663,7 @@ class TSDF:
                   else '5-days' end) granularity""".format(
                 double_ts_col
             )
-        ).collect()[0][0][2:]
+        ).head(1)[0][0][2:]
 
         non_summary_cols = [c for c in desc_stats.columns if c != "summary"]
 
@@ -709,7 +709,7 @@ class TSDF:
         """
 
         df.createOrReplaceTempView("view")
-        plan = spark.sql("explain cost select * from view").collect()[0][0]
+        plan = spark.sql("explain cost select * from view").head(1)[0][0]
 
         return plan
 
