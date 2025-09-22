@@ -200,7 +200,7 @@ test-all: check-java
 .PHONY: lint
 lint:
 	@echo "Running linters..."
-	hatch run lint:runLint $(LINT_PARAMS)
+	hatch run lint:runLint
 
 # Format code with Black
 .PHONY: format
