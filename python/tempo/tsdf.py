@@ -327,7 +327,7 @@ class TSDF:
                     if not suppress_null_warning and logger.isEnabledFor(
                         logging.WARNING
                     ):
-                        any_blank_vals = df.agg({column: "min"}).head()[0] == 0
+                        any_blank_vals = df.agg({column: "min"}).head(1)[0] == 0
                         newCol = column.replace("non_null_ct", "")
                         if any_blank_vals:
                             logger.warning(
