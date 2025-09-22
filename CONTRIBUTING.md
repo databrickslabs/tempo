@@ -1,12 +1,12 @@
 # Setup instructions
 
-We use `tox` and `pyenv` to manage developing and testing `tempo` across multiple Python versions and PySpark versions.
-`tox` is a testing tool that helps you automate and standardize testing in Python across multiple environments.
+We use `hatch` and `pyenv` to manage developing and testing `tempo` across multiple Python versions and PySpark versions.
+`hatch` is a modern Python project manager that helps you create and manage virtual environments, run tests, and build distributions.
 `pyenv` allows you to manage multiple versions of Python on your computer and easily switch between them.
 
 ## Pyenv setup
 
-Since `tox` supports creating virtual environments using multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
+Since `hatch` supports creating virtual environments using multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
 `pyenv` does not install via `pip` on all platforms, so see the [pyenv documentation](https://github.com/pyenv/pyenv#installation) for installation instructions. 
 Be sure to carefully follow the instructions to configure your shell environment to use `pyenv`, otherwise subsequent commands will not work as intended.
 
@@ -26,19 +26,19 @@ Within the `tempo/python` folder, run the below command to create a `.python-ver
 pyenv local 3.9 3.10 3.11
 ```
 
-This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
+This allows `hatch` to create virtual environments using any of the Python versions listed in the `.python-version` file.
 
-## Tox setup
+## Hatch setup
 
-Install tox:
+Install hatch:
 ```bash
-pip install -U tox
+pip install -U hatch
 ```
 
-A brief description of each managed `tox` environment can be found by running `tox list` or in the `tox.ini` file.
+A brief description of each managed `hatch` environment can be found by running `hatch env show` or in the `pyproject.toml` file.
 
 ## Create a development environment
-Each development environment is roughly associated with a DBR LTS version. A list of base environments can be found in your `tox.ini` file, but the number specified below is only the version number.
+Each development environment is roughly associated with a DBR LTS version. A list of base environments can be found in your `pyproject.toml` file, but the number specified below is only the version number.
 Run the following command in your terminal to create a virtual environment (you can replace "your_dbr_number" with something like 154, 143, etc.):
 ```bash
 make venv DBR={your_dbr_number}
@@ -57,8 +57,8 @@ make test-all
 ```
 
 ### Run additional checks locally
-`tox` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
-These environments are also defined in the `tox.ini`file and skip installing dependencies listed in the `requirements.txt` file and building the distribution when those are not required . They can be specified using the `-e` flag:
+`hatch` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
+These environments are also defined in the `pyproject.toml` file and skip installing dependencies when those are not required. They can be specified using the `hatch run` command:
 * lint
 * type-check
 * build-dist
@@ -83,11 +83,11 @@ as well as using [`flake8`](https://flake8.pycqa.org/en/latest/) and [`mypy`](ht
 to check for effective code style, type-checking and common bad practices.
 To test your code against these standards, run the following command:
 ```bash
-tox -e lint, type-check
+make lint type-check
 ```
 To have `black` automatically format your code, run the following command:
 ```bash
-tox -e format
+make format
 ```
 
 In addition, we apply some project-specific standards:
