@@ -158,13 +158,35 @@ class BroadcastAsOfJoiner(AsOfJoiner):
             lead_colname, sfn.lead(right_comparable_expr).over(w)
         )
 
-        # perform the join
+        # perform the join - use left join to preserve all left rows
         join_series_ids = self.commonSeriesIDs(left, right)
-        res_df = (
-            left.df.join(right_with_lead.df, list(join_series_ids))
-            .where(left.ts_index.between(right.ts_index, sfn.col(lead_colname)))
-            .drop(lead_colname)
-        )
+
+        # First do the left join
+        joined_df = left.df.join(right_with_lead.df, list(join_series_ids), how="left")
+
+        # Then filter based on timestamp conditions
+        # Keep rows where either:
+        # 1. There's no matching right row (right timestamp is NULL)
+        # 2. The left timestamp is between the right timestamp and lead timestamp
+        # 3. Lead is NULL (last right row) and left timestamp >= right timestamp
+        res_df = joined_df.where(
+            sfn.col(right.ts_index.colname).isNull() |
+            (
+                sfn.col(right.ts_index.colname).isNotNull() &
+                (
+                    # Normal case: left timestamp is between right and lead
+                    (
+                        sfn.col(lead_colname).isNotNull() &
+                        left.ts_index.between(right.ts_index, sfn.col(lead_colname))
+                    ) |
+                    # Last right row: lead is NULL and left >= right
+                    (
+                        sfn.col(lead_colname).isNull() &
+                        (left.ts_index >= right.ts_index)
+                    )
+                )
+            )
+        ).drop(lead_colname)
         # return with the left-hand schema
         return t_tsdf.TSDF(res_df, ts_schema=left.ts_schema)
 

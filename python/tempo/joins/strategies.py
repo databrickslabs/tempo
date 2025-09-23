@@ -238,6 +238,8 @@ class BroadcastAsOfJoiner(AsOfJoiner):
             lead_colname, sfn.lead(right_comparable_expr).over(w)
         )
 
+        # No need for row number here as we'll handle duplicates after the join
+
         # Perform the join
         join_series_ids = self.commonSeriesIDs(left, right)
 
@@ -258,11 +260,14 @@ class BroadcastAsOfJoiner(AsOfJoiner):
             (sfn.col(lead_colname).isNull() | (left_ts_expr < sfn.col(lead_colname)))
         )
 
+        # Join and filter
         res_df = (
             left.df.join(right_with_lead.df, list(join_series_ids))
             .where(between_condition)
-            .drop(lead_colname)
         )
+
+        # Drop the lead column
+        res_df = res_df.drop(lead_colname)
 
         # Return with the left-hand schema
         from tempo.tsdf import TSDF

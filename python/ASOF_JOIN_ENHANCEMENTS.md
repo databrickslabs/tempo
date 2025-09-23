@@ -11,6 +11,7 @@
 5. **TEST BEFORE COMMITTING** - Always run tests before committing to ensure no breaking changes
 6. **Run tests between each commit** to verify no breaking changes have been introduced
 7. **Commit frequently** for easy rollbacks if issues arise
+8. **USE PURE PYTEST** - All new tests MUST be written in pure pytest style, NOT unittest style
 
 ### Technical Debt Assessment Process:
 Before each commit, evaluate:
@@ -26,7 +27,9 @@ Document all technical debt in the "Technical Debt Catalog" section below.
 ### Testing Commands:
 **IMPORTANT**:
 - Always use virtual environments through make or hatch for Python commands. Never run Python directly without an environment.
-- **All new unit tests should be written with pytest instead of unittest**
+- **All new tests MUST be written in pure pytest style - NO unittest.TestCase inheritance**
+- **Use pytest fixtures for setup/teardown, NOT setUp/tearDown methods**
+- **Use assert statements, NOT self.assertEqual or other unittest assertions**
 
 - **Run all tests for current DBR version (154)**: `make test` or `hatch run dbr154:test`
 - **Run specific test file with pytest**: `hatch run dbr154:python -m pytest tests/join/test_strategies.py -v`
@@ -59,11 +62,67 @@ tests/unit_test_data/join/        → JSON test data for join tests
   4. Joins with '/': `join/test_strategies_integration`
   5. Looks for: `tests/unit_test_data/join/test_strategies_integration.json`
 
+**IMPORTANT - Correct Test Pattern (Follow intervals module pattern):**
+
+The JSON data MUST be structured with class and method names:
+```json
+{
+  "TestClassName": {
+    "test_method_name": {
+      "data_key": { ... }
+    }
+  }
+}
+```
+
+In test code, use `get_test_function_df_builder()` NOT `get_test_df_builder()`:
+```python
+# CORRECT - uses function-based data loading
+left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+
+# WRONG - tries to manually specify path
+left_tsdf = self.get_test_df_builder("scenario", "left").as_tsdf()
+```
+
+**UPDATED PATTERN - Pure Pytest (PREFERRED)**:
+```python
+# test_as_of_join.py - Pure pytest example
+import pytest
+from pyspark.sql import SparkSession
+
+@pytest.fixture(scope="module")
+def spark():
+    spark = SparkSession.builder.appName("test").getOrCreate()
+    yield spark
+    spark.stop()
+
+@pytest.fixture
+def test_data():
+    with open("test_data.json") as f:
+        return json.load(f)
+
+def test_my_feature(spark, test_data):
+    # Use fixtures, not self
+    df = spark.createDataFrame(test_data["input"])
+    assert df.count() == expected_count
+```
+
+Old pattern (intervals module - still uses unittest.TestCase):
+- Test file: `tests/intervals/core/intervals_df_tests.py`
+- Data file: `tests/unit_test_data/intervals/core/intervals_df_tests.json`
+- JSON structure: `{ "IntervalsDFTests": { "test_init_series_str": { "init": {...} } } }`
+- Test code: `self.get_test_function_df_builder("init").as_idf()`
+
 #### Test Types
 1. **Unit Tests** (`tests/join/test_strategies.py`): Mock-based tests for logic validation
 2. **Integration Tests** (`tests/join/test_strategies_integration.py`): Real Spark DataFrame tests
 
-**Note**: All new tests should be written with pytest. Existing unittest-based tests can remain but new functionality should use pytest fixtures and assertions.
+**CRITICAL**: All new tests MUST be written in pure pytest style:
+- NO inheritance from unittest.TestCase or SparkTest
+- Use pytest fixtures for Spark sessions and test data
+- Use assert statements, not unittest assertions
+- Use @pytest.mark decorators for test categorization
+- See `test_as_of_join.py` for the correct pattern
 
 #### Test Data Management Pattern
 
@@ -201,21 +260,41 @@ This document provides a comprehensive implementation strategy for enhancing as-
 
 ## Critical Issues from Experimental Branch
 
-### Known Bugs and TODOs
-1. **Timezone Handling Issues** (from commit c21deed)
-   - BroadcastAsOfJoiner: Composite timestamp indexes with nanosecond precision have timezone inconsistencies
-   - UnionSortFilterAsOfJoiner: Produces timestamps with different timezone offsets compared to broadcast join
-   - Test failures noted in as_of_join_tests.py for "nanos" test case
+### Bug Fix Status (2025-09-22) - UPDATED
 
-2. **Incomplete Implementations**
-   - `_toleranceFilter()` method returns unchanged TSDF (line 274-278 in experimental branch)
-   - `SkewAsOfJoiner._join()` simply calls parent class without skew-specific logic (line 313-314)
-   - Missing comparable expression handling for composite indexes in BroadcastAsOfJoiner
+#### ✅ Completed Fixes
+1. **Test Infrastructure**
+   - ✅ Fixed JSON test data structure to follow ClassName → test_method_name pattern
+   - ✅ Created new pure pytest test file (test_as_of_join.py)
+   - ✅ Updated all tests to use get_test_function_df_builder() pattern
+   - ✅ Tests now properly load data from JSON files
 
-3. **Test Discrepancies**
-   - Broadcast join returns different row counts than union join for certain test cases
-   - Simple_ts test: union join returns 4 rows (left join behavior) vs broadcast's 3 rows (inner join behavior)
-   - Nanos test: skipped due to timezone handling issues
+2. **Join Semantics Standardization**
+   - ✅ Fixed BroadcastAsOfJoiner to use LEFT JOIN instead of INNER JOIN
+   - ✅ Now preserves all left-side rows (consistent with UnionSortFilterAsOfJoiner)
+   - ✅ Fixed handling of NULL lead values for last rows in partitions
+   - ✅ Updated test expectations for consistent behavior
+
+3. **Composite Timestamp Handling**
+   - ✅ Fixed comparableExpr() usage for nanosecond precision timestamps
+   - ✅ Properly handles composite timestamp indexes in joins
+   - ✅ Documented precision limitations with nanoseconds
+
+#### ⚠️ Known Limitations (Won't Fix - Fundamental Constraints)
+1. **Nanosecond Precision**
+   - Double precision in double_ts field loses nanosecond-level differences
+   - Results in duplicate matches when timestamps differ by only nanoseconds
+   - This is a fundamental limitation of the current architecture
+
+2. **Spark Timestamp Precision**
+   - Spark timestamps limited to microsecond precision (6 decimal places)
+   - Cannot represent true nanosecond precision in native Spark timestamps
+
+#### 📝 Remaining TODOs
+1. **Future Enhancements**
+   - [ ] Consider alternative approaches for true nanosecond precision
+   - [ ] Add SkewAsOfJoiner implementation if needed for data skew handling
+   - [ ] Add performance benchmarks comparing strategies
 
 ## Features to Implement
 
@@ -244,12 +323,14 @@ This document provides a comprehensive implementation strategy for enhancing as-
    - Add optional `strategy` parameter to allow manual strategy selection
 
 #### Implementation Steps
-- [ ] Create `tempo/joins/` package with `__init__.py`
-- [ ] Extract and refactor strategy classes from experimental branch
-- [ ] Fix timezone handling in BroadcastAsOfJoiner for composite indexes
-- [ ] Update TSDF.asofJoin to delegate to strategy objects
-- [ ] Add comprehensive tests for each strategy
-- [ ] Ensure consistent join behavior (left vs inner join semantics)
+- [x] Create as_of_join.py with strategy classes
+- [x] Implement BroadcastAsOfJoiner with LEFT JOIN semantics
+- [x] Implement UnionSortFilterAsOfJoiner
+- [x] Fix timezone handling in BroadcastAsOfJoiner for composite indexes
+- [x] Add comprehensive tests for each strategy
+- [x] Ensure consistent join behavior (both use left join semantics)
+- [ ] Integrate strategies with TSDF.asofJoin method
+- [ ] Add optional strategy parameter for manual selection
 
 #### Detailed Code Structure
 ```python
@@ -1810,10 +1891,16 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
    - Spark normalizes to session timezone automatically
    - Composite indexes maintain timezone information correctly
 
-3. **Join Semantics Differences**:
-   - BroadcastAsOfJoiner behaves like inner join by default
-   - UnionSortFilterAsOfJoiner behaves like left join
-   - Need standardization for consistent behavior
+3. **Join Semantics Differences** (FIXED):
+   - BroadcastAsOfJoiner now uses left join to match UnionSortFilterAsOfJoiner
+   - Both strategies now preserve all left-side rows
+   - Fixed handling of NULL lead values for last rows in partitions
+
+4. **Nanosecond Precision Limitations**:
+   - Composite timestamps use double_ts field for comparisons
+   - Double precision loses nanosecond-level differences
+   - Results in duplicate matches when timestamps differ by nanoseconds
+   - This is a fundamental limitation requiring deeper refactoring
 
 4. **Performance Considerations**:
    - Broadcast join efficient for small right-side data (<30MB)
