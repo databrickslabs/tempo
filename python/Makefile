@@ -86,7 +86,7 @@ setup:
 init:
 	@echo " Initializing complete development environment..."
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@$(MAKE) dev-setup
+	@$(MAKE) setup
 	@echo ""
 	@$(MAKE) check-env
 	@echo ""
