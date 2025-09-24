@@ -21,11 +21,10 @@ class StrategiesIntegrationTest(SparkTest):
 
     def test_broadcast_join_basic(self):
         """Test BroadcastAsOfJoiner with basic test data."""
-        # Load test data
-        test_name = "basic_join"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_df_builder(test_name, "expected_broadcast").as_tsdf()
+        # Load test data using function-based pattern
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected_broadcast").as_tsdf()
 
         # Create and execute broadcast join
         joiner = BroadcastAsOfJoiner(
@@ -47,11 +46,10 @@ class StrategiesIntegrationTest(SparkTest):
 
     def test_union_sort_filter_join_basic(self):
         """Test UnionSortFilterAsOfJoiner with basic test data."""
-        # Load test data
-        test_name = "basic_join"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_df_builder(test_name, "expected_union").as_tsdf()
+        # Load test data using function-based pattern
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected_union").as_tsdf()
 
         # Create and execute union-sort-filter join
         joiner = UnionSortFilterAsOfJoiner(
@@ -73,11 +71,10 @@ class StrategiesIntegrationTest(SparkTest):
 
     def test_tolerance_filtering(self):
         """Test tolerance parameter filtering."""
-        # Load test data
-        test_name = "tolerance_test"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_df_builder(test_name, "expected_tolerance_120").as_tsdf()
+        # Load test data using function-based pattern
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected_tolerance_120").as_tsdf()
 
         # Create joiner with tolerance
         joiner = UnionSortFilterAsOfJoiner(
@@ -100,13 +97,12 @@ class StrategiesIntegrationTest(SparkTest):
 
     def test_skip_nulls_behavior(self):
         """Test skipNulls parameter behavior."""
-        # Load test data
-        test_name = "null_handling"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        # Load test data using function-based pattern
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
 
         # Test with skipNulls=True
-        expected_tsdf = self.get_test_df_builder(test_name, "expected_skip_nulls_true").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected_skip_nulls_true").as_tsdf()
         joiner = UnionSortFilterAsOfJoiner(
             left_prefix="",
             right_prefix="right",
@@ -121,7 +117,7 @@ class StrategiesIntegrationTest(SparkTest):
         )
 
         # Test with skipNulls=False
-        expected_tsdf = self.get_test_df_builder(test_name, "expected_skip_nulls_false").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected_skip_nulls_false").as_tsdf()
         joiner = UnionSortFilterAsOfJoiner(
             left_prefix="",
             right_prefix="right",
@@ -140,9 +136,9 @@ class StrategiesIntegrationTest(SparkTest):
         test_name = "empty_dataframes"
 
         # Test empty left DataFrame
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_df_builder(test_name, "expected").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder(test_name, "expected").as_tsdf()
 
         joiner = UnionSortFilterAsOfJoiner(
             left_prefix="",
@@ -163,9 +159,9 @@ class StrategiesIntegrationTest(SparkTest):
         See PR #XXX for details.
         """
         test_name = "null_lead_regression"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_df_builder(test_name, "expected").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder(test_name, "expected").as_tsdf()
 
         # Create and execute broadcast join
         joiner = BroadcastAsOfJoiner(
@@ -191,8 +187,8 @@ class StrategiesIntegrationTest(SparkTest):
     def test_strategy_consistency(self):
         """Test that different strategies produce consistent results for the same data."""
         test_name = "basic_join"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
 
         # Test broadcast join
         broadcast_joiner = BroadcastAsOfJoiner(
@@ -222,8 +218,8 @@ class StrategiesIntegrationTest(SparkTest):
         """Test automatic strategy selection."""
         # Load test data
         test_name = "basic_join"
-        left_tsdf = self.get_test_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_df_builder(test_name, "right").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
 
         # Test with sql_join_opt=True (should potentially select broadcast for small data)
         strategy = choose_as_of_join_strategy(

@@ -12,7 +12,7 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from functools import reduce
-from typing import Optional, Tuple, Union, List, TYPE_CHECKING
+from typing import Optional, Tuple, Union, List
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, DataFrame, SparkSession
@@ -21,10 +21,6 @@ from pyspark.sql.window import Window
 # Import related components
 from tempo.tsschema import CompositeTSIndex, TSSchema
 from tempo.timeunit import TimeUnit
-
-# Avoid circular import
-if TYPE_CHECKING:
-    from tempo.tsdf import TSDF
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +68,13 @@ class AsOfJoiner(ABC):
         self.left_prefix = left_prefix
         self.right_prefix = right_prefix
 
-    def __call__(self, left: 'TSDF', right: 'TSDF') -> 'TSDF':
+    def __call__(self, left, right) -> Tuple[DataFrame, TSSchema]:
         """
         Execute the as-of join.
 
         :param left: Left TSDF
         :param right: Right TSDF
-        :return: Joined TSDF
+        :return: Tuple of (joined DataFrame, TSSchema)
         """
         # Check if the TSDFs are joinable
         self._checkAreJoinable(left, right)
@@ -87,7 +83,7 @@ class AsOfJoiner(ABC):
         # Perform the join
         return self._join(left, right)
 
-    def commonSeriesIDs(self, left: "TSDF", right: "TSDF") -> set:
+    def commonSeriesIDs(self, left, right) -> set:
         """
         Returns the common series IDs between the left and right TSDFs.
 
@@ -97,7 +93,7 @@ class AsOfJoiner(ABC):
         """
         return set(left.series_ids).intersection(set(right.series_ids))
 
-    def _prefixableColumns(self, left: "TSDF", right: "TSDF") -> set:
+    def _prefixableColumns(self, left, right) -> set:
         """
         Returns the overlapping columns in the left and right TSDFs
         not including overlapping series IDs.
@@ -107,8 +103,8 @@ class AsOfJoiner(ABC):
         ) - self.commonSeriesIDs(left, right)
 
     def _prefixColumns(
-        self, tsdf: "TSDF", prefixable_cols: set, prefix: str
-    ) -> "TSDF":
+        self, tsdf, prefixable_cols: set, prefix: str
+    ):
         """
         Prefixes the columns in the TSDF.
         """
@@ -123,8 +119,8 @@ class AsOfJoiner(ABC):
         return tsdf
 
     def _prefixOverlappingColumns(
-        self, left: "TSDF", right: "TSDF"
-    ) -> tuple["TSDF", "TSDF"]:
+        self, left, right
+    ) -> tuple:
         """
         Prefixes the overlapping columns in the left and right TSDFs.
         """
@@ -137,7 +133,7 @@ class AsOfJoiner(ABC):
 
         return left_prefixed, right_prefixed
 
-    def _checkAreJoinable(self, left: "TSDF", right: "TSDF") -> None:
+    def _checkAreJoinable(self, left, right) -> None:
         """
         Checks if the left and right TSDFs are joinable.
         Raises an exception if they are not compatible.
@@ -161,14 +157,14 @@ class AsOfJoiner(ABC):
             )
 
     @abstractmethod
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
         """
         Performs the actual join operation.
         Must be implemented by subclasses.
 
         :param left: Left TSDF
         :param right: Right TSDF
-        :return: Joined TSDF
+        :return: Tuple of (joined DataFrame, TSSchema)
         """
         pass
 
@@ -200,13 +196,13 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         self.spark = spark
         self.range_join_bin_size = range_join_bin_size
 
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
         """
         Performs broadcast as-of join.
 
         :param left: Left TSDF
         :param right: Right TSDF
-        :return: Joined TSDF
+        :return: Tuple of (joined DataFrame, TSSchema)
         """
         # Set the range join bin size for optimization
         self.spark.conf.set(
@@ -269,9 +265,8 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         # Drop the lead column
         res_df = res_df.drop(lead_colname)
 
-        # Return with the left-hand schema
-        from tempo.tsdf import TSDF
-        return TSDF(res_df, ts_schema=left.ts_schema)
+        # Return DataFrame and schema tuple
+        return res_df, left.ts_schema
 
 
 class UnionSortFilterAsOfJoiner(AsOfJoiner):
@@ -302,13 +297,13 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         self.skipNulls = skipNulls
         self.tolerance = tolerance
 
-    def _appendNullColumns(self, tsdf: "TSDF", cols: set) -> "TSDF":
+    def _appendNullColumns(self, tsdf, cols: set):
         """
         Appends null columns to the TSDF.
 
-        :param tsdf: "TSDF" to modify
+        :param tsdf: TSDF to modify
         :param cols: Set of columns to add as nulls
-        :return: "TSDF" with added null columns
+        :return: TSDF with added null columns
         """
         return reduce(
             lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)),
@@ -316,7 +311,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             tsdf
         )
 
-    def _combine(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _combine(self, left, right):
         """
         Combines the left and right TSDFs into a single TSDF.
 
@@ -371,7 +366,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         )
 
         # Put it all together in a new TSDF
-        # Import here to avoid circular dependency
+        # We need TSDF for internal operations only
         from tempo.tsdf import TSDF
         return TSDF(
             with_combined_ts.df,
@@ -379,8 +374,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         )
 
     def _filterLastRightRow(
-        self, combined: "TSDF", right_cols: set, last_left_tsschema: TSSchema
-    ) -> "TSDF":
+        self, combined, right_cols: set, last_left_tsschema: TSSchema
+    ):
         """
         Filters out the last right-hand row for each left-hand row.
 
@@ -425,18 +420,17 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             sfn.col(right_row_field) == _LEFT_HAND_ROW_INDICATOR
         ).drop(_DEFAULT_COMBINED_TS_COLNAME)
 
-        # Return with the left-hand schema
-        # Import here to avoid circular dependency
+        # We need TSDF for internal use but return raw data
         from tempo.tsdf import TSDF
         return TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
     def _toleranceFilter(
         self,
-        as_of: "TSDF",
+        as_of,
         left_ts_col: str,
         right_ts_col: str,
         right_columns: List[str]
-    ) -> "TSDF":
+    ):
         """
         Filters out rows from the as_of TSDF that are outside the tolerance.
 
@@ -474,13 +468,13 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         as_of.df = df
         return as_of
 
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
         """
         Performs union-sort-filter as-of join.
 
         :param left: Left TSDF
         :param right: Right TSDF
-        :return: Joined TSDF
+        :return: Tuple of (joined DataFrame, TSSchema)
         """
         # Find the new columns to add to the left and right TSDFs
         right_only_cols = set(right.columns) - set(left.columns)
@@ -514,7 +508,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
 
             as_of = self._toleranceFilter(as_of, left_ts_col, right_ts_col, right_columns)
 
-        return as_of
+        # Return DataFrame and schema tuple
+        return as_of.df, as_of.ts_schema
 
 
 class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
@@ -548,14 +543,14 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
         self.tsPartitionVal = tsPartitionVal
         self.fraction = fraction
 
-    def _applyTimePartitions(self, tsdf: "TSDF") -> "TSDF":
+    def _applyTimePartitions(self, tsdf):
         """
         Apply time-based partitioning with overlap to handle skew.
 
         Creates overlapping time windows to handle edge cases where
         timestamps near partition boundaries need data from adjacent partitions.
 
-        :param tsdf: "TSDF" to partition
+        :param tsdf: TSDF to partition
         :return: Partitioned TSDF with overlap
         """
         if self.tsPartitionVal is None:
@@ -600,13 +595,13 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
             df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids + ["ts_partition"]
         )
 
-    def _join(self, left: "TSDF", right: "TSDF") -> "TSDF":
+    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
         """
         Performs skew-aware as-of join using time-based partitioning.
 
         :param left: Left TSDF
         :param right: Right TSDF
-        :return: Joined TSDF
+        :return: Tuple of (joined DataFrame, TSSchema)
         """
         # Log skew handling
         if self.tsPartitionVal:
@@ -654,7 +649,8 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
 
             as_of = self._toleranceFilter(as_of, left_ts_col, right_ts_col, right_columns)
 
-        return as_of
+        # Return DataFrame and schema tuple
+        return as_of.df, as_of.ts_schema
 
 
 # Helper functions for strategy selection
@@ -705,8 +701,8 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
 
 
 def choose_as_of_join_strategy(
-    left_tsdf: "TSDF",
-    right_tsdf: "TSDF",
+    left_tsdf,
+    right_tsdf,
     left_prefix: Optional[str] = None,
     right_prefix: str = "right",
     tsPartitionVal: Optional[int] = None,

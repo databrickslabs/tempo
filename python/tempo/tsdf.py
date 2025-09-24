@@ -992,7 +992,9 @@ class TSDF(WindowBuilder):
                 )
 
                 logger.info(f"Using as-of join strategy: {joiner.__class__.__name__}")
-                return joiner(self, right_tsdf)
+                # Call the joiner and wrap the result in a TSDF
+                result_df, result_schema = joiner(self, right_tsdf)
+                return TSDF(result_df, ts_schema=result_schema)
 
             except Exception as e:
                 # If strategy pattern fails, log and fall back to original
