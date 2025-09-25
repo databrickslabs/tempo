@@ -392,10 +392,41 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         right_row_field = combined.ts_index.fieldPath(_DEFAULT_RIGHT_ROW_COLNAME)
 
         if self.skipNulls:
-            # Use Spark's last() with ignoreNulls=True
-            last_right_cols = [
-                sfn.last(col, True).over(w).alias(col) for col in right_cols
-            ]
+            # When skipNulls=True, we want to skip entire rows where any value column is NULL
+            # Create a condition that checks if any value column (excluding timestamp) is NULL
+            # Note: right_cols includes both timestamp and value columns from the right side
+
+            # Get value columns (exclude timestamp columns from right_cols)
+            # We assume timestamp columns contain 'timestamp' in their name
+            value_cols = [col for col in right_cols if 'timestamp' not in col.lower()]
+
+            # Create a condition: row is valid if all value columns are non-null
+            if value_cols:
+                # Check if any value column is NULL
+                any_null_condition = sfn.lit(False)
+                for col in value_cols:
+                    any_null_condition = any_null_condition | sfn.col(col).isNull()
+
+                # Use last() with a conditional struct that excludes rows with NULL values
+                last_right_cols = []
+                for col in right_cols:
+                    last_right_cols.append(
+                        sfn.last(
+                            sfn.when(
+                                (sfn.col(right_row_field) == _RIGHT_HAND_ROW_INDICATOR) &
+                                ~any_null_condition,
+                                sfn.struct(col)
+                            ).otherwise(None),
+                            True
+                        )
+                        .over(w)[col]
+                        .alias(col)
+                    )
+            else:
+                # No value columns to check, use simple last with ignoreNulls
+                last_right_cols = [
+                    sfn.last(col, True).over(w).alias(col) for col in right_cols
+                ]
         else:
             # Include nulls in the window calculation
             last_right_cols = [
