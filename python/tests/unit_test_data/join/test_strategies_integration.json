@@ -9,7 +9,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double",
+          "schema": "timestamp string, symbol string, value double",
           "ts_convert": [
             "timestamp"
           ],
@@ -55,7 +55,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, price double",
+          "schema": "timestamp string, symbol string, price double",
           "ts_convert": [
             "timestamp"
           ],
@@ -101,7 +101,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -160,7 +160,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -221,7 +221,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double",
+          "schema": "timestamp string, symbol string, value double",
           "ts_convert": [
             "timestamp"
           ],
@@ -267,7 +267,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, price double",
+          "schema": "timestamp string, symbol string, price double",
           "ts_convert": [
             "timestamp"
           ],
@@ -313,7 +313,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -372,7 +372,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -433,7 +433,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double",
+          "schema": "timestamp string, symbol string, value double",
           "ts_convert": [
             "timestamp"
           ],
@@ -464,7 +464,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, price double",
+          "schema": "timestamp string, symbol string, price double",
           "ts_convert": [
             "timestamp"
           ],
@@ -495,7 +495,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -535,7 +535,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double",
+          "schema": "timestamp string, symbol string, value double",
           "ts_convert": [
             "timestamp"
           ],
@@ -566,7 +566,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, price double",
+          "schema": "timestamp string, symbol string, price double",
           "ts_convert": [
             "timestamp"
           ],
@@ -597,7 +597,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -635,7 +635,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -675,7 +675,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double",
+          "schema": "timestamp string, symbol string, value double",
           "ts_convert": [
             "timestamp"
           ],
@@ -690,7 +690,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, price double",
+          "schema": "timestamp string, symbol string, price double",
           "ts_convert": [
             "timestamp"
           ],
@@ -711,7 +711,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"
@@ -729,7 +729,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double",
+          "schema": "timestamp string, symbol string, value double",
           "ts_convert": [
             "timestamp"
           ],
@@ -760,7 +760,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, price double",
+          "schema": "timestamp string, symbol string, price double",
           "ts_convert": [
             "timestamp"
           ],
@@ -786,7 +786,7 @@
           ]
         },
         "df": {
-          "schema": "timestamp timestamp, symbol string, value double, right_timestamp timestamp, right_price double",
+          "schema": "timestamp string, symbol string, value double, right_timestamp string, right_price double",
           "ts_convert": [
             "timestamp",
             "right_timestamp"

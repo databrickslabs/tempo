@@ -215,16 +215,18 @@ class StrategiesIntegrationTest(SparkTest):
 
 ##### 5. Adding New Integration Tests
 
-1. **Create test data JSON**:
+1. **Create test data JSON** (must mirror test file location):
    ```bash
+   # For test file: tests/your_module/test_something.py
+   # Data file must be: tests/unit_test_data/your_module/test_something.json
    mkdir -p tests/unit_test_data/your_module/
-   vim tests/unit_test_data/your_module/your_test.json
+   vim tests/unit_test_data/your_module/test_something.json
    ```
 
 2. **Create test file**:
    ```bash
    mkdir -p tests/your_module/
-   vim tests/your_module/test_your_integration.py
+   vim tests/your_module/test_something.py
    ```
 
 3. **Implement test class**:
@@ -235,7 +237,10 @@ class StrategiesIntegrationTest(SparkTest):
 
 ##### 6. Best Practices
 
-- **Mirror directory structure** between implementation and tests
+- **Mirror directory structure** between tests and test data:
+  - Test file: `tests/join/test_strategies.py`
+  - Test data: `tests/unit_test_data/join/test_strategies.json`
+  - The subdirectory structure must match exactly
 - **Use parameterized tests** to run same test with different data scenarios
 - **Include edge cases** in test data (nulls, empty DataFrames, etc.)
 - **Document expected behavior** in test method docstrings
@@ -295,6 +300,12 @@ This document provides a comprehensive implementation strategy for enhancing as-
    - [ ] Consider alternative approaches for true nanosecond precision
    - [ ] Add SkewAsOfJoiner implementation if needed for data skew handling
    - [ ] Add performance benchmarks comparing strategies
+
+#### 🔧 Technical Debt
+1. **Test Framework Migration**
+   - [ ] Remove unittest-specific code paths in `tests/base.py::setUp()` once pytest is fully adopted
+   - Currently, the setUp method has conditional logic to handle both unittest and pytest module paths
+   - When pytest is fully adopted, simplify to only use the inspect-based path resolution
 
 ## Features to Implement
 

@@ -33,15 +33,14 @@ class StrategiesIntegrationTest(SparkTest):
             right_prefix="right"
         )
 
-        # Execute join
-        result = joiner(left_tsdf, right_tsdf)
+        # Execute join - returns (DataFrame, TSSchema) tuple
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Compare with expected results
         self.assertDataFrameEquality(
-            result.df,
+            result_df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            ignore_row_order=True
         )
 
     def test_union_sort_filter_join_basic(self):
@@ -58,15 +57,14 @@ class StrategiesIntegrationTest(SparkTest):
             skipNulls=True
         )
 
-        # Execute join
-        result = joiner(left_tsdf, right_tsdf)
+        # Execute join - returns (DataFrame, TSSchema) tuple
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Compare with expected results
         self.assertDataFrameEquality(
-            result.df,
+            result_df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            ignore_row_order=True
         )
 
     def test_tolerance_filtering(self):
@@ -84,15 +82,14 @@ class StrategiesIntegrationTest(SparkTest):
             tolerance=120  # 2 minutes tolerance
         )
 
-        # Execute join
-        result = joiner(left_tsdf, right_tsdf)
+        # Execute join - returns (DataFrame, TSSchema) tuple
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Compare with expected results
         self.assertDataFrameEquality(
-            result.df,
+            result_df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            ignore_row_order=True
         )
 
     def test_skip_nulls_behavior(self):
@@ -110,10 +107,9 @@ class StrategiesIntegrationTest(SparkTest):
         )
         result = joiner(left_tsdf, right_tsdf)
         self.assertDataFrameEquality(
-            result.df,
+            result_df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            ignore_row_order=True
         )
 
         # Test with skipNulls=False
@@ -125,10 +121,9 @@ class StrategiesIntegrationTest(SparkTest):
         )
         result = joiner(left_tsdf, right_tsdf)
         self.assertDataFrameEquality(
-            result.df,
+            result_df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            ignore_row_order=True
         )
 
     def test_empty_dataframe_handling(self):
@@ -178,10 +173,9 @@ class StrategiesIntegrationTest(SparkTest):
 
         # Compare with expected results
         self.assertDataFrameEquality(
-            result.df,
+            result_df,
             expected_tsdf.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            ignore_row_order=True
         )
 
     def test_strategy_consistency(self):
@@ -196,7 +190,7 @@ class StrategiesIntegrationTest(SparkTest):
             left_prefix="",
             right_prefix="right"
         )
-        broadcast_result = broadcast_joiner(left_tsdf, right_tsdf)
+        broadcast_result_df, broadcast_result_schema = broadcast_joiner(left_tsdf, right_tsdf)
 
         # Test union-sort-filter join
         union_joiner = UnionSortFilterAsOfJoiner(
@@ -204,14 +198,13 @@ class StrategiesIntegrationTest(SparkTest):
             right_prefix="right",
             skipNulls=True
         )
-        union_result = union_joiner(left_tsdf, right_tsdf)
+        union_result_df, union_result_schema = union_joiner(left_tsdf, right_tsdf)
 
         # Results should be identical
         self.assertDataFrameEquality(
-            broadcast_result.df,
-            union_result.df,
-            from_tsdf=True,
-            order_by_cols=["symbol", "timestamp"]
+            broadcast_result_df,
+            union_result_df,
+            ignore_row_order=True
         )
 
     def test_automatic_strategy_selection(self):
