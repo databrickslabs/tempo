@@ -12,7 +12,7 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from functools import reduce
-from typing import Optional, Tuple, Union, List
+from typing import Any, Optional, Tuple, Union, List
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, DataFrame, SparkSession
@@ -538,140 +538,379 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         return as_of.df, as_of.ts_schema
 
 
-class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
+class SkewAsOfJoiner(AsOfJoiner):
     """
     Skew-aware join strategy for as-of joins.
 
-    Optimized for datasets with skewed distributions.
-    Uses time-based partitioning to handle skew.
+    Leverages Spark's Adaptive Query Execution (AQE) to automatically handle
+    skewed data distributions. For extreme skew cases, provides additional
+    strategies including key separation and salting.
+
+    This implementation prioritizes simplicity and Spark's built-in optimizations
+    over manual partitioning schemes.
     """
 
     def __init__(
         self,
+        spark: SparkSession,
         left_prefix: str = "left",
         right_prefix: str = "right",
         skipNulls: bool = True,
         tolerance: Optional[int] = None,
-        tsPartitionVal: Optional[int] = None,
-        fraction: float = 0.5,
+        skew_threshold: float = 0.2,  # If one key has >20% of data
+        enable_salting: bool = False,
+        salt_buckets: int = 10,
+        tsPartitionVal: Optional[int] = None,  # Keep for backward compatibility
     ):
         """
         Initialize the SkewAsOfJoiner.
 
+        :param spark: SparkSession instance
         :param left_prefix: Prefix for left DataFrame columns
         :param right_prefix: Prefix for right DataFrame columns
         :param skipNulls: Whether to skip null values in the join
         :param tolerance: Tolerance window in seconds (optional)
-        :param tsPartitionVal: Time partition value in seconds
-        :param fraction: Overlap fraction for partitions
+        :param skew_threshold: Threshold for detecting skewed keys (fraction of total data)
+        :param enable_salting: Whether to use salting for extreme skew
+        :param salt_buckets: Number of salt buckets when salting is enabled
+        :param tsPartitionVal: [Deprecated] Time partition value in seconds (kept for compatibility)
         """
-        super().__init__(left_prefix, right_prefix, skipNulls, tolerance)
-        self.tsPartitionVal = tsPartitionVal
-        self.fraction = fraction
+        super().__init__(left_prefix, right_prefix)
+        self.spark = spark
+        self.skipNulls = skipNulls
+        self.tolerance = tolerance
+        self.skew_threshold = skew_threshold
+        self.enable_salting = enable_salting
+        self.salt_buckets = salt_buckets
+        self.tsPartitionVal = tsPartitionVal  # Deprecated but kept for compatibility
 
-    def _applyTimePartitions(self, tsdf):
+        # Configure AQE settings for this session
+        self._configureAQE()
+
+    def _configureAQE(self):
         """
-        Apply time-based partitioning with overlap to handle skew.
-
-        Creates overlapping time windows to handle edge cases where
-        timestamps near partition boundaries need data from adjacent partitions.
-
-        :param tsdf: TSDF to partition
-        :return: Partitioned TSDF with overlap
+        Configure Adaptive Query Execution settings for optimal skew handling.
         """
-        if self.tsPartitionVal is None:
-            return tsdf
+        # Enable AQE and skew join optimization
+        self.spark.conf.set("spark.sql.adaptive.enabled", "true")
+        self.spark.conf.set("spark.sql.adaptive.skewJoin.enabled", "true")
 
-        # Cast timestamp to double for partitioning
-        partition_df = (
-            tsdf.df.withColumn(
-                "ts_col_double", sfn.col(tsdf.ts_col).cast("double")
-            )
-            .withColumn(
-                "ts_partition",
-                sfn.lit(self.tsPartitionVal)
-                * (sfn.col("ts_col_double") / sfn.lit(self.tsPartitionVal)).cast("integer"),
-            )
-            .withColumn(
-                "partition_remainder",
-                (sfn.col("ts_col_double") - sfn.col("ts_partition"))
-                / sfn.lit(self.tsPartitionVal),
-            )
-            .withColumn("is_original", sfn.lit(1))
-        ).cache()  # Cache because it's used twice
+        # Configure skew detection thresholds
+        # A partition is considered skewed if it's 5x larger than median
+        self.spark.conf.set("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "5")
+        # Or if it's larger than 256MB
+        self.spark.conf.set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "256MB")
 
-        # Add overlap: include [1 - fraction] of previous time partition in next partition
-        remainder_df = (
-            partition_df.filter(sfn.col("partition_remainder") >= sfn.lit(1 - self.fraction))
-            .withColumn(
-                "ts_partition", sfn.col("ts_partition") + sfn.lit(self.tsPartitionVal)
-            )
-            .withColumn("is_original", sfn.lit(0))
+        # Enable coalescing of small partitions
+        self.spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
+
+        logger.info("Configured AQE for skew handling")
+
+    def _detectSkewedKeys(self, left, right) -> List[Any]:
+        """
+        Detect heavily skewed keys in the data.
+
+        :param left: Left TSDF
+        :param right: Right TSDF
+        :return: List of skewed key values
+        """
+        if not left.series_ids:
+            return []  # No series keys to be skewed
+
+        # Sample the data if it's too large
+        sample_fraction = min(1.0, 1000000 / left.df.count())
+        if sample_fraction < 1.0:
+            left_sample = left.df.sample(fraction=sample_fraction)
+        else:
+            left_sample = left.df
+
+        # Group by series keys and count
+        series_cols = left.series_ids
+        key_counts = (
+            left_sample.groupBy(*series_cols)
+            .count()
+            .withColumn("total_count", sfn.sum("count").over(Window.partitionBy()))
+            .withColumn("fraction", sfn.col("count") / sfn.col("total_count"))
         )
 
-        # Union original and overlapped data
-        df = partition_df.union(remainder_df).drop(
-            "partition_remainder", "ts_col_double"
+        # Find keys that exceed the skew threshold
+        skewed_keys = (
+            key_counts.filter(sfn.col("fraction") > self.skew_threshold)
+            .select(*series_cols)
+            .collect()
         )
 
-        # Return TSDF with ts_partition added to series IDs
-        # Import here to avoid circular dependency
-        from tempo.tsdf import TSDF
-        return TSDF(
-            df, ts_col=tsdf.ts_col, series_ids=tsdf.series_ids + ["ts_partition"]
-        )
+        if skewed_keys:
+            logger.info(f"Detected {len(skewed_keys)} skewed keys exceeding {self.skew_threshold:.0%} threshold")
+            # Convert Row objects to tuples for easier handling
+            return [tuple(row) for row in skewed_keys]
+
+        return []
 
     def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
         """
-        Performs skew-aware as-of join using time-based partitioning.
+        Performs skew-aware as-of join using AQE and optional skew handling strategies.
 
         :param left: Left TSDF
         :param right: Right TSDF
         :return: Tuple of (joined DataFrame, TSSchema)
         """
-        # Log skew handling
-        if self.tsPartitionVal:
-            logger.info(f"Using SkewAsOfJoiner with partition value {self.tsPartitionVal}")
+        logger.info("Using SkewAsOfJoiner with AQE optimization")
 
-        # Find the new columns to add to the left and right TSDFs
-        right_only_cols = set(right.columns) - set(left.columns)
-        left_only_cols = set(left.columns) - set(right.columns)
+        # Detect if we have severely skewed keys
+        skewed_keys = self._detectSkewedKeys(left, right) if self.skew_threshold < 1.0 else []
 
-        # Append null columns to the left and right TSDFs
-        extended_left = self._appendNullColumns(left, right_only_cols)
-        extended_right = self._appendNullColumns(right, left_only_cols)
+        if not skewed_keys:
+            # No extreme skew detected, use standard AQE-optimized join
+            return self._standardAsOfJoin(left, right)
+        else:
+            # Extreme skew detected, use separate processing
+            logger.info(f"Processing {len(skewed_keys)} skewed keys separately")
+            return self._skewSeparatedJoin(left, right, skewed_keys)
 
-        # Combine the left and right TSDFs
-        combined = self._combine(extended_left, extended_right)
+    def _standardAsOfJoin(self, left, right) -> Tuple[DataFrame, TSSchema]:
+        """
+        Perform standard as-of join with AQE optimization.
 
-        # Apply time-based partitioning if specified
-        if self.tsPartitionVal:
-            combined = self._applyTimePartitions(combined)
+        This lets Spark's AQE handle any moderate skew automatically.
+        """
+        # Add hints for potential skew on series columns
+        left_df = left.df
+        right_df = right.df
 
-        # Filter to get last right row for each left row
-        as_of = self._filterLastRightRow(
-            combined, right_only_cols, extended_left.ts_schema
+        if left.series_ids:
+            left_df = left_df.hint("skew", left.series_ids)
+            right_df = right_df.hint("skew", right.series_ids)
+
+        # Perform the as-of join using a range join approach
+        # First, add a window to get the lead timestamp for each right row
+        window_spec = Window.partitionBy(*left.series_ids).orderBy(right.ts_col)
+        right_with_lead = right_df.withColumn(
+            "lead_ts",
+            sfn.lead(right.ts_col).over(window_spec)
         )
 
-        # Remove overlapped data if time partitioning was used
-        if self.tsPartitionVal:
-            as_of.df = as_of.df.filter(sfn.col("is_original") == 1).drop(
-                "ts_partition", "is_original"
-            )
+        # Join condition: series match AND left.ts between right.ts and right.lead_ts
+        join_conditions = [sfn.col(f"l.{col}") == sfn.col(f"r.{col}") for col in left.series_ids]
+        join_conditions.append(
+            (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}")) &
+            ((sfn.col("r.lead_ts").isNull()) |
+             (sfn.col(f"l.{left.ts_col}") < sfn.col("r.lead_ts")))
+        )
+
+        # Perform the join
+        joined = left_df.alias("l").join(
+            right_with_lead.alias("r"),
+            on=join_conditions,
+            how="left"
+        )
+
+        # Apply skipNulls filter if needed
+        if self.skipNulls:
+            joined = self._applySkipNulls(joined, right)
+
+        # Select final columns with proper prefixes
+        result_df = self._selectFinalColumns(joined, left, right)
 
         # Apply tolerance filter if specified
         if self.tolerance is not None:
-            # Get the actual timestamp column names (already prefixed by _prefixOverlappingColumns)
-            left_ts_col = left.ts_col
-            right_ts_col = right.ts_col
+            result_df = self._applyToleranceFilter(result_df, left, right)
 
-            # Get list of right columns (already prefixed if needed)
-            right_columns = list(right_only_cols)
+        # Create result schema
+        result_schema = TSSchema(
+            ts_col=left.ts_col,
+            series_ids=left.series_ids,
+            ts_index=left.ts_index
+        )
 
-            as_of = self._toleranceFilter(as_of, left_ts_col, right_ts_col, right_columns)
+        return result_df, result_schema
 
-        # Return DataFrame and schema tuple
-        return as_of.df, as_of.ts_schema
+    def _skewSeparatedJoin(self, left, right, skewed_keys) -> Tuple[DataFrame, TSSchema]:
+        """
+        Handle skewed and non-skewed keys separately, then union results.
+
+        :param left: Left TSDF
+        :param right: Right TSDF
+        :param skewed_keys: List of skewed key values
+        :return: Tuple of (joined DataFrame, TSSchema)
+        """
+        # Build filter conditions for skewed keys
+        if len(left.series_ids) == 1:
+            # Single series column
+            skewed_filter = sfn.col(left.series_ids[0]).isin([k[0] for k in skewed_keys])
+        else:
+            # Multiple series columns - need complex filter
+            skewed_filter = sfn.lit(False)
+            for key_tuple in skewed_keys:
+                key_condition = sfn.lit(True)
+                for i, col in enumerate(left.series_ids):
+                    key_condition = key_condition & (sfn.col(col) == key_tuple[i])
+                skewed_filter = skewed_filter | key_condition
+
+        # Split data
+        left_skewed = TSDF(left.df.filter(skewed_filter), left.ts_col, left.series_ids, left.ts_index)
+        left_normal = TSDF(left.df.filter(~skewed_filter), left.ts_col, left.series_ids, left.ts_index)
+        right_skewed = TSDF(right.df.filter(skewed_filter), right.ts_col, right.series_ids, right.ts_index)
+        right_normal = TSDF(right.df.filter(~skewed_filter), right.ts_col, right.series_ids, right.ts_index)
+
+        # Process non-skewed with standard join
+        normal_result, schema = self._standardAsOfJoin(left_normal, right_normal)
+
+        # Process skewed with salting or broadcast (depending on size)
+        if self.enable_salting:
+            skewed_result, _ = self._saltedAsOfJoin(left_skewed, right_skewed)
+        else:
+            # Try broadcast if right side is small enough
+            right_size = get_bytes_from_plan(right_skewed.df, self.spark)
+            if right_size < 100 * 1024 * 1024:  # 100MB threshold for skewed
+                logger.info("Using broadcast for skewed keys")
+                skewed_result, _ = BroadcastAsOfJoiner(
+                    self.spark, self.left_prefix, self.right_prefix
+                )(left_skewed, right_skewed)
+            else:
+                # Fall back to standard join with AQE
+                skewed_result, _ = self._standardAsOfJoin(left_skewed, right_skewed)
+
+        # Union results
+        result_df = normal_result.unionByName(skewed_result, allowMissingColumns=True)
+
+        return result_df, schema
+
+    def _saltedAsOfJoin(self, left, right) -> Tuple[DataFrame, TSSchema]:
+        """
+        Perform salted as-of join for extreme skew cases.
+
+        :param left: Left TSDF
+        :param right: Right TSDF
+        :return: Tuple of (joined DataFrame, TSSchema)
+        """
+        logger.info(f"Using salted join with {self.salt_buckets} buckets")
+
+        # Add deterministic salt to left based on hash of series keys
+        if left.series_ids:
+            salt_expr = sfn.abs(sfn.hash(*[sfn.col(c) for c in left.series_ids])) % self.salt_buckets
+        else:
+            salt_expr = sfn.abs(sfn.hash(sfn.col(left.ts_col))) % self.salt_buckets
+
+        left_salted = left.df.withColumn("__salt", salt_expr)
+
+        # Explode right to all salt buckets
+        right_salted = right.df.crossJoin(
+            self.spark.range(self.salt_buckets).select(sfn.col("id").alias("__salt"))
+        )
+
+        # Now perform the join including salt in the join key
+        join_conditions = [sfn.col(f"l.{col}") == sfn.col(f"r.{col}") for col in left.series_ids]
+        join_conditions.append(sfn.col("l.__salt") == sfn.col("r.__salt"))
+
+        # Add temporal condition using window approach
+        window_spec = Window.partitionBy(*[f"r.{col}" for col in left.series_ids], "r.__salt").orderBy(f"r.{right.ts_col}")
+        right_with_lead = right_salted.withColumn(
+            "lead_ts",
+            sfn.lead(f"r.{right.ts_col}").over(window_spec)
+        )
+
+        join_conditions.append(
+            (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}")) &
+            ((sfn.col("lead_ts").isNull()) |
+             (sfn.col(f"l.{left.ts_col}") < sfn.col("lead_ts")))
+        )
+
+        # Perform the salted join
+        joined = left_salted.alias("l").join(
+            right_with_lead.alias("r"),
+            on=join_conditions,
+            how="left"
+        )
+
+        # Remove salt columns and select final columns
+        result_df = joined.drop("__salt", "lead_ts")
+        result_df = self._selectFinalColumns(result_df, left, right)
+
+        # Apply filters
+        if self.skipNulls:
+            result_df = self._applySkipNulls(result_df, right)
+        if self.tolerance is not None:
+            result_df = self._applyToleranceFilter(result_df, left, right)
+
+        result_schema = TSSchema(
+            ts_col=left.ts_col,
+            series_ids=left.series_ids,
+            ts_index=left.ts_index
+        )
+
+        return result_df, result_schema
+
+    def _selectFinalColumns(self, joined_df, left, right):
+        """
+        Select and rename columns for the final output.
+        """
+        final_cols = []
+
+        # Add left columns
+        for col in left.columns:
+            if col in left.series_ids or col == left.ts_col:
+                # Keep original name for series and timestamp
+                final_cols.append(sfn.col(f"l.{col}").alias(col))
+            else:
+                # Add prefix if specified
+                alias = f"{self.left_prefix}_{col}" if self.left_prefix else col
+                final_cols.append(sfn.col(f"l.{col}").alias(alias))
+
+        # Add right columns (excluding series columns)
+        for col in right.columns:
+            if col not in right.series_ids:
+                alias = f"{self.right_prefix}_{col}" if self.right_prefix else col
+                # Handle potential column name from join
+                if "r." + col in joined_df.columns:
+                    final_cols.append(sfn.col(f"r.{col}").alias(alias))
+                elif col in joined_df.columns:
+                    final_cols.append(sfn.col(col).alias(alias))
+
+        return joined_df.select(*final_cols)
+
+    def _applySkipNulls(self, joined_df, right):
+        """
+        Apply skipNulls logic to filter out rows with null right values.
+        """
+        # Get right value columns (non-timestamp, non-series)
+        right_value_cols = [col for col in right.columns
+                           if col != right.ts_col and col not in right.series_ids]
+
+        if not right_value_cols:
+            return joined_df
+
+        # Check if any right value column is NULL
+        null_check = sfn.lit(False)
+        for col in right_value_cols:
+            if f"r.{col}" in joined_df.columns:
+                null_check = null_check | sfn.col(f"r.{col}").isNull()
+
+        # Keep rows where right timestamp is null (no match) or no nulls in values
+        return joined_df.filter(
+            sfn.col(f"r.{right.ts_col}").isNull() | ~null_check
+        )
+
+    def _applyToleranceFilter(self, result_df, left, right):
+        """
+        Apply tolerance filter to null out right columns outside tolerance window.
+        """
+        left_ts_col = left.ts_col
+        right_ts_col = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else right.ts_col
+
+        # Calculate time difference
+        time_diff = sfn.col(left_ts_col).cast("double") - sfn.col(right_ts_col).cast("double")
+        outside_tolerance = time_diff > self.tolerance
+
+        # Null out right columns if outside tolerance
+        for col in result_df.columns:
+            if col.startswith(self.right_prefix if self.right_prefix else "right"):
+                result_df = result_df.withColumn(
+                    col,
+                    sfn.when(outside_tolerance, sfn.lit(None)).otherwise(sfn.col(col))
+                )
+
+        return result_df
 
 
 # Helper functions for strategy selection
@@ -691,7 +930,7 @@ def get_spark_plan(df: DataFrame, spark: SparkSession) -> str:
 
 def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
     """
-    Extract estimated size in bytes from Spark execution plan.
+    Extract the estimated size in bytes from the Spark execution plan.
 
     :param df: Input DataFrame
     :param spark: SparkSession
@@ -799,3 +1038,44 @@ def choose_as_of_join_strategy(
             skipNulls,
             tolerance
         )
+
+
+def _detectSignificantSkew(left_tsdf, right_tsdf, threshold: float = 0.3) -> bool:
+    """
+    Quick heuristic to detect if data has significant skew.
+
+    :param left_tsdf: Left TSDF
+    :param right_tsdf: Right TSDF
+    :param threshold: Coefficient of variation threshold for skew detection
+    :return: True if significant skew is detected
+    """
+    try:
+        if not left_tsdf.series_ids:
+            return False  # No series to be skewed on
+
+        # Quick check: sample and look at partition sizes
+        # This is a heuristic - not perfect but fast
+        sample_size = min(10000, left_tsdf.df.count())
+        if sample_size < 100:
+            return False  # Too small to have meaningful skew
+
+        # Group by series and count
+        series_counts = (
+            left_tsdf.df
+            .sample(fraction=min(1.0, sample_size / left_tsdf.df.count()))
+            .groupBy(*left_tsdf.series_ids)
+            .count()
+            .select(sfn.stddev("count").alias("std"), sfn.avg("count").alias("avg"))
+            .collect()[0]
+        )
+
+        if series_counts["avg"] and series_counts["std"]:
+            # Coefficient of variation > threshold indicates skew
+            cv = series_counts["std"] / series_counts["avg"]
+            if cv > threshold:
+                logger.info(f"Detected data skew (CV={cv:.2f})")
+                return True
+    except Exception as e:
+        logger.debug(f"Could not detect skew: {e}")
+
+    return False
