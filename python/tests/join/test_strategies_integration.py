@@ -105,7 +105,7 @@ class StrategiesIntegrationTest(SparkTest):
             right_prefix="right",
             skipNulls=True
         )
-        result = joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
         self.assertDataFrameEquality(
             result_df,
             expected_tsdf.df,
@@ -119,7 +119,7 @@ class StrategiesIntegrationTest(SparkTest):
             right_prefix="right",
             skipNulls=False
         )
-        result = joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
         self.assertDataFrameEquality(
             result_df,
             expected_tsdf.df,
@@ -128,12 +128,10 @@ class StrategiesIntegrationTest(SparkTest):
 
     def test_empty_dataframe_handling(self):
         """Test handling of empty DataFrames."""
-        test_name = "empty_dataframes"
-
         # Test empty left DataFrame
-        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_function_df_builder(test_name, "expected").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected").as_tsdf()
 
         joiner = UnionSortFilterAsOfJoiner(
             left_prefix="",
@@ -141,11 +139,11 @@ class StrategiesIntegrationTest(SparkTest):
             skipNulls=True
         )
 
-        result = joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Empty left should result in empty output
-        self.assertEqual(result.df.count(), 0)
-        self.assertEqual(result.df.count(), expected_tsdf.df.count())
+        self.assertEqual(result_df.count(), 0)
+        self.assertEqual(result_df.count(), expected_tsdf.df.count())
 
     def test_null_lead_regression(self):
         """
@@ -153,10 +151,9 @@ class StrategiesIntegrationTest(SparkTest):
         Tests the fix for when the last row in a partition has NULL lead value.
         See PR #XXX for details.
         """
-        test_name = "null_lead_regression"
-        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
-        expected_tsdf = self.get_test_function_df_builder(test_name, "expected").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder("expected").as_tsdf()
 
         # Create and execute broadcast join
         joiner = BroadcastAsOfJoiner(
@@ -166,10 +163,10 @@ class StrategiesIntegrationTest(SparkTest):
         )
 
         # Execute join - should not fail with NULL lead
-        result = joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # All left rows should be preserved
-        self.assertEqual(result.df.count(), left_tsdf.df.count())
+        self.assertEqual(result_df.count(), left_tsdf.df.count())
 
         # Compare with expected results
         self.assertDataFrameEquality(
@@ -180,9 +177,8 @@ class StrategiesIntegrationTest(SparkTest):
 
     def test_strategy_consistency(self):
         """Test that different strategies produce consistent results for the same data."""
-        test_name = "basic_join"
-        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
 
         # Test broadcast join
         broadcast_joiner = BroadcastAsOfJoiner(
@@ -210,9 +206,8 @@ class StrategiesIntegrationTest(SparkTest):
     def test_automatic_strategy_selection(self):
         """Test automatic strategy selection."""
         # Load test data
-        test_name = "basic_join"
-        left_tsdf = self.get_test_function_df_builder(test_name, "left").as_tsdf()
-        right_tsdf = self.get_test_function_df_builder(test_name, "right").as_tsdf()
+        left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
+        right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
 
         # Test with sql_join_opt=True (should potentially select broadcast for small data)
         strategy = choose_as_of_join_strategy(
@@ -222,11 +217,11 @@ class StrategiesIntegrationTest(SparkTest):
         )
 
         # Execute join
-        result = strategy(left_tsdf, right_tsdf)
+        result_df, result_schema = strategy(left_tsdf, right_tsdf)
 
         # Verify result is valid
-        self.assertIsNotNone(result)
-        self.assertEqual(result.df.count(), left_tsdf.df.count())
+        self.assertIsNotNone(result_df)
+        self.assertEqual(result_df.count(), left_tsdf.df.count())
 
         # Test with tsPartitionVal (should select SkewAsOfJoiner)
         strategy = choose_as_of_join_strategy(

@@ -494,17 +494,12 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
 
         # Apply tolerance filter if specified
         if self.tolerance is not None:
-            # Get the timestamp column names with prefixes
-            left_ts_col = f"{self.left_prefix}_{left.ts_col}" if self.left_prefix else left.ts_col
-            right_ts_col = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else right.ts_col
+            # Get the actual timestamp column names (already prefixed by _prefixOverlappingColumns)
+            left_ts_col = left.ts_col
+            right_ts_col = right.ts_col
 
-            # Get list of right columns with prefixes
-            right_columns = []
-            for col in right_only_cols:
-                if self.right_prefix:
-                    right_columns.append(f"{self.right_prefix}_{col}")
-                else:
-                    right_columns.append(col)
+            # Get list of right columns (already prefixed if needed)
+            right_columns = list(right_only_cols)
 
             as_of = self._toleranceFilter(as_of, left_ts_col, right_ts_col, right_columns)
 
@@ -635,17 +630,12 @@ class SkewAsOfJoiner(UnionSortFilterAsOfJoiner):
 
         # Apply tolerance filter if specified
         if self.tolerance is not None:
-            # Get the timestamp column names with prefixes
-            left_ts_col = f"{self.left_prefix}_{left.ts_col}" if self.left_prefix else left.ts_col
-            right_ts_col = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else right.ts_col
+            # Get the actual timestamp column names (already prefixed by _prefixOverlappingColumns)
+            left_ts_col = left.ts_col
+            right_ts_col = right.ts_col
 
-            # Get list of right columns with prefixes
-            right_columns = []
-            for col in right_only_cols:
-                if self.right_prefix:
-                    right_columns.append(f"{self.right_prefix}_{col}")
-                else:
-                    right_columns.append(col)
+            # Get list of right columns (already prefixed if needed)
+            right_columns = list(right_only_cols)
 
             as_of = self._toleranceFilter(as_of, left_ts_col, right_ts_col, right_columns)
 
