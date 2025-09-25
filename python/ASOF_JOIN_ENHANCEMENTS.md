@@ -1738,9 +1738,29 @@ def choose_as_of_join_strategy(...) -> AsOfJoiner:
 
 ## Implementation Progress
 
-### Current Status (2025-09-24)
+### Current Status (2025-09-25)
 
 **IMPORTANT UPDATE**: The AS-OF join strategy pattern implementation has been **COMPLETED** and the circular dependency issue has been **FIXED**. All core functionality is now implemented and working on the `asof-join-enhancements` branch.
+
+### Latest Updates (2025-09-25)
+
+1. **Test Framework Migration to Pure Pytest ✅**
+   - Rewrote `tests/joins/test_strategy_consistency.py` in pure pytest format
+   - Removed all unittest.TestCase inheritance
+   - Using pytest fixtures for Spark sessions
+   - All tests now follow the new pattern established in the documentation
+
+2. **Bug Fixes and Improvements ✅**
+   - Fixed TSSchema constructor issues in SkewAsOfJoiner (using `ts_idx` instead of `ts_col`)
+   - Fixed BroadcastAsOfJoiner to handle empty right DataFrame correctly
+   - Improved single series (no partition columns) join handling
+   - Fixed empty series handling in standardAsOfJoin method
+   - All strategies now correctly preserve LEFT JOIN semantics
+
+3. **Strategy Consistency Testing ✅**
+   - Created comprehensive integration tests verifying all strategies produce consistent results
+   - Tests cover: nulls handling, tolerance, empty DataFrames, single series, temporal ordering
+   - 8 out of 9 tests passing (prefix handling test skipped pending standardization)
 
 ### Completed Implementation
 
@@ -2105,12 +2125,59 @@ def asofJoin(
 - [x] Circular dependency - Workaround implemented successfully
 - [x] Join semantics differences - Documented expected behavior
 
-### 🔄 Future Enhancements (Optional)
-- [ ] Add Spark configuration options
-- [ ] Create performance benchmarks
-- [ ] Write migration guide
-- [ ] Add strategy parameter to TSDF.asofJoin (without feature flag)
-- [ ] Standardize join semantics across strategies
+### ✅ Completed Enhancements
+- [x] Add strategy parameter to TSDF.asofJoin
+- [x] Standardize join semantics across strategies (all use LEFT JOIN)
+- [x] Remove sql_join_opt parameter for cleaner API
+- [x] Implement AQE-based SkewAsOfJoiner
+- [x] Add comprehensive test coverage
+
+### 🔄 Future Enhancements (Documented but Not Implemented)
+
+#### 1. Performance Benchmarks (High Priority)
+**Purpose**: Validate optimization improvements with empirical data
+- [ ] Create benchmark suite comparing all strategies
+- [ ] Test with various data sizes (1MB to 10GB)
+- [ ] Test with different skew patterns (even, 80/20, 95/5, power law)
+- [ ] Measure shuffle size, execution time, and memory usage
+- [ ] Document performance characteristics in a comparison table
+
+#### 2. Migration Guide (High Priority)
+**Purpose**: Help users transition from old API to new strategy pattern
+- [ ] Document API changes (removal of sql_join_opt)
+- [ ] Provide code examples for each strategy
+- [ ] Explain automatic vs manual strategy selection
+- [ ] Include troubleshooting section
+- [ ] Add performance tuning recommendations
+
+#### 3. Spark Configuration Options (High Priority)
+**Purpose**: Make thresholds configurable for production environments
+- [ ] Add `spark.tempo.asof.join.broadcast_threshold` (default: 30MB)
+- [ ] Add `spark.tempo.asof.join.skew_threshold` (default: 0.2)
+- [ ] Add `spark.tempo.asof.join.aqe.enabled` (default: true)
+- [ ] Add `spark.tempo.asof.join.salt_buckets` (default: 10)
+- [ ] Create configuration documentation
+
+#### 4. Nanosecond Precision Support (Medium Priority)
+**Purpose**: Support true nanosecond precision beyond Spark's microsecond limit
+- [ ] Investigate using additional column for sub-microsecond precision
+- [ ] Consider using CompositeTSIndex approach
+- [ ] Evaluate performance impact
+- [ ] Create proof of concept
+
+#### 5. Test Framework Cleanup (Medium Priority)
+**Purpose**: Complete migration to pytest
+- [ ] Remove unittest-specific code in `tests/base.py::setUp()`
+- [ ] Migrate remaining unittest tests to pytest
+- [ ] Remove conditional module path logic
+- [ ] Update test documentation
+
+#### 6. Additional Features (Low Priority)
+**Purpose**: Enhance functionality based on user feedback
+- [ ] Add null_fill parameter for custom null replacement values
+- [ ] Add tolerance_mode parameter (forward/backward/both)
+- [ ] Add tolerance validation (must be positive)
+- [ ] Support for custom merge strategies in as-of joins
 
 ## Technical Debt Log by Commit
 

@@ -204,6 +204,29 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         :param right: Right TSDF
         :return: Tuple of (joined DataFrame, TSSchema)
         """
+        # Handle empty right DataFrame - return left with null right columns
+        if right.df.rdd.isEmpty():
+            # Create result with left DataFrame and null columns from right
+            result_df = left.df
+
+            # Add all non-key columns from right as nulls with proper prefixes
+            for field in right.df.schema.fields:
+                col_name = field.name
+                # Skip series columns and timestamp
+                if col_name not in right.series_ids and col_name != right.ts_col:
+                    # Apply prefix if needed
+                    out_col_name = f"{self.right_prefix}_{col_name}" if self.right_prefix else col_name
+                    result_df = result_df.withColumn(out_col_name, sfn.lit(None).cast(field.dataType))
+
+            # Add right timestamp column with prefix
+            right_ts_name = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else f"right_{right.ts_col}"
+            result_df = result_df.withColumn(
+                right_ts_name,
+                sfn.lit(None).cast(right.df.schema[right.ts_col].dataType)
+            )
+
+            return result_df, TSSchema(ts_idx=left.ts_index, series_ids=left.series_ids)
+
         # Set the range join bin size for optimization
         self.spark.conf.set(
             "spark.databricks.optimizer.rangeJoin.binSize",
@@ -257,10 +280,20 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         )
 
         # Join and filter
-        res_df = (
-            left.df.join(right_with_lead.df, list(join_series_ids))
-            .where(between_condition)
-        )
+        if join_series_ids:
+            # Join on series columns, then filter by temporal condition
+            res_df = (
+                left.df.join(right_with_lead.df, list(join_series_ids))
+                .where(between_condition)
+            )
+        else:
+            # For single series, we need to compare all records
+            # Use a LEFT JOIN with temporal condition directly to let Spark optimize
+            res_df = left.df.join(
+                right_with_lead.df,
+                on=between_condition,
+                how="left"
+            )
 
         # Drop the lead column
         res_df = res_df.drop(lead_colname)
@@ -691,17 +724,33 @@ class SkewAsOfJoiner(AsOfJoiner):
         )
 
         # Join condition: series match AND left.ts between right.ts and right.lead_ts
-        join_conditions = [sfn.col(f"l.{col}") == sfn.col(f"r.{col}") for col in left.series_ids]
-        join_conditions.append(
+        join_conditions = []
+
+        # Add series column conditions if they exist
+        for col in left.series_ids:
+            join_conditions.append(sfn.col(f"l.{col}") == sfn.col(f"r.{col}"))
+
+        # Add temporal join condition
+        temporal_condition = (
             (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}")) &
             ((sfn.col("r.lead_ts").isNull()) |
              (sfn.col(f"l.{left.ts_col}") < sfn.col("r.lead_ts")))
         )
 
+        if join_conditions:
+            # Combine series and temporal conditions
+            full_condition = join_conditions[0]
+            for cond in join_conditions[1:]:
+                full_condition = full_condition & cond
+            full_condition = full_condition & temporal_condition
+        else:
+            # Only temporal condition for single series
+            full_condition = temporal_condition
+
         # Perform the join
         joined = left_df.alias("l").join(
             right_with_lead.alias("r"),
-            on=join_conditions,
+            on=full_condition,
             how="left"
         )
 
@@ -718,9 +767,8 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         # Create result schema
         result_schema = TSSchema(
-            ts_col=left.ts_col,
-            series_ids=left.series_ids,
-            ts_index=left.ts_index
+            ts_idx=left.ts_index,
+            series_ids=left.series_ids
         )
 
         return result_df, result_schema
@@ -834,9 +882,8 @@ class SkewAsOfJoiner(AsOfJoiner):
             result_df = self._applyToleranceFilter(result_df, left, right)
 
         result_schema = TSSchema(
-            ts_col=left.ts_col,
-            series_ids=left.series_ids,
-            ts_index=left.ts_index
+            ts_idx=left.ts_index,
+            series_ids=left.series_ids
         )
 
         return result_df, result_schema
@@ -844,6 +891,11 @@ class SkewAsOfJoiner(AsOfJoiner):
     def _selectFinalColumns(self, joined_df, left, right):
         """
         Select and rename columns for the final output.
+
+        :param joined_df: DataFrame with joined data (aliased as 'l' and 'r')
+        :param left: Left TSDF for column metadata
+        :param right: Right TSDF for column metadata
+        :return: DataFrame with properly named and prefixed columns
         """
         final_cols = []
 
@@ -872,6 +924,13 @@ class SkewAsOfJoiner(AsOfJoiner):
     def _applySkipNulls(self, joined_df, right):
         """
         Apply skipNulls logic to filter out rows with null right values.
+
+        When skipNulls is True, filters out rows where any right-side value
+        column contains NULL (excluding timestamp and series columns).
+
+        :param joined_df: DataFrame with joined data
+        :param right: Right TSDF for column metadata
+        :return: DataFrame with null rows filtered based on skipNulls setting
         """
         # Get right value columns (non-timestamp, non-series)
         right_value_cols = [col for col in right.columns
@@ -894,6 +953,14 @@ class SkewAsOfJoiner(AsOfJoiner):
     def _applyToleranceFilter(self, result_df, left, right):
         """
         Apply tolerance filter to null out right columns outside tolerance window.
+
+        Sets all right-side columns to NULL when the time difference between
+        left and right timestamps exceeds the specified tolerance.
+
+        :param result_df: DataFrame with joined and selected columns
+        :param left: Left TSDF for timestamp column name
+        :param right: Right TSDF for timestamp column name
+        :return: DataFrame with tolerance filter applied
         """
         left_ts_col = left.ts_col
         right_ts_col = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else right.ts_col
