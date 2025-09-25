@@ -209,11 +209,10 @@ class StrategiesIntegrationTest(SparkTest):
         left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
         right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
 
-        # Test with sql_join_opt=True (should potentially select broadcast for small data)
+        # Test automatic strategy selection (should potentially select broadcast for small data)
         strategy = choose_as_of_join_strategy(
             left_tsdf,
-            right_tsdf,
-            sql_join_opt=True
+            right_tsdf
         )
 
         # Execute join

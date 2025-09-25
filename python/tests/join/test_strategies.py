@@ -276,8 +276,7 @@ class TestStrategySelection(unittest.TestCase):
 
         strategy = choose_as_of_join_strategy(
             left_tsdf,
-            right_tsdf,
-            sql_join_opt=True
+            right_tsdf
         )
 
         self.assertIsInstance(strategy, BroadcastAsOfJoiner)
@@ -302,8 +301,7 @@ class TestStrategySelection(unittest.TestCase):
 
         strategy = choose_as_of_join_strategy(
             left_tsdf,
-            right_tsdf,
-            sql_join_opt=True
+            right_tsdf
         )
 
         self.assertIsInstance(strategy, UnionSortFilterAsOfJoiner)

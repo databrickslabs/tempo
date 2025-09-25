@@ -315,7 +315,7 @@ This document provides a comprehensive implementation strategy for enhancing as-
 #### Current State
 - The v0.2-integration branch has `asofJoin` as a method in the TSDF class (lines 931-1133 in tsdf.py)
 - Current implementation mixes broadcast join and union-sort-filter logic in a single method
-- Uses conditional logic based on `sql_join_opt` and `tsPartitionVal` parameters
+- Uses conditional logic based on data size and `tsPartitionVal` parameters
 
 #### Implementation Strategy
 1. **Create Abstract Strategy Interface**
@@ -412,28 +412,17 @@ def choose_as_of_join_strategy(
     tsPartitionVal: Optional[int] = None,
     fraction: float = 0.5,
     skipNulls: bool = True,
-    sql_join_opt: bool = False,
     tolerance: Optional[int] = None,
 ) -> AsOfJoiner:
     """
     Returns an AsOfJoiner based on data characteristics.
 
     Decision Tree:
-    1. If sql_join_opt and data < 30MB: BroadcastAsOfJoiner
-    2. If tsPartitionVal is set: SkewAsOfJoiner
-    3. Default: UnionSortFilterAsOfJoiner
+    1. If tsPartitionVal is set: SkewAsOfJoiner (for handling skewed data)
+    2. If either DataFrame < 30MB: BroadcastAsOfJoiner (for small data)
+    3. Default: UnionSortFilterAsOfJoiner (for general cases)
     """
-    if sql_join_opt:
-        spark = SparkSession.builder.getOrCreate()
-        left_bytes = get_bytes_from_plan(left_tsdf.df, spark)
-        right_bytes = get_bytes_from_plan(right_tsdf.df, spark)
-
-        # 30MB threshold for broadcast
-        bytes_threshold = 30 * 1024 * 1024
-        if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-            logger.info(f"Using BroadcastAsOfJoiner (left: {left_bytes/1024/1024:.2f}MB, right: {right_bytes/1024/1024:.2f}MB)")
-            return BroadcastAsOfJoiner(spark, left_prefix or "left", right_prefix)
-
+    # Prioritize skew handling if specified
     if tsPartitionVal is not None:
         logger.info(f"Using SkewAsOfJoiner with partition value {tsPartitionVal}")
         return SkewAsOfJoiner(
@@ -692,7 +681,6 @@ def asofJoin(
     tsPartitionVal: Optional[int] = None,
     fraction: float = 0.5,
     skipNulls: bool = True,
-    sql_join_opt: bool = False,
     suppress_null_warning: bool = False,
     tolerance: Optional[int] = None,
     strategy: Optional[str] = None,  # NEW: manual strategy override
@@ -719,13 +707,13 @@ def asofJoin(
         else:  # auto or invalid
             joiner = choose_as_of_join_strategy(
                 self, right_tsdf, left_prefix, right_prefix,
-                tsPartitionVal, fraction, skipNulls, sql_join_opt, tolerance
+                tsPartitionVal, fraction, skipNulls, tolerance
             )
     else:
         # Automatic strategy selection
         joiner = choose_as_of_join_strategy(
             self, right_tsdf, left_prefix, right_prefix,
-            tsPartitionVal, fraction, skipNulls, sql_join_opt, tolerance
+            tsPartitionVal, fraction, skipNulls, tolerance
         )
 
     # Execute the join
@@ -1101,9 +1089,9 @@ class TestStrategySelection:
         # No special conditions
         # Verify UnionSortFilterAsOfJoiner selected
 
-    def test_sql_join_opt_flag(self):
-        """Test sql_join_opt parameter effect."""
-        # Test with True/False values
+    def test_automatic_broadcast_selection(self):
+        """Test automatic broadcast selection for small DataFrames."""
+        # Test automatic selection based on size
 
     def test_size_estimation_error_handling(self):
         """Test error handling in size estimation."""
@@ -1288,7 +1276,7 @@ class TestWithMocks:
         mock_get_bytes.side_effect = [10 * 1024 * 1024, 20 * 1024 * 1024]  # 10MB, 20MB
 
         strategy = choose_as_of_join_strategy(
-            left_tsdf, right_tsdf, sql_join_opt=True
+            left_tsdf, right_tsdf
         )
 
         assert isinstance(strategy, BroadcastAsOfJoiner)
@@ -1297,7 +1285,7 @@ class TestWithMocks:
         mock_get_bytes.side_effect = [100 * 1024 * 1024, 200 * 1024 * 1024]  # 100MB, 200MB
 
         strategy = choose_as_of_join_strategy(
-            left_tsdf, right_tsdf, sql_join_opt=True
+            left_tsdf, right_tsdf
         )
 
         assert isinstance(strategy, UnionSortFilterAsOfJoiner)
@@ -1615,7 +1603,7 @@ def asofJoin(
     skipNulls: bool = True,
     null_fill: Optional[Dict[str, Any]] = None,
     strategy: Optional[str] = None,  # "broadcast", "union_sort_filter", "skew", "auto"
-    sql_join_opt: bool = True,  # Enable SQL optimization
+    # Automatic optimization based on data size
 ) -> TSDF:
     """
     Enhanced as-of join with strategy selection and advanced options.
@@ -1698,7 +1686,7 @@ def _checkAreJoinable(self, left: TSDF, right: TSDF) -> None:
 def choose_as_of_join_strategy(...) -> AsOfJoiner:
     try:
         # Size estimation with error handling
-        if sql_join_opt:
+        # Always check for broadcast optimization:
             try:
                 left_bytes = get_bytes_from_plan(left_tsdf.df, spark)
                 right_bytes = get_bytes_from_plan(right_tsdf.df, spark)

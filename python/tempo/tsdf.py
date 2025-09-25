@@ -942,14 +942,23 @@ class TSDF(WindowBuilder):
         tsPartitionVal: Optional[int] = None,
         fraction: float = 0.5,
         skipNulls: bool = True,
-        sql_join_opt: bool = False,
         suppress_null_warning: bool = False,
         tolerance: Optional[int] = None,
-        use_strategy_pattern: bool = False,  # Feature flag for gradual rollout
+        strategy: Optional[str] = None,  # Allow manual strategy selection
     ) -> TSDF:
         """
-        Performs an as-of join between two time-series. If a tsPartitionVal is
-        specified, it will do this partitioned by time brackets, which can help alleviate skew.
+        Performs an as-of join between two time-series using modular strategy pattern.
+
+        The strategy is automatically selected based on data characteristics unless
+        manually specified:
+        - If tsPartitionVal is set: SkewAsOfJoiner (for handling skewed data)
+        - If either DataFrame < 30MB: BroadcastAsOfJoiner (for small data)
+        - Otherwise: UnionSortFilterAsOfJoiner (default for most cases)
+
+        Available manual strategies:
+        - 'broadcast': Force BroadcastAsOfJoiner
+        - 'union': Force UnionSortFilterAsOfJoiner
+        - 'skew': Force SkewAsOfJoiner
 
         NOTE: partition cols have to be the same for both Dataframes. We are
         collecting stats when the WARNING level is enabled also.
@@ -961,218 +970,74 @@ class TSDF(WindowBuilder):
         :param tsPartitionVal - value to break up each partition into time brackets
         :param fraction - overlap fraction
         :param skipNulls - whether to skip nulls when joining in values
-        :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
-        :param use_strategy_pattern - if True, uses new modular strategy pattern for join execution
+        :param strategy - manually specify join strategy ('broadcast', 'union', or 'skew')
         """
+        # Import strategy classes to avoid circular dependency
+        from tempo.joins.strategies import (
+            BroadcastAsOfJoiner,
+            UnionSortFilterAsOfJoiner,
+            SkewAsOfJoiner,
+            choose_as_of_join_strategy,
+        )
 
-        # Use new strategy pattern if enabled
-        if use_strategy_pattern:
-            # Log warning for skew join if applicable
-            if tsPartitionVal is not None and not suppress_null_warning:
-                logger.warning(
-                    "You are using the skew version of the AS OF join. This may result in null values if there are any "
-                    "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
-                    "lookback, trading off performance and potential blank AS OF values for sparse keys"
-                )
-
-            try:
-                # Choose and execute strategy
-                joiner = choose_as_of_join_strategy(
-                    self,
-                    right_tsdf,
-                    left_prefix,
-                    right_prefix,
-                    tsPartitionVal,
-                    fraction,
-                    skipNulls,
-                    sql_join_opt,
-                    tolerance
-                )
-
-                logger.info(f"Using as-of join strategy: {joiner.__class__.__name__}")
-                # Call the joiner and wrap the result in a TSDF
-                result_df, result_schema = joiner(self, right_tsdf)
-                return TSDF(result_df, ts_schema=result_schema)
-
-            except Exception as e:
-                # If strategy pattern fails, log and fall back to original
-                logger.error(f"Strategy pattern failed: {e}. Falling back to original implementation.")
-                # Fall through to original implementation
-
-        # first block of logic checks whether a standard range join will suffice
-        left_df = self.df
-        right_df = right_tsdf.df
-
-        # test if the broadcast join will be efficient
-        if sql_join_opt:
-            spark = SparkSession.builder.getOrCreate()
-            left_bytes = self.__getBytesFromPlan(left_df, spark)
-            right_bytes = self.__getBytesFromPlan(right_df, spark)
-
-            # choose 30MB as the cutoff for the broadcast
-            bytes_threshold = 30 * 1024 * 1024
-            if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-                spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
-                partition_cols = right_tsdf.series_ids
-                left_cols = list(set(left_df.columns) - set(self.series_ids))
-                right_cols = list(set(right_df.columns) - set(right_tsdf.series_ids))
-
-                left_prefix = left_prefix + "_" if left_prefix else ""
-                right_prefix = right_prefix + "_" if right_prefix else ""
-
-                w = Window.partitionBy(*partition_cols).orderBy(
-                    right_prefix + right_tsdf.ts_col
-                )
-
-                new_left_ts_col = left_prefix + self.ts_col
-                series_cols = [sfn.col(c) for c in self.series_ids]
-                new_left_cols = [
-                    sfn.col(c).alias(left_prefix + c) for c in left_cols
-                ] + series_cols
-                new_right_cols = [
-                    sfn.col(c).alias(right_prefix + c) for c in right_cols
-                ] + series_cols
-                quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
-                    "lead_" + right_tsdf.ts_col,
-                    sfn.lead(right_prefix + right_tsdf.ts_col).over(w),
-                )
-                left_df = left_df.select(*new_left_cols)
-                res = (
-                    left_df.join(quotes_df_w_lag, partition_cols)
-                    .where(
-                        left_df[new_left_ts_col].between(
-                            sfn.col(right_prefix + right_tsdf.ts_col),
-                            sfn.coalesce(
-                                sfn.col("lead_" + right_tsdf.ts_col),
-                                sfn.lit("2099-01-01").cast("timestamp"),
-                            ),
-                        )
-                    )
-                    .drop("lead_" + right_tsdf.ts_col)
-                )
-                return TSDF(res, ts_col=new_left_ts_col, series_ids=self.series_ids)
-
-        # end of block checking to see if standard Spark SQL join will work
-
-        if tsPartitionVal is not None:
+        # Log warning for skew join if applicable
+        if tsPartitionVal is not None and not suppress_null_warning:
             logger.warning(
                 "You are using the skew version of the AS OF join. This may result in null values if there are any "
                 "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
                 "lookback, trading off performance and potential blank AS OF values for sparse keys"
             )
 
-        # Check whether partition columns have same name in both dataframes
-        self.__checkPartitionCols(right_tsdf)
-
-        # prefix non-partition columns, to avoid duplicated columns.
-        left_df = self.df
-        right_df = right_tsdf.df
-
-        # validate timestamp datatypes match
-        self.__validateTsColMatch(right_tsdf)
-
-        orig_left_col_diff = list(set(left_df.columns) - set(self.series_ids))
-        orig_right_col_diff = list(set(right_df.columns) - set(self.series_ids))
-
-        left_tsdf = (
-            (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
-            if left_prefix is not None
-            else self
-        )
-        right_tsdf = right_tsdf.__addPrefixToColumns(
-            [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
-        )
-
-        left_columns = list(set(left_tsdf.df.columns).difference(set(self.series_ids)))
-        right_columns = list(
-            set(right_tsdf.df.columns).difference(set(self.series_ids))
-        )
-
-        # Union both dataframes, and create a combined TS column
-        combined_ts_col = "combined_ts"
-        combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
-            right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
-        )
-        combined_df.df = combined_df.df.withColumn(
-            "rec_ind",
-            sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
-        )
-
-        # perform asof join.
-        if tsPartitionVal is None:
-            seq_col = None
-            if isinstance(combined_df.ts_index, CompositeTSIndex):
-                # For composite indices with multiple components (e.g., submicrosecond precision),
-                # use the second component field as the sequence column if it exists
-                comp_idx = combined_df.ts_index
-                if len(comp_idx.component_fields) > 1:
-                    seq_col = comp_idx.fieldPath(comp_idx.component_fields[1])
-            asofDF = combined_df.__getLastRightRow(
-                left_tsdf.ts_col,
-                right_columns,
-                seq_col,
-                tsPartitionVal,
-                skipNulls,
-                suppress_null_warning,
-            )
+        # Choose strategy based on manual selection or automatic selection
+        if strategy:
+            # Manual strategy selection
+            spark = SparkSession.builder.getOrCreate()
+            if strategy.lower() == 'broadcast':
+                joiner = BroadcastAsOfJoiner(
+                    spark,
+                    left_prefix or "",
+                    right_prefix,
+                    skipNulls,
+                    tolerance
+                )
+            elif strategy.lower() == 'union':
+                joiner = UnionSortFilterAsOfJoiner(
+                    left_prefix or "",
+                    right_prefix,
+                    skipNulls,
+                    tolerance
+                )
+            elif strategy.lower() == 'skew':
+                joiner = SkewAsOfJoiner(
+                    left_prefix or "",
+                    right_prefix,
+                    skipNulls,
+                    tolerance,
+                    tsPartitionVal,
+                    fraction
+                )
+            else:
+                raise ValueError(f"Unknown strategy: {strategy}. Must be 'broadcast', 'union', or 'skew'")
+            logger.info(f"Using manually selected strategy: {joiner.__class__.__name__}")
         else:
-            tsPartitionDF = combined_df.__getTimePartitions(
-                tsPartitionVal, fraction=fraction
-            )
-            seq_col = None
-            if isinstance(tsPartitionDF.ts_index, CompositeTSIndex):
-                # For composite indices with multiple components (e.g., submicrosecond precision),
-                # use the second component field as the sequence column if it exists
-                comp_idx = tsPartitionDF.ts_index
-                if len(comp_idx.component_fields) > 1:
-                    seq_col = comp_idx.fieldPath(comp_idx.component_fields[1])
-            asofDF = tsPartitionDF.__getLastRightRow(
-                left_tsdf.ts_col,
-                right_columns,
-                seq_col,
+            # Automatic strategy selection
+            joiner = choose_as_of_join_strategy(
+                self,
+                right_tsdf,
+                left_prefix,
+                right_prefix,
                 tsPartitionVal,
+                fraction,
                 skipNulls,
-                suppress_null_warning,
+                tolerance
             )
+            logger.info(f"Using automatically selected strategy: {joiner.__class__.__name__}")
 
-            # Get rid of overlapped data and the extra columns generated from timePartitions
-            df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
-                "ts_partition", "is_original"
-            )
-
-            asofDF = TSDF(df, ts_col=asofDF.ts_col, series_ids=combined_df.series_ids)
-
-        if tolerance is not None:
-            df = asofDF.df
-            left_ts_col = left_tsdf.ts_col
-            right_ts_col = right_tsdf.ts_col
-            tolerance_condition = (
-                df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
-                > tolerance
-            )
-
-            for right_col in right_columns:
-                # First set right non-timestamp columns to null for rows outside of tolerance band
-                if right_col != right_ts_col:
-                    df = df.withColumn(
-                        right_col,
-                        sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-                            df[right_col]
-                        ),
-                    )
-
-            # Finally, set right timestamp column to null for rows outside of tolerance band
-            df = df.withColumn(
-                right_ts_col,
-                sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-                    df[right_ts_col]
-                ),
-            )
-            asofDF.df = df
-
-        return asofDF
+        # Execute join and wrap result in TSDF
+        result_df, result_schema = joiner(self, right_tsdf)
+        return TSDF(result_df, ts_schema=result_schema)
 
     def baseWindow(self, reverse: bool = False) -> WindowSpec:
         return self.ts_schema.baseWindow(reverse=reverse)

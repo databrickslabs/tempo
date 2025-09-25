@@ -729,16 +729,15 @@ def choose_as_of_join_strategy(
     tsPartitionVal: Optional[int] = None,
     fraction: float = 0.5,
     skipNulls: bool = True,
-    sql_join_opt: bool = False,
     tolerance: Optional[int] = None,
 ) -> AsOfJoiner:
     """
     Automatically choose the optimal as-of join strategy based on data characteristics.
 
     Decision tree:
-    1. If sql_join_opt and data < 30MB: BroadcastAsOfJoiner
-    2. If tsPartitionVal is set: SkewAsOfJoiner
-    3. Default: UnionSortFilterAsOfJoiner
+    1. If tsPartitionVal is set: SkewAsOfJoiner (for handling skewed data)
+    2. If either DataFrame < 30MB: BroadcastAsOfJoiner (for small data)
+    3. Default: UnionSortFilterAsOfJoiner (for general cases)
 
     :param left_tsdf: Left TSDF
     :param right_tsdf: Right TSDF
@@ -747,32 +746,11 @@ def choose_as_of_join_strategy(
     :param tsPartitionVal: Time partition value for skew handling
     :param fraction: Overlap fraction for partitions
     :param skipNulls: Whether to skip nulls
-    :param sql_join_opt: Whether to use SQL optimization
     :param tolerance: Tolerance window in seconds
     :return: Appropriate AsOfJoiner instance
     """
     try:
-        # Test if the broadcast join will be efficient
-        if sql_join_opt:
-            try:
-                spark = SparkSession.builder.getOrCreate()
-                left_bytes = get_bytes_from_plan(left_tsdf.df, spark)
-                right_bytes = get_bytes_from_plan(right_tsdf.df, spark)
-
-                # Use broadcast if either DataFrame is small enough
-                if (left_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD) or \
-                   (right_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD):
-                    logger.info(
-                        f"Using BroadcastAsOfJoiner "
-                        f"(left: {left_bytes/1024/1024:.2f}MB, "
-                        f"right: {right_bytes/1024/1024:.2f}MB)"
-                    )
-                    return BroadcastAsOfJoiner(spark, left_prefix or "left", right_prefix)
-            except Exception as e:
-                logger.warning(f"Could not estimate DataFrame size: {e}")
-                # Fall through to other strategies
-
-        # Use the skew join if the partition value is passed in
+        # Use the skew join if the partition value is passed in (highest priority)
         if tsPartitionVal is not None:
             logger.info(f"Using SkewAsOfJoiner with partition value {tsPartitionVal}")
             return SkewAsOfJoiner(
@@ -783,6 +761,25 @@ def choose_as_of_join_strategy(
                 tsPartitionVal=tsPartitionVal,
                 fraction=fraction,
             )
+
+        # Test if the broadcast join will be efficient (check sizes automatically)
+        try:
+            spark = SparkSession.builder.getOrCreate()
+            left_bytes = get_bytes_from_plan(left_tsdf.df, spark)
+            right_bytes = get_bytes_from_plan(right_tsdf.df, spark)
+
+            # Use broadcast if either DataFrame is small enough
+            if (left_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD) or \
+               (right_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD):
+                logger.info(
+                    f"Using BroadcastAsOfJoiner "
+                    f"(left: {left_bytes/1024/1024:.2f}MB, "
+                    f"right: {right_bytes/1024/1024:.2f}MB)"
+                )
+                return BroadcastAsOfJoiner(spark, left_prefix or "left", right_prefix)
+        except Exception as e:
+            logger.debug(f"Could not estimate DataFrame size: {e}. Using default strategy.")
+            # Fall through to default strategy
 
         # Default to union-sort-filter join
         logger.info("Using default UnionSortFilterAsOfJoiner")
