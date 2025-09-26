@@ -41,16 +41,29 @@ help:
 	@echo "  make check-env             Check Python and Java environment setup"
 	@echo "  make venv                  Create virtual environment for newest, supported DBR version"
 	@echo "  make venv DBR=<version>    Create virtual environment for a specific DBR version"
+	@echo ""
+	@echo "Testing:"
 	@echo "  make test                  Run tests for the newest, supported DBR version"
 	@echo "  make test DBR=<version>    Run tests for a specific DBR version"
 	@echo "  make test-all              Run tests for all supported DBR versions"
-	@echo "  make coverage-report       Generate test coverage report"
+	@echo "  make coverage-report       Generate test coverage report (requires test run first)"
+	@echo ""
+	@echo "Code Quality:"
+	@echo "  make quality               Run all code quality checks (format + lint + type-check)"
 	@echo "  make lint                  Run linters"
 	@echo "  make format                Format code with Black"
 	@echo "  make type-check            Run type checks"
-	@echo "  make build-dist            Build distribution"
-	@echo "  make build-docs            Build documentation"
-	@echo "  make all-local             Run all local tests and checks"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build                 Build distribution and documentation"
+	@echo "  make build-dist            Build distribution only"
+	@echo "  make build-docs            Build documentation only"
+	@echo ""
+	@echo "Complete CI:"
+	@echo "  make ci                    Run complete CI pipeline (quality + test-all + build + coverage)"
+	@echo "  make all                   Alias for 'make ci'"
+	@echo ""
+	@echo "Cleanup:"
 	@echo "  make clean                 Remove all generated files"
 	@echo "  make deep-clean            Remove everything (venvs, caches, artifacts)"
 	@echo ""
@@ -178,9 +191,10 @@ doctor:
 		echo "    Issues detected - run 'make init' to fix"; \
 	fi
 
-# Run all code quality checks (alias for lint + type-check)
+# Run all code quality checks (format + lint + type-check)
 .PHONY: quality
-quality: lint type-check
+quality: format lint type-check
+	@echo "✅ All quality checks passed!"
 
 
 # Deep clean - remove everything including venvs
@@ -373,10 +387,15 @@ test: check-env
 
 .PHONY: test-all
 test-all: check-java
+	@echo "Running tests for all DBR versions..."
 	@$(MAKE) setup-all-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		for env in dbr154 dbr143 dbr133 dbr122 dbr113; do hatch run $$env:test; done
+		for env in dbr154 dbr143 dbr133 dbr122 dbr113; do \
+			echo "Testing $$env..." && \
+			hatch run $$env:test || exit 1; \
+		done
+	@echo "✅ All tests passed!"
 
 # Run linters
 .PHONY: lint
@@ -422,10 +441,22 @@ coverage-report:
 	fi
 	@echo "Generating coverage report..."
 	hatch run coverage-report:run-coverage
+	@echo "✅ Coverage report generated!"
 
 
-.PHONY: all-local
-all-local: lint type-check build-dist build-docs coverage-report
+# Build both distribution and documentation
+.PHONY: build
+build: build-dist build-docs
+	@echo "✅ Build complete!"
+
+# Run complete CI pipeline
+.PHONY: ci
+ci: quality test-all build coverage-report
+	@echo "✅ Complete CI pipeline passed!"
+
+# Alias for ci
+.PHONY: all
+all: ci
 
 # Clean virtual environments and build artifacts
 .PHONY: clean

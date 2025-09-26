@@ -89,25 +89,41 @@ make test-all       # Test all DBR versions
 
 ## Code Quality
 
-### Run linters and formatters
+### Run individual quality checks
 ```bash
-make lint           # Run linters
 make format         # Format code with Black
+make lint           # Run linters
 make type-check     # Run type checking
 ```
 
-### Run all checks at once
+### Run all quality checks at once
 ```bash
-make all-local      # Run all local tests and checks
+make quality        # Run format + lint + type-check sequentially
 ```
 
 ## Building
 
+### Build artifacts
 ```bash
-make build-dist     # Build distribution packages
-make build-docs     # Build documentation
-make coverage-report # Generate test coverage report
+make build          # Build distribution and documentation
+make build-dist     # Build distribution packages only
+make build-docs     # Build documentation only
 ```
+
+### Generate coverage report
+```bash
+make coverage-report # Generate test coverage report (requires tests to be run first)
+```
+
+## Complete CI Pipeline
+
+### Run the complete CI pipeline locally
+```bash
+make ci             # Run quality + test-all + build + coverage
+make all            # Alias for 'make ci'
+```
+
+This runs the same checks as the GitHub Actions CI pipeline.
 
 ## Code Style & Standards
 
@@ -117,13 +133,14 @@ to check for effective code style, type-checking and common bad practices.
 
 To test your code against these standards, run:
 ```bash
-make lint
-make type-check
+make quality        # Run all quality checks (format + lint + type-check)
 ```
 
-To have `black` automatically format your code, run:
+Or run them individually:
 ```bash
-make format
+make format         # Format code with Black
+make lint           # Run linters
+make type-check     # Run type checking
 ```
 
 In addition, we apply some project-specific standards:

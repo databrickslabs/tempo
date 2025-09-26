@@ -21,13 +21,10 @@ jobs:
         python-version: '3.10'
     - name: Setup development tools
       working-directory: ./python
-      run: make setup 
-    - name: Lint check
+      run: make setup
+    - name: Run code quality checks (format, lint, type-check)
       working-directory: ./python
-      run: make lint
-    - name: Type check
-      working-directory: ./python
-      run: make type-check
+      run: make quality
 
   test:
     needs: lint-and-check
