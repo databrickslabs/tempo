@@ -2132,6 +2132,35 @@ def asofJoin(
 - [x] Implement AQE-based SkewAsOfJoiner
 - [x] Add comprehensive test coverage
 
+### 📋 TODO: Fix Prefix Handling Consistency
+
+**Problem**: Column prefixing is inconsistent across strategies
+- BroadcastAsOfJoiner and UnionSortFilterAsOfJoiner: Only prefix overlapping columns
+- SkewAsOfJoiner: Prefixes all columns and causes double-prefixing (e.g., `left_left_metric`)
+
+**Solution**: Standardize prefix handling across all strategies to follow parent class design
+
+**Implementation Steps**:
+1. **Fix SkewAsOfJoiner's _selectFinalColumns method**:
+   - Remove redundant prefixing logic (parent already handles it via _prefixOverlappingColumns)
+   - Simply select columns with their existing names after join
+   - Ensure no double-prefixing occurs
+
+2. **Update _standardAsOfJoin in SkewAsOfJoiner**:
+   - Use already-prefixed column names from parent's _prefixOverlappingColumns
+   - Don't apply additional prefixes
+
+3. **Ensure consistent timestamp handling**:
+   - All strategies should handle timestamp columns the same way
+   - Use prefixed names only if they were overlapping
+
+4. **Test the fix**:
+   - Remove skip decorator from test_prefix_handling_consistency
+   - Verify all strategies produce identical column names
+   - Test with various prefix combinations ("left"/"right", ""/"r", "l"/"", ""/"")
+
+**Expected Outcome**: All three strategies will produce identical column naming for the same inputs
+
 ### 🔄 Future Enhancements (Documented but Not Implemented)
 
 #### 1. Performance Benchmarks (High Priority)
