@@ -32,7 +32,6 @@ This will set up your complete development environment.
    Or if you prefer manual steps:
    ```bash
    make setup         # Install development tools
-   make check-env     # Verify environment
    make venv          # Create virtual environment for default DBR
    ```
 

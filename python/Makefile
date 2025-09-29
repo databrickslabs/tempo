@@ -142,8 +142,8 @@ status:
 		echo "Java 8: not installed"; \
 	fi
 	@# Check virtual environments
-	@if [ -d ".venv" ]; then \
-		COUNT=$$(ls -1 .venv | wc -l | tr -d ' '); \
+	@if [ -d "${VENV_DIR}" ]; then \
+		COUNT=$$(ls -1 ${VENV_DIR} | wc -l | tr -d ' '); \
 		echo "Virtual environments: $${COUNT}"; \
 	else \
 		echo "Virtual environments: none (run 'make venv')"; \
@@ -174,8 +174,8 @@ doctor:
 	fi
 	@echo ""
 	@echo " Virtual Environments:"
-	@if [ -d ".venv" ]; then \
-		for env in .venv/*; do \
+	@if [ -d "${VENV_DIR}" ]; then \
+		for env in ${VENV_DIR}/*; do \
 			if [ -d "$$env" ]; then \
 				echo "   $$(basename $$env)"; \
 			fi; \
@@ -201,7 +201,7 @@ quality: format lint type-check
 .PHONY: deep-clean
 deep-clean: clean
 	@echo " Deep cleaning - removing all artifacts..."
-	@rm -rf .venv/
+	@rm -rf ${VENV_DIR}/
 	@rm -rf .tox/
 	@rm -rf __pycache__/
 	@rm -rf .pytest_cache/
