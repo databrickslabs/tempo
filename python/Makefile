@@ -26,26 +26,46 @@ VENV_DIR=.venv
 VENV=$(VENV_DIR)/dbr$(DBR)
 COVERAGE_FILE=.coverage.dbr$(DBR)
 
+# Load version constraints
+-include .env.versions
+
 # Default target
 .PHONY: help
 help:
 	@echo "Makefile for managing test environments"
 	@echo ""
 	@echo "Usage:"
+	@echo "  make init                  Complete setup for new developers (recommended)"
+	@echo "  make status                Quick status check"
+	@echo "  make doctor                Run comprehensive environment health check"
 	@echo "  make check-env             Check Python and Java environment setup"
 	@echo "  make venv                  Create virtual environment for newest, supported DBR version"
 	@echo "  make venv DBR=<version>    Create virtual environment for a specific DBR version"
+	@echo ""
+	@echo "Testing:"
 	@echo "  make test                  Run tests for the newest, supported DBR version"
 	@echo "  make test DBR=<version>    Run tests for a specific DBR version"
 	@echo "  make test-all              Run tests for all supported DBR versions"
-	@echo "  make coverage-report       Generate test coverage report"
+	@echo "  make coverage-report       Generate test coverage report (requires test run first)"
+	@echo ""
+	@echo "Code Quality:"
+	@echo "  make quality               Run all code quality checks (format + lint + type-check)"
 	@echo "  make lint                  Run linters"
 	@echo "  make format                Format code with Black"
 	@echo "  make type-check            Run type checks"
-	@echo "  make build-dist            Build distribution"
-	@echo "  make build-docs            Build documentation"
-	@echo "  make all-local             Run all local tests and checks"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build                 Build distribution and documentation"
+	@echo "  make build-dist            Build distribution only"
+	@echo "  make build-docs            Build documentation only"
+	@echo ""
+	@echo "Complete CI:"
+	@echo "  make ci                    Run complete CI pipeline (quality + test-all + build + coverage)"
+	@echo "  make all                   Alias for 'make ci'"
+	@echo ""
+	@echo "Cleanup:"
 	@echo "  make clean                 Remove all generated files"
+	@echo "  make deep-clean            Remove everything (venvs, caches, artifacts)"
 	@echo ""
 	@echo "Available Environment Versions:"
 	@echo "  154 - Python 3.11, Java 8 (default)"
@@ -59,6 +79,142 @@ help:
 	@echo "  - Java 8 (Zulu) managed via SDKMAN"
 	@echo "  - All DBR versions use Java 8 to match Databricks Runtime"
 	@echo ""
+
+# Setup development environment
+.PHONY: setup
+setup:
+	@echo "Setting up development environment..."
+	@if [ -f .env.versions ]; then \
+		. .env.versions && \
+		python -m pip install --upgrade pip --quiet && \
+		python -m pip install hatch==$${HATCH_VERSION} "$${CLICK_CONSTRAINT}" --quiet && \
+		echo "Development tools installed successfully"; \
+	else \
+		echo "ERROR: .env.versions file not found"; \
+		exit 1; \
+	fi
+
+# Complete initialization for new developers - one command to set up everything
+.PHONY: init
+init:
+	@echo " Initializing complete development environment..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@$(MAKE) setup
+	@echo ""
+	@$(MAKE) check-env
+	@echo ""
+	@echo " Creating default virtual environment..."
+	@$(MAKE) venv
+	@echo ""
+	@echo " Running smoke test..."
+	@$(MAKE) lint 2>&1 | head -5
+	@echo ""
+	@echo " Development environment initialization complete!"
+	@echo ""
+	@echo " Next steps:"
+	@echo "  1. Review CONTRIBUTING.md for detailed documentation"
+	@echo "  2. Run 'make test' to run tests"
+	@echo "  3. Run 'make help' to see all available commands"
+
+# Quick status check
+.PHONY: status
+status:
+	@# Check development tools
+	@if [ -f .env.versions ]; then \
+		. .env.versions && \
+		if command -v hatch >/dev/null 2>&1; then \
+			HATCH_VER=$$(hatch --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \
+			if [ "$${HATCH_VER}" = "$${HATCH_VERSION}" ] && python -c "import click; exit(0 if tuple(map(int, click.__version__.split('.'))) < (8, 3, 0) else 1)" 2>/dev/null; then \
+				echo "Development tools: OK"; \
+			else \
+				echo "Development tools: needs update (run 'make setup')"; \
+			fi; \
+		else \
+			echo "Development tools: not installed (run 'make setup')"; \
+		fi; \
+	else \
+		echo "Development tools: config missing"; \
+	fi
+	@# Check Java
+	@if [ -d "$(JAVA_HOME_TARGET)" ]; then \
+		echo "Java 8: OK"; \
+	else \
+		echo "Java 8: not installed"; \
+	fi
+	@# Check virtual environments
+	@if [ -d "${VENV_DIR}" ]; then \
+		COUNT=$$(ls -1 ${VENV_DIR} | wc -l | tr -d ' '); \
+		echo "Virtual environments: $${COUNT}"; \
+	else \
+		echo "Virtual environments: none (run 'make venv')"; \
+	fi
+
+# Comprehensive environment health check
+.PHONY: doctor
+doctor:
+	@echo " Running comprehensive environment health check..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo " System Information:"
+	@echo "  OS: $$(uname -s) $$(uname -m)"
+	@echo "  Shell: $$SHELL"
+	@echo "  User: $$USER"
+	@echo ""
+	@echo " Python Status:"
+	@which python >/dev/null 2>&1 && echo "   python: $$(which python) ($$(python --version 2>&1))" || echo "   python: not found"
+	@which python3 >/dev/null 2>&1 && echo "   python3: $$(which python3) ($$(python3 --version 2>&1))" || echo "   python3: not found"
+	@echo ""
+	@$(MAKE) check-deps 2>&1 | sed 's/^/  /'
+	@echo ""
+	@echo " Java Status:"
+	@if [ -d "$(JAVA_HOME_TARGET)" ]; then \
+		echo "   Java 8 installed at $(JAVA_HOME_TARGET)"; \
+	else \
+		echo "    Java 8 not installed (will be installed when needed)"; \
+	fi
+	@echo ""
+	@echo " Virtual Environments:"
+	@if [ -d "${VENV_DIR}" ]; then \
+		for env in ${VENV_DIR}/*; do \
+			if [ -d "$$env" ]; then \
+				echo "   $$(basename $$env)"; \
+			fi; \
+		done; \
+	else \
+		echo "    No virtual environments found"; \
+	fi
+	@echo ""
+	@echo " Diagnosis Complete"
+	@if command -v hatch >/dev/null 2>&1 && python -c "import click; exit(0 if tuple(map(int, click.__version__.split('.'))) < (8, 3, 0) else 1)" 2>/dev/null; then \
+		echo "   Environment is healthy"; \
+	else \
+		echo "    Issues detected - run 'make init' to fix"; \
+	fi
+
+# Run all code quality checks (format + lint + type-check)
+.PHONY: quality
+quality: format lint type-check
+	@echo "✅ All quality checks passed!"
+
+
+# Deep clean - remove everything including venvs
+.PHONY: deep-clean
+deep-clean: clean
+	@echo " Deep cleaning - removing all artifacts..."
+	@rm -rf ${VENV_DIR}/
+	@rm -rf .tox/
+	@rm -rf __pycache__/
+	@rm -rf .pytest_cache/
+	@rm -rf .mypy_cache/
+	@rm -rf .coverage*
+	@rm -rf htmlcov/
+	@rm -rf dist/
+	@rm -rf build/
+	@rm -rf *.egg-info/
+	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	@find . -type f -name "*.pyo" -delete 2>/dev/null || true
+	@echo " Deep clean complete!"
 
 # Check if Java 8 is available and install if needed
 .PHONY: check-java
@@ -119,9 +275,49 @@ check-python:
 		echo "pyenv installed successfully"; \
 	fi
 
-# Check both Python and Java environments
+# Check dependencies (hatch and click versions)
+.PHONY: check-deps
+check-deps:
+	@echo "Checking development dependencies..."
+	@if [ -f .env.versions ]; then \
+		. .env.versions && \
+		echo "Expected versions from .env.versions:" && \
+		echo "  - hatch: $${HATCH_VERSION}" && \
+		echo "  - click: < 8.3.0" && \
+		echo "" && \
+		if command -v hatch >/dev/null 2>&1; then \
+			INSTALLED_HATCH=$$(hatch --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+') && \
+			echo "Installed hatch: $${INSTALLED_HATCH}" && \
+			if [ "$${INSTALLED_HATCH}" != "$${HATCH_VERSION}" ]; then \
+				echo "  Warning: hatch version mismatch! Expected $${HATCH_VERSION}, got $${INSTALLED_HATCH}"; \
+				echo "  Run 'make setup' to install the correct version"; \
+			else \
+				echo " Hatch version is correct"; \
+			fi; \
+		else \
+			echo " hatch not found! Run 'make setup' to install"; \
+		fi && \
+		if python -c "import click" 2>/dev/null; then \
+			INSTALLED_CLICK=$$(python -c "import click; print(click.__version__)") && \
+			echo "Installed click: $${INSTALLED_CLICK}" && \
+			if python -c "import click; exit(0 if tuple(map(int, click.__version__.split('.'))) < (8, 3, 0) else 1)"; then \
+				echo "Click version is safe (< 8.3.0)"; \
+			else \
+				echo "  Warning: Click version $${INSTALLED_CLICK} may cause issues!"; \
+				echo "  See: https://github.com/pypa/hatch/issues/2050"; \
+				echo "  Run 'make setup' to install the correct version"; \
+			fi; \
+		else \
+			echo " click not found! Run 'make setup' to install"; \
+		fi; \
+	else \
+		echo " Error: .env.versions file not found"; \
+		echo "  Cannot verify dependency versions"; \
+	fi
+
+# Check both Python, Java environments, and dependencies
 .PHONY: check-env
-check-env: check-python check-java
+check-env: check-python check-java check-deps
 
 # Setup Python version for current DBR using either system Python or pyenv
 .PHONY: setup-python-versions
@@ -191,10 +387,15 @@ test: check-env
 
 .PHONY: test-all
 test-all: check-java
+	@echo "Running tests for all DBR versions..."
 	@$(MAKE) setup-all-python-versions
 	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
 		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		for env in dbr154 dbr143 dbr133 dbr122 dbr113; do hatch run $$env:test; done
+		for env in dbr154 dbr143 dbr133 dbr122 dbr113; do \
+			echo "Testing $$env..." && \
+			hatch run $$env:test || exit 1; \
+		done
+	@echo "✅ All tests passed!"
 
 # Run linters
 .PHONY: lint
@@ -240,10 +441,22 @@ coverage-report:
 	fi
 	@echo "Generating coverage report..."
 	hatch run coverage-report:run-coverage
+	@echo "✅ Coverage report generated!"
 
 
-.PHONY: all-local
-all-local: lint type-check build-dist build-docs coverage-report
+# Build both distribution and documentation
+.PHONY: build
+build: build-dist build-docs
+	@echo "✅ Build complete!"
+
+# Run complete CI pipeline
+.PHONY: ci
+ci: quality test-all build coverage-report
+	@echo "✅ Complete CI pipeline passed!"
+
+# Alias for ci
+.PHONY: all
+all: ci
 
 # Clean virtual environments and build artifacts
 .PHONY: clean
