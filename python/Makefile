@@ -87,7 +87,7 @@ setup:
 	@if [ -f .env.versions ]; then \
 		. .env.versions && \
 		python -m pip install --upgrade pip --quiet && \
-		python -m pip install hatch==$${HATCH_VERSION} "$${CLICK_CONSTRAINT}" --quiet && \
+		$${HATCH_INSTALL_CMD} --quiet && \
 		echo "Development tools installed successfully"; \
 	else \
 		echo "ERROR: .env.versions file not found"; \
@@ -124,7 +124,7 @@ status:
 		. .env.versions && \
 		if command -v hatch >/dev/null 2>&1; then \
 			HATCH_VER=$$(hatch --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \
-			if [ "$${HATCH_VER}" = "$${HATCH_VERSION}" ] && python -c "import click; exit(0 if tuple(map(int, click.__version__.split('.'))) < (8, 3, 0) else 1)" 2>/dev/null; then \
+			if [ "$${HATCH_VER}" = "$${HATCH_VERSION}" ]; then \
 				echo "Development tools: OK"; \
 			else \
 				echo "Development tools: needs update (run 'make setup')"; \
@@ -185,7 +185,7 @@ doctor:
 	fi
 	@echo ""
 	@echo " Diagnosis Complete"
-	@if command -v hatch >/dev/null 2>&1 && python -c "import click; exit(0 if tuple(map(int, click.__version__.split('.'))) < (8, 3, 0) else 1)" 2>/dev/null; then \
+	@if command -v hatch >/dev/null 2>&1; then \
 		echo "   Environment is healthy"; \
 	else \
 		echo "    Issues detected - run 'make init' to fix"; \
@@ -275,7 +275,7 @@ check-python:
 		echo "pyenv installed successfully"; \
 	fi
 
-# Check dependencies (hatch and click versions)
+# Check dependencies (hatch version)
 .PHONY: check-deps
 check-deps:
 	@echo "Checking development dependencies..."
@@ -283,7 +283,6 @@ check-deps:
 		. .env.versions && \
 		echo "Expected versions from .env.versions:" && \
 		echo "  - hatch: $${HATCH_VERSION}" && \
-		echo "  - click: < 8.3.0" && \
 		echo "" && \
 		if command -v hatch >/dev/null 2>&1; then \
 			INSTALLED_HATCH=$$(hatch --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+') && \
@@ -296,19 +295,6 @@ check-deps:
 			fi; \
 		else \
 			echo " hatch not found! Run 'make setup' to install"; \
-		fi && \
-		if python -c "import click" 2>/dev/null; then \
-			INSTALLED_CLICK=$$(python -c "import click; print(click.__version__)") && \
-			echo "Installed click: $${INSTALLED_CLICK}" && \
-			if python -c "import click; exit(0 if tuple(map(int, click.__version__.split('.'))) < (8, 3, 0) else 1)"; then \
-				echo "Click version is safe (< 8.3.0)"; \
-			else \
-				echo "  Warning: Click version $${INSTALLED_CLICK} may cause issues!"; \
-				echo "  See: https://github.com/pypa/hatch/issues/2050"; \
-				echo "  Run 'make setup' to install the correct version"; \
-			fi; \
-		else \
-			echo " click not found! Run 'make setup' to install"; \
 		fi; \
 	else \
 		echo " Error: .env.versions file not found"; \
