@@ -1,16 +1,56 @@
-# Setup instructions
+# Contributing to Tempo
 
-We use `tox` and `pyenv` to manage developing and testing `tempo` across multiple Python versions and PySpark versions.
-`tox` is a testing tool that helps you automate and standardize testing in Python across multiple environments.
-`pyenv` allows you to manage multiple versions of Python on your computer and easily switch between them.
+## Quick Start
 
-## Pyenv setup
+```bash
+cd tempo/python
+make init  # Complete setup for new developers
+```
 
-Since `tox` supports creating virtual environments using multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
-`pyenv` does not install via `pip` on all platforms, so see the [pyenv documentation](https://github.com/pyenv/pyenv#installation) for installation instructions. 
+This will set up your complete development environment.
+
+## Development Setup
+
+### Prerequisites
+- Python 3.9, 3.10, or 3.11
+- pip
+- make
+
+### Setup Instructions
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/databrickslabs/tempo.git
+   cd tempo/python
+   ```
+
+2. **Initialize development environment**
+   ```bash
+   make init  # Complete setup (recommended)
+   ```
+
+   Or if you prefer manual steps:
+   ```bash
+   make setup         # Install development tools
+   make venv          # Create virtual environment for default DBR
+   ```
+
+3. **Check status**
+   ```bash
+   make status        # Quick status check
+   make doctor        # Comprehensive health check
+   ```
+
+## Python Version Management
+
+Since we test across multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
+
+### Pyenv Setup
+
+`pyenv` does not install via `pip` on all platforms, so see the [pyenv documentation](https://github.com/pyenv/pyenv#installation) for installation instructions.
 Be sure to carefully follow the instructions to configure your shell environment to use `pyenv`, otherwise subsequent commands will not work as intended.
 
-Use `pyenv` to install the following Python versions for testing.
+Use `pyenv` to install the following Python versions for testing:
 ```bash
 pyenv install 3.9 3.10 3.11
 ```
@@ -26,73 +66,85 @@ Within the `tempo/python` folder, run the below command to create a `.python-ver
 pyenv local 3.9 3.10 3.11
 ```
 
-This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
+## Running Tests
 
-## Tox setup
-
-Install tox:
+### Test a specific DBR version
 ```bash
-pip install -U tox
+make test           # Test with default DBR version (154)
+make test DBR=143   # Test with specific DBR version
 ```
 
-A brief description of each managed `tox` environment can be found by running `tox list` or in the `tox.ini` file.
-
-## Create a development environment
-Each development environment is roughly associated with a DBR LTS version. A list of base environments can be found in your `tox.ini` file, but the number specified below is only the version number.
-Run the following command in your terminal to create a virtual environment (you can replace "your_dbr_number" with something like 154, 143, etc.):
+### Test all DBR versions
 ```bash
-make venv DBR={your_dbr_number}
+make test-all       # Test all DBR versions
 ```
 
+### DBR Versions Supported
+- **DBR 154** - Python 3.11 (default)
+- **DBR 143** - Python 3.10
+- **DBR 133** - Python 3.10
+- **DBR 122** - Python 3.9
+- **DBR 113** - Python 3.9
 
-## Environments we test
-Use the following to run tests for a given environment. 
+## Code Quality
+
+### Run individual quality checks
 ```bash
-make test DBR={your_dbr_number}
+make format         # Format code with Black
+make lint           # Run linters
+make type-check     # Run type checking
 ```
 
-If you would like to run tests for all environments, use
+### Run all quality checks at once
 ```bash
-make test-all
+make quality        # Run format + lint + type-check sequentially
 ```
 
-### Run additional checks locally
-`tox` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
-These environments are also defined in the `tox.ini`file and skip installing dependencies listed in the `requirements.txt` file and building the distribution when those are not required . They can be specified using the `-e` flag:
-* lint
-* type-check
-* build-dist
-* build-docs
-* coverage-report
+## Building
 
-To run an individual check, use
+### Build artifacts
 ```bash
-make lint
-make type-check
-make {name_of_environment}
+make build          # Build distribution and documentation
+make build-dist     # Build distribution packages only
+make build-docs     # Build documentation only
 ```
 
-To run all checks at once, run
+### Generate coverage report
 ```bash
-make all-local
+make coverage-report # Generate test coverage report (requires tests to be run first)
 ```
-# Code style & Standards
 
-The tempo project abides by [`black`](https://black.readthedocs.io/en/stable/index.html) formatting standards, 
-as well as using [`flake8`](https://flake8.pycqa.org/en/latest/) and [`mypy`](https://mypy.readthedocs.io/en/stable/) 
+## Complete CI Pipeline
+
+### Run the complete CI pipeline locally
+```bash
+make ci             # Run quality + test-all + build + coverage
+make all            # Alias for 'make ci'
+```
+
+This runs the same checks as the GitHub Actions CI pipeline.
+
+## Code Style & Standards
+
+The tempo project abides by [`black`](https://black.readthedocs.io/en/stable/index.html) formatting standards,
+as well as using [`flake8`](https://flake8.pycqa.org/en/latest/) and [`mypy`](https://mypy.readthedocs.io/en/stable/)
 to check for effective code style, type-checking and common bad practices.
-To test your code against these standards, run the following command:
+
+To test your code against these standards, run:
 ```bash
-tox -e lint, type-check
+make quality        # Run all quality checks (format + lint + type-check)
 ```
-To have `black` automatically format your code, run the following command:
+
+Or run them individually:
 ```bash
-tox -e format
+make format         # Format code with Black
+make lint           # Run linters
+make type-check     # Run type checking
 ```
 
 In addition, we apply some project-specific standards:
 
-## Module imports
+### Module imports
 
 We organize import statements at the top of each module in the following order, each section being separated by a blank line:
 1. Standard Python library imports
@@ -102,6 +154,44 @@ We organize import statements at the top of each module in the following order, 
 
 Within each section, imports are sorted alphabetically. While it is acceptable to directly import classes and some functions that are
 going to be commonly used, for the sake of readability, it is generally preferred to import a package with an alias and then use the alias
-to reference the package's classes and functions. 
+to reference the package's classes and functions.
 
 When importing `pyspark.sql.functions`, we use the convention to alias this package as `sfn`, which is both distinctive and short.
+
+## Troubleshooting
+
+### Dependency Issues
+If you see errors during setup or when running commands:
+```bash
+make setup          # Reinstall development tools
+```
+
+### Python Version Issues
+If you need a specific Python version:
+```bash
+make setup-python-versions  # Install all required Python versions
+```
+
+### Clean Slate
+If things are broken:
+```bash
+make clean          # Remove all generated files
+make deep-clean     # Remove everything (venvs, caches, artifacts)
+make init           # Reinstall everything
+```
+
+### Known Issues
+See `python/.env.versions` for notes on current tool version constraints and tracking issues.
+
+## Version Management
+
+Tool versions are centrally managed in `python/.env.versions`:
+- Both local development and CI use these same versions
+- To update versions, modify `.env.versions` and run `make setup`
+
+## CI/CD
+
+GitHub Actions workflows automatically:
+- Source `.env.versions` for consistent tool versions
+- Run tests across all DBR versions
+- Enforce the same linting and type checking as local development
