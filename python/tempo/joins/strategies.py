@@ -262,41 +262,63 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         # Perform the join
         join_series_ids = self.commonSeriesIDs(left, right)
 
-        # Get comparable expressions for timestamp comparison
-        left_ts_expr = left.ts_index.comparableExpr()
-        if isinstance(left_ts_expr, list):
-            left_ts_expr = left_ts_expr[0]
+        # Alias DataFrames to avoid ambiguity when column names overlap
+        left_aliased = left.df.alias("l")
+        right_aliased = right_with_lead.df.alias("r")
 
-        right_ts_expr = right.ts_index.comparableExpr()
-        if isinstance(right_ts_expr, list):
-            right_ts_expr = right_ts_expr[0]
+        # Get timestamp column names (may be prefixed by parent)
+        left_ts_col = left.ts_col
+        right_ts_col = right.ts_col
 
-        # Create between condition that handles NULL lead values
-        # When lead is NULL, it means this is the last row in the partition
-        # and should match all future left timestamps
+        # Create between condition using aliased column references
+        # This avoids ambiguity when both DataFrames have the same column names
         between_condition = (
-            (left_ts_expr >= right_ts_expr) &
-            (sfn.col(lead_colname).isNull() | (left_ts_expr < sfn.col(lead_colname)))
+            (sfn.col(f"l.{left_ts_col}") >= sfn.col(f"r.{right_ts_col}")) &
+            (sfn.col(f"r.{lead_colname}").isNull() | (sfn.col(f"l.{left_ts_col}") < sfn.col(f"r.{lead_colname}")))
         )
 
         # Join and filter
         if join_series_ids:
+            # Build join condition on series columns
+            join_condition = None
+            for series_col in join_series_ids:
+                col_condition = sfn.col(f"l.{series_col}") == sfn.col(f"r.{series_col}")
+                join_condition = col_condition if join_condition is None else join_condition & col_condition
+
             # Join on series columns, then filter by temporal condition
             res_df = (
-                left.df.join(right_with_lead.df, list(join_series_ids))
+                left_aliased.join(right_aliased, on=join_condition)
                 .where(between_condition)
             )
         else:
             # For single series, we need to compare all records
             # Use a LEFT JOIN with temporal condition directly to let Spark optimize
-            res_df = left.df.join(
-                right_with_lead.df,
+            res_df = left_aliased.join(
+                right_aliased,
                 on=between_condition,
                 how="left"
             )
 
         # Drop the lead column
         res_df = res_df.drop(lead_colname)
+
+        # Select columns to remove the "l." and "r." prefixes from the join
+        # The left and right TSDFs were already prefixed by the parent class,
+        # so we just need to select them with their existing names
+        final_cols = []
+        added_cols = set()
+
+        # Add all left columns
+        for col in left.columns:
+            final_cols.append(sfn.col(f"l.{col}").alias(col))
+            added_cols.add(col)
+
+        # Add right columns (excluding series columns and already-added columns)
+        for col in right.columns:
+            if col not in right.series_ids and col not in added_cols:
+                final_cols.append(sfn.col(f"r.{col}").alias(col))
+
+        res_df = res_df.select(*final_cols)
 
         # Return DataFrame and schema tuple
         return res_df, left.ts_schema
@@ -892,32 +914,27 @@ class SkewAsOfJoiner(AsOfJoiner):
         """
         Select and rename columns for the final output.
 
+        NOTE: The left and right TSDFs have already been prefixed by the parent
+        class via _prefixOverlappingColumns. We just need to select the columns
+        and remove the join aliases (l. and r.).
+
         :param joined_df: DataFrame with joined data (aliased as 'l' and 'r')
-        :param left: Left TSDF for column metadata
-        :param right: Right TSDF for column metadata
-        :return: DataFrame with properly named and prefixed columns
+        :param left: Left TSDF (already prefixed by parent)
+        :param right: Right TSDF (already prefixed by parent)
+        :return: DataFrame with properly named columns
         """
         final_cols = []
+        added_cols = set()
 
-        # Add left columns
+        # Add all left columns with their current names (already prefixed if needed)
         for col in left.columns:
-            if col in left.series_ids or col == left.ts_col:
-                # Keep original name for series and timestamp
-                final_cols.append(sfn.col(f"l.{col}").alias(col))
-            else:
-                # Add prefix if specified
-                alias = f"{self.left_prefix}_{col}" if self.left_prefix else col
-                final_cols.append(sfn.col(f"l.{col}").alias(alias))
+            final_cols.append(sfn.col(f"l.{col}").alias(col))
+            added_cols.add(col)
 
-        # Add right columns (excluding series columns)
+        # Add right columns (excluding series columns and already-added columns)
         for col in right.columns:
-            if col not in right.series_ids:
-                alias = f"{self.right_prefix}_{col}" if self.right_prefix else col
-                # Handle potential column name from join
-                if "r." + col in joined_df.columns:
-                    final_cols.append(sfn.col(f"r.{col}").alias(alias))
-                elif col in joined_df.columns:
-                    final_cols.append(sfn.col(col).alias(alias))
+            if col not in right.series_ids and col not in added_cols:
+                final_cols.append(sfn.col(f"r.{col}").alias(col))
 
         return joined_df.select(*final_cols)
 
@@ -957,25 +974,33 @@ class SkewAsOfJoiner(AsOfJoiner):
         Sets all right-side columns to NULL when the time difference between
         left and right timestamps exceeds the specified tolerance.
 
+        NOTE: The left and right TSDFs have already been prefixed by the parent
+        class, so we use their column names as-is.
+
         :param result_df: DataFrame with joined and selected columns
-        :param left: Left TSDF for timestamp column name
-        :param right: Right TSDF for timestamp column name
+        :param left: Left TSDF (already prefixed by parent)
+        :param right: Right TSDF (already prefixed by parent)
         :return: DataFrame with tolerance filter applied
         """
+        # Use column names as they exist (already prefixed by parent if needed)
         left_ts_col = left.ts_col
-        right_ts_col = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else right.ts_col
+        right_ts_col = right.ts_col
 
         # Calculate time difference
         time_diff = sfn.col(left_ts_col).cast("double") - sfn.col(right_ts_col).cast("double")
         outside_tolerance = time_diff > self.tolerance
 
+        # Identify right columns by checking which ones came from right TSDF
+        # These are the columns that are NOT in the left TSDF (excluding series columns)
+        left_cols = set(left.columns)
+        right_only_cols = [col for col in result_df.columns if col not in left_cols]
+
         # Null out right columns if outside tolerance
-        for col in result_df.columns:
-            if col.startswith(self.right_prefix if self.right_prefix else "right"):
-                result_df = result_df.withColumn(
-                    col,
-                    sfn.when(outside_tolerance, sfn.lit(None)).otherwise(sfn.col(col))
-                )
+        for col in right_only_cols:
+            result_df = result_df.withColumn(
+                col,
+                sfn.when(outside_tolerance, sfn.lit(None)).otherwise(sfn.col(col))
+            )
 
         return result_df
 

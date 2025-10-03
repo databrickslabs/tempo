@@ -345,7 +345,6 @@ class TestStrategyConsistency:
                 assert price_val == expected_prices[i], \
                     f"{strategy_name} incorrect temporal ordering at row {i}"
 
-    @pytest.mark.skip(reason="Prefix handling needs standardization across strategies")
     def test_prefix_handling_consistency(self, spark):
         """Test all strategies handle column prefixes consistently."""
         left_tsdf, right_tsdf = self.create_test_data(spark, 30, 10)
@@ -375,3 +374,68 @@ class TestStrategyConsistency:
             for i in range(1, len(results)):
                 assert sorted(results[0].columns) == sorted(results[i].columns), \
                     f"Column names differ with prefixes ({left_prefix}, {right_prefix})"
+
+    def test_no_double_prefixing(self, spark):
+        """Verify that column prefixes are never applied twice."""
+        left_tsdf, right_tsdf = self.create_test_data(spark, 30, 10)
+
+        strategies = [
+            BroadcastAsOfJoiner(spark, "left", "right"),
+            UnionSortFilterAsOfJoiner("left", "right"),
+            SkewAsOfJoiner(spark, "left", "right", skew_threshold=1.0)
+        ]
+
+        for strategy in strategies:
+            result, _ = strategy(left_tsdf, right_tsdf)
+            strategy_name = strategy.__class__.__name__
+
+            # Check no column has double prefix like "left_left_" or "right_right_"
+            for col in result.columns:
+                assert not col.startswith("left_left_"), \
+                    f"{strategy_name} has double-prefixed column: {col}"
+                assert not col.startswith("right_right_"), \
+                    f"{strategy_name} has double-prefixed column: {col}"
+
+    def test_overlapping_columns_empty_prefix(self, spark):
+        """Test handling of overlapping non-timestamp columns with empty prefixes."""
+        # Create data where left and right have same column name (not just timestamp)
+        base_time = datetime(2024, 1, 1)
+
+        left_data = [(base_time + timedelta(minutes=i), "A", i) for i in range(10)]
+        left_df = spark.createDataFrame(left_data, ["timestamp", "symbol", "value"])
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
+
+        right_data = [(base_time + timedelta(minutes=i*2), "A", i*100) for i in range(5)]
+        right_df = spark.createDataFrame(right_data, ["timestamp", "symbol", "value"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
+
+        # With empty prefixes, "value" column overlaps
+        strategy = SkewAsOfJoiner(spark, "", "", skew_threshold=1.0)
+        result, _ = strategy(left_tsdf, right_tsdf)
+
+        # Should have left value, not duplicate "value" columns
+        assert result.columns.count("value") == 1, \
+            "Should have only one 'value' column when prefixes are empty"
+
+    def test_tolerance_with_prefixes(self, spark):
+        """Test tolerance filtering works correctly with various prefix combinations."""
+        left_tsdf, right_tsdf = self.create_test_data(spark, 30, 10)
+        tolerance = 60  # 1 minute
+
+        prefix_tests = [
+            ("", "right"),
+            ("left", ""),
+            ("", ""),
+        ]
+
+        for left_prefix, right_prefix in prefix_tests:
+            strategy = SkewAsOfJoiner(
+                spark, left_prefix, right_prefix,
+                skipNulls=True, tolerance=tolerance, skew_threshold=1.0
+            )
+
+            result, _ = strategy(left_tsdf, right_tsdf)
+
+            # Should not error and should preserve left rows
+            assert result.count() == left_tsdf.df.count(), \
+                f"Failed with prefixes ({left_prefix}, {right_prefix})"
