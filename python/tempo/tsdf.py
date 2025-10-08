@@ -990,50 +990,50 @@ class TSDF(WindowBuilder):
                 "lookback, trading off performance and potential blank AS OF values for sparse keys"
             )
 
+        # Get SparkSession for strategy initialization
+        spark = SparkSession.builder.getOrCreate()
+
         # Choose strategy based on manual selection or automatic selection
         if strategy:
             # Manual strategy selection
-            spark = SparkSession.builder.getOrCreate()
-            if strategy.lower() == 'broadcast':
-                joiner = BroadcastAsOfJoiner(
+            if strategy.lower() == "broadcast":
+                joiner = BroadcastAsOfJoiner(spark, left_prefix or "", right_prefix)
+            elif strategy.lower() == "union":
+                joiner = UnionSortFilterAsOfJoiner(
+                    left_prefix or "", right_prefix, skipNulls, tolerance
+                )
+            elif strategy.lower() == "skew":
+                joiner = SkewAsOfJoiner(
                     spark,
                     left_prefix or "",
                     right_prefix,
                     skipNulls,
-                    tolerance
-                )
-            elif strategy.lower() == 'union':
-                joiner = UnionSortFilterAsOfJoiner(
-                    left_prefix or "",
-                    right_prefix,
-                    skipNulls,
-                    tolerance
-                )
-            elif strategy.lower() == 'skew':
-                joiner = SkewAsOfJoiner(
-                    left_prefix or "",
-                    right_prefix,
-                    skipNulls,
                     tolerance,
-                    tsPartitionVal,
-                    fraction
+                    tsPartitionVal=tsPartitionVal,
                 )
             else:
-                raise ValueError(f"Unknown strategy: {strategy}. Must be 'broadcast', 'union', or 'skew'")
-            logger.info(f"Using manually selected strategy: {joiner.__class__.__name__}")
+                raise ValueError(
+                    f"Unknown strategy: {strategy}. Must be 'broadcast', 'union', or 'skew'"
+                )
+            logger.info(
+                f"Using manually selected strategy: {joiner.__class__.__name__}"
+            )
         else:
             # Automatic strategy selection
             joiner = choose_as_of_join_strategy(
                 self,
                 right_tsdf,
+                spark,
                 left_prefix,
                 right_prefix,
                 tsPartitionVal,
                 fraction,
                 skipNulls,
-                tolerance
+                tolerance,
             )
-            logger.info(f"Using automatically selected strategy: {joiner.__class__.__name__}")
+            logger.info(
+                f"Using automatically selected strategy: {joiner.__class__.__name__}"
+            )
 
         # Execute join and wrap result in TSDF
         result_df, result_schema = joiner(self, right_tsdf)

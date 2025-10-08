@@ -102,9 +102,7 @@ class AsOfJoiner(ABC):
             set(right.columns)
         ) - self.commonSeriesIDs(left, right)
 
-    def _prefixColumns(
-        self, tsdf, prefixable_cols: set, prefix: str
-    ):
+    def _prefixColumns(self, tsdf, prefixable_cols: set, prefix: str):
         """
         Prefixes the columns in the TSDF.
         """
@@ -118,9 +116,7 @@ class AsOfJoiner(ABC):
             )
         return tsdf
 
-    def _prefixOverlappingColumns(
-        self, left, right
-    ) -> tuple:
+    def _prefixOverlappingColumns(self, left, right) -> tuple:
         """
         Prefixes the overlapping columns in the left and right TSDFs.
         """
@@ -215,14 +211,24 @@ class BroadcastAsOfJoiner(AsOfJoiner):
                 # Skip series columns and timestamp
                 if col_name not in right.series_ids and col_name != right.ts_col:
                     # Apply prefix if needed
-                    out_col_name = f"{self.right_prefix}_{col_name}" if self.right_prefix else col_name
-                    result_df = result_df.withColumn(out_col_name, sfn.lit(None).cast(field.dataType))
+                    out_col_name = (
+                        f"{self.right_prefix}_{col_name}"
+                        if self.right_prefix
+                        else col_name
+                    )
+                    result_df = result_df.withColumn(
+                        out_col_name, sfn.lit(None).cast(field.dataType)
+                    )
 
             # Add right timestamp column with prefix
-            right_ts_name = f"{self.right_prefix}_{right.ts_col}" if self.right_prefix else f"right_{right.ts_col}"
+            right_ts_name = (
+                f"{self.right_prefix}_{right.ts_col}"
+                if self.right_prefix
+                else f"right_{right.ts_col}"
+            )
             result_df = result_df.withColumn(
                 right_ts_name,
-                sfn.lit(None).cast(right.df.schema[right.ts_col].dataType)
+                sfn.lit(None).cast(right.df.schema[right.ts_col].dataType),
             )
 
             return result_df, TSSchema(ts_idx=left.ts_index, series_ids=left.series_ids)
@@ -273,8 +279,10 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         # Create between condition using aliased column references
         # This avoids ambiguity when both DataFrames have the same column names
         between_condition = (
-            (sfn.col(f"l.{left_ts_col}") >= sfn.col(f"r.{right_ts_col}")) &
-            (sfn.col(f"r.{lead_colname}").isNull() | (sfn.col(f"l.{left_ts_col}") < sfn.col(f"r.{lead_colname}")))
+            sfn.col(f"l.{left_ts_col}") >= sfn.col(f"r.{right_ts_col}")
+        ) & (
+            sfn.col(f"r.{lead_colname}").isNull()
+            | (sfn.col(f"l.{left_ts_col}") < sfn.col(f"r.{lead_colname}"))
         )
 
         # Join and filter
@@ -283,21 +291,20 @@ class BroadcastAsOfJoiner(AsOfJoiner):
             join_condition = None
             for series_col in join_series_ids:
                 col_condition = sfn.col(f"l.{series_col}") == sfn.col(f"r.{series_col}")
-                join_condition = col_condition if join_condition is None else join_condition & col_condition
+                join_condition = (
+                    col_condition
+                    if join_condition is None
+                    else join_condition & col_condition
+                )
 
             # Join on series columns, then filter by temporal condition
-            res_df = (
-                left_aliased.join(right_aliased, on=join_condition)
-                .where(between_condition)
+            res_df = left_aliased.join(right_aliased, on=join_condition).where(
+                between_condition
             )
         else:
             # For single series, we need to compare all records
             # Use a LEFT JOIN with temporal condition directly to let Spark optimize
-            res_df = left_aliased.join(
-                right_aliased,
-                on=between_condition,
-                how="left"
-            )
+            res_df = left_aliased.join(right_aliased, on=between_condition, how="left")
 
         # Drop the lead column
         res_df = res_df.drop(lead_colname)
@@ -361,9 +368,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         :return: TSDF with added null columns
         """
         return reduce(
-            lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)),
-            cols,
-            tsdf
+            lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)), cols, tsdf
         )
 
     def _combine(self, left, right):
@@ -423,9 +428,9 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         # Put it all together in a new TSDF
         # We need TSDF for internal operations only
         from tempo.tsdf import TSDF
+
         return TSDF(
-            with_combined_ts.df,
-            ts_schema=TSSchema(combined_tsidx, left.series_ids)
+            with_combined_ts.df, ts_schema=TSSchema(combined_tsidx, left.series_ids)
         )
 
     def _filterLastRightRow(
@@ -453,7 +458,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
 
             # Get value columns (exclude timestamp columns from right_cols)
             # We assume timestamp columns contain 'timestamp' in their name
-            value_cols = [col for col in right_cols if 'timestamp' not in col.lower()]
+            value_cols = [col for col in right_cols if "timestamp" not in col.lower()]
 
             # Create a condition: row is valid if all value columns are non-null
             if value_cols:
@@ -468,11 +473,11 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
                     last_right_cols.append(
                         sfn.last(
                             sfn.when(
-                                (sfn.col(right_row_field) == _RIGHT_HAND_ROW_INDICATOR) &
-                                ~any_null_condition,
-                                sfn.struct(col)
+                                (sfn.col(right_row_field) == _RIGHT_HAND_ROW_INDICATOR)
+                                & ~any_null_condition,
+                                sfn.struct(col),
                             ).otherwise(None),
-                            True
+                            True,
                         )
                         .over(w)[col]
                         .alias(col)
@@ -508,14 +513,11 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
 
         # We need TSDF for internal use but return raw data
         from tempo.tsdf import TSDF
+
         return TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
     def _toleranceFilter(
-        self,
-        as_of,
-        left_ts_col: str,
-        right_ts_col: str,
-        right_columns: List[str]
+        self, as_of, left_ts_col: str, right_ts_col: str, right_columns: List[str]
     ):
         """
         Filters out rows from the as_of TSDF that are outside the tolerance.
@@ -542,13 +544,15 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             if right_col != right_ts_col:
                 df = df.withColumn(
                     right_col,
-                    sfn.when(tolerance_condition, sfn.lit(None)).otherwise(df[right_col])
+                    sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
+                        df[right_col]
+                    ),
                 )
 
         # Finally, set right timestamp column to null
         df = df.withColumn(
             right_ts_col,
-            sfn.when(tolerance_condition, sfn.lit(None)).otherwise(df[right_ts_col])
+            sfn.when(tolerance_condition, sfn.lit(None)).otherwise(df[right_ts_col]),
         )
 
         as_of.df = df
@@ -587,7 +591,9 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             # Get list of right columns (already prefixed if needed)
             right_columns = list(right_only_cols)
 
-            as_of = self._toleranceFilter(as_of, left_ts_col, right_ts_col, right_columns)
+            as_of = self._toleranceFilter(
+                as_of, left_ts_col, right_ts_col, right_columns
+            )
 
         # Return DataFrame and schema tuple
         return as_of.df, as_of.ts_schema
@@ -654,7 +660,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         # A partition is considered skewed if it's 5x larger than median
         self.spark.conf.set("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "5")
         # Or if it's larger than 256MB
-        self.spark.conf.set("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "256MB")
+        self.spark.conf.set(
+            "spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "256MB"
+        )
 
         # Enable coalescing of small partitions
         self.spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
@@ -696,7 +704,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         )
 
         if skewed_keys:
-            logger.info(f"Detected {len(skewed_keys)} skewed keys exceeding {self.skew_threshold:.0%} threshold")
+            logger.info(
+                f"Detected {len(skewed_keys)} skewed keys exceeding {self.skew_threshold:.0%} threshold"
+            )
             # Convert Row objects to tuples for easier handling
             return [tuple(row) for row in skewed_keys]
 
@@ -713,7 +723,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         logger.info("Using SkewAsOfJoiner with AQE optimization")
 
         # Detect if we have severely skewed keys
-        skewed_keys = self._detectSkewedKeys(left, right) if self.skew_threshold < 1.0 else []
+        skewed_keys = (
+            self._detectSkewedKeys(left, right) if self.skew_threshold < 1.0 else []
+        )
 
         if not skewed_keys:
             # No extreme skew detected, use standard AQE-optimized join
@@ -741,8 +753,7 @@ class SkewAsOfJoiner(AsOfJoiner):
         # First, add a window to get the lead timestamp for each right row
         window_spec = Window.partitionBy(*left.series_ids).orderBy(right.ts_col)
         right_with_lead = right_df.withColumn(
-            "lead_ts",
-            sfn.lead(right.ts_col).over(window_spec)
+            "lead_ts", sfn.lead(right.ts_col).over(window_spec)
         )
 
         # Join condition: series match AND left.ts between right.ts and right.lead_ts
@@ -754,9 +765,10 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         # Add temporal join condition
         temporal_condition = (
-            (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}")) &
-            ((sfn.col("r.lead_ts").isNull()) |
-             (sfn.col(f"l.{left.ts_col}") < sfn.col("r.lead_ts")))
+            sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}")
+        ) & (
+            (sfn.col("r.lead_ts").isNull())
+            | (sfn.col(f"l.{left.ts_col}") < sfn.col("r.lead_ts"))
         )
 
         if join_conditions:
@@ -771,9 +783,7 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         # Perform the join
         joined = left_df.alias("l").join(
-            right_with_lead.alias("r"),
-            on=full_condition,
-            how="left"
+            right_with_lead.alias("r"), on=full_condition, how="left"
         )
 
         # Apply skipNulls filter if needed
@@ -788,14 +798,13 @@ class SkewAsOfJoiner(AsOfJoiner):
             result_df = self._applyToleranceFilter(result_df, left, right)
 
         # Create result schema
-        result_schema = TSSchema(
-            ts_idx=left.ts_index,
-            series_ids=left.series_ids
-        )
+        result_schema = TSSchema(ts_idx=left.ts_index, series_ids=left.series_ids)
 
         return result_df, result_schema
 
-    def _skewSeparatedJoin(self, left, right, skewed_keys) -> Tuple[DataFrame, TSSchema]:
+    def _skewSeparatedJoin(
+        self, left, right, skewed_keys
+    ) -> Tuple[DataFrame, TSSchema]:
         """
         Handle skewed and non-skewed keys separately, then union results.
 
@@ -807,7 +816,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         # Build filter conditions for skewed keys
         if len(left.series_ids) == 1:
             # Single series column
-            skewed_filter = sfn.col(left.series_ids[0]).isin([k[0] for k in skewed_keys])
+            skewed_filter = sfn.col(left.series_ids[0]).isin(
+                [k[0] for k in skewed_keys]
+            )
         else:
             # Multiple series columns - need complex filter
             skewed_filter = sfn.lit(False)
@@ -818,10 +829,24 @@ class SkewAsOfJoiner(AsOfJoiner):
                 skewed_filter = skewed_filter | key_condition
 
         # Split data
-        left_skewed = TSDF(left.df.filter(skewed_filter), left.ts_col, left.series_ids, left.ts_index)
-        left_normal = TSDF(left.df.filter(~skewed_filter), left.ts_col, left.series_ids, left.ts_index)
-        right_skewed = TSDF(right.df.filter(skewed_filter), right.ts_col, right.series_ids, right.ts_index)
-        right_normal = TSDF(right.df.filter(~skewed_filter), right.ts_col, right.series_ids, right.ts_index)
+        left_skewed = TSDF(
+            left.df.filter(skewed_filter), left.ts_col, left.series_ids, left.ts_index
+        )
+        left_normal = TSDF(
+            left.df.filter(~skewed_filter), left.ts_col, left.series_ids, left.ts_index
+        )
+        right_skewed = TSDF(
+            right.df.filter(skewed_filter),
+            right.ts_col,
+            right.series_ids,
+            right.ts_index,
+        )
+        right_normal = TSDF(
+            right.df.filter(~skewed_filter),
+            right.ts_col,
+            right.series_ids,
+            right.ts_index,
+        )
 
         # Process non-skewed with standard join
         normal_result, schema = self._standardAsOfJoin(left_normal, right_normal)
@@ -858,7 +883,10 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         # Add deterministic salt to left based on hash of series keys
         if left.series_ids:
-            salt_expr = sfn.abs(sfn.hash(*[sfn.col(c) for c in left.series_ids])) % self.salt_buckets
+            salt_expr = (
+                sfn.abs(sfn.hash(*[sfn.col(c) for c in left.series_ids]))
+                % self.salt_buckets
+            )
         else:
             salt_expr = sfn.abs(sfn.hash(sfn.col(left.ts_col))) % self.salt_buckets
 
@@ -870,27 +898,30 @@ class SkewAsOfJoiner(AsOfJoiner):
         )
 
         # Now perform the join including salt in the join key
-        join_conditions = [sfn.col(f"l.{col}") == sfn.col(f"r.{col}") for col in left.series_ids]
+        join_conditions = [
+            sfn.col(f"l.{col}") == sfn.col(f"r.{col}") for col in left.series_ids
+        ]
         join_conditions.append(sfn.col("l.__salt") == sfn.col("r.__salt"))
 
         # Add temporal condition using window approach
-        window_spec = Window.partitionBy(*[f"r.{col}" for col in left.series_ids], "r.__salt").orderBy(f"r.{right.ts_col}")
+        window_spec = Window.partitionBy(
+            *[f"r.{col}" for col in left.series_ids], "r.__salt"
+        ).orderBy(f"r.{right.ts_col}")
         right_with_lead = right_salted.withColumn(
-            "lead_ts",
-            sfn.lead(f"r.{right.ts_col}").over(window_spec)
+            "lead_ts", sfn.lead(f"r.{right.ts_col}").over(window_spec)
         )
 
         join_conditions.append(
-            (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}")) &
-            ((sfn.col("lead_ts").isNull()) |
-             (sfn.col(f"l.{left.ts_col}") < sfn.col("lead_ts")))
+            (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}"))
+            & (
+                (sfn.col("lead_ts").isNull())
+                | (sfn.col(f"l.{left.ts_col}") < sfn.col("lead_ts"))
+            )
         )
 
         # Perform the salted join
         joined = left_salted.alias("l").join(
-            right_with_lead.alias("r"),
-            on=join_conditions,
-            how="left"
+            right_with_lead.alias("r"), on=join_conditions, how="left"
         )
 
         # Remove salt columns and select final columns
@@ -903,10 +934,7 @@ class SkewAsOfJoiner(AsOfJoiner):
         if self.tolerance is not None:
             result_df = self._applyToleranceFilter(result_df, left, right)
 
-        result_schema = TSSchema(
-            ts_idx=left.ts_index,
-            series_ids=left.series_ids
-        )
+        result_schema = TSSchema(ts_idx=left.ts_index, series_ids=left.series_ids)
 
         return result_df, result_schema
 
@@ -950,8 +978,11 @@ class SkewAsOfJoiner(AsOfJoiner):
         :return: DataFrame with null rows filtered based on skipNulls setting
         """
         # Get right value columns (non-timestamp, non-series)
-        right_value_cols = [col for col in right.columns
-                           if col != right.ts_col and col not in right.series_ids]
+        right_value_cols = [
+            col
+            for col in right.columns
+            if col != right.ts_col and col not in right.series_ids
+        ]
 
         if not right_value_cols:
             return joined_df
@@ -963,9 +994,7 @@ class SkewAsOfJoiner(AsOfJoiner):
                 null_check = null_check | sfn.col(f"r.{col}").isNull()
 
         # Keep rows where right timestamp is null (no match) or no nulls in values
-        return joined_df.filter(
-            sfn.col(f"r.{right.ts_col}").isNull() | ~null_check
-        )
+        return joined_df.filter(sfn.col(f"r.{right.ts_col}").isNull() | ~null_check)
 
     def _applyToleranceFilter(self, result_df, left, right):
         """
@@ -987,7 +1016,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         right_ts_col = right.ts_col
 
         # Calculate time difference
-        time_diff = sfn.col(left_ts_col).cast("double") - sfn.col(right_ts_col).cast("double")
+        time_diff = sfn.col(left_ts_col).cast("double") - sfn.col(right_ts_col).cast(
+            "double"
+        )
         outside_tolerance = time_diff > self.tolerance
 
         # Identify right columns by checking which ones came from right TSDF
@@ -998,14 +1029,14 @@ class SkewAsOfJoiner(AsOfJoiner):
         # Null out right columns if outside tolerance
         for col in right_only_cols:
             result_df = result_df.withColumn(
-                col,
-                sfn.when(outside_tolerance, sfn.lit(None)).otherwise(sfn.col(col))
+                col, sfn.when(outside_tolerance, sfn.lit(None)).otherwise(sfn.col(col))
             )
 
         return result_df
 
 
 # Helper functions for strategy selection
+
 
 def get_spark_plan(df: DataFrame, spark: SparkSession) -> str:
     """
@@ -1031,10 +1062,12 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
     plan = get_spark_plan(df, spark)
 
     # Extract sizeInBytes from plan
-    search_result = re.search(r"sizeInBytes=([0-9.]+)\s*([A-Za-z]+)", plan, re.MULTILINE)
+    search_result = re.search(
+        r"sizeInBytes=([0-9.]+)\s*([A-Za-z]+)", plan, re.MULTILINE
+    )
     if search_result is None:
         logger.warning("Unable to obtain sizeInBytes from Spark plan")
-        return float('inf')  # Return large number to avoid broadcast
+        return float("inf")  # Return large number to avoid broadcast
 
     size = float(search_result.group(1))
     units = search_result.group(2)
@@ -1055,6 +1088,7 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
 def choose_as_of_join_strategy(
     left_tsdf,
     right_tsdf,
+    spark: SparkSession,
     left_prefix: Optional[str] = None,
     right_prefix: str = "right",
     tsPartitionVal: Optional[int] = None,
@@ -1072,10 +1106,11 @@ def choose_as_of_join_strategy(
 
     :param left_tsdf: Left TSDF
     :param right_tsdf: Right TSDF
+    :param spark: SparkSession instance
     :param left_prefix: Prefix for left columns
     :param right_prefix: Prefix for right columns
     :param tsPartitionVal: Time partition value for skew handling
-    :param fraction: Overlap fraction for partitions
+    :param fraction: Overlap fraction for partitions (deprecated, kept for compatibility)
     :param skipNulls: Whether to skip nulls
     :param tolerance: Tolerance window in seconds
     :return: Appropriate AsOfJoiner instance
@@ -1085,23 +1120,23 @@ def choose_as_of_join_strategy(
         if tsPartitionVal is not None:
             logger.info(f"Using SkewAsOfJoiner with partition value {tsPartitionVal}")
             return SkewAsOfJoiner(
+                spark=spark,
                 left_prefix=left_prefix or "left",
                 right_prefix=right_prefix,
                 skipNulls=skipNulls,
                 tolerance=tolerance,
                 tsPartitionVal=tsPartitionVal,
-                fraction=fraction,
             )
 
         # Test if the broadcast join will be efficient (check sizes automatically)
         try:
-            spark = SparkSession.builder.getOrCreate()
             left_bytes = get_bytes_from_plan(left_tsdf.df, spark)
             right_bytes = get_bytes_from_plan(right_tsdf.df, spark)
 
             # Use broadcast if either DataFrame is small enough
-            if (left_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD) or \
-               (right_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD):
+            if (left_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD) or (
+                right_bytes < _DEFAULT_BROADCAST_BYTES_THRESHOLD
+            ):
                 logger.info(
                     f"Using BroadcastAsOfJoiner "
                     f"(left: {left_bytes/1024/1024:.2f}MB, "
@@ -1109,26 +1144,22 @@ def choose_as_of_join_strategy(
                 )
                 return BroadcastAsOfJoiner(spark, left_prefix or "left", right_prefix)
         except Exception as e:
-            logger.debug(f"Could not estimate DataFrame size: {e}. Using default strategy.")
+            logger.debug(
+                f"Could not estimate DataFrame size: {e}. Using default strategy."
+            )
             # Fall through to default strategy
 
         # Default to union-sort-filter join
         logger.info("Using default UnionSortFilterAsOfJoiner")
         return UnionSortFilterAsOfJoiner(
-            left_prefix or "left",
-            right_prefix,
-            skipNulls,
-            tolerance
+            left_prefix or "left", right_prefix, skipNulls, tolerance
         )
 
     except Exception as e:
         logger.error(f"Strategy selection failed: {e}")
         # Always fall back to safe default
         return UnionSortFilterAsOfJoiner(
-            left_prefix or "left",
-            right_prefix,
-            skipNulls,
-            tolerance
+            left_prefix or "left", right_prefix, skipNulls, tolerance
         )
 
 
@@ -1153,8 +1184,7 @@ def _detectSignificantSkew(left_tsdf, right_tsdf, threshold: float = 0.3) -> boo
 
         # Group by series and count
         series_counts = (
-            left_tsdf.df
-            .sample(fraction=min(1.0, sample_size / left_tsdf.df.count()))
+            left_tsdf.df.sample(fraction=min(1.0, sample_size / left_tsdf.df.count()))
             .groupBy(*left_tsdf.series_ids)
             .count()
             .select(sfn.stddev("count").alias("std"), sfn.avg("count").alias("avg"))
