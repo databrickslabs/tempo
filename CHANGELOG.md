@@ -27,9 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive edge case coverage (nulls, empty DataFrames, single series, prefixing)
 
 #### Documentation
-- `CIRCULAR_DEPENDENCY_REFACTOR.md`: Documents tuple pattern for avoiding circular dependencies
-- `REFACTOR_PROPOSAL_SHARED_UTILITIES.md`: Proposal for extracting shared DataFrame utilities
-- `REFACTOR_SUMMARY.md`: Quick reference for utility refactoring
+- Design proposals for future refactoring work (organized in `docs/proposals/`)
+- Architecture documentation for tuple pattern approach
 
 ### Changed
 
@@ -41,8 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Architectural Improvements
 - **Circular dependency resolution**: Strategies now return `(DataFrame, TSSchema)` tuples instead of TSDF objects
-  - Benefits: Clean separation, pure DataFrame transformers, better testability
-  - No runtime import workarounds needed
+  - **Tuple pattern approach**: Separates data (DataFrame) from metadata (TSSchema) for loose coupling
+  - **Benefits**:
+    - Clean separation of concerns - strategies are pure DataFrame transformers
+    - Better testability - can test without TSDF dependency
+    - Improved reusability - functions work with raw DataFrames
+    - No runtime import workarounds needed
+    - Performance gains from avoiding unnecessary object creation
+  - **Establishes best practice**: This pattern should be adopted for future data transformations in Tempo
 
 ### Fixed
 

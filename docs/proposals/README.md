@@ -12,6 +12,13 @@ This directory contains design proposals for future work on Tempo. These documen
 - [Full Proposal](shared-utilities-refactor/PROPOSAL.md)
 - [Quick Summary](shared-utilities-refactor/SUMMARY.md)
 
+### [README Consolidation](readme-consolidation/)
+**Status**: 📋 Proposed
+**Created**: October 2025
+**Summary**: Consolidate duplicate README.md files (root and python/) into a single comprehensive README at repository root.
+
+- [Full Proposal](readme-consolidation/PROPOSAL.md)
+
 ---
 
 ## Proposal Lifecycle
