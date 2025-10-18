@@ -170,20 +170,18 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         # 2. The left timestamp is between the right timestamp and lead timestamp
         # 3. Lead is NULL (last right row) and left timestamp >= right timestamp
         res_df = joined_df.where(
-            sfn.col(right.ts_index.colname).isNull() |
-            (
-                sfn.col(right.ts_index.colname).isNotNull() &
-                (
+            sfn.col(right.ts_index.colname).isNull()
+            | (
+                sfn.col(right.ts_index.colname).isNotNull()
+                & (
                     # Normal case: left timestamp is between right and lead
                     (
-                        sfn.col(lead_colname).isNotNull() &
-                        left.ts_index.between(right.ts_index, sfn.col(lead_colname))
-                    ) |
-                    # Last right row: lead is NULL and left >= right
-                    (
-                        sfn.col(lead_colname).isNull() &
-                        (left.ts_index >= right.ts_index)
+                        sfn.col(lead_colname).isNotNull()
+                        & left.ts_index.between(right.ts_index, sfn.col(lead_colname))
                     )
+                    |
+                    # Last right row: lead is NULL and left >= right
+                    (sfn.col(lead_colname).isNull() & (left.ts_index >= right.ts_index))
                 )
             )
         ).drop(lead_colname)

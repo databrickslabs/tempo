@@ -29,15 +29,8 @@ import tempo.resample as t_resample
 import tempo.resample_utils as t_resample_utils
 import tempo.utils as t_utils
 from tempo.intervals import IntervalsDF
-from tempo.joins.strategies import (
-    choose_as_of_join_strategy,
-    BroadcastAsOfJoiner,
-    UnionSortFilterAsOfJoiner,
-    SkewAsOfJoiner,
-)
 from tempo.tsschema import (
     DEFAULT_TIMESTAMP_FORMAT,
-    CompositeTSIndex,
     ParsedTSIndex,
     SubsequenceTSIndex,
     TSIndex,

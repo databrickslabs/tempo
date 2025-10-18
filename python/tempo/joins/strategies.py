@@ -12,7 +12,7 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from functools import reduce
-from typing import Any, Optional, Tuple, Union, List
+from typing import Any, Optional, Tuple, List
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, DataFrame, SparkSession
@@ -813,6 +813,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         :param skewed_keys: List of skewed key values
         :return: Tuple of (joined DataFrame, TSSchema)
         """
+        # Import TSDF here to avoid circular dependency
+        from tempo.tsdf import TSDF
+
         # Build filter conditions for skewed keys
         if len(left.series_ids) == 1:
             # Single series column
