@@ -12,7 +12,7 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from functools import reduce
-from typing import Any, Optional, Tuple, List
+from typing import TYPE_CHECKING, Any, Optional, Tuple, List
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import Column, DataFrame, SparkSession
@@ -21,6 +21,9 @@ from pyspark.sql.window import Window
 # Import related components
 from tempo.tsschema import CompositeTSIndex, TSSchema
 from tempo.timeunit import TimeUnit
+
+if TYPE_CHECKING:
+    from tempo.tsdf import TSDF
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +71,7 @@ class AsOfJoiner(ABC):
         self.left_prefix = left_prefix
         self.right_prefix = right_prefix
 
-    def __call__(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def __call__(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Execute the as-of join.
 
@@ -83,7 +86,7 @@ class AsOfJoiner(ABC):
         # Perform the join
         return self._join(left, right)
 
-    def commonSeriesIDs(self, left, right) -> set:
+    def commonSeriesIDs(self, left: "TSDF", right: "TSDF") -> set:
         """
         Returns the common series IDs between the left and right TSDFs.
 
@@ -93,7 +96,7 @@ class AsOfJoiner(ABC):
         """
         return set(left.series_ids).intersection(set(right.series_ids))
 
-    def _prefixableColumns(self, left, right) -> set:
+    def _prefixableColumns(self, left: "TSDF", right: "TSDF") -> set:
         """
         Returns the overlapping columns in the left and right TSDFs
         not including overlapping series IDs.
@@ -102,7 +105,7 @@ class AsOfJoiner(ABC):
             set(right.columns)
         ) - self.commonSeriesIDs(left, right)
 
-    def _prefixColumns(self, tsdf, prefixable_cols: set, prefix: str):
+    def _prefixColumns(self, tsdf: "TSDF", prefixable_cols: set, prefix: str) -> "TSDF":
         """
         Prefixes the columns in the TSDF.
         """
@@ -116,7 +119,7 @@ class AsOfJoiner(ABC):
             )
         return tsdf
 
-    def _prefixOverlappingColumns(self, left, right) -> tuple:
+    def _prefixOverlappingColumns(self, left: "TSDF", right: "TSDF") -> Tuple["TSDF", "TSDF"]:
         """
         Prefixes the overlapping columns in the left and right TSDFs.
         """
@@ -129,7 +132,7 @@ class AsOfJoiner(ABC):
 
         return left_prefixed, right_prefixed
 
-    def _checkAreJoinable(self, left, right) -> None:
+    def _checkAreJoinable(self, left: "TSDF", right: "TSDF") -> None:
         """
         Checks if the left and right TSDFs are joinable.
         Raises an exception if they are not compatible.
@@ -153,7 +156,7 @@ class AsOfJoiner(ABC):
             )
 
     @abstractmethod
-    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def _join(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Performs the actual join operation.
         Must be implemented by subclasses.
@@ -192,7 +195,7 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         self.spark = spark
         self.range_join_bin_size = range_join_bin_size
 
-    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def _join(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Performs broadcast as-of join.
 
@@ -359,7 +362,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         self.skipNulls = skipNulls
         self.tolerance = tolerance
 
-    def _appendNullColumns(self, tsdf, cols: set):
+    def _appendNullColumns(self, tsdf: "TSDF", cols: set) -> "TSDF":
         """
         Appends null columns to the TSDF.
 
@@ -371,7 +374,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             lambda cur_tsdf, col: cur_tsdf.withColumn(col, sfn.lit(None)), cols, tsdf
         )
 
-    def _combine(self, left, right):
+    def _combine(self, left: "TSDF", right: "TSDF") -> "TSDF":
         """
         Combines the left and right TSDFs into a single TSDF.
 
@@ -434,8 +437,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         )
 
     def _filterLastRightRow(
-        self, combined, right_cols: set, last_left_tsschema: TSSchema
-    ):
+        self, combined: "TSDF", right_cols: set, last_left_tsschema: TSSchema
+    ) -> "TSDF":
         """
         Filters out the last right-hand row for each left-hand row.
 
@@ -517,8 +520,8 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         return TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
     def _toleranceFilter(
-        self, as_of, left_ts_col: str, right_ts_col: str, right_columns: List[str]
-    ):
+        self, as_of: "TSDF", left_ts_col: str, right_ts_col: str, right_columns: List[str]
+    ) -> "TSDF":
         """
         Filters out rows from the as_of TSDF that are outside the tolerance.
 
@@ -558,7 +561,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         as_of.df = df
         return as_of
 
-    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def _join(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Performs union-sort-filter as-of join.
 
@@ -648,7 +651,7 @@ class SkewAsOfJoiner(AsOfJoiner):
         # Configure AQE settings for this session
         self._configureAQE()
 
-    def _configureAQE(self):
+    def _configureAQE(self) -> None:
         """
         Configure Adaptive Query Execution settings for optimal skew handling.
         """
@@ -669,7 +672,7 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         logger.info("Configured AQE for skew handling")
 
-    def _detectSkewedKeys(self, left, right) -> List[Any]:
+    def _detectSkewedKeys(self, left: "TSDF", right: "TSDF") -> List[Any]:
         """
         Detect heavily skewed keys in the data.
 
@@ -712,7 +715,7 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         return []
 
-    def _join(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def _join(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Performs skew-aware as-of join using AQE and optional skew handling strategies.
 
@@ -735,7 +738,7 @@ class SkewAsOfJoiner(AsOfJoiner):
             logger.info(f"Processing {len(skewed_keys)} skewed keys separately")
             return self._skewSeparatedJoin(left, right, skewed_keys)
 
-    def _standardAsOfJoin(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def _standardAsOfJoin(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Perform standard as-of join with AQE optimization.
 
@@ -803,7 +806,7 @@ class SkewAsOfJoiner(AsOfJoiner):
         return result_df, result_schema
 
     def _skewSeparatedJoin(
-        self, left, right, skewed_keys
+        self, left: "TSDF", right: "TSDF", skewed_keys: List[Any]
     ) -> Tuple[DataFrame, TSSchema]:
         """
         Handle skewed and non-skewed keys separately, then union results.
@@ -833,22 +836,16 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         # Split data
         left_skewed = TSDF(
-            left.df.filter(skewed_filter), left.ts_col, left.series_ids, left.ts_index
+            left.df.filter(skewed_filter), ts_schema=left.ts_schema
         )
         left_normal = TSDF(
-            left.df.filter(~skewed_filter), left.ts_col, left.series_ids, left.ts_index
+            left.df.filter(~skewed_filter), ts_schema=left.ts_schema
         )
         right_skewed = TSDF(
-            right.df.filter(skewed_filter),
-            right.ts_col,
-            right.series_ids,
-            right.ts_index,
+            right.df.filter(skewed_filter), ts_schema=right.ts_schema
         )
         right_normal = TSDF(
-            right.df.filter(~skewed_filter),
-            right.ts_col,
-            right.series_ids,
-            right.ts_index,
+            right.df.filter(~skewed_filter), ts_schema=right.ts_schema
         )
 
         # Process non-skewed with standard join
@@ -874,7 +871,7 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         return result_df, schema
 
-    def _saltedAsOfJoin(self, left, right) -> Tuple[DataFrame, TSSchema]:
+    def _saltedAsOfJoin(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
         """
         Perform salted as-of join for extreme skew cases.
 
@@ -941,7 +938,7 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         return result_df, result_schema
 
-    def _selectFinalColumns(self, joined_df, left, right):
+    def _selectFinalColumns(self, joined_df: DataFrame, left: "TSDF", right: "TSDF") -> DataFrame:
         """
         Select and rename columns for the final output.
 
@@ -969,7 +966,7 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         return joined_df.select(*final_cols)
 
-    def _applySkipNulls(self, joined_df, right):
+    def _applySkipNulls(self, joined_df: DataFrame, right: "TSDF") -> DataFrame:
         """
         Apply skipNulls logic to filter out rows with null right values.
 
@@ -999,7 +996,7 @@ class SkewAsOfJoiner(AsOfJoiner):
         # Keep rows where right timestamp is null (no match) or no nulls in values
         return joined_df.filter(sfn.col(f"r.{right.ts_col}").isNull() | ~null_check)
 
-    def _applyToleranceFilter(self, result_df, left, right):
+    def _applyToleranceFilter(self, result_df: DataFrame, left: "TSDF", right: "TSDF") -> DataFrame:
         """
         Apply tolerance filter to null out right columns outside tolerance window.
 
@@ -1089,8 +1086,8 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
 
 
 def choose_as_of_join_strategy(
-    left_tsdf,
-    right_tsdf,
+    left_tsdf: "TSDF",
+    right_tsdf: "TSDF",
     spark: SparkSession,
     left_prefix: Optional[str] = None,
     right_prefix: str = "right",
@@ -1166,7 +1163,7 @@ def choose_as_of_join_strategy(
         )
 
 
-def _detectSignificantSkew(left_tsdf, right_tsdf, threshold: float = 0.3) -> bool:
+def _detectSignificantSkew(left_tsdf: "TSDF", right_tsdf: "TSDF", threshold: float = 0.3) -> bool:
     """
     Quick heuristic to detect if data has significant skew.
 

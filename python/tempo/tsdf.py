@@ -969,6 +969,7 @@ class TSDF(WindowBuilder):
         """
         # Import strategy classes to avoid circular dependency
         from tempo.joins.strategies import (
+            AsOfJoiner,
             BroadcastAsOfJoiner,
             UnionSortFilterAsOfJoiner,
             SkewAsOfJoiner,
@@ -987,6 +988,7 @@ class TSDF(WindowBuilder):
         spark = SparkSession.builder.getOrCreate()
 
         # Choose strategy based on manual selection or automatic selection
+        joiner: AsOfJoiner
         if strategy:
             # Manual strategy selection
             if strategy.lower() == "broadcast":

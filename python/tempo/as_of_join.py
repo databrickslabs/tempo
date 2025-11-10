@@ -234,7 +234,7 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
             left_comps = [left_comps]
         if not isinstance(right_comps, list):
             right_comps = [right_comps]
-        if isinstance(left.ts_index, t_tsdf.CompositeTSIndex):
+        if isinstance(left.ts_index, CompositeTSIndex):
             comp_names = left.ts_index.component_fields
         else:
             comp_names = [left.ts_index.colname]
