@@ -119,7 +119,9 @@ class AsOfJoiner(ABC):
             )
         return tsdf
 
-    def _prefixOverlappingColumns(self, left: "TSDF", right: "TSDF") -> Tuple["TSDF", "TSDF"]:
+    def _prefixOverlappingColumns(
+        self, left: "TSDF", right: "TSDF"
+    ) -> Tuple["TSDF", "TSDF"]:
         """
         Prefixes the overlapping columns in the left and right TSDFs.
         """
@@ -520,7 +522,11 @@ class UnionSortFilterAsOfJoiner(AsOfJoiner):
         return TSDF(as_of_df, ts_schema=copy.deepcopy(last_left_tsschema))
 
     def _toleranceFilter(
-        self, as_of: "TSDF", left_ts_col: str, right_ts_col: str, right_columns: List[str]
+        self,
+        as_of: "TSDF",
+        left_ts_col: str,
+        right_ts_col: str,
+        right_columns: List[str],
     ) -> "TSDF":
         """
         Filters out rows from the as_of TSDF that are outside the tolerance.
@@ -738,7 +744,9 @@ class SkewAsOfJoiner(AsOfJoiner):
             logger.info(f"Processing {len(skewed_keys)} skewed keys separately")
             return self._skewSeparatedJoin(left, right, skewed_keys)
 
-    def _standardAsOfJoin(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
+    def _standardAsOfJoin(
+        self, left: "TSDF", right: "TSDF"
+    ) -> Tuple[DataFrame, TSSchema]:
         """
         Perform standard as-of join with AQE optimization.
 
@@ -835,18 +843,10 @@ class SkewAsOfJoiner(AsOfJoiner):
                 skewed_filter = skewed_filter | key_condition
 
         # Split data
-        left_skewed = TSDF(
-            left.df.filter(skewed_filter), ts_schema=left.ts_schema
-        )
-        left_normal = TSDF(
-            left.df.filter(~skewed_filter), ts_schema=left.ts_schema
-        )
-        right_skewed = TSDF(
-            right.df.filter(skewed_filter), ts_schema=right.ts_schema
-        )
-        right_normal = TSDF(
-            right.df.filter(~skewed_filter), ts_schema=right.ts_schema
-        )
+        left_skewed = TSDF(left.df.filter(skewed_filter), ts_schema=left.ts_schema)
+        left_normal = TSDF(left.df.filter(~skewed_filter), ts_schema=left.ts_schema)
+        right_skewed = TSDF(right.df.filter(skewed_filter), ts_schema=right.ts_schema)
+        right_normal = TSDF(right.df.filter(~skewed_filter), ts_schema=right.ts_schema)
 
         # Process non-skewed with standard join
         normal_result, schema = self._standardAsOfJoin(left_normal, right_normal)
@@ -871,7 +871,9 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         return result_df, schema
 
-    def _saltedAsOfJoin(self, left: "TSDF", right: "TSDF") -> Tuple[DataFrame, TSSchema]:
+    def _saltedAsOfJoin(
+        self, left: "TSDF", right: "TSDF"
+    ) -> Tuple[DataFrame, TSSchema]:
         """
         Perform salted as-of join for extreme skew cases.
 
@@ -938,7 +940,9 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         return result_df, result_schema
 
-    def _selectFinalColumns(self, joined_df: DataFrame, left: "TSDF", right: "TSDF") -> DataFrame:
+    def _selectFinalColumns(
+        self, joined_df: DataFrame, left: "TSDF", right: "TSDF"
+    ) -> DataFrame:
         """
         Select and rename columns for the final output.
 
@@ -996,7 +1000,9 @@ class SkewAsOfJoiner(AsOfJoiner):
         # Keep rows where right timestamp is null (no match) or no nulls in values
         return joined_df.filter(sfn.col(f"r.{right.ts_col}").isNull() | ~null_check)
 
-    def _applyToleranceFilter(self, result_df: DataFrame, left: "TSDF", right: "TSDF") -> DataFrame:
+    def _applyToleranceFilter(
+        self, result_df: DataFrame, left: "TSDF", right: "TSDF"
+    ) -> DataFrame:
         """
         Apply tolerance filter to null out right columns outside tolerance window.
 
@@ -1163,7 +1169,9 @@ def choose_as_of_join_strategy(
         )
 
 
-def _detectSignificantSkew(left_tsdf: "TSDF", right_tsdf: "TSDF", threshold: float = 0.3) -> bool:
+def _detectSignificantSkew(
+    left_tsdf: "TSDF", right_tsdf: "TSDF", threshold: float = 0.3
+) -> bool:
     """
     Quick heuristic to detect if data has significant skew.
 
