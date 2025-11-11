@@ -61,11 +61,11 @@ class TSDFAsOfJoinTest(SparkTest):
         # Should preserve all left rows
         self.assertEqual(result.df.count(), 10)
 
-        # Should have quote_price column
-        self.assertIn("quote_price", result.df.columns)
+        # Should have price column (not prefixed since it's not overlapping)
+        self.assertIn("price", result.df.columns)
 
         # Verify as-of semantics: all rows should have matched quotes
-        null_count = result.df.filter(F.col("quote_price").isNull()).count()
+        null_count = result.df.filter(F.col("price").isNull()).count()
         self.assertEqual(null_count, 0, "All trades should match a quote")
 
     def test_asof_join_manual_broadcast_strategy(self):
@@ -78,7 +78,7 @@ class TSDFAsOfJoinTest(SparkTest):
 
         # Verify results
         self.assertEqual(result.df.count(), 10)
-        self.assertIn("quote_price", result.df.columns)
+        self.assertIn("price", result.df.columns)
 
     def test_asof_join_manual_union_strategy(self):
         """Test asofJoin with manual union strategy selection."""
@@ -90,7 +90,7 @@ class TSDFAsOfJoinTest(SparkTest):
 
         # Verify results
         self.assertEqual(result.df.count(), 10)
-        self.assertIn("quote_price", result.df.columns)
+        self.assertIn("price", result.df.columns)
 
     def test_asof_join_manual_skew_strategy(self):
         """Test asofJoin with manual skew strategy selection."""
@@ -103,7 +103,7 @@ class TSDFAsOfJoinTest(SparkTest):
 
         # Verify results
         self.assertEqual(result.df.count(), 10)
-        self.assertIn("quote_price", result.df.columns)
+        self.assertIn("price", result.df.columns)
 
     def test_asof_join_invalid_strategy(self):
         """Test asofJoin with invalid strategy raises ValueError."""

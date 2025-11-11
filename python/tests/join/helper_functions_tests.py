@@ -28,10 +28,10 @@ class TestGetSparkPlan(unittest.TestCase):
         mock_spark = Mock(spec=SparkSession)
         mock_df = Mock(spec=DataFrame)
 
-        # Mock the SQL execution and result
-        mock_spark.sql.return_value.collect.return_value = [
-            Mock(_1="Statistics(sizeInBytes=1000 B)")
-        ]
+        # Mock the SQL execution and result - needs to support [0][0] indexing
+        mock_row = Mock()
+        mock_row.__getitem__ = Mock(return_value="Statistics(sizeInBytes=1000 B)")
+        mock_spark.sql.return_value.collect.return_value = [mock_row]
 
         # Mock createOrReplaceTempView
         mock_df.createOrReplaceTempView = Mock()
@@ -48,10 +48,10 @@ class TestGetSparkPlan(unittest.TestCase):
         mock_spark = Mock(spec=SparkSession)
         mock_df = Mock(spec=DataFrame)
 
-        # Mock the SQL execution
-        mock_spark.sql.return_value.collect.return_value = [
-            Mock(_1="Statistics(sizeInBytes=500 MiB)")
-        ]
+        # Mock the SQL execution - needs to support [0][0] indexing
+        mock_row = Mock()
+        mock_row.__getitem__ = Mock(return_value="Statistics(sizeInBytes=500 MiB)")
+        mock_spark.sql.return_value.collect.return_value = [mock_row]
 
         get_spark_plan(mock_df, mock_spark)
 

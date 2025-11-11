@@ -249,12 +249,20 @@ class BroadcastAsOfJoiner(AsOfJoiner):
 
         # Get the comparable expression for the timestamp index
         # This handles both simple and composite timestamp indexes
+        left_comparable_expr = left.ts_index.comparableExpr()
         right_comparable_expr = right.ts_index.comparableExpr()
 
         # CRITICAL FIX: Handle composite indexes properly
         # For composite indexes, comparableExpr() returns a list
         # We need the first element which is the most comparable field
         # (e.g., double_ts for nanosecond precision timestamps)
+        if isinstance(left_comparable_expr, list):
+            if len(left_comparable_expr) > 0:
+                left_comparable_expr = left_comparable_expr[0]
+            else:
+                # Fallback to column name if no comparable expression
+                left_comparable_expr = sfn.col(left.ts_index.colname)
+
         if isinstance(right_comparable_expr, list):
             if len(right_comparable_expr) > 0:
                 right_comparable_expr = right_comparable_expr[0]
@@ -281,13 +289,23 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         left_ts_col = left.ts_col
         right_ts_col = right.ts_col
 
-        # Create between condition using aliased column references
-        # This avoids ambiguity when both DataFrames have the same column names
+        # Create between condition using comparable expressions
+        # This handles both simple timestamps and composite indexes
+        # Use the aliased column references with comparable expressions
+        left_comparable_aliased = sfn.col(f"l.{left_ts_col}")
+        right_comparable_aliased = sfn.col(f"r.{right_ts_col}")
+
+        # For composite indexes, we need to extract the comparable field (double_ts)
+        if isinstance(left.ts_index, CompositeTSIndex):
+            left_comparable_aliased = sfn.col(f"l.{left_ts_col}.double_ts")
+        if isinstance(right.ts_index, CompositeTSIndex):
+            right_comparable_aliased = sfn.col(f"r.{right_ts_col}.double_ts")
+
         between_condition = (
-            sfn.col(f"l.{left_ts_col}") >= sfn.col(f"r.{right_ts_col}")
+            left_comparable_aliased >= right_comparable_aliased
         ) & (
             sfn.col(f"r.{lead_colname}").isNull()
-            | (sfn.col(f"l.{left_ts_col}") < sfn.col(f"r.{lead_colname}"))
+            | (left_comparable_aliased < sfn.col(f"r.{lead_colname}"))
         )
 
         # Join and filter
@@ -910,7 +928,7 @@ class SkewAsOfJoiner(AsOfJoiner):
             *[sfn.col(f"r.{col}") for col in left.series_ids], sfn.col("r.__salt")
         ).orderBy(sfn.col(f"r.{right.ts_col}"))
         right_with_lead = right_salted.withColumn(
-            "lead_ts", sfn.lead(sfn.col(f"r.{right.ts_col}")).over(window_spec)
+            "lead_ts", sfn.lead(f"r.{right.ts_col}").over(window_spec)
         )
 
         join_conditions.append(

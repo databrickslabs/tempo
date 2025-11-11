@@ -263,7 +263,7 @@ class SkewAsOfJoinerTest(SparkTest):
             "price",
             F.when(F.col("symbol") == "B", F.lit(None)).otherwise(F.col("price"))
         )
-        right_tsdf_nulls = TSDF(right_with_nulls, "timestamp", ["symbol"])
+        right_tsdf_nulls = TSDF(right_with_nulls, ts_col="timestamp", series_ids=["symbol"])
 
         # Test with skipNulls=True
         joiner_skip = SkewAsOfJoiner(
@@ -277,7 +277,7 @@ class SkewAsOfJoinerTest(SparkTest):
 
         # Check that rows with null values are filtered appropriately
         b_results = result_skip.filter(F.col("symbol") == "B")
-        non_null_b = b_results.filter(F.col("right_price").isNotNull())
+        non_null_b = b_results.filter(F.col("price").isNotNull())
         self.assertEqual(non_null_b.count(), 0, "Symbol B should have no matches due to null prices")
 
     def test_tolerance_with_skewed_data(self):
@@ -408,7 +408,7 @@ class SkewAsOfJoinerTest(SparkTest):
             left_data,
             ["symbol", "timestamp", "value", "metric"]
         )
-        left_tsdf = TSDF(left_df, "timestamp", ["symbol"])
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Right side also skewed
         right_data = [("EXTREME", base_time + timedelta(minutes=i*10), float(i*10))
@@ -420,7 +420,7 @@ class SkewAsOfJoinerTest(SparkTest):
             right_data,
             ["symbol", "timestamp", "price"]
         )
-        right_tsdf = TSDF(right_df, "timestamp", ["symbol"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Test with low threshold to trigger skew handling
         joiner = SkewAsOfJoiner(
@@ -464,7 +464,7 @@ class SkewAsOfJoinerTest(SparkTest):
             left_data[:5000],  # Limit to 5000 rows
             ["user", "timestamp", "action", "value"]
         )
-        left_tsdf = TSDF(left_df, "timestamp", ["user"])
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["user"])
 
         # Right side: user profiles updated occasionally
         right_data = [
@@ -475,7 +475,7 @@ class SkewAsOfJoinerTest(SparkTest):
             right_data,
             ["user", "timestamp", "status"]
         )
-        right_tsdf = TSDF(right_df, "timestamp", ["user"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["user"])
 
         joiner = SkewAsOfJoiner(
             spark=self.spark,
@@ -514,7 +514,7 @@ class SkewAsOfJoinerTest(SparkTest):
             left_data,
             ["exchange", "symbol", "timestamp", "volume"]
         )
-        left_tsdf = TSDF(left_df, "timestamp", ["exchange", "symbol"])
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["exchange", "symbol"])
 
         # Right side
         right_data = [
@@ -530,7 +530,7 @@ class SkewAsOfJoinerTest(SparkTest):
             right_data,
             ["exchange", "symbol", "timestamp", "price"]
         )
-        right_tsdf = TSDF(right_df, "timestamp", ["exchange", "symbol"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["exchange", "symbol"])
 
         joiner = SkewAsOfJoiner(
             spark=self.spark,
@@ -572,7 +572,7 @@ class SkewAsOfJoinerTest(SparkTest):
             left_data,
             ["symbol", "timestamp", "trade_id", "volume"]
         )
-        left_tsdf = TSDF(left_df, "timestamp", ["symbol"])
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Quotes throughout the day
         right_data = [
@@ -584,7 +584,7 @@ class SkewAsOfJoinerTest(SparkTest):
             right_data,
             ["symbol", "timestamp", "price"]
         )
-        right_tsdf = TSDF(right_df, "timestamp", ["symbol"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
         joiner = SkewAsOfJoiner(
             spark=self.spark,

@@ -113,14 +113,14 @@ class TestBroadcastJoin:
 
         # Perform join
         joiner = BroadcastAsOfJoiner(spark)
-        joined_tsdf = joiner(left_tsdf, right_tsdf)
+        joined_df, joined_schema = joiner(left_tsdf, right_tsdf)
 
         # BroadcastAsOfJoiner now returns all left rows (left join behavior)
         # The test data has 4 left rows
-        assert joined_tsdf.df.count() == 4
+        assert joined_df.count() == 4
 
         # Verify that all rows have matching right data
-        joined_data = joined_tsdf.df.orderBy("left_event_ts").collect()
+        joined_data = joined_df.orderBy("left_event_ts").collect()
 
         # All 4 rows should have non-NULL right values since there are matching right rows
         # The last left row (2020-09-01 00:19:12) matches with the last right row (2020-09-01 00:15:01)
@@ -140,14 +140,14 @@ class TestBroadcastJoin:
 
         # Perform join
         joiner = BroadcastAsOfJoiner(spark)
-        joined_tsdf = joiner(left_tsdf, right_tsdf)
+        joined_df, joined_schema = joiner(left_tsdf, right_tsdf)
 
         # NOTE: Due to precision limitations in the double_ts field used for comparisons,
         # multiple right rows with nanosecond-level differences may appear equal,
         # causing duplicate matches. This is a known limitation of nanosecond precision
         # handling in composite timestamps.
         # We expect more than 4 rows due to these duplicates.
-        assert joined_tsdf.df.count() >= 4  # Changed from == 4 to >= 4
+        assert joined_df.count() >= 4  # Changed from == 4 to >= 4
 
     def test_null_lead(self, spark, test_data):
         """Test broadcast join handles NULL lead values correctly."""
@@ -160,14 +160,14 @@ class TestBroadcastJoin:
 
         # Perform join
         joiner = BroadcastAsOfJoiner(spark)
-        joined_tsdf = joiner(left_tsdf, right_tsdf)
+        joined_df, joined_schema = joiner(left_tsdf, right_tsdf)
 
         # Verify all left rows are preserved (left join behavior)
-        assert joined_tsdf.df.count() == 5  # 5 rows in left DataFrame
+        assert joined_df.count() == 5  # 5 rows in left DataFrame
 
         # All rows should have matching right data since every left row
         # has a corresponding right row with earlier timestamp
-        joined_data = joined_tsdf.df.collect()
+        joined_data = joined_df.collect()
         for row in joined_data:
             assert row["right_event_ts"] is not None
             assert row["bid_pr"] is not None
@@ -189,13 +189,13 @@ class TestUnionSortFilterJoin:
 
         # Perform join
         joiner = UnionSortFilterAsOfJoiner()
-        joined_tsdf = joiner(left_tsdf, right_tsdf)
+        joined_df, joined_schema = joiner(left_tsdf, right_tsdf)
 
         # Union join returns all left rows (like a left join)
-        assert joined_tsdf.df.count() == 4  # All 4 left rows
+        assert joined_df.count() == 4  # All 4 left rows
 
         # First 3 should match expected
-        first_three = joined_tsdf.df.limit(3)
+        first_three = joined_df.limit(3)
         assert first_three.count() == 3
 
     def test_nanos(self, spark, test_data):
@@ -209,13 +209,13 @@ class TestUnionSortFilterJoin:
 
         # Perform join
         joiner = UnionSortFilterAsOfJoiner()
-        joined_tsdf = joiner(left_tsdf, right_tsdf)
+        joined_df, joined_schema = joiner(left_tsdf, right_tsdf)
 
         # Check we get expected number of rows
-        assert joined_tsdf.df.count() == 4
+        assert joined_df.count() == 4
 
         # Verify join produces valid results
-        result_rows = joined_tsdf.df.collect()
+        result_rows = joined_df.collect()
 
         # First row should have NULL right values (no preceding right row)
         first_row = result_rows[0]
@@ -237,10 +237,10 @@ class TestUnionSortFilterJoin:
 
         # Perform join
         joiner = UnionSortFilterAsOfJoiner()
-        joined_tsdf = joiner(left_tsdf, right_tsdf)
+        joined_df, joined_schema = joiner(left_tsdf, right_tsdf)
 
         # Check that it matches expectations
-        assert joined_tsdf.df.count() == expected_tsdf.df.count()
+        assert joined_df.count() == expected_tsdf.df.count()
 
         # Verify all 5 rows are present
-        assert joined_tsdf.df.count() == 5
+        assert joined_df.count() == 5

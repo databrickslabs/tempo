@@ -52,17 +52,17 @@ class TimezoneRegressionTest(SparkTest):
 
         # Test both join strategies
         broadcast_joiner = BroadcastAsOfJoiner(self.spark)
-        broadcast_result = broadcast_joiner(left_tsdf, right_tsdf)
+        broadcast_df, broadcast_schema = broadcast_joiner(left_tsdf, right_tsdf)
 
         union_joiner = UnionSortFilterAsOfJoiner()
-        union_result = union_joiner(left_tsdf, right_tsdf)
+        union_df, union_schema = union_joiner(left_tsdf, right_tsdf)
 
         # Both strategies should produce the same result
-        self.assertEqual(broadcast_result.df.count(), union_result.df.count())
+        self.assertEqual(broadcast_df.count(), union_df.count())
 
         # Check that timestamps are preserved correctly
-        broadcast_rows = broadcast_result.df.collect()
-        union_rows = union_result.df.collect()
+        broadcast_rows = broadcast_df.collect()
+        union_rows = union_df.collect()
 
         for b_row, u_row in zip(broadcast_rows, union_rows):
             # Compare timestamps
@@ -107,14 +107,14 @@ class TimezoneRegressionTest(SparkTest):
 
         # Test both join strategies
         broadcast_joiner = BroadcastAsOfJoiner(self.spark)
-        broadcast_result = broadcast_joiner(left_tsdf, right_tsdf)
+        broadcast_df, broadcast_schema = broadcast_joiner(left_tsdf, right_tsdf)
 
         union_joiner = UnionSortFilterAsOfJoiner()
-        union_result = union_joiner(left_tsdf, right_tsdf)
+        union_df, union_schema = union_joiner(left_tsdf, right_tsdf)
 
         # Both should have the same number of rows
-        self.assertEqual(broadcast_result.df.count(), 2)
-        self.assertEqual(union_result.df.count(), 2)
+        self.assertEqual(broadcast_df.count(), 2)
+        self.assertEqual(union_df.count(), 2)
 
     def test_composite_index_timezone_consistency(self):
         """Test that composite indexes maintain timezone consistency."""
@@ -156,13 +156,13 @@ class TimezoneRegressionTest(SparkTest):
 
         # Test broadcast join
         broadcast_joiner = BroadcastAsOfJoiner(self.spark)
-        result = broadcast_joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = broadcast_joiner(left_tsdf, right_tsdf)
 
         # Verify result has expected number of rows
-        self.assertEqual(result.df.count(), 2)
+        self.assertEqual(result_df.count(), 2)
 
         # Check that the timestamps are correctly aligned
-        rows = result.df.orderBy("left_timestamp").collect()
+        rows = result_df.orderBy("left_timestamp").collect()
 
         # First row should match first left with first right
         self.assertIsNotNone(rows[0]["right_timestamp"])
@@ -198,13 +198,13 @@ class TimezoneRegressionTest(SparkTest):
 
         # Perform join
         joiner = UnionSortFilterAsOfJoiner()
-        result = joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Should match correctly despite different source timezones
-        self.assertEqual(result.df.count(), 2)
+        self.assertEqual(result_df.count(), 2)
 
         # Verify the join matched correctly based on actual time
-        rows = result.df.orderBy("left_timestamp").collect()
+        rows = result_df.orderBy("left_timestamp").collect()
         for row in rows:
             self.assertIsNotNone(row["right_timestamp"])
 
@@ -237,10 +237,10 @@ class TimezoneRegressionTest(SparkTest):
 
         # Perform join
         joiner = BroadcastAsOfJoiner(self.spark)
-        result = joiner(left_tsdf, right_tsdf)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Should only join non-null timestamps
-        self.assertEqual(result.df.count(), 2)  # Only rows with valid timestamps
+        self.assertEqual(result_df.count(), 2)  # Only rows with valid timestamps
 
     def test_dst_transition_handling(self):
         """Test handling of daylight saving time transitions."""
@@ -274,17 +274,17 @@ class TimezoneRegressionTest(SparkTest):
 
         # Test both strategies handle DST correctly
         broadcast_joiner = BroadcastAsOfJoiner(self.spark)
-        broadcast_result = broadcast_joiner(left_tsdf, right_tsdf)
+        broadcast_df, broadcast_schema = broadcast_joiner(left_tsdf, right_tsdf)
 
         union_joiner = UnionSortFilterAsOfJoiner()
-        union_result = union_joiner(left_tsdf, right_tsdf)
+        union_df, union_schema = union_joiner(left_tsdf, right_tsdf)
 
         # Both should produce consistent results
-        self.assertEqual(broadcast_result.df.count(), union_result.df.count())
+        self.assertEqual(broadcast_df.count(), union_df.count())
 
         # Verify correct matching across DST boundary
-        broadcast_rows = broadcast_result.df.orderBy("left_timestamp").collect()
-        union_rows = union_result.df.orderBy("left_timestamp").collect()
+        broadcast_rows = broadcast_df.orderBy("left_timestamp").collect()
+        union_rows = union_df.orderBy("left_timestamp").collect()
 
         # Compare that both strategies produce same matches
         for b_row, u_row in zip(broadcast_rows, union_rows):
