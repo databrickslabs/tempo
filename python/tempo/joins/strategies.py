@@ -125,12 +125,16 @@ class AsOfJoiner(ABC):
         """
         Prefixes the overlapping columns in the left and right TSDFs.
         """
-        # find the columns to prefix
-        prefixable_cols = self._prefixableColumns(left, right)
+        # find the overlapping columns
+        overlapping_cols = self._prefixableColumns(left, right)
 
-        # prefix columns (if we have a prefix to apply)
-        left_prefixed = self._prefixColumns(left, prefixable_cols, self.left_prefix)
-        right_prefixed = self._prefixColumns(right, prefixable_cols, self.right_prefix)
+        # For left: only prefix overlapping columns
+        left_prefixed = self._prefixColumns(left, overlapping_cols, self.left_prefix)
+
+        # For right: prefix ALL non-series columns (not just overlapping)
+        # This ensures all right columns get the prefix for clarity
+        right_cols_to_prefix = set(right.columns) - set(right.series_ids)
+        right_prefixed = self._prefixColumns(right, right_cols_to_prefix, self.right_prefix)
 
         return left_prefixed, right_prefixed
 
@@ -907,10 +911,10 @@ class SkewAsOfJoiner(AsOfJoiner):
 
         # Add temporal condition using window approach
         window_spec = Window.partitionBy(
-            *[f"r.{col}" for col in left.series_ids], "r.__salt"
-        ).orderBy(f"r.{right.ts_col}")
+            *[sfn.col(f"r.{col}") for col in left.series_ids], sfn.col("r.__salt")
+        ).orderBy(sfn.col(f"r.{right.ts_col}"))
         right_with_lead = right_salted.withColumn(
-            "lead_ts", sfn.lead(f"r.{right.ts_col}").over(window_spec)
+            "lead_ts", sfn.lead(sfn.col(f"r.{right.ts_col}")).over(window_spec)
         )
 
         join_conditions.append(
@@ -1063,32 +1067,36 @@ def get_bytes_from_plan(df: DataFrame, spark: SparkSession) -> float:
 
     :param df: Input DataFrame
     :param spark: SparkSession
-    :return: Size in bytes
+    :return: Size in bytes, or infinity if estimation fails
     """
-    plan = get_spark_plan(df, spark)
+    try:
+        plan = get_spark_plan(df, spark)
 
-    # Extract sizeInBytes from plan
-    search_result = re.search(
-        r"sizeInBytes=([0-9.]+)\s*([A-Za-z]+)", plan, re.MULTILINE
-    )
-    if search_result is None:
-        logger.warning("Unable to obtain sizeInBytes from Spark plan")
-        return float("inf")  # Return large number to avoid broadcast
+        # Extract sizeInBytes from plan
+        search_result = re.search(
+            r"sizeInBytes=([0-9.]+)\s*([A-Za-z]+)", plan, re.MULTILINE
+        )
+        if search_result is None:
+            logger.warning("Unable to obtain sizeInBytes from Spark plan")
+            return float("inf")  # Return large number to avoid broadcast
 
-    size = float(search_result.group(1))
-    units = search_result.group(2)
+        size = float(search_result.group(1))
+        units = search_result.group(2)
 
-    # Convert to bytes
-    if units == "GiB":
-        plan_bytes = size * 1024 * 1024 * 1024
-    elif units == "MiB":
-        plan_bytes = size * 1024 * 1024
-    elif units == "KiB":
-        plan_bytes = size * 1024
-    else:
-        plan_bytes = size
+        # Convert to bytes
+        if units == "GiB":
+            plan_bytes = size * 1024 * 1024 * 1024
+        elif units == "MiB":
+            plan_bytes = size * 1024 * 1024
+        elif units == "KiB":
+            plan_bytes = size * 1024
+        else:
+            plan_bytes = size
 
-    return plan_bytes
+        return plan_bytes
+    except Exception as e:
+        logger.debug(f"Error estimating DataFrame size: {e}")
+        return float("inf")  # Return large number to avoid broadcast on error
 
 
 def choose_as_of_join_strategy(

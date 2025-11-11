@@ -640,10 +640,14 @@ class SkewDetectionTest(unittest.TestCase):
     @patch('tempo.joins.strategies.logger')
     def test_detect_significant_skew_with_error(self, mock_logger):
         """Test skew detection handles errors gracefully."""
-        # Create mock TSDF that will cause an error
+        # Create mock TSDF that will cause an error during count
         mock_tsdf = Mock(spec=TSDF)
         mock_tsdf.series_ids = ["key"]
-        mock_tsdf.df.count.side_effect = Exception("Test error")
+
+        # Mock the df attribute and its count method
+        mock_df = Mock()
+        mock_df.count.side_effect = Exception("Test error")
+        mock_tsdf.df = mock_df
 
         # Should return False and log the error
         result = _detectSignificantSkew(mock_tsdf, mock_tsdf)
