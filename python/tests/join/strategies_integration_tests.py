@@ -212,7 +212,8 @@ class StrategiesIntegrationTest(SparkTest):
         # Test automatic strategy selection (should potentially select broadcast for small data)
         strategy = choose_as_of_join_strategy(
             left_tsdf,
-            right_tsdf
+            right_tsdf,
+            self.spark
         )
 
         # Execute join
@@ -226,6 +227,7 @@ class StrategiesIntegrationTest(SparkTest):
         strategy = choose_as_of_join_strategy(
             left_tsdf,
             right_tsdf,
+            self.spark,
             tsPartitionVal=300  # 5 minutes
         )
 
