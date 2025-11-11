@@ -15,7 +15,7 @@ from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 
 from tempo.joins.strategies import SkewAsOfJoiner, _detectSignificantSkew
 from tempo.tsdf import TSDF
-from tempo.utils import TSSchema
+from tempo.tsschema import TSSchema
 from tests.base import SparkTest
 
 
