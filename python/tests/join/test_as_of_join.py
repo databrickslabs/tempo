@@ -4,7 +4,7 @@ Pure pytest tests for as-of join implementations.
 
 import pytest
 from pyspark.sql import SparkSession
-from tempo.as_of_join import BroadcastAsOfJoiner, UnionSortFilterAsOfJoiner
+from tempo.joins.strategies import BroadcastAsOfJoiner, UnionSortFilterAsOfJoiner
 from tempo.tsdf import TSDF
 import json
 import os
