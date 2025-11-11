@@ -126,15 +126,11 @@ class AsOfJoiner(ABC):
         Prefixes the overlapping columns in the left and right TSDFs.
         """
         # find the overlapping columns
-        overlapping_cols = self._prefixableColumns(left, right)
+        prefixable_cols = self._prefixableColumns(left, right)
 
-        # For left: only prefix overlapping columns
-        left_prefixed = self._prefixColumns(left, overlapping_cols, self.left_prefix)
-
-        # For right: prefix ALL non-series columns (not just overlapping)
-        # This ensures all right columns get the prefix for clarity
-        right_cols_to_prefix = set(right.columns) - set(right.series_ids)
-        right_prefixed = self._prefixColumns(right, right_cols_to_prefix, self.right_prefix)
+        # prefix columns (if we have a prefix to apply)
+        left_prefixed = self._prefixColumns(left, prefixable_cols, self.left_prefix)
+        right_prefixed = self._prefixColumns(right, prefixable_cols, self.right_prefix)
 
         return left_prefixed, right_prefixed
 

@@ -144,7 +144,8 @@ class TSDFAsOfJoinTest(SparkTest):
         )
 
         # First row (t=0) should match, second row (t=10) should NOT match (beyond tolerance)
-        matched_count = result.df.filter(F.col("quote_price").isNotNull()).count()
+        # price is not overlapping, so it won't be prefixed with quote_
+        matched_count = result.df.filter(F.col("price").isNotNull()).count()
         self.assertLessEqual(matched_count, 1, "Only rows within tolerance should match")
 
     def test_asof_join_with_skip_nulls(self):
@@ -181,9 +182,11 @@ class TSDFAsOfJoinTest(SparkTest):
             right_prefix="quote"
         )
 
-        # Check for prefixed columns
-        self.assertIn("quote_price", result.df.columns)
-        self.assertIn("timestamp", result.df.columns)
+        # Timestamp is overlapping, so both should be prefixed
+        self.assertIn("trade_timestamp", result.df.columns)
+        self.assertIn("quote_timestamp", result.df.columns)
+        # price is not overlapping, so it won't be prefixed
+        self.assertIn("price", result.df.columns)
 
     def test_asof_join_empty_right_dataframe(self):
         """Test asofJoin when right DataFrame is empty."""
@@ -200,7 +203,8 @@ class TSDFAsOfJoinTest(SparkTest):
 
         # Should preserve all left rows with NULL right values
         self.assertEqual(result.df.count(), 10)
-        null_count = result.df.filter(F.col("quote_price").isNull()).count()
+        # timestamp is overlapping so it will be prefixed, price is not so won't be
+        null_count = result.df.filter(F.col("price").isNull()).count()
         self.assertEqual(null_count, 10, "All right values should be NULL")
 
     def test_asof_join_with_partition_val_selects_skew(self):
