@@ -320,10 +320,10 @@ class BroadcastAsOfJoiner(AsOfJoiner):
                     else join_condition & col_condition
                 )
 
-            # Join on series columns, then filter by temporal condition
-            res_df = left_aliased.join(right_aliased, on=join_condition).where(
-                between_condition
-            )
+            # Join on series columns AND temporal condition with LEFT join
+            # This preserves all left rows even if they don't have temporal matches
+            combined_condition = join_condition & between_condition
+            res_df = left_aliased.join(right_aliased, on=combined_condition, how="left")
         else:
             # For single series, we need to compare all records
             # Use a LEFT JOIN with temporal condition directly to let Spark optimize
