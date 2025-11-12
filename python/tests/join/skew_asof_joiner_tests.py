@@ -53,14 +53,17 @@ class SkewAsOfJoinerTest(SparkTest):
 
         if skew_type in ["temporal", "both"]:
             # 90% of data in the last 10% of time range
+            # Total time: 1000 minutes, last 10% is minutes 900-1000
             timestamps = []
             for i in range(num_records):
                 if i < num_records * 0.1:
-                    # First 10% of records spread over 90% of time
+                    # First 10% of records spread over first 90% of time (0-900 minutes)
                     timestamps.append(base_time + timedelta(minutes=i * 9))
                 else:
-                    # Last 90% of records in final 10% of time
-                    timestamps.append(base_time + timedelta(minutes=900 + (i - num_records * 0.1)))
+                    # Last 90% of records compressed into final 10% of time (900-1000 minutes)
+                    # Spread 900 records across 100 minutes
+                    offset = (i - num_records * 0.1) / (num_records * 0.9) * 100
+                    timestamps.append(base_time + timedelta(minutes=900 + offset))
         else:
             # Even temporal distribution
             timestamps = [base_time + timedelta(minutes=i) for i in range(num_records)]
@@ -204,7 +207,7 @@ class SkewAsOfJoinerTest(SparkTest):
                 F.col("timestamp") >= cutoff_time
             ).count()
 
-            # Should have most of the data in the dense period
+            # Should have most of the data in the dense period (90% generated, but use 0.8 threshold)
             self.assertGreater(
                 dense_period_count / result_df.count(),
                 0.8,
@@ -345,7 +348,7 @@ class SkewAsOfJoinerTest(SparkTest):
         self.assertEqual(result_df.count(), left_tsdf.df.count())
 
         # Verify schema is correct
-        self.assertEqual(result_schema.ts_col, "timestamp")
+        self.assertEqual(result_schema.ts_colname, "timestamp")
         self.assertEqual(result_schema.series_ids, ["symbol"])
 
         # Verify both skew types are handled
