@@ -301,9 +301,7 @@ class BroadcastAsOfJoiner(AsOfJoiner):
         if isinstance(right.ts_index, CompositeTSIndex):
             right_comparable_aliased = sfn.col(f"r.{right_ts_col}.double_ts")
 
-        between_condition = (
-            left_comparable_aliased >= right_comparable_aliased
-        ) & (
+        between_condition = (left_comparable_aliased >= right_comparable_aliased) & (
             sfn.col(f"r.{lead_colname}").isNull()
             | (left_comparable_aliased < sfn.col(f"r.{lead_colname}"))
         )
