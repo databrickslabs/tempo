@@ -348,7 +348,7 @@ class SkewAsOfJoinerTest(SparkTest):
         self.assertEqual(result_df.count(), left_tsdf.df.count())
 
         # Verify schema is correct
-        self.assertEqual(result_schema.ts_colname, "timestamp")
+        self.assertEqual(result_schema.ts_idx.colname, "timestamp")
         self.assertEqual(result_schema.series_ids, ["symbol"])
 
         # Verify both skew types are handled
@@ -601,8 +601,10 @@ class SkewAsOfJoinerTest(SparkTest):
         self.assertEqual(result_df.count(), 1000)
 
         # Check first 5 minutes have correct joins
+        # Note: Using < instead of <= because the boundary timestamp (base_time + 5 minutes)
+        # belongs to the second batch of data
         first_5min = result_df.filter(
-            F.col("trade_timestamp") <= base_time + timedelta(minutes=5)
+            F.col("trade_timestamp") < base_time + timedelta(minutes=5)
         )
         self.assertEqual(first_5min.count(), 700)
 

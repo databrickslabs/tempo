@@ -917,19 +917,20 @@ class SkewAsOfJoiner(AsOfJoiner):
             self.spark.range(self.salt_buckets).select(sfn.col("id").alias("__salt"))
         )
 
+        # Add temporal condition using window approach
+        # Window operates on right_salted before aliasing, so use unaliased column names
+        window_spec = Window.partitionBy(
+            *[sfn.col(col) for col in left.series_ids], sfn.col("__salt")
+        ).orderBy(sfn.col(right.ts_col))
+        right_with_lead = right_salted.withColumn(
+            "lead_ts", sfn.lead(sfn.col(right.ts_col)).over(window_spec)
+        )
+
         # Now perform the join including salt in the join key
         join_conditions = [
             sfn.col(f"l.{col}") == sfn.col(f"r.{col}") for col in left.series_ids
         ]
         join_conditions.append(sfn.col("l.__salt") == sfn.col("r.__salt"))
-
-        # Add temporal condition using window approach
-        window_spec = Window.partitionBy(
-            *[sfn.col(f"r.{col}") for col in left.series_ids], sfn.col("r.__salt")
-        ).orderBy(sfn.col(f"r.{right.ts_col}"))
-        right_with_lead = right_salted.withColumn(
-            "lead_ts", sfn.lead(f"r.{right.ts_col}").over(window_spec)
-        )
 
         join_conditions.append(
             (sfn.col(f"l.{left.ts_col}") >= sfn.col(f"r.{right.ts_col}"))
