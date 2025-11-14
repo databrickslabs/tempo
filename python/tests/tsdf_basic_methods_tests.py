@@ -5,6 +5,7 @@ Targets simple, high-value methods that are currently uncovered.
 
 import unittest
 from datetime import datetime
+
 from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
@@ -68,6 +69,45 @@ class TSDFBasicMethodsTests(SparkTest):
         tsdf2 = TSDF(df2, ts_col="timestamp", series_ids=[])
 
         self.assertNotEqual(tsdf1, tsdf2)
+
+    def test_repartition_by_series(self):
+        """Test repartitionBySeries method"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        result = tsdf.repartitionBySeries(numPartitions=2)
+
+        self.assertEqual(result.df.count(), 4)
+        self.assertEqual(result.df.rdd.getNumPartitions(), 2)
+        self.assertEqual(result.series_ids, tsdf.series_ids)
+
+    def test_repartition_by_series_default_partitions(self):
+        """Test repartitionBySeries with default number of partitions"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        original_partitions = tsdf.df.rdd.getNumPartitions()
+        result = tsdf.repartitionBySeries()
+
+        self.assertEqual(result.df.count(), 2)
+        self.assertEqual(result.df.rdd.getNumPartitions(), original_partitions)
+
+    def test_repartition_by_time(self):
+        """Test repartitionByTime method"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        result = tsdf.repartitionByTime(numPartitions=2)
+
+        self.assertEqual(result.df.count(), 3)
+        self.assertEqual(result.df.rdd.getNumPartitions(), 2)
+
+    def test_repartition_by_time_default_partitions(self):
+        """Test repartitionByTime with default number of partitions"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        original_partitions = tsdf.df.rdd.getNumPartitions()
+        result = tsdf.repartitionByTime()
+
+        self.assertEqual(result.df.count(), 2)
+        self.assertEqual(result.df.rdd.getNumPartitions(), original_partitions)
 
 
 
