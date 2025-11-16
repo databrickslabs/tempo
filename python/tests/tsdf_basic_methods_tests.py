@@ -109,6 +109,38 @@ class TSDFBasicMethodsTests(SparkTest):
         self.assertEqual(result.df.count(), 2)
         self.assertEqual(result.df.rdd.getNumPartitions(), original_partitions)
 
+    def test_with_column_renamed_series_id(self):
+        """Test withColumnRenamed when renaming a series_id column"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        result = tsdf.withColumnRenamed("ticker", "symbol")
+
+        self.assertEqual(result.df.count(), 2)
+        self.assertIn("symbol", result.df.columns)
+        self.assertNotIn("ticker", result.df.columns)
+        self.assertEqual(result.series_ids, ["symbol"])
+
+    def test_with_column_renamed_ts_col(self):
+        """Test withColumnRenamed when renaming the timestamp column"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        result = tsdf.withColumnRenamed("event_time", "timestamp")
+
+        self.assertEqual(result.df.count(), 2)
+        self.assertIn("timestamp", result.df.columns)
+        self.assertNotIn("event_time", result.df.columns)
+        self.assertEqual(result.ts_col, "timestamp")
+
+    def test_with_column_type_changed(self):
+        """Test withColumnTypeChanged method"""
+        tsdf = self.get_data_as_tsdf("init")
+
+        result = tsdf.withColumnTypeChanged("value", "int")
+
+        self.assertEqual(result.df.count(), 2)
+        value_type = dict(result.df.dtypes)["value"]
+        self.assertIn("int", value_type.lower())
+
 
 
 if __name__ == "__main__":
