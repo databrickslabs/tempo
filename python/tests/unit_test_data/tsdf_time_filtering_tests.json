@@ -1,0 +1,120 @@
+{
+  "TSDFTimeFilteringTests": {
+    "test_earliest": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 12:00:00", 101.0],
+            ["A", "2024-01-01 14:00:00", 102.0],
+            ["A", "2024-01-02 10:00:00", 103.0]
+          ]
+        }
+      }
+    },
+    "test_earliest_single": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 12:00:00", 101.0]
+          ]
+        }
+      }
+    },
+    "test_latest": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 12:00:00", 101.0],
+            ["A", "2024-01-01 14:00:00", 102.0],
+            ["A", "2024-01-02 10:00:00", 103.0]
+          ]
+        }
+      }
+    },
+    "test_latest_single": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 12:00:00", 101.0],
+            ["A", "2024-01-01 14:00:00", 102.0],
+            ["A", "2024-01-02 10:00:00", 103.0]
+          ]
+        }
+      }
+    }
+  },
+  "TSDFEarliestLatestTests": {
+    "test_earliest_multiple_series": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["ticker"]
+        },
+        "df": {
+          "schema": "ticker string, timestamp string, value float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["X", "2024-01-01 09:00:00", 10.0],
+            ["X", "2024-01-01 10:00:00", 11.0],
+            ["X", "2024-01-01 11:00:00", 12.0],
+            ["X", "2024-01-01 12:00:00", 13.0],
+            ["X", "2024-01-01 13:00:00", 14.0],
+            ["Y", "2024-01-01 09:00:00", 20.0],
+            ["Y", "2024-01-01 10:00:00", 21.0],
+            ["Y", "2024-01-01 11:00:00", 22.0]
+          ]
+        }
+      }
+    },
+    "test_latest_multiple_series": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["ticker"]
+        },
+        "df": {
+          "schema": "ticker string, timestamp string, value float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["X", "2024-01-01 09:00:00", 10.0],
+            ["X", "2024-01-01 10:00:00", 11.0],
+            ["X", "2024-01-01 11:00:00", 12.0],
+            ["X", "2024-01-01 12:00:00", 13.0],
+            ["X", "2024-01-01 13:00:00", 14.0],
+            ["Y", "2024-01-01 09:00:00", 20.0],
+            ["Y", "2024-01-01 10:00:00", 21.0],
+            ["Y", "2024-01-01 11:00:00", 22.0]
+          ]
+        }
+      }
+    }
+  }
+}
