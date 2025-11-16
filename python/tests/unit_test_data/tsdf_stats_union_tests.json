@@ -1,0 +1,146 @@
+{
+  "TSDFStatsTests": {
+    "test_describe_default": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float, volume int",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0, 1000],
+            ["A", "2024-01-01 11:00:00", 105.0, 1500],
+            ["B", "2024-01-01 10:00:00", 200.0, 2000]
+          ]
+        }
+      }
+    },
+    "test_describe_specific_cols": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    },
+    "test_metric_summary_default": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    }
+  },
+  "TSDFUnionTests": {
+    "test_union": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0]
+          ]
+        }
+      },
+      "other": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["B", "2024-01-01 10:00:00", 200.0],
+            ["B", "2024-01-01 11:00:00", 205.0]
+          ]
+        }
+      }
+    },
+    "test_union_by_name": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0]
+          ]
+        }
+      },
+      "other": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["B", "2024-01-01 10:00:00", 200.0],
+            ["B", "2024-01-01 11:00:00", 205.0]
+          ]
+        }
+      }
+    },
+    "test_union_by_name_with_missing_columns": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float, volume int",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0, 1000],
+            ["A", "2024-01-01 11:00:00", 105.0, 1500]
+          ]
+        }
+      },
+      "missing_col": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    }
+  }
+}
