@@ -18,10 +18,11 @@ class TSDFDataFrameWrapperTests(SparkTest):
         """Test select() method with single column"""
         tsdf = self.get_data_as_tsdf("init")
 
-        result = tsdf.select("symbol", "price")
+        result = tsdf.select("timestamp", "symbol", "price")
 
         self.assertIn("symbol", result.df.columns)
         self.assertIn("price", result.df.columns)
+        self.assertIn("timestamp", result.df.columns)
         self.assertNotIn("volume", result.df.columns)
         self.assertEqual(result.ts_col, tsdf.ts_col)
 

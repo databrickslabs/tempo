@@ -33,23 +33,6 @@
           ]
         }
       }
-    },
-    "test_metric_summary_default": {
-      "init": {
-        "tsdf": {
-          "ts_col": "timestamp",
-          "series_ids": ["symbol"]
-        },
-        "df": {
-          "schema": "symbol string, timestamp string, price float",
-          "ts_convert": ["timestamp"],
-          "data": [
-            ["A", "2024-01-01 10:00:00", 100.0],
-            ["A", "2024-01-01 11:00:00", 105.0],
-            ["B", "2024-01-01 10:00:00", 200.0]
-          ]
-        }
-      }
     }
   },
   "TSDFUnionTests": {
