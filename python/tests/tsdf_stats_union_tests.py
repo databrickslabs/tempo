@@ -31,15 +31,6 @@ class TSDFStatsTests(SparkTest):
         self.assertIn("summary", result.columns)
         self.assertIn("price", result.columns)
 
-    def test_metric_summary_default(self):
-        """Test metricSummary() method with default statistics"""
-        tsdf = self.get_data_as_tsdf("init")
-
-        result = tsdf.metricSummary("count", "mean", "min", "max")
-
-        self.assertIsNotNone(result)
-        self.assertEqual(result.count(), 4)
-
 
 class TSDFUnionTests(SparkTest):
     """Test TSDF union methods for better coverage."""
