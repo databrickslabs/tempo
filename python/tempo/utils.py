@@ -12,12 +12,16 @@ from IPython import get_ipython  # type: ignore[import-not-found]
 from IPython.core.display import HTML  # type: ignore[import-not-found]
 from IPython.display import display as ipydisplay  # type: ignore[import-not-found]
 from pandas.core.frame import DataFrame as pandasDataFrame
+from pyspark import __version__ as pyspark_version
 from pyspark.sql import DataFrame, SparkSession
 
 import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 IS_DATABRICKS = "DB_HOME" in os.environ.keys()
+
+# Parse PySpark version for compatibility checks
+PYSPARK_VERSION = tuple(int(x) for x in pyspark_version.split(".")[:2])
 
 """
 DB_HOME env variable has been chosen and that's because this variable is a special variable that will be available in DBR.
@@ -80,20 +84,35 @@ def time_range(
     # define expressions for the time range
     start_time_expr = sfn.to_timestamp(sfn.lit(str(start_time)))
     step_fractional_seconds = step_size.seconds + (step_size.microseconds / 1e6)
-    interval_expr = sfn.make_dt_interval(
-        days=sfn.lit(step_size.days), secs=sfn.lit(step_fractional_seconds)
-    )
 
-    # create the DataFrame
-    range_df = spark.range(0, num_intervals).withColumn(
-        ts_colname, start_time_expr + sfn.col("id") * interval_expr
-    )
-    if include_interval_ends:
-        interval_end_colname = ts_colname + "_interval_end"
-        range_df = range_df.withColumn(
-            interval_end_colname,
-            start_time_expr + (sfn.col("id") + sfn.lit(1)) * interval_expr,
+    # Use make_dt_interval for PySpark 3.3+ (DBR 14.3+), fallback for older versions
+    if hasattr(sfn, 'make_dt_interval'):
+        interval_expr = sfn.make_dt_interval(
+            days=sfn.lit(step_size.days), secs=sfn.lit(step_fractional_seconds)
         )
+        # create the DataFrame
+        range_df = spark.range(0, num_intervals).withColumn(
+            ts_colname, start_time_expr + sfn.col("id") * interval_expr
+        )
+        if include_interval_ends:
+            interval_end_colname = ts_colname + "_interval_end"
+            range_df = range_df.withColumn(
+                interval_end_colname,
+                start_time_expr + (sfn.col("id") + sfn.lit(1)) * interval_expr,
+            )
+    else:
+        # Fallback for older PySpark versions: convert to seconds and use expr
+        total_seconds = step_size.days * 86400 + step_fractional_seconds
+        range_df = spark.range(0, num_intervals).withColumn(
+            ts_colname,
+            sfn.expr(f"timestamp_seconds(unix_timestamp(to_timestamp('{start_time}')) + id * {total_seconds})")
+        )
+        if include_interval_ends:
+            interval_end_colname = ts_colname + "_interval_end"
+            range_df = range_df.withColumn(
+                interval_end_colname,
+                sfn.expr(f"timestamp_seconds(unix_timestamp(to_timestamp('{start_time}')) + (id + 1) * {total_seconds})")
+            )
     return range_df.drop("id")
 
 
