@@ -1,0 +1,120 @@
+{
+  "TSDFDataFrameWrapperTests": {
+    "test_select_single_column": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float, volume int",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0, 1000],
+            ["A", "2024-01-01 11:00:00", 105.0, 1500],
+            ["B", "2024-01-01 10:00:00", 200.0, 2000]
+          ]
+        }
+      }
+    },
+    "test_select_all_columns": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    },
+    "test_with_column_add_new": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0]
+          ]
+        }
+      }
+    },
+    "test_with_column_replace_existing": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    },
+    "test_where_string_condition": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    },
+    "test_where_column_condition": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    },
+    "test_where_multiple_conditions": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 11:00:00", 105.0],
+            ["B", "2024-01-01 10:00:00", 200.0]
+          ]
+        }
+      }
+    }
+  }
+}
