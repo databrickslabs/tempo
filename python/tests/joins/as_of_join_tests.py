@@ -34,7 +34,7 @@ def test_data():
         "..",
         "tests",
         "unit_test_data",
-        "join",
+        "joins",
         "as_of_join_tests.json"
     )
 
