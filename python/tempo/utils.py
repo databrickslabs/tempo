@@ -86,7 +86,7 @@ def time_range(
     step_fractional_seconds = step_size.seconds + (step_size.microseconds / 1e6)
 
     # Use make_dt_interval for PySpark 3.3+ (DBR 14.3+), fallback for older versions
-    if hasattr(sfn, 'make_dt_interval'):
+    if hasattr(sfn, "make_dt_interval"):
         interval_expr = sfn.make_dt_interval(
             days=sfn.lit(step_size.days), secs=sfn.lit(step_fractional_seconds)
         )
@@ -105,13 +105,17 @@ def time_range(
         total_seconds = step_size.days * 86400 + step_fractional_seconds
         range_df = spark.range(0, num_intervals).withColumn(
             ts_colname,
-            sfn.expr(f"timestamp_seconds(unix_timestamp(to_timestamp('{start_time}')) + id * {total_seconds})")
+            sfn.expr(
+                f"timestamp_seconds(unix_timestamp(to_timestamp('{start_time}')) + id * {total_seconds})"
+            ),
         )
         if include_interval_ends:
             interval_end_colname = ts_colname + "_interval_end"
             range_df = range_df.withColumn(
                 interval_end_colname,
-                sfn.expr(f"timestamp_seconds(unix_timestamp(to_timestamp('{start_time}')) + (id + 1) * {total_seconds})")
+                sfn.expr(
+                    f"timestamp_seconds(unix_timestamp(to_timestamp('{start_time}')) + (id + 1) * {total_seconds})"
+                ),
             )
     return range_df.drop("id")
 
