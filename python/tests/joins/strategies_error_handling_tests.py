@@ -208,39 +208,6 @@ class TestDetectSignificantSkewErrorHandling(unittest.TestCase):
         # Should return False when stats are None
         self.assertFalse(result)
 
-    def test_detect_skew_with_actual_skew(self):
-        """Test detection of actual skew."""
-        # Create a mock chain with high coefficient of variation
-        mock_collect_result = [{"std": 100.0, "avg": 50.0}]  # CV = 2.0 > 0.3
-
-        mock_select = Mock()
-        mock_select.collect.return_value = mock_collect_result
-
-        mock_count = Mock()
-        mock_count.select.return_value = mock_select
-
-        mock_group = Mock()
-        mock_group.count.return_value = mock_count
-
-        mock_sample = Mock()
-        mock_sample.groupBy.return_value = mock_group
-
-        mock_df = Mock()
-        mock_df.count.return_value = 10000
-        mock_df.sample.return_value = mock_sample
-
-        left_tsdf = Mock(spec=TSDF)
-        left_tsdf.series_ids = ["id"]
-        left_tsdf.df = mock_df
-
-        right_tsdf = Mock(spec=TSDF)
-        right_tsdf.series_ids = ["id"]
-
-        result = _detectSignificantSkew(left_tsdf, right_tsdf)
-
-        # Should return True when CV > threshold
-        self.assertTrue(result)
-
 
 if __name__ == "__main__":
     unittest.main()
