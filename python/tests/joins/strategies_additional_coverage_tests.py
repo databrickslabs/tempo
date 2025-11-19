@@ -212,6 +212,142 @@ class AdditionalCoverageTests(SparkTest):
         # The "ts" column doesn't contain "timestamp" so it's treated as value column
         self.assertGreaterEqual(result_df2.count(), 0)
 
+    def test_no_series_ids_all_strategies(self):
+        """Test all join strategies with series_ids=[] (single global series)."""
+        # Lines 325-328, 705-706, 808-809, 908-909: No series IDs handling
+        base_time = datetime(2024, 1, 1, 10, 0)
+
+        # Create data with NO series columns (global time series)
+        left_data = [
+            (base_time + timedelta(minutes=i), float(100 + i))
+            for i in range(10)
+        ]
+        left_df = self.spark.createDataFrame(left_data, ["timestamp", "value"])
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=[])
+
+        right_data = [
+            (base_time + timedelta(minutes=i), float(200 + i))
+            for i in range(0, 10, 2)
+        ]
+        right_df = self.spark.createDataFrame(right_data, ["timestamp", "price"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=[])
+
+        # Test BroadcastAsOfJoiner with no series - uses different join path
+        broadcast_joiner = BroadcastAsOfJoiner(self.spark)
+        broadcast_result, _ = broadcast_joiner(left_tsdf, right_tsdf)
+        self.assertEqual(broadcast_result.count(), 10)
+
+        # Test UnionSortFilterAsOfJoiner with no series
+        union_joiner = UnionSortFilterAsOfJoiner()
+        union_result, _ = union_joiner(left_tsdf, right_tsdf)
+        self.assertEqual(union_result.count(), 10)
+
+        # Test SkewAsOfJoiner with no series (should skip skew detection)
+        # Lines 705-706: _detectSkewedKeys returns empty for no series_ids
+        skew_joiner = SkewAsOfJoiner(
+            self.spark,
+            skew_threshold=0.2,
+            enable_salting=True,  # This triggers line 908-909 (salt on timestamp)
+            salt_buckets=5
+        )
+        skew_result, _ = skew_joiner(left_tsdf, right_tsdf)
+        self.assertEqual(skew_result.count(), 10)
+
+        # All strategies should produce same number of results
+        self.assertEqual(broadcast_result.count(), union_result.count())
+        self.assertEqual(union_result.count(), skew_result.count())
+
+    def test_skew_joiner_skipnulls_no_value_columns(self):
+        """Test SkewAsOfJoiner skipNulls when right has only series+timestamp."""
+        # Lines 1008-1009: SkewAsOfJoiner equivalent of skipNulls fallback
+        base_time = datetime(2024, 1, 1, 10, 0)
+
+        left_data = [
+            (base_time + timedelta(minutes=i), f"A", float(100 + i))
+            for i in range(20)
+        ]
+        left_df = self.spark.createDataFrame(
+            left_data, ["timestamp", "symbol", "price"]
+        )
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
+
+        # Right DataFrame with ONLY series and timestamp columns (no value columns)
+        right_data = [
+            (base_time + timedelta(minutes=i), f"A")
+            for i in range(0, 20, 4)
+        ]
+        right_df = self.spark.createDataFrame(right_data, ["timestamp", "symbol"])
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
+
+        # Test with skipNulls=True - should handle empty value columns gracefully
+        joiner = SkewAsOfJoiner(
+            self.spark,
+            skipNulls=True,
+            skew_threshold=1.0  # Disable skew detection for simpler test
+        )
+        result_df, _ = joiner(left_tsdf, right_tsdf)
+
+        # Should complete successfully
+        self.assertEqual(result_df.count(), 20)
+
+        # Test with skipNulls=False as well
+        joiner2 = SkewAsOfJoiner(
+            self.spark,
+            skipNulls=False,
+            skew_threshold=1.0
+        )
+        result_df2, _ = joiner2(left_tsdf, right_tsdf)
+        self.assertEqual(result_df2.count(), 20)
+
+    def test_broadcast_join_with_range_bin_size(self):
+        """Test BroadcastAsOfJoiner with different range_join_bin_size values."""
+        # Test range_join_bin_size parameter logic in BroadcastAsOfJoiner
+        base_time = datetime(2024, 1, 1, 10, 0)
+
+        left_data = [
+            (base_time + timedelta(seconds=i * 30), f"A", float(100 + i))
+            for i in range(10)
+        ]
+        left_df = self.spark.createDataFrame(
+            left_data, ["timestamp", "symbol", "price"]
+        )
+        left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
+
+        # Right data with various timestamps
+        right_data = [
+            (base_time + timedelta(seconds=i * 30), f"A", float(200 + i))
+            for i in range(0, 10, 2)
+        ]
+        right_df = self.spark.createDataFrame(
+            right_data, ["timestamp", "symbol", "bid"]
+        )
+        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
+
+        # Test with small bin size (60 seconds - default)
+        joiner_small = BroadcastAsOfJoiner(
+            self.spark,
+            range_join_bin_size=60  # 60 seconds bin
+        )
+        result_small, _ = joiner_small(left_tsdf, right_tsdf)
+
+        # Test with large bin size (300 seconds)
+        joiner_large = BroadcastAsOfJoiner(
+            self.spark,
+            range_join_bin_size=300  # 300 seconds bin
+        )
+        result_large, _ = joiner_large(left_tsdf, right_tsdf)
+
+        # Both should return all left rows (left join behavior)
+        self.assertEqual(result_small.count(), 10)
+        self.assertEqual(result_large.count(), 10)
+
+        # Both should produce same results (bin size affects performance, not correctness)
+        small_non_null = result_small.filter(F.col("right_timestamp").isNotNull()).count()
+        large_non_null = result_large.filter(F.col("right_timestamp").isNotNull()).count()
+
+        # Should have same number of matches regardless of bin size
+        self.assertEqual(small_non_null, large_non_null)
+
 
 if __name__ == "__main__":
     unittest.main()
