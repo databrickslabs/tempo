@@ -8,8 +8,9 @@ identified by the Codecov report.
 import unittest
 from datetime import datetime, timedelta
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, TimestampType, StringType
+from pyspark.sql.types import StructType, StructField, TimestampType, StringType, DoubleType
 from tempo.tsdf import TSDF
+from tempo.tsschema import TSSchema
 from tempo.joins.strategies import (
     BroadcastAsOfJoiner,
     UnionSortFilterAsOfJoiner,
@@ -347,6 +348,91 @@ class AdditionalCoverageTests(SparkTest):
 
         # Should have same number of matches regardless of bin size
         self.assertEqual(small_non_null, large_non_null)
+
+    def test_composite_timestamp_index_join(self):
+        """Test BroadcastAsOfJoiner with CompositeTSIndex (double_ts extraction)."""
+        # Lines 299-302: CompositeTSIndex double_ts field extraction
+        base_time = datetime(2024, 1, 1, 10, 0, 0)
+
+        # Create data with struct timestamp containing double_ts for nanosecond precision
+        # The struct needs: double_ts (DoubleType), parsed_ts (TimestampType), src_str (StringType)
+        left_data = []
+        for i in range(10):
+            ts = base_time + timedelta(seconds=i)
+            double_ts = ts.timestamp()  # Fractional seconds since epoch
+            left_data.append(
+                (
+                    (double_ts, ts, ts.isoformat()),  # timestamp struct
+                    f"A",  # symbol
+                    float(100 + i)  # price
+                )
+            )
+
+        # Define schema with struct timestamp
+        left_schema = StructType([
+            StructField("ts_idx", StructType([
+                StructField("double_ts", DoubleType(), True),
+                StructField("parsed_ts", TimestampType(), True),
+                StructField("src_str", StringType(), True),
+            ]), True),
+            StructField("symbol", StringType(), True),
+            StructField("price", DoubleType(), True),
+        ])
+
+        left_df = self.spark.createDataFrame(left_data, schema=left_schema)
+
+        # Create TSDF with SubMicrosecondPrecisionTimestampIndex (CompositeTSIndex)
+        left_ts_schema = TSSchema.fromParsedTimestamp(
+            left_df.schema,
+            ts_col="ts_idx",
+            parsed_field="double_ts",
+            src_str_field="src_str",
+            secondary_parsed_field="parsed_ts",
+            series_ids=["symbol"]
+        )
+        left_tsdf = TSDF(left_df, ts_schema=left_ts_schema)
+
+        # Create right data with same structure
+        right_data = []
+        for i in range(0, 10, 2):
+            ts = base_time + timedelta(seconds=i)
+            double_ts = ts.timestamp()
+            right_data.append(
+                (
+                    (double_ts, ts, ts.isoformat()),
+                    f"A",
+                    float(200 + i)
+                )
+            )
+
+        right_df = self.spark.createDataFrame(right_data, schema=left_schema)
+        right_ts_schema = TSSchema.fromParsedTimestamp(
+            right_df.schema,
+            ts_col="ts_idx",
+            parsed_field="double_ts",
+            src_str_field="src_str",
+            secondary_parsed_field="parsed_ts",
+            series_ids=["symbol"]
+        )
+        right_tsdf = TSDF(right_df, ts_schema=right_ts_schema)
+
+        # Test BroadcastAsOfJoiner - should use double_ts for comparison
+        joiner = BroadcastAsOfJoiner(self.spark)
+        result_df, result_schema = joiner(left_tsdf, right_tsdf)
+
+        # Verify join completed successfully
+        self.assertEqual(result_df.count(), 10)
+
+        # Verify that double_ts fields were used correctly for comparison
+        # Each left row should match with a right row at or before its timestamp
+        result_rows = result_df.collect()
+        for row in result_rows:
+            # Verify we have matches (use prefixed column names)
+            if row["right_ts_idx"] is not None:
+                left_double_ts = row["left_ts_idx"]["double_ts"]
+                right_double_ts = row["right_ts_idx"]["double_ts"]
+                # Right timestamp should be <= left timestamp (as-of join semantics)
+                self.assertLessEqual(right_double_ts, left_double_ts)
 
 
 if __name__ == "__main__":
