@@ -5,7 +5,6 @@ import warnings
 from typing import Optional, Union
 
 import jsonref
-import pandas as pd
 import pyspark.sql.functions as sfn
 from chispa import assert_df_equality
 from delta.pip_utils import configure_spark_with_delta_pip
@@ -59,20 +58,11 @@ class TestDataFrameBuilder:
         """
         return self.df["schema"]
 
-    def df_data(self) -> Union[list, pd.DataFrame]:
+    def df_data(self) -> list:
         """
         :return: the data component of the test data
         """
-        data = self.df["data"]
-        # return data literals (list of rows)
-        if isinstance(data, list):
-            return data
-        # load data from a csv file
-        elif isinstance(data, str):
-            csv_path = SparkTest.getTestDataFilePath(data, extension='')
-            return pd.read_csv(csv_path)
-        else:
-            raise ValueError(f"Invalid data type {type(data)}")
+        return self.df["data"]
 
     # TSDF metadata
 
