@@ -135,6 +135,91 @@ class UtilsTest(SparkTest):
 
         self.assertDataFrameEquality(actual_df, expected_df)
 
+    def test_time_range_with_step_size(self):
+        """Test time_range with start_time, end_time, and step_size."""
+        # Lines 63-97: time_range function with step_size provided
+        from datetime import datetime, timedelta
+        from tempo.utils import time_range
+
+        start = datetime(2024, 1, 1, 10, 0, 0)
+        end = datetime(2024, 1, 1, 10, 10, 0)
+        step = timedelta(minutes=2)
+
+        result = time_range(self.spark, start, end, step)
+
+        # Should have 5 intervals (0, 2, 4, 6, 8 minutes)
+        self.assertEqual(result.count(), 5)
+        self.assertIn("ts", result.columns)
+
+    def test_time_range_with_num_intervals(self):
+        """Test time_range with start_time, end_time, and num_intervals."""
+        # Lines 63-69: time_range computing step_size from num_intervals
+        from datetime import datetime
+        from tempo.utils import time_range
+
+        start = datetime(2024, 1, 1, 10, 0, 0)
+        end = datetime(2024, 1, 1, 10, 10, 0)
+        num_intervals = 5
+
+        result = time_range(self.spark, start, end, num_intervals=num_intervals)
+
+        # Should have exactly 5 intervals
+        self.assertEqual(result.count(), 5)
+
+    def test_time_range_compute_num_intervals(self):
+        """Test time_range computing num_intervals from end_time and step_size."""
+        # Lines 72-78: time_range computing num_intervals
+        from datetime import datetime, timedelta
+        from tempo.utils import time_range
+
+        start = datetime(2024, 1, 1, 10, 0, 0)
+        end = datetime(2024, 1, 1, 10, 11, 0)
+        step = timedelta(minutes=2)
+
+        result = time_range(self.spark, start, end, step_size=step)
+
+        # 11 minutes / 2 minute step = 6 intervals (ceiling)
+        self.assertEqual(result.count(), 6)
+
+    def test_time_range_with_custom_column_name(self):
+        """Test time_range with custom timestamp column name."""
+        # Lines 87-90: custom ts_colname parameter
+        from datetime import datetime, timedelta
+        from tempo.utils import time_range
+
+        start = datetime(2024, 1, 1, 10, 0, 0)
+        step = timedelta(minutes=5)
+        num_intervals = 3
+
+        result = time_range(
+            self.spark, start, step_size=step, num_intervals=num_intervals,
+            ts_colname="custom_ts"
+        )
+
+        self.assertEqual(result.count(), 3)
+        self.assertIn("custom_ts", result.columns)
+        self.assertNotIn("ts", result.columns)
+        self.assertNotIn("id", result.columns)  # id column should be dropped
+
+    def test_time_range_with_interval_ends(self):
+        """Test time_range with include_interval_ends=True."""
+        # Lines 91-96: include_interval_ends parameter
+        from datetime import datetime, timedelta
+        from tempo.utils import time_range
+
+        start = datetime(2024, 1, 1, 10, 0, 0)
+        step = timedelta(minutes=5)
+        num_intervals = 3
+
+        result = time_range(
+            self.spark, start, step_size=step, num_intervals=num_intervals,
+            include_interval_ends=True
+        )
+
+        self.assertEqual(result.count(), 3)
+        self.assertIn("ts", result.columns)
+        self.assertIn("ts_interval_end", result.columns)
+
 
 # MAIN
 if __name__ == "__main__":

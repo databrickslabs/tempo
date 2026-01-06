@@ -1,0 +1,326 @@
+{
+  "AsOfJoinTest": {
+    "test_broadcast_join_simple_ts": {
+      "left": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21],
+            ["S1", "2020-08-01 00:01:12", 351.32],
+            ["S1", "2020-09-01 00:02:10", 361.1],
+            ["S1", "2020-09-01 00:19:12", 362.1]
+          ]
+        }
+      },
+      "right": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-09-01 00:02:01", 358.93, 365.12],
+            ["S1", "2020-09-01 00:15:01", 359.21, 365.31]
+          ]
+        }
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "left_event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, left_event_ts string, trade_pr float, right_event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["left_event_ts", "right_event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12]
+          ]
+        }
+      }
+    },
+    "test_broadcast_join_nanos": {
+      "left": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"],
+          "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+        },
+        "tsdf_constructor": "fromStringTimestamp",
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "data": [
+            ["S1", "2022-01-01 09:59:59.123456789", 349.21],
+            ["S1", "2022-01-01 10:00:00.123456788", 351.32],
+            ["S1", "2022-01-01 10:00:00.123456789", 361.12],
+            ["S1", "2022-01-01 10:00:01.123456789", 364.31]
+          ]
+        }
+      },
+      "right": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"],
+          "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+        },
+        "tsdf_constructor": "fromStringTimestamp",
+        "df": {
+          "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+          "data": [
+            ["S1", "2022-01-01 10:00:00.1234567", 345.11, 351.12],
+            ["S1", "2022-01-01 10:00:00.12345671", 348.10, 353.13],
+            ["S1", "2022-01-01 10:00:00.12345675", 358.93, 365.12],
+            ["S1", "2022-01-01 10:00:00.12345677", 358.91, 365.33],
+            ["S1", "2022-01-01 10:00:01.10000001", 359.21, 365.31]
+          ]
+        }
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "left_ts_idx",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "left_ts_idx struct<event_ts string, parsed_ts string, double_ts double>, symbol string, trade_pr float, ask_pr float, bid_pr float, right_ts_idx struct<event_ts string, parsed_ts string, double_ts double>",
+          "ts_convert": ["left_ts_idx.parsed_ts", "right_ts_idx.parsed_ts"],
+          "data": [
+            [
+              ["2022-01-01 09:59:59.123456789", "2022-01-01T02:59:59.123456Z", 1641031199.1234567],
+              "S1",
+              349.2099914550781,
+              null,
+              null,
+              null
+            ],
+            [
+              ["2022-01-01 10:00:00.123456788", "2022-01-01T03:00:00.123456Z", 1641031200.1234567],
+              "S1",
+              351.32000732421875,
+              365.3299865722656,
+              358.9100036621094,
+              ["2022-01-01 10:00:00.12345677", "2022-01-01T03:00:00.123456Z", 1641031200.1234567]
+            ],
+            [
+              ["2022-01-01 10:00:00.123456789", "2022-01-01T03:00:00.123456Z", 1641031200.1234567],
+              "S1",
+              361.1199951171875,
+              365.3299865722656,
+              358.9100036621094,
+              ["2022-01-01 10:00:00.12345677", "2022-01-01T03:00:00.123456Z", 1641031200.1234567]
+            ],
+            [
+              ["2022-01-01 10:00:01.123456789", "2022-01-01T03:00:01.123456Z", 1641031201.1234567],
+              "S1",
+              364.30999755859375,
+              365.30999755859375,
+              359.2099914550781,
+              ["2022-01-01 10:00:01.10000001", "2022-01-01T03:00:01.100000Z", 1641031201.1]
+            ]
+          ]
+        }
+      }
+    },
+    "test_broadcast_join_null_lead": {
+      "left": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21],
+            ["S1", "2020-08-01 00:01:12", 351.32],
+            ["S1", "2020-08-01 00:05:00", 355.50],
+            ["S2", "2020-08-01 00:00:10", 249.21],
+            ["S2", "2020-08-01 00:05:00", 255.50]
+          ]
+        }
+      },
+      "right": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-08-01 00:03:00", 352.50, 356.50],
+            ["S2", "2020-08-01 00:00:01", 245.11, 251.12],
+            ["S2", "2020-08-01 00:03:00", 252.50, 256.50]
+          ]
+        }
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "left_event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, left_event_ts string, trade_pr float, right_event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["left_event_ts", "right_event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-08-01 00:05:00", 355.50, "2020-08-01 00:03:00", 352.50, 356.50],
+            ["S2", "2020-08-01 00:00:10", 249.21, "2020-08-01 00:00:01", 245.11, 251.12],
+            ["S2", "2020-08-01 00:05:00", 255.50, "2020-08-01 00:03:00", 252.50, 256.50]
+          ]
+        }
+      }
+    },
+    "test_union_sort_filter_join_simple_ts": {
+      "left": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21],
+            ["S1", "2020-08-01 00:01:12", 351.32],
+            ["S1", "2020-09-01 00:02:10", 361.1],
+            ["S1", "2020-09-01 00:19:12", 362.1]
+          ]
+        }
+      },
+      "right": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-09-01 00:02:01", 358.93, 365.12],
+            ["S1", "2020-09-01 00:15:01", 359.21, 365.31]
+          ]
+        }
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "left_event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, left_event_ts string, trade_pr float, right_event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["left_event_ts", "right_event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-09-01 00:02:10", 361.1, "2020-09-01 00:02:01", 358.93, 365.12]
+          ]
+        }
+      }
+    },
+    "test_union_sort_filter_join_nanos": {
+      "left": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"],
+          "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+        },
+        "tsdf_constructor": "fromStringTimestamp",
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "data": [
+            ["S1", "2022-01-01 09:59:59.123456789", 349.21],
+            ["S1", "2022-01-01 10:00:00.123456788", 351.32],
+            ["S1", "2022-01-01 10:00:00.123456789", 361.12],
+            ["S1", "2022-01-01 10:00:01.123456789", 364.31]
+          ]
+        }
+      },
+      "right": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"],
+          "ts_fmt": "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"
+        },
+        "tsdf_constructor": "fromStringTimestamp",
+        "df": {
+          "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+          "data": [
+            ["S1", "2022-01-01 10:00:00.1234567", 345.11, 351.12],
+            ["S1", "2022-01-01 10:00:00.12345671", 348.10, 353.13],
+            ["S1", "2022-01-01 10:00:00.12345675", 358.93, 365.12],
+            ["S1", "2022-01-01 10:00:00.12345677", 358.91, 365.33],
+            ["S1", "2022-01-01 10:00:01.10000001", 359.21, 365.31]
+          ]
+        }
+      }
+    },
+    "test_union_sort_filter_join_null_lead": {
+      "left": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, trade_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21],
+            ["S1", "2020-08-01 00:01:12", 351.32],
+            ["S1", "2020-08-01 00:05:00", 355.50],
+            ["S2", "2020-08-01 00:00:10", 249.21],
+            ["S2", "2020-08-01 00:05:00", 255.50]
+          ]
+        }
+      },
+      "right": {
+        "tsdf": {
+          "ts_col": "event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-08-01 00:03:00", 352.50, 356.50],
+            ["S2", "2020-08-01 00:00:01", 245.11, 251.12],
+            ["S2", "2020-08-01 00:03:00", 252.50, 256.50]
+          ]
+        }
+      },
+      "expected": {
+        "tsdf": {
+          "ts_col": "left_event_ts",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, left_event_ts string, trade_pr float, right_event_ts string, bid_pr float, ask_pr float",
+          "ts_convert": ["left_event_ts", "right_event_ts"],
+          "data": [
+            ["S1", "2020-08-01 00:00:10", 349.21, "2020-08-01 00:00:01", 345.11, 351.12],
+            ["S1", "2020-08-01 00:01:12", 351.32, "2020-08-01 00:01:05", 348.10, 353.13],
+            ["S1", "2020-08-01 00:05:00", 355.50, "2020-08-01 00:03:00", 352.50, 356.50],
+            ["S2", "2020-08-01 00:00:10", 249.21, "2020-08-01 00:00:01", 245.11, 251.12],
+            ["S2", "2020-08-01 00:05:00", 255.50, "2020-08-01 00:03:00", 252.50, 256.50]
+          ]
+        }
+      }
+    }
+  }
+}

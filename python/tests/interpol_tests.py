@@ -1,5 +1,6 @@
 import unittest
 
+import pandas as pd
 from parameterized import parameterized_class
 
 from tempo.interpol import backward_fill, forward_fill, interpolate, zero_fill
@@ -238,6 +239,34 @@ class TSDBInterpolationTests(SparkTest):
         self.assertAlmostEqual(result_df[1]["value_b"], 15.0)
         self.assertAlmostEqual(result_df[3]["value_a"], 2.5)
         self.assertAlmostEqual(result_df[3]["value_b"], 25.0)
+
+
+class InterpolHelperFunctionsTests(SparkTest):
+    """Tests for standalone interpolation helper functions"""
+
+    def test_zero_fill_function(self):
+        """Test the zero_fill helper function directly"""
+        test_series = pd.Series([1.0, None, 3.0, None, 5.0])
+        result = zero_fill(test_series)
+
+        expected = pd.Series([1.0, 0.0, 3.0, 0.0, 5.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_forward_fill_function(self):
+        """Test the forward_fill helper function directly"""
+        test_series = pd.Series([1.0, None, None, 4.0, None])
+        result = forward_fill(test_series)
+
+        expected = pd.Series([1.0, 1.0, 1.0, 4.0, 4.0])
+        pd.testing.assert_series_equal(result, expected)
+
+    def test_backward_fill_function(self):
+        """Test the backward_fill helper function directly"""
+        test_series = pd.Series([None, None, 3.0, None, 5.0])
+        result = backward_fill(test_series)
+
+        expected = pd.Series([3.0, 3.0, 3.0, 5.0, 5.0])
+        pd.testing.assert_series_equal(result, expected)
 
 
 # MAIN
