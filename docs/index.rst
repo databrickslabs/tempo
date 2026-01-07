@@ -1,17 +1,50 @@
 
-tempo - Time Series Utilities for Data Teams Using Databricks
-=============================================================
+Tempo - Time Series Utilities for Data Teams Using Databricks
+==============================================================
 
 .. toctree::
    :hidden:
-   :maxdepth: 3
+   :maxdepth: 2
+   :caption: Getting Started
 
-   Databricks Labs <https://databricks.com/learn/labs>
-   about/user-guide
-   references/api-reference
+   getting-started/index
+   getting-started/installation
+   getting-started/quickstart
+   getting-started/migration-v02
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: User Guide
+
+   user-guide/index
+   user-guide/tsdf-basics
+   user-guide/resampling
+   user-guide/joins
+   user-guide/interpolation
+   user-guide/intervals
+   user-guide/window-operations
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: API Reference
+
+   api-reference/index
+   api-reference/tsdf
+   api-reference/tsschema
+   api-reference/intervals
+   api-reference/joins
+   api-reference/utilities
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: About
+
    about/contributing
+   about/roadmap
    about/tempo-team
-   about/future-roadmap
 
 
 .. image:: https://github.com/databrickslabs/tempo/workflows/build/badge.svg
@@ -30,80 +63,122 @@ tempo - Time Series Utilities for Data Teams Using Databricks
    :target: https://databrickslabs.github.io/tempo/
    :alt: Tempo sphinx docs
 
-The purpose of this project is to make time series manipulation with Spark simpler.
-Operations covered under this package include AS OF joins, rolling statistics with user-specified window lengths,
-featurization of time series using lagged values, and Delta Lake optimization on time and partition fields.
 
-Time Series on Spark & Photon with tempo is highly performant for historical analysis. We are simplifying all of the
-common functions to make development more easy.
+Tempo makes time series analysis on Apache Spark simple and performant. Built for data teams using Databricks,
+it provides intuitive APIs for common time series operations that would otherwise require complex window functions
+and joins.
 
-Tempo is very easy to use:
+Key Features
+------------
+
+- **AS OF Joins** - Join datasets by nearest timestamp with automatic strategy selection
+- **Resampling** - Aggregate time series to different frequencies (seconds, minutes, hours, days)
+- **Interpolation** - Fill missing values with forward fill, backward fill, linear interpolation, and more
+- **Intervals API** - Work with time intervals, detect state changes, and handle overlapping periods
+- **Window Operations** - Rolling aggregations and analytics with flexible window specifications
+- **Time Filtering** - Slice time series by exact time, ranges, or relative positions (earliest, latest)
+
+Quick Example
+-------------
 
 .. code-block:: python
 
-    from pyspark.sql.functions import *
-    phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
-    from tempo import *
-    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
-    display(phone_accel_tsdf)
+    from tempo import TSDF
+    from pyspark.sql import functions as F
 
-.. _direct-git-install:
+    # Create a TSDF from a Spark DataFrame
+    tsdf = TSDF(
+        df,
+        ts_col="event_ts",
+        series_ids=["symbol"]  # Partition columns for multiple time series
+    )
 
-Installing
-----------
+    # Time-based filtering
+    recent = tsdf.latest(100)                    # Last 100 records per series
+    window = tsdf.between("2024-01-01", "2024-12-31")
 
-Tempo can be installed with `pip <https://pip.pypa.io>`_
+    # Resample to 1-minute intervals
+    resampled = tsdf.resample(freq="1 minute", func="mean")
+
+    # AS OF join - find latest quote for each trade
+    trades_with_quotes = trades_tsdf.asofJoin(quotes_tsdf, right_prefix="quote")
+
+    # Rolling statistics
+    window_spec = tsdf.rowsBetweenWindow(-10, 0)
+    with_rolling = tsdf.withColumn(
+        "rolling_avg",
+        F.avg("price").over(window_spec)
+    )
+
+
+Installation
+------------
+
+Install from PyPI:
 
 .. code-block:: bash
 
-  $ pip install dbl-tempo
+    pip install dbl-tempo
 
-Alternatively, you can grab the latest source code from `GitHub <https://github.com/databrickslabs/tempo>`_:
+Or install the latest development version:
 
 .. code-block:: bash
 
-  $ pip install -e git+https://github.com/databrickslabs/tempo.git#"egg=dbl-tempo&#subdirectory=python"
+    pip install git+https://github.com/databrickslabs/tempo.git
 
-**NOTE** that the Scala version of Tempo is now deprecated and no longer in development.
+**Requirements:** Python 3.9+ and Apache Spark 3.2+
 
-Usage
------
+.. note::
 
-The :doc:`about/user-guide` is the place to go to learn how to use the library and accomplish common tasks.
+   The Scala version of Tempo is deprecated and no longer maintained. All new development is in Python.
 
-The :doc:`references/api-reference` documentation provides API-level documentation.
 
-.. _who-uses:
+Documentation
+-------------
 
-Who uses tempo?
------------------
+.. grid:: 2
 
-`tempo is one of the most popular packages on for spark based timeseries analysis. <https://pepy.tech/project/dbl-tempo>`_
-and is actively maintained by engineers & field experts with constant addition of new features ranging from time series
-pre-processing to time-series analytics & machine learning!
+    .. grid-item-card:: Getting Started
+        :link: getting-started/index
+        :link-type: doc
+
+        New to Tempo? Start here for installation instructions and a quick tutorial.
+
+    .. grid-item-card:: User Guide
+        :link: user-guide/index
+        :link-type: doc
+
+        Learn how to use Tempo's features with detailed examples and explanations.
+
+    .. grid-item-card:: API Reference
+        :link: api-reference/index
+        :link-type: doc
+
+        Complete API documentation for all classes and methods.
+
+    .. grid-item-card:: Migration Guide
+        :link: getting-started/migration-v02
+        :link-type: doc
+
+        Upgrading from v0.1? See what's changed and how to migrate your code.
+
+
+Who Uses Tempo?
+---------------
+
+Tempo is `one of the most popular packages <https://pepy.tech/project/dbl-tempo>`_ for Spark-based time series
+analysis, with thousands of monthly downloads. It's actively maintained by Databricks Labs engineers and field
+experts.
 
 
 License
 -------
 
-Tempo is made available under ``databricks`` License. For more details, see
-`LICENSE <https://github.com/databrickslabs/tempo/blob/master/LICENSE>`_.
-
-Docs on Github Pages
---------------------
-
-Tempo's `sphinx documentation is hosted on github pages <https://www.sphinx-doc.org/en/master/tutorial/deploying.html#id5>`_
-and has been integrated with the project's github actions.
-
-The documentation is updated and kept in line with the latest version that has been
-`published on PyPI <https://pypi.org/project/dbl-tempo/>`_ and as such there is no guarantee that features and
-functionality that you get from :ref:`installing tempo directly from the github repo <direct-git-install>` will be
-documented here.
-
-For support on those functionalities please feel free to reach out to the :doc:`about/tempo-team`.
+Tempo is made available under the Databricks License. For more details, see the
+`LICENSE <https://github.com/databrickslabs/tempo/blob/master/LICENSE>`_ file.
 
 
 Contributing
 ------------
 
-We happily welcome contributions, please see :doc:`about/contributing` for details.
+We welcome contributions! See our :doc:`about/contributing` guide for details on how to get involved.
