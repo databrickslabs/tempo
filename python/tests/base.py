@@ -397,20 +397,31 @@ class SparkTest(unittest.TestCase):
         func_name = id_parts[-1]
         class_name = id_parts[-2]
 
-        # Handle nested test directories - build the path from module components
-        # For example: tests.intervals.core.intervals_df_tests -> intervals/core/intervals_df_tests
-        module_parts = id_parts[:-2]  # Everything except class and function name
+        # Get the module path from the test class's __module__ attribute
+        # This works correctly with both unittest and pytest
+        module_path = self.__class__.__module__
 
-        # Remove 'tests' prefix if present
-        if module_parts and module_parts[0] == 'tests':
-            module_parts = module_parts[1:]
-
-        # Build the file path from remaining module parts
-        if module_parts:
-            file_name = "/".join(module_parts)
+        # Build file path from module path
+        # For example: tests.join.test_strategies_integration -> join/test_strategies_integration
+        # TODO: Remove this unittest-specific branch once pytest is fully adopted
+        if module_path.startswith('tests.'):
+            # Running with unittest - remove 'tests.' prefix and replace dots with slashes
+            file_name = module_path[6:].replace('.', '/')
         else:
-            # Fallback to old behavior for non-nested tests
-            file_name = id_parts[-3] if len(id_parts) >= 3 else ""
+            # Running with pytest - module path might be truncated
+            # Use inspect to get the actual file path
+            import inspect
+            import os
+            test_file = inspect.getfile(self.__class__)
+            # Extract path relative to tests/ directory
+            if '/tests/' in test_file:
+                # Get everything after 'tests/'
+                relative_path = test_file.split('/tests/')[-1]
+                # Remove .py extension
+                file_name = relative_path.replace('.py', '')
+            else:
+                # Fallback to module name
+                file_name = module_path
 
         self.file_name = file_name
         self.class_name = class_name
