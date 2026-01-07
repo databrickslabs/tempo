@@ -1,0 +1,225 @@
+{
+  "test_key_skewed_join": {
+    "left": {
+      "schema": "symbol string, timestamp string, value string, metric double",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1", 100.0],
+        ["SKEWED", "2024-01-01 10:01:00", "left_2", 101.0],
+        ["SKEWED", "2024-01-01 10:02:00", "left_3", 102.0],
+        ["SKEWED", "2024-01-01 10:03:00", "left_4", 103.0],
+        ["SKEWED", "2024-01-01 10:04:00", "left_5", 104.0],
+        ["SKEWED", "2024-01-01 10:05:00", "left_6", 105.0],
+        ["SKEWED", "2024-01-01 10:06:00", "left_7", 106.0],
+        ["SKEWED", "2024-01-01 10:07:00", "left_8", 107.0],
+        ["NORMAL", "2024-01-01 10:00:00", "left_9", 200.0],
+        ["NORMAL", "2024-01-01 10:03:00", "left_10", 203.0],
+        ["RARE", "2024-01-01 10:01:00", "left_11", 300.0]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "right": {
+      "schema": "symbol string, timestamp string, price double, status string",
+      "data": [
+        ["SKEWED", "2024-01-01 09:59:00", 99.5, "pre"],
+        ["SKEWED", "2024-01-01 10:02:30", 102.5, "mid"],
+        ["SKEWED", "2024-01-01 10:05:30", 105.5, "late"],
+        ["NORMAL", "2024-01-01 09:58:00", 199.0, "early"],
+        ["NORMAL", "2024-01-01 10:02:00", 202.0, "mid"],
+        ["RARE", "2024-01-01 10:00:30", 299.5, "single"]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "expected": {
+      "schema": "symbol string, timestamp string, value string, metric double, price double, status string",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1", 100.0, 99.5, "pre"],
+        ["SKEWED", "2024-01-01 10:01:00", "left_2", 101.0, 99.5, "pre"],
+        ["SKEWED", "2024-01-01 10:02:00", "left_3", 102.0, 99.5, "pre"],
+        ["SKEWED", "2024-01-01 10:03:00", "left_4", 103.0, 102.5, "mid"],
+        ["SKEWED", "2024-01-01 10:04:00", "left_5", 104.0, 102.5, "mid"],
+        ["SKEWED", "2024-01-01 10:05:00", "left_6", 105.0, 102.5, "mid"],
+        ["SKEWED", "2024-01-01 10:06:00", "left_7", 106.0, 105.5, "late"],
+        ["SKEWED", "2024-01-01 10:07:00", "left_8", 107.0, 105.5, "late"],
+        ["NORMAL", "2024-01-01 10:00:00", "left_9", 200.0, 199.0, "early"],
+        ["NORMAL", "2024-01-01 10:03:00", "left_10", 203.0, 202.0, "mid"],
+        ["RARE", "2024-01-01 10:01:00", "left_11", 300.0, 299.5, "single"]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    }
+  },
+  "test_temporal_skewed_join": {
+    "left": {
+      "schema": "symbol string, timestamp string, value string",
+      "data": [
+        ["A", "2024-01-01 09:00:00", "sparse_1"],
+        ["A", "2024-01-01 10:00:00", "sparse_2"],
+        ["A", "2024-01-01 11:00:00", "sparse_3"],
+        ["A", "2024-01-01 23:00:00", "dense_1"],
+        ["A", "2024-01-01 23:01:00", "dense_2"],
+        ["A", "2024-01-01 23:02:00", "dense_3"],
+        ["A", "2024-01-01 23:03:00", "dense_4"],
+        ["A", "2024-01-01 23:04:00", "dense_5"],
+        ["A", "2024-01-01 23:05:00", "dense_6"],
+        ["A", "2024-01-01 23:06:00", "dense_7"]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "right": {
+      "schema": "symbol string, timestamp string, price double",
+      "data": [
+        ["A", "2024-01-01 08:30:00", 100.0],
+        ["A", "2024-01-01 10:30:00", 110.0],
+        ["A", "2024-01-01 22:59:00", 200.0],
+        ["A", "2024-01-01 23:02:30", 202.5],
+        ["A", "2024-01-01 23:05:30", 205.5]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "expected": {
+      "schema": "symbol string, timestamp string, value string, price double",
+      "data": [
+        ["A", "2024-01-01 09:00:00", "sparse_1", 100.0],
+        ["A", "2024-01-01 10:00:00", "sparse_2", 100.0],
+        ["A", "2024-01-01 11:00:00", "sparse_3", 110.0],
+        ["A", "2024-01-01 23:00:00", "dense_1", 200.0],
+        ["A", "2024-01-01 23:01:00", "dense_2", 200.0],
+        ["A", "2024-01-01 23:02:00", "dense_3", 200.0],
+        ["A", "2024-01-01 23:03:00", "dense_4", 202.5],
+        ["A", "2024-01-01 23:04:00", "dense_5", 202.5],
+        ["A", "2024-01-01 23:05:00", "dense_6", 202.5],
+        ["A", "2024-01-01 23:06:00", "dense_7", 205.5]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    }
+  },
+  "test_extreme_skew_with_salting": {
+    "left": {
+      "schema": "symbol string, timestamp string, value double",
+      "data": [
+        ["MEGA_SKEW", "2024-01-01 10:00:00", 1.0],
+        ["MEGA_SKEW", "2024-01-01 10:01:00", 2.0],
+        ["MEGA_SKEW", "2024-01-01 10:02:00", 3.0],
+        ["MEGA_SKEW", "2024-01-01 10:03:00", 4.0],
+        ["MEGA_SKEW", "2024-01-01 10:04:00", 5.0],
+        ["MEGA_SKEW", "2024-01-01 10:05:00", 6.0],
+        ["MEGA_SKEW", "2024-01-01 10:06:00", 7.0],
+        ["MEGA_SKEW", "2024-01-01 10:07:00", 8.0],
+        ["MEGA_SKEW", "2024-01-01 10:08:00", 9.0],
+        ["OTHER", "2024-01-01 10:00:00", 100.0]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "right": {
+      "schema": "symbol string, timestamp string, price double",
+      "data": [
+        ["MEGA_SKEW", "2024-01-01 09:59:00", 0.5],
+        ["MEGA_SKEW", "2024-01-01 10:02:30", 2.5],
+        ["MEGA_SKEW", "2024-01-01 10:05:30", 5.5],
+        ["OTHER", "2024-01-01 09:59:30", 99.5]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "expected": {
+      "schema": "symbol string, timestamp string, value double, price double",
+      "data": [
+        ["MEGA_SKEW", "2024-01-01 10:00:00", 1.0, 0.5],
+        ["MEGA_SKEW", "2024-01-01 10:01:00", 2.0, 0.5],
+        ["MEGA_SKEW", "2024-01-01 10:02:00", 3.0, 0.5],
+        ["MEGA_SKEW", "2024-01-01 10:03:00", 4.0, 2.5],
+        ["MEGA_SKEW", "2024-01-01 10:04:00", 5.0, 2.5],
+        ["MEGA_SKEW", "2024-01-01 10:05:00", 6.0, 2.5],
+        ["MEGA_SKEW", "2024-01-01 10:06:00", 7.0, 5.5],
+        ["MEGA_SKEW", "2024-01-01 10:07:00", 8.0, 5.5],
+        ["MEGA_SKEW", "2024-01-01 10:08:00", 9.0, 5.5],
+        ["OTHER", "2024-01-01 10:00:00", 100.0, 99.5]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    }
+  },
+  "test_skew_with_nulls": {
+    "left": {
+      "schema": "symbol string, timestamp string, value string",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1"],
+        ["SKEWED", "2024-01-01 10:01:00", "left_2"],
+        ["SKEWED", "2024-01-01 10:02:00", "left_3"],
+        ["NORMAL", "2024-01-01 10:00:00", "left_4"]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "right": {
+      "schema": "symbol string, timestamp string, price double, status string",
+      "data": [
+        ["SKEWED", "2024-01-01 09:59:00", 99.5, "active"],
+        ["SKEWED", "2024-01-01 10:01:30", null, "inactive"],
+        ["NORMAL", "2024-01-01 09:58:00", 199.0, null]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "expected_skip_nulls_true": {
+      "schema": "symbol string, timestamp string, value string, price double, status string",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1", 99.5, "active"],
+        ["SKEWED", "2024-01-01 10:01:00", "left_2", 99.5, "active"],
+        ["SKEWED", "2024-01-01 10:02:00", "left_3", 99.5, "active"],
+        ["NORMAL", "2024-01-01 10:00:00", "left_4", null, null]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "expected_skip_nulls_false": {
+      "schema": "symbol string, timestamp string, value string, price double, status string",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1", 99.5, "active"],
+        ["SKEWED", "2024-01-01 10:01:00", "left_2", 99.5, "active"],
+        ["SKEWED", "2024-01-01 10:02:00", "left_3", null, "inactive"],
+        ["NORMAL", "2024-01-01 10:00:00", "left_4", 199.0, null]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    }
+  },
+  "test_skew_with_tolerance": {
+    "left": {
+      "schema": "symbol string, timestamp string, value string",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1"],
+        ["SKEWED", "2024-01-01 10:05:00", "left_2"],
+        ["SKEWED", "2024-01-01 10:10:00", "left_3"]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "right": {
+      "schema": "symbol string, timestamp string, price double",
+      "data": [
+        ["SKEWED", "2024-01-01 09:58:00", 98.0],
+        ["SKEWED", "2024-01-01 10:04:00", 104.0],
+        ["SKEWED", "2024-01-01 10:08:00", 108.0]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    },
+    "expected_tolerance_120": {
+      "schema": "symbol string, timestamp string, value string, price double",
+      "data": [
+        ["SKEWED", "2024-01-01 10:00:00", "left_1", null],
+        ["SKEWED", "2024-01-01 10:05:00", "left_2", 104.0],
+        ["SKEWED", "2024-01-01 10:10:00", "left_3", null]
+      ],
+      "ts_col": "timestamp",
+      "series_ids": ["symbol"]
+    }
+  }
+}

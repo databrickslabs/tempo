@@ -1,0 +1,119 @@
+{
+  "TSDFBasicMethodsTests": {
+    "test_repartition_by_series": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 10:01:00", 101.0],
+            ["B", "2024-01-01 10:00:00", 200.0],
+            ["B", "2024-01-01 10:01:00", 201.0]
+          ]
+        }
+      }
+    },
+    "test_repartition_by_series_default_partitions": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["id"]
+        },
+        "df": {
+          "schema": "id string, timestamp string, value float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["X", "2024-01-01 10:00:00", 50.0],
+            ["Y", "2024-01-01 10:00:00", 60.0]
+          ]
+        }
+      }
+    },
+    "test_repartition_by_time": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 100.0],
+            ["A", "2024-01-01 10:01:00", 101.0],
+            ["A", "2024-01-01 10:02:00", 102.0]
+          ]
+        }
+      }
+    },
+    "test_repartition_by_time_default_partitions": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": []
+        },
+        "df": {
+          "schema": "timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["2024-01-01 10:00:00", 100.0],
+            ["2024-01-01 10:01:00", 101.0]
+          ]
+        }
+      }
+    },
+    "test_with_column_renamed_series_id": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["ticker"]
+        },
+        "df": {
+          "schema": "ticker string, timestamp string, price float",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["AAPL", "2024-01-01 10:00:00", 150.0],
+            ["GOOGL", "2024-01-01 10:00:00", 140.0]
+          ]
+        }
+      }
+    },
+    "test_with_column_renamed_ts_col": {
+      "init": {
+        "tsdf": {
+          "ts_col": "event_time",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, event_time string, value float",
+          "ts_convert": ["event_time"],
+          "data": [
+            ["A", "2024-01-01 10:00:00", 10.0],
+            ["B", "2024-01-01 10:00:00", 20.0]
+          ]
+        }
+      }
+    },
+    "test_with_column_type_changed": {
+      "init": {
+        "tsdf": {
+          "ts_col": "timestamp",
+          "series_ids": ["symbol"]
+        },
+        "df": {
+          "schema": "symbol string, timestamp string, value double",
+          "ts_convert": ["timestamp"],
+          "data": [
+            ["X", "2024-01-01 10:00:00", 99.5],
+            ["Y", "2024-01-01 10:00:00", 88.3]
+          ]
+        }
+      }
+    }
+  }
+}
