@@ -1520,10 +1520,17 @@ class TSDF(WindowBuilder):
         """
 
         # Set defaults for target columns, timestamp column and partition columns when not provided
+        # If freq/func not provided, try to use resample metadata from a prior resample() call
         if freq is None:
-            raise ValueError("freq must be provided")
+            if self.resample_freq is not None:
+                freq = self.resample_freq
+            else:
+                raise ValueError("freq must be provided")
         if func is None:
-            raise ValueError("func must be provided")
+            if self.resample_func is not None:
+                func = self.resample_func
+            else:
+                raise ValueError("func must be provided")
         if ts_col is None:
             ts_col = self.ts_col
         if partition_cols is None:

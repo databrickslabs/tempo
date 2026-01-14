@@ -141,6 +141,63 @@ class TSDFBasicMethodsTests(SparkTest):
         value_type = dict(result.df.dtypes)["value"]
         self.assertIn("int", value_type.lower())
 
+    def test_resample_sets_metadata(self):
+        """Test that resample() sets resample_freq and resample_func on the returned TSDF."""
+        data = [
+            ("A", datetime(2024, 1, 1, 10, 0, 0), 100.0),
+            ("A", datetime(2024, 1, 1, 10, 1, 0), 101.0),
+            ("A", datetime(2024, 1, 1, 10, 2, 0), 102.0),
+        ]
+        df = self.spark.createDataFrame(data, ["symbol", "event_ts", "price"])
+        tsdf = TSDF(df, ts_col="event_ts", series_ids=["symbol"])
+
+        resampled = tsdf.resample(freq="min", func="mean")
+
+        self.assertEqual(resampled.resample_freq, "min")
+        self.assertEqual(resampled.resample_func, "mean")
+
+    def test_interpolate_uses_resample_metadata(self):
+        """Test that interpolate() uses freq/func from resample() when not provided."""
+        data = [
+            ("A", datetime(2024, 1, 1, 10, 0, 0), 100.0),
+            ("A", datetime(2024, 1, 1, 10, 2, 0), 102.0),
+        ]
+        df = self.spark.createDataFrame(data, ["symbol", "event_ts", "price"])
+        tsdf = TSDF(df, ts_col="event_ts", series_ids=["symbol"])
+
+        resampled = tsdf.resample(freq="min", func="mean")
+        interpolated = resampled.interpolate(method="linear")
+
+        self.assertIsInstance(interpolated, TSDF)
+        self.assertGreater(interpolated.df.count(), 0)
+
+    def test_interpolate_without_metadata_raises_error(self):
+        """Test that interpolate() raises ValueError when freq/func not available."""
+        data = [
+            ("A", datetime(2024, 1, 1, 10, 0, 0), 100.0),
+            ("A", datetime(2024, 1, 1, 10, 1, 0), 101.0),
+        ]
+        df = self.spark.createDataFrame(data, ["symbol", "event_ts", "price"])
+        tsdf = TSDF(df, ts_col="event_ts", series_ids=["symbol"])
+
+        with self.assertRaises(ValueError) as context:
+            tsdf.interpolate(method="linear")
+
+        self.assertIn("freq must be provided", str(context.exception))
+
+    def test_interpolate_explicit_args_override_metadata(self):
+        """Test that explicit freq/func args override resample metadata."""
+        data = [
+            ("A", datetime(2024, 1, 1, 10, 0, 0), 100.0),
+            ("A", datetime(2024, 1, 1, 10, 2, 0), 102.0),
+        ]
+        df = self.spark.createDataFrame(data, ["symbol", "event_ts", "price"])
+        tsdf = TSDF(df, ts_col="event_ts", series_ids=["symbol"])
+
+        resampled = tsdf.resample(freq="min", func="mean")
+        interpolated = resampled.interpolate(method="linear", freq="sec", func="floor")
+
+        self.assertIsInstance(interpolated, TSDF)
 
 
 if __name__ == "__main__":
