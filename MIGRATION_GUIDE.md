@@ -2,6 +2,8 @@
 
 This guide helps users migrate existing code from Tempo v0.1.x to v0.2.
 
+> **Backwards Compatibility**: v0.2 maintains backwards compatibility with v0.1.x APIs through deprecation warnings. Your existing code will continue to work, but you'll see warnings for deprecated features. All deprecated APIs will be removed in v1.0.0.
+
 ---
 
 ## Quick Reference
@@ -28,15 +30,15 @@ tsdf = TSDF(df, ts_col="event_ts", partition_cols=["symbol"])
 tsdf = TSDF(df, ts_col="event_ts", series_ids=["symbol"])
 ```
 
-### Removed: `sequence_col` Parameter
+### Deprecated: `sequence_col` Parameter
 
-The `sequence_col` parameter has been removed entirely. If you were using it, you'll need to refactor your timestamp handling.
+The `sequence_col` parameter is deprecated and will be removed in v1.0.0. It still works but emits a deprecation warning. Consider refactoring to use the new factory method:
 
 ```python
-# v0.1 (old) - no longer supported
+# v0.1 (old) - deprecated, emits warning
 tsdf = TSDF(df, ts_col="event_ts", partition_cols=["symbol"], sequence_col="seq")
 
-# v0.2 (new) - use fromSubsequenceCol factory method instead
+# v0.2 (recommended) - use fromSubsequenceCol factory method instead
 tsdf = TSDF.fromSubsequenceCol(df, ts_col="event_ts", subsequence_col="seq", series_ids=["symbol"])
 ```
 
@@ -66,13 +68,13 @@ columns = tsdf.partitionCols
 columns = tsdf.series_ids
 ```
 
-### Removed: `sequence_col`
+### Deprecated: `sequence_col` Attribute
 
 ```python
-# v0.1 (old)
-seq = tsdf.sequence_col  # No longer available
+# v0.1 (old) - deprecated, emits warning
+seq = tsdf.sequence_col
 
-# v0.2 (new)
+# v0.2 (recommended)
 # Access via ts_schema if needed
 seq = tsdf.ts_schema.subsequence_col  # If using SubsequenceTSIndex
 ```
@@ -174,17 +176,19 @@ result = left_tsdf.asofJoin(right_tsdf, strategy='broadcast')
 
 ---
 
-## 6. Removed Methods
+## 6. Deprecated Methods
 
-The following methods have been removed from TSDF:
+The following methods are deprecated in v0.2 and will be removed in v1.0.0. They still work but emit deprecation warnings:
 
-| Method | Status | Alternative |
-|--------|--------|-------------|
-| `vwap()` | Removed | Use `tempo.stats.vwap()` or custom implementation |
-| `EMA()` | Removed | Custom implementation required |
-| `withLookbackFeatures()` | Removed | Use `rollingApply()` or custom window functions |
-| `withRangeStats()` | Removed | Use `rollingAgg()` or custom implementation |
-| `withGroupedStats()` | Removed | Use `aggBySeries()` or custom implementation |
+| Method | Status | Recommended Alternative |
+|--------|--------|------------------------|
+| `vwap()` | Deprecated | Use `tempo.stats.vwap()` |
+| `EMA()` | Deprecated | Use `tsdf.withColumn()` with custom EMA calculation |
+| `withLookbackFeatures()` | Deprecated | Use `rollingApply()` or `rollingAgg()` |
+| `withRangeStats()` | Deprecated | Use `rollingAgg()` |
+| `withGroupedStats()` | Deprecated | Use `aggBySeries()` |
+
+These methods now act as wrappers that call the new APIs internally. You can continue using them during the migration period, but you'll see deprecation warnings encouraging you to update your code before v1.0.0.
 
 ---
 
@@ -314,7 +318,24 @@ calculate_time_horizon(tsdf, "1 minute")
 
 ---
 
-## 10. Getting Help
+## 10. Deprecation Timeline
+
+| Version | Status | What to Expect |
+|---------|--------|----------------|
+| **v0.2.0** | Current | Deprecated APIs work with warnings. Old code continues to function. |
+| **v0.2.x** | Transition | New behavior is default. Old APIs still work with warnings. |
+| **v1.0.0** | Breaking | Deprecated APIs removed. Migration required. |
+
+All deprecated parameters, attributes, and methods will emit `DeprecationWarning` when used. To see these warnings, ensure your Python warnings filter is configured appropriately:
+
+```python
+import warnings
+warnings.filterwarnings("default", category=DeprecationWarning)
+```
+
+---
+
+## 11. Getting Help
 
 If you encounter issues during migration:
 1. Check the [CHANGELOG.md](CHANGELOG.md) for detailed release notes
