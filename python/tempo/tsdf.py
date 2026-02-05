@@ -1191,6 +1191,43 @@ class TSDF(WindowBuilder):
         )
         return self.__withTransformedDF(union_df)
 
+    def project(self, onto: TSDF) -> TSDF:
+        """
+        This method 'projects' the data in the current :class:`TSDF` onto the values of the given :class:`TSDF`.
+        This means that any values defined in the current :class:`TSDF` will overwrite the values of the given :class:`TSDF`,
+        if they have the same timestamp in the same series, otherwise the values of the given :class:`TSDF` will be used.
+
+        :param onto: the :class:`TSDF` onto which we will project the data
+        :return: a new :class:`TSDF` with the data of the current :class:`TSDF` projected onto the given :class:`TSDF`
+        """
+        # first union the two while marking the provenance of each row
+        source_col = "__tmp_source_col__"
+        combined_tsdf = (self
+                         .withColumn(source_col, sfn.lit(1))
+                         .unionByName(onto.withColumn(source_col, sfn.lit(-1))))
+
+        # use a window over the matching rows to resolve any duplicates
+        # for this we actually partition by the time index *and* the series - then order by the source column
+        ordering_expr = combined_tsdf.ts_index.orderByExpr()
+        if isinstance(ordering_expr, Column):
+            ordering_expr = [ordering_expr]
+        partition_exprs = ordering_expr + combined_tsdf.series_ids
+        project_win = Window.partitionBy(partition_exprs).orderBy(source_col).rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+
+        # build a select expression that will collapse matching observations with preference based on source
+        # while preserving structural columns
+        project_select_exprs = combined_tsdf.structural_cols + [source_col] +\
+            [sfn.first(obs_col, ignorenulls=True).over(project_win).alias(obs_col)
+             for obs_col in combined_tsdf.observational_cols]
+
+        # perform the projection!
+        return (combined_tsdf
+                .select(project_select_exprs)
+                .where(sfn.col(source_col) == -1)
+                .drop(source_col)
+                )
+
+
     #
     # Rolling (Windowed) Transformations
     #
