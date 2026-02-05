@@ -1315,7 +1315,7 @@ class TSDF(WindowBuilder):
         :param exprs:
         :return:
         """
-        return self.df.agg(exprs)
+        return self.df.agg(*exprs)
 
     def describe(self, *cols: Union[str, List[str]]) -> DataFrame:
         """
@@ -1355,7 +1355,7 @@ class TSDF(WindowBuilder):
         :return: a :class:`DataFrame` of the resulting aggregates
         :rtype: :class:`DataFrame`
         """
-        return self.groupBySeries().agg(exprs)
+        return self.groupBySeries().agg(*exprs)
 
     def applyToSeries(
         self, func: PandasGroupedMapFunction, schema: Union[StructType, str]
@@ -1441,7 +1441,7 @@ class TSDF(WindowBuilder):
         :return:
         """
         # build aggregated DataFrame
-        agged_df = self.groupByCycles(length, period, offset, bySeries).agg(exprs)
+        agged_df = self.groupByCycles(length, period, offset, bySeries).agg(*exprs)
 
         # if we have aggregated over series, we return a TSDF without series
         if bySeries:
