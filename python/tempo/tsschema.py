@@ -1191,7 +1191,7 @@ class TSSchema(WindowBuilder):
 
         :return: a set of column names corresponding the structural columns of a :class:`TSDF`
         """
-        return list({self.ts_idx.colname}.union(self.series_ids))
+        return list(set(self.series_ids).union({self.ts_idx.colname}))
 
     def validate(self, df_schema: StructType) -> None:
         # ensure that the TSIndex is valid
