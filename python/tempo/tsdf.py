@@ -1191,6 +1191,52 @@ class TSDF(WindowBuilder):
         )
         return self.__withTransformedDF(union_df)
 
+    def complete_lattice(self, freq: td) -> TSDF:
+        """
+        Construct a complete lattice from a TSDF by filling in missing intervals
+        with Null observations.
+
+        :param freq: the frequency of the lattice
+
+        :return: a :class:`TSDF` representing the completed lattice
+        """
+        # get the bounds for each series:
+        ts_expr = self.ts_index.orderByExpr()
+        series_bounds_df = self.aggBySeries(sfn.min(ts_expr).alias('start_ts'), sfn.max(ts_expr).alias('end_ts'))
+
+        # calculate the number of intervals within each series bounds
+        freq_micros = freq.seconds * 1E6 + freq.microseconds  # freq in micros
+        num_intervals = (series_bounds_df
+                         .withColumn("delta_micros",
+                                     sfn.unix_micros("end_ts") - sfn.unix_micros("start_ts"))
+                         .withColumn("num_intervals", sfn.ceil(sfn.col("delta_micros") / sfn.lit(freq_micros))))
+
+        # expand out the intervals for each series
+        max_intervals = num_intervals.select(sfn.max("num_intervals")).collect()[0][0]
+        spark = self.df.sparkSession
+        range_df = spark.range(0, max_intervals).select(sfn.col("id").alias("interval_id"))
+        intervals_df = num_intervals.crossJoin(range_df).where(sfn.col("interval_id") < sfn.col("num_intervals"))
+
+        # expression for step size
+        freq_fractional_seconds = freq.seconds + (freq.microseconds / 1E6)
+        interval_expr = sfn.make_dt_interval(days=sfn.lit(freq.days),
+                                             secs=sfn.lit(freq_fractional_seconds))
+
+        # expressions for structural & observational columns
+        df_schema = self.df.schema
+        struct_cols_expr = [sfn.col(c) for c in self.structural_cols]
+        obs_cols_expr = [sfn.lit(None).cast(df_schema[c].dataType).alias(c) for c in self.observational_cols]
+
+        # create lattice
+        ds_lattice_df = (intervals_df.withColumn(self.ts_col,
+                                                 sfn.col("start_ts") + sfn.col("interval_id") * interval_expr)
+                         .select(struct_cols_expr + obs_cols_expr)
+                         .orderBy(struct_cols_expr))
+        lattice_tsdf = TSDF(ds_lattice_df, ts_col=self.ts_col, series_ids=self.series_ids)
+
+        # project base onto the lattice
+        return self.project(lattice_tsdf)
+
     def project(self, onto: TSDF) -> TSDF:
         """
         This method 'projects' the data in the current :class:`TSDF` onto the values of the given :class:`TSDF`.
