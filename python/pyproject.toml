@@ -46,6 +46,7 @@ testAll = [
 ]
 
 [tool.hatch.envs.testenv]
+type = "virtual"
 template = "testenv"
 dependencies = [
   "pip>=23,<24",
@@ -63,6 +64,7 @@ test = [
 ]
 
 [tool.hatch.envs.dbr154]
+path = ".venv/dbr154"
 template = "testenv"
 python = "3.11"
 extra-dependencies = [
@@ -76,6 +78,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.dbr143]
+path = ".venv/dbr143"
 template = "testenv"
 python = "3.10"
 extra-dependencies = [
@@ -89,6 +92,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.dbr133]
+path = ".venv/dbr133"
 template = "testenv"
 python = "3.10"
 extra-dependencies = [
@@ -102,6 +106,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.dbr122]
+path = ".venv/dbr122"
 template = "testenv"
 python = "3.9"
 extra-dependencies = [
@@ -115,6 +120,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.dbr113]
+path = ".venv/dbr113"
 template = "testenv"
 python = "3.9"
 extra-dependencies = [
@@ -128,6 +134,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.lint]
+path = ".venv/lint"
 template = "testenv"
 dependencies = [
   "flake8",
@@ -143,6 +150,7 @@ formatBlack = ["black ./tempo ./tests"]
 
 
 [tool.hatch.envs.type-check]
+path = ".venv/type-check"
 template = "testenv"
 skip-install = true
 dependencies = [
@@ -183,6 +191,7 @@ exclude = [
 ]
 
 [tool.hatch.envs.build-dist]
+path = ".venv/build-dist"
 template = "testenv"
 skip-install = true
 dependencies = [
@@ -194,6 +203,7 @@ dependencies = [
 build = "hatch build"
 
 [tool.hatch.envs.build-docs]
+path = ".venv/build-docs"
 # TODO: making this dynamic is difficult in tox, so for now we will just use the latest version
 # We should have a top-level makefile that orchestrates this which allows better environment prep and execution of
 # shell scripts prior to tox execution. it'll also create a stable interface for migrating to hatch in the future
@@ -224,6 +234,7 @@ build = "make --directory ../docs html"
 
 
 [tool.hatch.envs.coverage-report]
+path = ".venv/coverage-report"
 template = "testenv"
 extra-dependencies = [
   "coverage>=7,<8"
