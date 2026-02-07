@@ -155,36 +155,6 @@ def calculate_time_horizon(
     )
 
 
-def downsample(
-    tsdf: t_tsdf.TSDF,
-    freq: str,
-    func: Union[Callable, str],
-    metricCols: Optional[List[str]] = None,
-) -> t_int.IntervalsDF:
-    """
-    Downsample a TSDF object to a lower frequency
-
-    Note: This function uses a simpler aggregation approach than aggregate().
-    If metricCols is None, it defaults to tsdf.metric_cols (numeric columns only).
-    Non-metric observational columns are not preserved in the output.
-
-    :param tsdf: input TSDF object
-    :param freq: downsample to this frequency
-    :param func: aggregate function
-    :param metricCols: columns used for aggregates. If None, uses numeric columns only.
-
-    :return: IntervalsDF object with the aggregated values
-    """
-    if metricCols is None:
-        metricCols = tsdf.metric_cols
-    if callable(func):
-        agg_exprs = [func(col).alias(col) for col in metricCols]
-        return tsdf.aggByCycles(freq, *agg_exprs)
-    else:
-        agg_dict = {col: func for col in metricCols}
-        return tsdf.aggByCycles(freq, agg_dict)
-
-
 def aggregate(
     tsdf: t_tsdf.TSDF,
     freq: str,

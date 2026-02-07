@@ -8,7 +8,7 @@ from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime as dt
 from datetime import timedelta as td
 from functools import cached_property
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, Tuple
 
 import numpy as np
 import pandas as pd
@@ -1192,6 +1192,7 @@ class TSDF(WindowBuilder):
         return self.__withTransformedDF(union_df)
 
     def complete_lattice(self, freq: td) -> TSDF:
+        # TODO - arg to optionally drop unmatched rows
         """
         Construct a complete lattice from a TSDF by filling in missing intervals
         with Null observations.
@@ -1238,6 +1239,7 @@ class TSDF(WindowBuilder):
         return self.project(lattice_tsdf)
 
     def project(self, onto: TSDF) -> TSDF:
+        # TODO - arg to optionally drop unmatched rows
         """
         This method 'projects' the data in the current :class:`TSDF` onto the values of the given :class:`TSDF`.
         This means that any values defined in the current :class:`TSDF` will overwrite the values of the given :class:`TSDF`,
@@ -1476,7 +1478,7 @@ class TSDF(WindowBuilder):
         period: Optional[str] = None,
         offset: Optional[str] = None,
         bySeries: bool = True,
-    ) -> IntervalsDF:
+    ) -> TSDF:
         """
 
         :param length:
@@ -1488,14 +1490,7 @@ class TSDF(WindowBuilder):
         """
         # build aggregated DataFrame
         agged_df = self.groupByCycles(length, period, offset, bySeries).agg(*exprs)
-
-        # if we have aggregated over series, we return a TSDF without series
-        if bySeries:
-            return IntervalsDF.fromNestedBoundariesDF(
-                agged_df, "window", self.series_ids
-            )
-        else:
-            return IntervalsDF.fromNestedBoundariesDF(agged_df, "window")
+        return self.__withTransformedDF(agged_df)
 
     def applyToCycles(
         self,
@@ -1505,7 +1500,7 @@ class TSDF(WindowBuilder):
         period: Optional[str] = None,
         offset: Optional[str] = None,
         bySeries: bool = True,
-    ) -> IntervalsDF:
+    ) -> TSDF:
         """
 
         :param length:
@@ -1517,17 +1512,10 @@ class TSDF(WindowBuilder):
         :return:
         """
         # apply function to get DataFrame of results
-        applied_df = self.groupByCycles(length, period, offset, bySeries).applyInPandas(
-            func, schema
-        )
-
-        # if we have applied over series, we return a TSDF without series
-        if bySeries:
-            return IntervalsDF.fromNestedBoundariesDF(
-                applied_df, "window", self.series_ids
-            )
-        else:
-            return IntervalsDF.fromNestedBoundariesDF(applied_df, "window")
+        applied_df = (self
+                      .groupByCycles(length, period, offset, bySeries)
+                      .applyInPandas(func, schema))
+        return self.__withTransformedDF(applied_df)
 
     #
     # utility functions
@@ -1576,94 +1564,126 @@ class TSDF(WindowBuilder):
             resample_func=func,
         )
 
+    def downsample(
+            self,
+            freq: str,
+            func: Union[Callable, str],
+            target_cols: Optional[List[str]] = None,
+            complete_missing_rows: bool = True,
+    ) -> TSDF:
+        """
+        Downsample a TSDF object to a lower frequency
+
+        Note: This function uses a simpler aggregation approach than aggregate().
+        If target_cols is None, it defaults to tsdf.metric_cols (numeric columns only).
+        Non-metric observational columns are not preserved in the output.
+
+        :param freq: downsample to this frequency
+        :param func: aggregate function
+        :param target_cols: columns used for aggregates. If None, uses numeric columns only.
+        :param complete_missing_rows: whether to fill in any missing rows with null values
+
+        :return: IntervalsDF object with the aggregated values
+        """
+        if target_cols is None:
+            target_cols = self.metric_cols
+        if callable(func):
+            agg_exprs = [func(col).alias(col) for col in target_cols]
+            downsampled = self.aggByCycles(freq, *agg_exprs)
+        else:
+            agg_dict = {col: func for col in target_cols}
+            downsampled = self.aggByCycles(freq, agg_dict)
+
+        # complete the lattice if we want missing rows
+        if complete_missing_rows:
+            return downsampled.complete_lattice(freq)
+        return downsampled
+
     def interpolate(
         self,
-        method: str,
-        freq: Optional[str] = None,
-        func: Optional[Union[Callable | str]] = None,
+        method: Union[Callable | str],
         target_cols: Optional[List[str]] = None,
-        ts_col: Optional[str] = None,
-        partition_cols: Optional[List[str]] = None,
-        show_interpolated: bool = False,
-        perform_checks: bool = True,
+        margins: Optional[Tuple[int, int]] = None
     ) -> TSDF:
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
         will be filled based on the fill calculation.
 
-        :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
-        :param func: function used to aggregate input
         :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
-        :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
-        :param ts_col [optional]: specify other ts_col, by default this uses the ts_col within the TSDF object
-        :param partition_cols [optional]: specify other partition_cols, by default this uses the partition_cols within the TSDF object
-        :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
-        :param perform_checks: calculate time horizon and warnings if True (default is True)
+        :param target_cols: columns that should be interpolated, by default interpolates all numeric columns
+        :param margins: margin for interpolation (number of rows before or after to be included)
         :return: new TSDF object containing interpolated data
         """
-
-        # Set defaults for target columns, timestamp column and partition columns when not provided
-        if freq is None:
-            raise ValueError("freq must be provided")
-        if func is None:
-            raise ValueError("func must be provided")
-        if ts_col is None:
-            ts_col = self.ts_col
-        if partition_cols is None:
-            partition_cols = self.series_ids
-        if target_cols is None:
-            prohibited_cols: List[str] = partition_cols + [ts_col]
-            # Don't filter by data type - allow all columns for PR-421 compatibility
-            target_cols = [col for col in self.df.columns if col not in prohibited_cols]
-
-        # First resample the data
-        # Don't fill with zeros - let interpolation handle the nulls
-        resampled_tsdf = self.resample(
-            freq=freq,
-            func=func,
-            metricCols=target_cols,
-            fill=False,  # Don't fill - interpolation will handle nulls
-            perform_checks=perform_checks,
-        )
 
         # Import interpolation function and pre-defined fill functions
         from tempo.interpol import backward_fill, forward_fill, zero_fill
         from tempo.interpol import interpolate as interpol_func
 
+        # default target columns to all metric columns
+        if target_cols is None:
+            target_cols = self.metric_cols
+
         # Map method names to interpolation functions (no lambdas)
         fn: Union[str, Callable[[pd.Series], pd.Series]]
+        default_margins: Tuple[int, int] = (1, 1)
         if method == "linear":
             fn = "linear"  # String method for pandas interpolation
-        elif method == "null":
-            # For null method, we don't fill - just return the resampled data
-            return resampled_tsdf
         elif method == "zero":
             fn = zero_fill
+            default_margins = (0, 0)
         elif method == "bfill":
             fn = backward_fill
+            default_margins = (0, 1)
         elif method == "ffill":
             fn = forward_fill
+            default_margins = (1, 0)
         else:
             # Assume it's a valid pandas interpolation method string
             fn = method
 
+        # set the margins if none
+        if margins is None:
+            margins = default_margins
+
         # Apply interpolation to the resampled data
         interpolated_tsdf = interpol_func(
-            tsdf=resampled_tsdf,
+            tsdf=self,
             cols=target_cols,
             fn=fn,
-            leading_margin=2,
-            lagging_margin=2,
+            leading_margin=margins[0],
+            lagging_margin=margins[1],
         )
 
-        if show_interpolated:
-            # Add a column indicating which rows were interpolated
-            # This would require tracking which rows had nulls before interpolation
-            logger.warning(
-                "show_interpolated=True is not yet implemented in the refactored version"
-            )
-
         return interpolated_tsdf
+
+    def upsample(self,
+                 freq: str,
+                 method: Union[Callable | str],
+                 target_cols: Optional[List[str]] = None,
+                 margins: Optional[Tuple[int, int]] = None,
+                 drop_unmatched_source_rows: bool = True) -> TSDF:
+        """
+        Upsample a TSDF object to a higher frequency
+
+        This method will first expand the timeseries to the target frequency, then fill missing values via interpolation.
+
+        :param freq: upsample to this frequency
+        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
+        :param target_cols: columns that should be interpolated, by default interpolates all numeric columns
+        :param margins: margin for interpolation (number of rows before or after to be included), defaults based on the method or (1,1)
+        :param drop_unmatched_source_rows: whether to drop unmatched rows that are off from the specified frequency after interpolation
+        """
+
+        # first expand the timeseries by "completing the lattice"
+        completed_tsdf = self.complete_lattice(freq)
+
+        # next, interpolate
+        interpolated_tsdf = self.interpolate(method, target_cols, margins)
+
+        if drop_unmatched_source_rows:
+            pass
+        return interpolated_tsdf
+
 
     def calc_bars(
         tsdf,
