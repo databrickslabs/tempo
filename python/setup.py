@@ -1,9 +1,9 @@
 from setuptools import find_packages, setup
 
-from version import get_latest_git_tag
+from version import get_version
 
 # fetch the most recent version tag to use as build version
-build_version = get_latest_git_tag()
+build_version = get_version()
 
 # use the contents of the README file as the 'long description' for the package
 with open("./README.md") as fh:
@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://databrickslabs.github.io/tempo/",
-    packages=find_packages(where=".", include=["tempo"]),
+    packages=find_packages(where=".", include=["tempo*"]),
     extras_require=dict(tests=["pytest"]),
     classifiers=[
         "Programming Language :: Python :: 3",
