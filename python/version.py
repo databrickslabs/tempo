@@ -16,15 +16,7 @@ def run_cmd(cmd):
 # fetch the most recent version tag to use as build version
 def get_latest_git_tag():
     latest_tag = run_cmd("git describe --abbrev=0 --tags")
-    build_version = re.sub(r"v\.?\s*", "", latest_tag)
-    # validate that this is a valid semantic version - will throw exception if not
-    try:
-        import semver
-        semver.VersionInfo.parse(build_version)
-    except (ModuleNotFoundError):
-        # unable to validate because semver is not installed in barebones env for hatch
-        pass
-    return build_version
+    return re.sub(r"v\.?\s*", "", latest_tag)
 
 
 # fetch the most recent build version for hatch environment creation
