@@ -136,6 +136,7 @@ extra-dependencies = [
 [tool.hatch.envs.lint]
 path = ".venv/lint"
 template = "testenv"
+skip-install = true
 dependencies = [
   "flake8",
   "black==24.4.1"
