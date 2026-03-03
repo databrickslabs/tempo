@@ -372,6 +372,28 @@ class TSDFBaseTests(SparkTest):
         sys.stdout = captured_output
         self.assertRaises(ValueError, init_tsdf.show, 5, 10)
 
+    def test_show_k_2(self):
+        """Verify that k limits the number of rows shown per series."""
+        init_tsdf = self.get_test_df_builder("init").as_tsdf()
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        init_tsdf.show(n=20, k=2)
+        self.assertEqual(
+            captured_output.getvalue(),
+            (
+                "+------+-------------------+--------+\n"
+                "|symbol|           event_ts|trade_pr|\n"
+                "+------+-------------------+--------+\n"
+                "|    S1|2020-09-01 00:02:10|   361.1|\n"
+                "|    S1|2020-09-01 00:19:12|   362.1|\n"
+                "|    S2|2020-09-01 00:02:10|   761.1|\n"
+                "|    S2|2020-09-01 00:20:42|  762.33|\n"
+                "+------+-------------------+--------+\n"
+                "\n"
+            ),
+        )
+
     def test_show_truncate_false(self):
         init_tsdf = self.get_test_df_builder("init").as_tsdf()
 
