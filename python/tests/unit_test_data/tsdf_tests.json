@@ -384,6 +384,11 @@
         "$ref": "#/__SharedData/temp_slice_init_data"
       }
     },
+    "test_show_k_2": {
+      "init": {
+        "$ref": "#/__SharedData/temp_slice_init_data"
+      }
+    },
     "test_show_truncate_false": {
       "init": {
         "$ref": "#/__SharedData/temp_slice_init_data"
