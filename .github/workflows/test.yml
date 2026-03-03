@@ -22,7 +22,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install hatch 
+        # Pin virtualenv<21: virtualenv 21.0 removed an API hatch depends on
+        # https://github.com/pypa/hatch/issues/2193
+        python -m pip install hatch 'virtualenv<21'
     - name: Lint check
       working-directory: ./python
       run: make lint LINT_PARAMS="-- --check --diff"
@@ -60,7 +62,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install semver
-        python -m pip install hatch
+        # Pin virtualenv<21: virtualenv 21.0 removed an API hatch depends on
+        # https://github.com/pypa/hatch/issues/2193
+        python -m pip install hatch 'virtualenv<21'
     - name: Execute hatch envs
       working-directory: ./python
       run: make test coverage-report DBR=${{ matrix.config.dbr }}
