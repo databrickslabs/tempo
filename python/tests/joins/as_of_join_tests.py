@@ -14,8 +14,7 @@ import os
 def spark():
     """Create a Spark session for tests."""
     spark = (
-        SparkSession.builder
-        .appName("as_of_join_tests")
+        SparkSession.builder.appName("as_of_join_tests")
         .master("local[*]")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.sql.adaptive.enabled", "false")
@@ -35,7 +34,7 @@ def test_data():
         "tests",
         "unit_test_data",
         "joins",
-        "as_of_join_tests.json"
+        "as_of_join_tests.json",
     )
 
     # Get absolute path
@@ -66,15 +65,11 @@ def create_tsdf_from_data(spark, data_dict):
             df,
             ts_col=tsdf_data["ts_col"],
             series_ids=tsdf_data["series_ids"],
-            ts_fmt=tsdf_data.get("ts_fmt")
+            ts_fmt=tsdf_data.get("ts_fmt"),
         )
     else:
         # Create TSDF
-        return TSDF(
-            df,
-            ts_col=tsdf_data["ts_col"],
-            series_ids=tsdf_data["series_ids"]
-        )
+        return TSDF(df, ts_col=tsdf_data["ts_col"], series_ids=tsdf_data["series_ids"])
 
 
 def create_df_from_data(spark, data_dict):
@@ -92,7 +87,12 @@ def create_df_from_data(spark, data_dict):
             # Handle nested columns
             if "." in col:
                 parts = col.split(".")
-                df = df.withColumn(parts[0], df[parts[0]].cast("struct<event_ts:string,parsed_ts:timestamp,double_ts:double>"))
+                df = df.withColumn(
+                    parts[0],
+                    df[parts[0]].cast(
+                        "struct<event_ts:string,parsed_ts:timestamp,double_ts:double>"
+                    ),
+                )
             else:
                 df = df.withColumn(col, df[col].cast("timestamp"))
 
@@ -180,7 +180,9 @@ class TestUnionSortFilterJoin:
     def test_simple_ts(self, spark, test_data):
         """Test union-sort-filter join with simple timestamp data."""
         # Get test data
-        scenario_data = test_data["AsOfJoinTest"]["test_union_sort_filter_join_simple_ts"]
+        scenario_data = test_data["AsOfJoinTest"][
+            "test_union_sort_filter_join_simple_ts"
+        ]
 
         # Set up dataframes
         left_tsdf = create_tsdf_from_data(spark, scenario_data["left"])
@@ -228,7 +230,9 @@ class TestUnionSortFilterJoin:
     def test_null_lead(self, spark, test_data):
         """Test union-sort-filter join handles NULL lead values correctly."""
         # Get test data
-        scenario_data = test_data["AsOfJoinTest"]["test_union_sort_filter_join_null_lead"]
+        scenario_data = test_data["AsOfJoinTest"][
+            "test_union_sort_filter_join_null_lead"
+        ]
 
         # Set up dataframes
         left_tsdf = create_tsdf_from_data(spark, scenario_data["left"])

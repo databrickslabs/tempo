@@ -23,8 +23,7 @@ class EdgeCaseCoverageTests(SparkTest):
         """Test broadcast join with no series_ids (single series case)."""
         # Line 328: Single series join path
         left_data = [
-            (datetime(2024, 1, 1, 10, i), f"trade_{i}", float(i))
-            for i in range(10)
+            (datetime(2024, 1, 1, 10, i), f"trade_{i}", float(i)) for i in range(10)
         ]
         left_df = self.spark.createDataFrame(
             left_data, ["timestamp", "trade_id", "volume"]
@@ -32,9 +31,7 @@ class EdgeCaseCoverageTests(SparkTest):
         # No series_ids specified
         left_tsdf = TSDF(left_df, ts_col="timestamp")
 
-        right_data = [
-            (datetime(2024, 1, 1, 10, i), 100.0 + i) for i in range(0, 10, 2)
-        ]
+        right_data = [(datetime(2024, 1, 1, 10, i), 100.0 + i) for i in range(0, 10, 2)]
         right_df = self.spark.createDataFrame(right_data, ["timestamp", "price"])
         right_tsdf = TSDF(right_df, ts_col="timestamp")
 
@@ -48,9 +45,7 @@ class EdgeCaseCoverageTests(SparkTest):
     def test_skew_join_no_series_ids(self):
         """Test skew join with no series_ids returns empty skewed keys."""
         # Line 706: No series keys to be skewed
-        left_data = [
-            (datetime(2024, 1, 1, 10, i), f"trade_{i}") for i in range(50)
-        ]
+        left_data = [(datetime(2024, 1, 1, 10, i), f"trade_{i}") for i in range(50)]
         left_df = self.spark.createDataFrame(left_data, ["timestamp", "trade_id"])
         left_tsdf = TSDF(left_df, ts_col="timestamp")
 
@@ -136,9 +131,7 @@ class EdgeCaseCoverageTests(SparkTest):
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Tolerance of 120 seconds (2 minutes), with skipNulls
-        joiner = SkewAsOfJoiner(
-            self.spark, skipNulls=True, tolerance=120
-        )
+        joiner = SkewAsOfJoiner(self.spark, skipNulls=True, tolerance=120)
         result_df, _ = joiner(left_tsdf, right_tsdf)
 
         # Both filters should be applied
@@ -165,9 +158,7 @@ class EdgeCaseCoverageTests(SparkTest):
 
         # This should not raise an exception even if selection has issues
         try:
-            strategy = choose_as_of_join_strategy(
-                left_tsdf, right_tsdf, self.spark
-            )
+            strategy = choose_as_of_join_strategy(left_tsdf, right_tsdf, self.spark)
             # Should return some joiner (possibly fallback)
             self.assertIsNotNone(strategy)
         except Exception as e:

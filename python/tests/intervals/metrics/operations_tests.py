@@ -23,7 +23,9 @@ class TestMetricNormalizer:
         assert isinstance(normalizer, MetricNormalizer)
 
         # Test that the normalize method works as expected
-        result = normalizer.normalize(None)  # Passing None as we've mocked the Interval dependency
+        result = normalizer.normalize(
+            None
+        )  # Passing None as we've mocked the Interval dependency
         assert isinstance(result, Series)
         assert result["value"] == 1.0
 
@@ -38,14 +40,10 @@ class TestMetricMergeConfig:
     def test_custom_initialization(self):
         """Test initialization with custom arguments"""
         default_strategy = KeepFirstStrategy()
-        column_strategies = {
-            "col1": KeepFirstStrategy(),
-            "col2": KeepLastStrategy()
-        }
+        column_strategies = {"col1": KeepFirstStrategy(), "col2": KeepLastStrategy()}
 
         config = MetricMergeConfig(
-            default_strategy=default_strategy,
-            column_strategies=column_strategies
+            default_strategy=default_strategy, column_strategies=column_strategies
         )
 
         assert config.default_strategy is default_strategy
@@ -55,15 +53,18 @@ class TestMetricMergeConfig:
         """Test validation of default_strategy"""
         with pytest.raises(ValueError) as excinfo:
             MetricMergeConfig(default_strategy="not a strategy")
-        assert "default_strategy must be an instance of MetricMergeStrategy" in str(excinfo.value)
+        assert "default_strategy must be an instance of MetricMergeStrategy" in str(
+            excinfo.value
+        )
 
     def test_validate_strategies_column_strategies(self):
         """Test validation of column_strategies"""
         with pytest.raises(ValueError) as excinfo:
-            MetricMergeConfig(
-                column_strategies={"col1": "not a strategy"}
-            )
-        assert "Strategy for column col1 must be an instance of MetricMergeStrategy" in str(excinfo.value)
+            MetricMergeConfig(column_strategies={"col1": "not a strategy"})
+        assert (
+            "Strategy for column col1 must be an instance of MetricMergeStrategy"
+            in str(excinfo.value)
+        )
 
     def test_get_strategy_existing_column(self):
         """Test getting a strategy for a column that has a specific strategy set"""
@@ -71,8 +72,7 @@ class TestMetricMergeConfig:
         col1_strategy = KeepLastStrategy()
 
         config = MetricMergeConfig(
-            default_strategy=default_strategy,
-            column_strategies={"col1": col1_strategy}
+            default_strategy=default_strategy, column_strategies={"col1": col1_strategy}
         )
 
         strategy = config.get_strategy("col1")
@@ -103,16 +103,17 @@ class TestMetricMergeConfig:
 
         with pytest.raises(ValueError) as excinfo:
             config.set_strategy("col1", "not a strategy")
-        assert "The provided strategy must be an instance of MetricMergeStrategy" in str(excinfo.value)
+        assert (
+            "The provided strategy must be an instance of MetricMergeStrategy"
+            in str(excinfo.value)
+        )
 
     def test_set_strategy_override(self):
         """Test overriding an existing strategy for a column"""
         initial_strategy = KeepFirstStrategy()
         new_strategy = KeepLastStrategy()
 
-        config = MetricMergeConfig(
-            column_strategies={"col1": initial_strategy}
-        )
+        config = MetricMergeConfig(column_strategies={"col1": initial_strategy})
 
         config.set_strategy("col1", new_strategy)
 

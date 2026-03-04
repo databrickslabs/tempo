@@ -1,7 +1,11 @@
 import pandas as pd
 import pytest
 
-from tempo.intervals.core.exceptions import EmptyIntervalError, InvalidDataTypeError, InvalidMetricColumnError
+from tempo.intervals.core.exceptions import (
+    EmptyIntervalError,
+    InvalidDataTypeError,
+    InvalidMetricColumnError,
+)
 from tempo.intervals.core.validation import IntervalValidator, ValidationResult
 
 
@@ -131,7 +135,9 @@ class TestValidateSeriesIdColumns:
         assert result.is_valid is True
         assert result.message is None
 
-    def test_validate_series_id_columns_with_non_string_elements(self, non_string_column_list):
+    def test_validate_series_id_columns_with_non_string_elements(
+        self, non_string_column_list
+    ):
         """Test validation fails with non-string elements in series ID columns"""
         with pytest.raises(InvalidMetricColumnError) as excinfo:
             IntervalValidator.validate_series_id_columns(non_string_column_list)
@@ -157,7 +163,9 @@ class TestValidateMetricColumns:
         assert result.is_valid is True
         assert result.message is None
 
-    def test_validate_metric_columns_with_non_string_elements(self, non_string_column_list):
+    def test_validate_metric_columns_with_non_string_elements(
+        self, non_string_column_list
+    ):
         """Test validation fails with non-string elements in metric columns"""
         with pytest.raises(InvalidMetricColumnError) as excinfo:
             IntervalValidator.validate_metric_columns(non_string_column_list)

@@ -24,9 +24,9 @@ class ResampleUnitTests(SparkTest):
         # 1 minute aggregation
         featured_df = resample(tsdf_input, freq="min", func="floor", prefix="floor").df
         # 30 minute aggregation
-        resample_30m = resample(tsdf_input, freq="5 minutes", func="mean").df.withColumn(
-            "trade_pr", sfn.round(sfn.col("trade_pr"), 2)
-        )
+        resample_30m = resample(
+            tsdf_input, freq="5 minutes", func="mean"
+        ).df.withColumn("trade_pr", sfn.round(sfn.col("trade_pr"), 2))
 
         bars = calc_bars(
             tsdf_input, freq="min", metric_cols=["trade_pr", "trade_pr_2"]

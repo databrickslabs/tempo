@@ -77,8 +77,16 @@ class TestMetricMergeStrategies:
                 assert isinstance(result, Series)
 
                 # Convert scalar to Series if needed for comparison
-                v1 = value1 if isinstance(value1, Series) else Series([value1] * len(result))
-                v2 = value2 if isinstance(value2, Series) else Series([value2] * len(result))
+                v1 = (
+                    value1
+                    if isinstance(value1, Series)
+                    else Series([value1] * len(result))
+                )
+                v2 = (
+                    value2
+                    if isinstance(value2, Series)
+                    else Series([value2] * len(result))
+                )
 
                 # Apply the expected logic for comparison without using mask indexing
                 expected = v1.copy()
@@ -126,8 +134,16 @@ class TestMetricMergeStrategies:
                 assert isinstance(result, Series)
 
                 # Convert scalar to Series if needed for comparison
-                v1 = value1 if isinstance(value1, Series) else Series([value1] * len(result))
-                v2 = value2 if isinstance(value2, Series) else Series([value2] * len(result))
+                v1 = (
+                    value1
+                    if isinstance(value1, Series)
+                    else Series([value1] * len(result))
+                )
+                v2 = (
+                    value2
+                    if isinstance(value2, Series)
+                    else Series([value2] * len(result))
+                )
 
                 # Apply the expected logic for comparison without using mask indexing
                 expected = v2.copy()
@@ -160,8 +176,9 @@ class TestMetricMergeStrategies:
         strategy = SumStrategy()
 
         for value1, value2 in non_numeric_values:
-            if (isinstance(value1, (int, float)) or isna(value1)) and \
-                    (isinstance(value2, (int, float)) or isna(value2)):
+            if (isinstance(value1, (int, float)) or isna(value1)) and (
+                isinstance(value2, (int, float)) or isna(value2)
+            ):
                 continue  # Skip valid numeric combinations
 
             with pytest.raises(ValueError, match="SumStrategy requires numeric values"):
@@ -282,14 +299,14 @@ class TestMetricMergeStrategies:
 
         # Test case 1: String in Series
         s1 = Series([1, 2, 3])
-        s2 = Series(['a', 2, 3])  # Contains non-numeric value
+        s2 = Series(["a", 2, 3])  # Contains non-numeric value
 
         with pytest.raises(ValueError, match="SumStrategy requires numeric values"):
             strategy.merge(s1, s2)
 
         # Test case 2: String as scalar
         s1 = Series([1, 2, 3])
-        scalar = 'a'  # Non-numeric scalar
+        scalar = "a"  # Non-numeric scalar
 
         with pytest.raises(ValueError, match="SumStrategy requires numeric values"):
             strategy.merge(s1, scalar)
@@ -425,11 +442,14 @@ class TestMetricMergeStrategies:
         strategy = AverageStrategy()
 
         for value1, value2 in non_numeric_values:
-            if (isinstance(value1, (int, float)) or isna(value1)) and \
-                    (isinstance(value2, (int, float)) or isna(value2)):
+            if (isinstance(value1, (int, float)) or isna(value1)) and (
+                isinstance(value2, (int, float)) or isna(value2)
+            ):
                 continue  # Skip valid numeric combinations
 
-            with pytest.raises(ValueError, match="AverageStrategy requires numeric values"):
+            with pytest.raises(
+                ValueError, match="AverageStrategy requires numeric values"
+            ):
                 strategy.validate(value1, value2)
                 strategy.merge(value1, value2)
 

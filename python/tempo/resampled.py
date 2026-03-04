@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
+
+if TYPE_CHECKING:
+    from tempo.tsdf import TSDF
 
 
 class ResampledTSDF:

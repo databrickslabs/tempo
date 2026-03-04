@@ -232,9 +232,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_contains_interval_already_disjoint(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -242,9 +240,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_contains_intervals_equal(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -252,9 +248,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_intervals_same_start(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -262,9 +256,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_intervals_same_end(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -272,9 +264,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_multiple_series(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -282,9 +272,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_single_metric(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -292,9 +280,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_make_disjoint_interval_is_subset(self):
         idf_input = self.get_test_function_df_builder("init").as_idf()
@@ -302,9 +288,7 @@ class IntervalsDFTests(SparkTest):
 
         idf_actual = idf_input.make_disjoint()
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)
 
     def test_union_other_idf(self):
         idf_input_1 = self.get_test_function_df_builder("init").as_idf()
@@ -400,6 +384,4 @@ class IntervalsDFTests(SparkTest):
         idf_actual = idf_input.make_disjoint()
         idf_actual.df.show(truncate=False)
 
-        self.assertDataFrameEquality(
-            idf_expected, idf_actual, ignore_row_order=True
-        )
+        self.assertDataFrameEquality(idf_expected, idf_actual, ignore_row_order=True)

@@ -30,10 +30,7 @@ class UtilsTest(SparkTest):
         tsdf = self.get_test_function_df_builder("init").as_tsdf()
 
         with warnings.catch_warnings(record=True) as w:
-            calculate_time_horizon(
-                tsdf,
-                "30 seconds"
-            )
+            calculate_time_horizon(tsdf, "30 seconds")
             warning_message = """
             Resample Metrics Warning:
                 Earliest Timestamp: 2020-01-01 00:00:10
@@ -192,8 +189,11 @@ class UtilsTest(SparkTest):
         num_intervals = 3
 
         result = time_range(
-            self.spark, start, step_size=step, num_intervals=num_intervals,
-            ts_colname="custom_ts"
+            self.spark,
+            start,
+            step_size=step,
+            num_intervals=num_intervals,
+            ts_colname="custom_ts",
         )
 
         self.assertEqual(result.count(), 3)
@@ -212,8 +212,11 @@ class UtilsTest(SparkTest):
         num_intervals = 3
 
         result = time_range(
-            self.spark, start, step_size=step, num_intervals=num_intervals,
-            include_interval_ends=True
+            self.spark,
+            start,
+            step_size=step,
+            num_intervals=num_intervals,
+            include_interval_ends=True,
         )
 
         self.assertEqual(result.count(), 3)

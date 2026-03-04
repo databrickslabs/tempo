@@ -21,7 +21,7 @@ from tempo.joins.strategies import (
 class TestGetSparkPlan(unittest.TestCase):
     """Test get_spark_plan helper function."""
 
-    @patch('tempo.joins.strategies.SparkSession')
+    @patch("tempo.joins.strategies.SparkSession")
     def test_get_spark_plan_success(self, mock_spark_class):
         """Test successful Spark plan extraction."""
         # Mock SparkSession and DataFrame
@@ -42,7 +42,7 @@ class TestGetSparkPlan(unittest.TestCase):
         self.assertIsInstance(result, str)
         self.assertIn("Statistics", result)
 
-    @patch('tempo.joins.strategies.SparkSession')
+    @patch("tempo.joins.strategies.SparkSession")
     def test_get_spark_plan_with_temp_view(self, mock_spark_class):
         """Test that get_spark_plan creates temp view with unique name."""
         mock_spark = Mock(spec=SparkSession)
@@ -67,7 +67,7 @@ class TestGetSparkPlan(unittest.TestCase):
 class TestGetBytesFromPlan(unittest.TestCase):
     """Test get_bytes_from_plan helper function."""
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_gib_units(self, mock_get_plan):
         """Test parsing size in GiB units."""
         mock_spark = Mock()
@@ -82,7 +82,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 2.5 * 1024 * 1024 * 1024
         self.assertEqual(result, expected)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_mib_units(self, mock_get_plan):
         """Test parsing size in MiB units."""
         mock_spark = Mock()
@@ -96,7 +96,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 128.0 * 1024 * 1024
         self.assertEqual(result, expected)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_kib_units(self, mock_get_plan):
         """Test parsing size in KiB units."""
         mock_spark = Mock()
@@ -110,7 +110,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 512.0 * 1024
         self.assertEqual(result, expected)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_bytes_units(self, mock_get_plan):
         """Test parsing size in bytes (no unit suffix)."""
         mock_spark = Mock()
@@ -124,7 +124,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 1024.0
         self.assertEqual(result, expected)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_no_size_returns_inf(self, mock_get_plan):
         """Test that missing sizeInBytes returns infinity."""
         mock_spark = Mock()
@@ -136,9 +136,9 @@ class TestGetBytesFromPlan(unittest.TestCase):
         result = get_bytes_from_plan(mock_df, mock_spark)
 
         # Should return infinity to avoid broadcast
-        self.assertEqual(result, float('inf'))
+        self.assertEqual(result, float("inf"))
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_error_returns_inf(self, mock_get_plan):
         """Test that parsing errors return infinity."""
         mock_spark = Mock()
@@ -150,9 +150,9 @@ class TestGetBytesFromPlan(unittest.TestCase):
         result = get_bytes_from_plan(mock_df, mock_spark)
 
         # Should return infinity on error
-        self.assertEqual(result, float('inf'))
+        self.assertEqual(result, float("inf"))
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_decimal_sizes(self, mock_get_plan):
         """Test parsing sizes with decimal points."""
         mock_spark = Mock()
@@ -166,7 +166,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 3.14159 * 1024 * 1024 * 1024
         self.assertAlmostEqual(result, expected, places=2)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_size_with_parenthesis(self, mock_get_plan):
         """Test parsing size when plan ends with parenthesis."""
         mock_spark = Mock()
@@ -180,7 +180,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 64.0 * 1024 * 1024
         self.assertEqual(result, expected)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_zero_size(self, mock_get_plan):
         """Test parsing zero size."""
         mock_spark = Mock()
@@ -192,7 +192,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
 
         self.assertEqual(result, 0.0)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_very_large_size(self, mock_get_plan):
         """Test parsing very large size (TiB-scale)."""
         mock_spark = Mock()
@@ -207,7 +207,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
         expected = 1024.0 * 1024 * 1024 * 1024
         self.assertEqual(result, expected)
 
-    @patch('tempo.joins.strategies.get_spark_plan')
+    @patch("tempo.joins.strategies.get_spark_plan")
     def test_parse_integer_size(self, mock_get_plan):
         """Test parsing size as integer (no decimal point)."""
         mock_spark = Mock()
@@ -224,7 +224,7 @@ class TestGetBytesFromPlan(unittest.TestCase):
 class TestHelperFunctionIntegration(unittest.TestCase):
     """Integration tests for helper functions."""
 
-    @patch('tempo.joins.strategies.get_bytes_from_plan')
+    @patch("tempo.joins.strategies.get_bytes_from_plan")
     def test_size_estimation_in_strategy_selection(self, mock_get_bytes):
         """Test that size estimation is used in strategy selection."""
         from tempo.joins.strategies import choose_as_of_join_strategy
@@ -241,20 +241,17 @@ class TestHelperFunctionIntegration(unittest.TestCase):
         right_tsdf.df = Mock()
 
         # Call strategy selection
-        strategy = choose_as_of_join_strategy(
-            left_tsdf,
-            right_tsdf,
-            mock_spark
-        )
+        strategy = choose_as_of_join_strategy(left_tsdf, right_tsdf, mock_spark)
 
         # Should select BroadcastAsOfJoiner for small data
         from tempo.joins.strategies import BroadcastAsOfJoiner
+
         self.assertIsInstance(strategy, BroadcastAsOfJoiner)
 
         # Verify size estimation was called
         self.assertEqual(mock_get_bytes.call_count, 2)
 
-    @patch('tempo.joins.strategies.get_bytes_from_plan')
+    @patch("tempo.joins.strategies.get_bytes_from_plan")
     def test_size_estimation_failure_falls_back(self, mock_get_bytes):
         """Test that strategy selection handles size estimation failure."""
         from tempo.joins.strategies import choose_as_of_join_strategy
@@ -270,13 +267,10 @@ class TestHelperFunctionIntegration(unittest.TestCase):
         right_tsdf.df = Mock()
 
         # Should fall back to UnionSortFilterAsOfJoiner
-        strategy = choose_as_of_join_strategy(
-            left_tsdf,
-            right_tsdf,
-            mock_spark
-        )
+        strategy = choose_as_of_join_strategy(left_tsdf, right_tsdf, mock_spark)
 
         from tempo.joins.strategies import UnionSortFilterAsOfJoiner
+
         self.assertIsInstance(strategy, UnionSortFilterAsOfJoiner)
 
 

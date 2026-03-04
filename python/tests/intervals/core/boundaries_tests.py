@@ -30,7 +30,7 @@ class TestBoundaryConverter:
         converter = BoundaryConverter.for_type(sample)
 
         assert converter.original_type == str
-        assert converter.original_format == '%Y-%m-%d'
+        assert converter.original_format == "%Y-%m-%d"
 
         timestamp = converter.to_timestamp(sample)
         assert isinstance(timestamp, Timestamp)
@@ -104,7 +104,9 @@ class TestBoundaryConverter:
     def test_boundary_converter_unsupported_type(self):
         sample = [2023, 10, 25]
 
-        with pytest.raises(ValueError, match="Unsupported boundary type: <class 'list'>"):
+        with pytest.raises(
+            ValueError, match="Unsupported boundary type: <class 'list'>"
+        ):
             BoundaryConverter.for_type(sample)
 
 
@@ -188,28 +190,28 @@ class TestIntervalBoundaries:
                 return str(timestamp)
 
         return BoundaryValue(
-            _timestamp=Timestamp("2023-01-01"),
-            _converter=MockConverter()
+            _timestamp=Timestamp("2023-01-01"), _converter=MockConverter()
         )
 
     @pytest.fixture
     def interval_boundaries(self):
-        return IntervalBoundaries.create(
-            start="2023-01-01",
-            end="2023-12-31"
-        )
+        return IntervalBoundaries.create(start="2023-01-01", end="2023-12-31")
 
     def test_create_interval_boundaries(self, interval_boundaries):
         assert isinstance(interval_boundaries, IntervalBoundaries)
         assert interval_boundaries.start == "2023-01-01"
         assert interval_boundaries.end == "2023-12-31"
 
-    def test_interval_boundaries_internal_start(self, interval_boundaries, boundary_value_mock):
+    def test_interval_boundaries_internal_start(
+        self, interval_boundaries, boundary_value_mock
+    ):
         start = interval_boundaries.internal_start
         assert isinstance(start, BoundaryValue)
         assert start.internal_value == Timestamp("2023-01-01")
 
-    def test_interval_boundaries_internal_end(self, interval_boundaries, boundary_value_mock):
+    def test_interval_boundaries_internal_end(
+        self, interval_boundaries, boundary_value_mock
+    ):
         end = interval_boundaries.internal_end
         assert isinstance(end, BoundaryValue)
         assert end.internal_value == Timestamp("2023-12-31")
@@ -217,35 +219,39 @@ class TestIntervalBoundaries:
     def test_boundary_value_equality(self, boundary_value_mock):
         other = BoundaryValue(
             _timestamp=Timestamp("2023-01-01"),
-            _converter=boundary_value_mock._converter
+            _converter=boundary_value_mock._converter,
         )
         assert boundary_value_mock == other
 
     def test_boundary_value_comparison_earlier_less_than(self, boundary_value_mock):
         earlier = BoundaryValue(
             _timestamp=Timestamp("2022-01-01"),
-            _converter=boundary_value_mock._converter
+            _converter=boundary_value_mock._converter,
         )
         assert earlier < boundary_value_mock
 
     def test_boundary_value_comparison_later_greater_than(self, boundary_value_mock):
         later = BoundaryValue(
             _timestamp=Timestamp("2024-01-01"),
-            _converter=boundary_value_mock._converter
+            _converter=boundary_value_mock._converter,
         )
         assert later > boundary_value_mock
 
-    def test_boundary_value_comparison_earlier_less_than_or_equal(self, boundary_value_mock):
+    def test_boundary_value_comparison_earlier_less_than_or_equal(
+        self, boundary_value_mock
+    ):
         earlier = BoundaryValue(
             _timestamp=Timestamp("2022-01-01"),
-            _converter=boundary_value_mock._converter
+            _converter=boundary_value_mock._converter,
         )
         assert earlier <= boundary_value_mock
 
-    def test_boundary_value_comparison_later_greater_than_or_equal(self, boundary_value_mock):
+    def test_boundary_value_comparison_later_greater_than_or_equal(
+        self, boundary_value_mock
+    ):
         later = BoundaryValue(
             _timestamp=Timestamp("2024-01-01"),
-            _converter=boundary_value_mock._converter
+            _converter=boundary_value_mock._converter,
         )
         assert later >= boundary_value_mock
 
@@ -254,11 +260,9 @@ class TestInternalBoundaryAccessor:
 
     def test_get_boundaries(self):
         # Arrange
-        data = Series({
-            "start_time": "2023-01-01",
-            "end_time": "2023-01-02",
-            "value": 10
-        })
+        data = Series(
+            {"start_time": "2023-01-01", "end_time": "2023-01-02", "value": 10}
+        )
         accessor = InternalBoundaryAccessor("start_time", "end_time")
 
         # Act
@@ -271,18 +275,13 @@ class TestInternalBoundaryAccessor:
 
     def test_set_boundaries(self):
         # Arrange
-        data = Series({
-            "start_time": "2023-01-01",
-            "end_time": "2023-01-02",
-            "value": 10
-        })
+        data = Series(
+            {"start_time": "2023-01-01", "end_time": "2023-01-02", "value": 10}
+        )
         accessor = InternalBoundaryAccessor("start_time", "end_time")
 
         # Create new boundaries
-        new_boundaries = IntervalBoundaries.create(
-            start="2023-02-01",
-            end="2023-02-05"
-        )
+        new_boundaries = IntervalBoundaries.create(start="2023-02-01", end="2023-02-05")
 
         # Act
         updated_data = accessor.set_boundaries(data, new_boundaries)
@@ -298,17 +297,18 @@ class TestInternalBoundaryAccessor:
 
     def test_set_boundaries_different_field_names(self):
         # Arrange
-        data = Series({
-            "begin": "2023-01-01T00:00:00",
-            "finish": "2023-01-02T00:00:00",
-            "metric": 5
-        })
+        data = Series(
+            {
+                "begin": "2023-01-01T00:00:00",
+                "finish": "2023-01-02T00:00:00",
+                "metric": 5,
+            }
+        )
         accessor = InternalBoundaryAccessor("begin", "finish")
 
         # Create new boundaries
         new_boundaries = IntervalBoundaries.create(
-            start="2023-03-15T12:00:00",
-            end="2023-03-16T12:00:00"
+            start="2023-03-15T12:00:00", end="2023-03-16T12:00:00"
         )
 
         # Act
@@ -321,11 +321,13 @@ class TestInternalBoundaryAccessor:
 
     def test_get_boundaries_with_different_types(self):
         # Test with Timestamp objects
-        data = Series({
-            "start_ts": Timestamp("2023-01-01"),
-            "end_ts": Timestamp("2023-01-02"),
-            "value": 10
-        })
+        data = Series(
+            {
+                "start_ts": Timestamp("2023-01-01"),
+                "end_ts": Timestamp("2023-01-02"),
+                "value": 10,
+            }
+        )
         accessor = InternalBoundaryAccessor("start_ts", "end_ts")
 
         boundaries = accessor.get_boundaries(data)
@@ -334,11 +336,13 @@ class TestInternalBoundaryAccessor:
         assert boundaries.end == Timestamp("2023-01-02")
 
         # Test with epoch timestamps (integers)
-        epoch_data = Series({
-            "start_epoch": 1672531200,  # 2023-01-01 00:00:00 UTC
-            "end_epoch": 1672617600,  # 2023-01-02 00:00:00 UTC
-            "value": 10
-        })
+        epoch_data = Series(
+            {
+                "start_epoch": 1672531200,  # 2023-01-01 00:00:00 UTC
+                "end_epoch": 1672617600,  # 2023-01-02 00:00:00 UTC
+                "value": 10,
+            }
+        )
         epoch_accessor = InternalBoundaryAccessor("start_epoch", "end_epoch")
 
         epoch_boundaries = epoch_accessor.get_boundaries(epoch_data)
@@ -361,7 +365,9 @@ class TestNegativeTimestampValidation:
         """Test that string inputs resulting in negative timestamps raise ValueError"""
         # A date far in the past that would result in a negative timestamp
         sample = "1800-01-01"
-        converter = BoundaryConverter.for_type("2023-01-01")  # Create converter with valid format
+        converter = BoundaryConverter.for_type(
+            "2023-01-01"
+        )  # Create converter with valid format
 
         # Using converter directly to test the validation
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
@@ -371,7 +377,9 @@ class TestNegativeTimestampValidation:
         """Test that integer inputs resulting in negative timestamps raise ValueError"""
         # A negative epoch timestamp
         sample = -1000000  # Negative seconds since epoch
-        converter = BoundaryConverter.for_type(1698192000)  # Create converter with valid format
+        converter = BoundaryConverter.for_type(
+            1698192000
+        )  # Create converter with valid format
 
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             converter.to_timestamp(sample)
@@ -380,7 +388,9 @@ class TestNegativeTimestampValidation:
         """Test that float inputs resulting in negative timestamps raise ValueError"""
         # A negative epoch timestamp as float
         sample = -1000000.5  # Negative seconds since epoch
-        converter = BoundaryConverter.for_type(1698192000.0)  # Create converter with valid format
+        converter = BoundaryConverter.for_type(
+            1698192000.0
+        )  # Create converter with valid format
 
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             converter.to_timestamp(sample)
@@ -389,7 +399,9 @@ class TestNegativeTimestampValidation:
         """Test that datetime inputs resulting in negative timestamps raise ValueError"""
         # A date far in the past that would result in a negative timestamp
         sample = datetime(1800, 1, 1)
-        converter = BoundaryConverter.for_type(datetime(2023, 1, 1))  # Create converter with valid format
+        converter = BoundaryConverter.for_type(
+            datetime(2023, 1, 1)
+        )  # Create converter with valid format
 
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             converter.to_timestamp(sample)
@@ -397,8 +409,12 @@ class TestNegativeTimestampValidation:
     def test_negative_timestamp_with_pandas_timestamp(self):
         """Test that Timestamp inputs with negative values raise ValueError"""
         # Create a negative timestamp directly (may need to adjust based on how pandas handles this)
-        sample = Timestamp('1800-01-01')  # A date that would result in a negative timestamp value
-        converter = BoundaryConverter.for_type(Timestamp('2023-01-01'))  # Create converter with valid format
+        sample = Timestamp(
+            "1800-01-01"
+        )  # A date that would result in a negative timestamp value
+        converter = BoundaryConverter.for_type(
+            Timestamp("2023-01-01")
+        )  # Create converter with valid format
 
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
             converter.to_timestamp(sample)
@@ -417,10 +433,7 @@ class TestNegativeTimestampValidation:
 
         # Try to create IntervalBoundaries with a negative start timestamp
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
-            IntervalBoundaries.create(
-                start="1800-01-01",
-                end="2023-01-01"
-            )
+            IntervalBoundaries.create(start="1800-01-01", end="2023-01-01")
 
     def test_interval_boundaries_creation_with_negative_end(self):
         """Test that creating IntervalBoundaries with a negative end timestamp raises ValueError"""
@@ -428,7 +441,4 @@ class TestNegativeTimestampValidation:
 
         # Try to create IntervalBoundaries with a negative end timestamp
         with pytest.raises(ValueError, match="Timestamps cannot be negative."):
-            IntervalBoundaries.create(
-                start="2023-01-01",
-                end="1800-01-01"
-            )
+            IntervalBoundaries.create(start="2023-01-01", end="1800-01-01")
