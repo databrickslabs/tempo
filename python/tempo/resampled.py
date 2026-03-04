@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
+from pyspark.sql import DataFrame
+
+from tempo.tsschema import TSSchema
+
 if TYPE_CHECKING:
     from tempo.tsdf import TSDF
 
@@ -31,7 +35,7 @@ class ResampledTSDF:
     # ------------------------------------------------------------------
 
     @property
-    def df(self):
+    def df(self) -> DataFrame:
         """The underlying Spark DataFrame."""
         return self._tsdf.df
 
@@ -44,7 +48,7 @@ class ResampledTSDF:
         return self._tsdf.series_ids
 
     @property
-    def ts_schema(self):
+    def ts_schema(self) -> TSSchema:
         return self._tsdf.ts_schema
 
     @property
