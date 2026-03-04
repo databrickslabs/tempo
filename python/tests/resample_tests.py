@@ -386,6 +386,21 @@ class ResampleUnitTests(SparkTest):
             f"Expected warning about show_interpolated, got: {cm.output}",
         )
 
+    def test_resampled_tsdf_interpolate_linear(self):
+        """Exercise method='linear' interpolation path"""
+        resampled = self._get_interpol_resampled()
+        result = resampled.interpolate(method="linear")
+        self.assertIsInstance(result, TSDF)
+        self.assertGreater(result.df.count(), 0)
+
+    def test_resampled_tsdf_interpolate_unknown_method_falls_through(self):
+        """Exercise the else branch — unknown method string is passed through as-is"""
+        resampled = self._get_interpol_resampled()
+        # An unrecognized method hits the else branch (line 113) and is forwarded
+        # to interpol_func which validates it, so we expect a ValueError.
+        with self.assertRaises(ValueError):
+            resampled.interpolate(method="not_a_real_method")
+
     def test_resampled_tsdf_as_tsdf_allows_normal_operations(self):
         """Verify the TSDF from as_tsdf() supports normal DataFrame operations"""
         tsdf_input = self.get_test_df_builder(
