@@ -296,6 +296,111 @@ class ResampleUnitTests(SparkTest):
         self.assertIn("min", repr_str)
         self.assertIn("floor", repr_str)
 
+    def test_resampled_tsdf_properties(self):
+        """Verify all property accessors return correct values"""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+        resampled = resample(tsdf_input, freq="min", func="floor")
+
+        self.assertEqual(resampled.ts_col, tsdf_input.ts_col)
+        self.assertEqual(resampled.series_ids, tsdf_input.series_ids)
+        self.assertEqual(resampled.ts_schema, tsdf_input.ts_schema)
+        self.assertEqual(resampled.columns, resampled.df.columns)
+        self.assertEqual(resampled.resample_freq, "min")
+        self.assertEqual(resampled.resample_func, "floor")
+
+    def test_resampled_tsdf_show(self):
+        """Verify show() delegates without error"""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+        resampled = resample(tsdf_input, freq="min", func="floor")
+
+        # Should not raise
+        resampled.show()
+        resampled.show(n=5, truncate=False)
+
+    def test_resampled_tsdf_repr_contains_all_fields(self):
+        """Verify repr includes ts_col and series_ids values"""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+        resampled = resample(tsdf_input, freq="min", func="floor")
+
+        repr_str = repr(resampled)
+        self.assertIn(f"ts_col={tsdf_input.ts_col!r}", repr_str)
+        self.assertIn(f"series_ids={tsdf_input.series_ids!r}", repr_str)
+
+    def _get_interpol_resampled(self):
+        """Helper: build a ResampledTSDF from shared interpolation test data."""
+        tsdf = self.get_test_df_builder("__SharedData", "interpol_data").as_tsdf()
+        return tsdf.resample(freq="30 min", func="mean")
+
+    def test_resampled_tsdf_interpolate_zero(self):
+        """Exercise method='zero' interpolation path"""
+        resampled = self._get_interpol_resampled()
+        result = resampled.interpolate(method="zero")
+        self.assertIsInstance(result, TSDF)
+        self.assertGreater(result.df.count(), 0)
+
+    def test_resampled_tsdf_interpolate_ffill(self):
+        """Exercise method='ffill' interpolation path"""
+        resampled = self._get_interpol_resampled()
+        result = resampled.interpolate(method="ffill")
+        self.assertIsInstance(result, TSDF)
+        self.assertGreater(result.df.count(), 0)
+
+    def test_resampled_tsdf_interpolate_bfill(self):
+        """Exercise method='bfill' interpolation path"""
+        resampled = self._get_interpol_resampled()
+        result = resampled.interpolate(method="bfill")
+        self.assertIsInstance(result, TSDF)
+        self.assertGreater(result.df.count(), 0)
+
+    def test_resampled_tsdf_interpolate_null_returns_tsdf(self):
+        """method='null' returns the underlying TSDF unchanged"""
+        resampled = self._get_interpol_resampled()
+        result = resampled.interpolate(method="null")
+        self.assertIsInstance(result, TSDF)
+        # null should return the underlying TSDF as-is
+        self.assertEqual(result.df.collect(), resampled.as_tsdf().df.collect())
+
+    def test_resampled_tsdf_interpolate_with_target_cols(self):
+        """Pass explicit target_cols list to interpolate"""
+        resampled = self._get_interpol_resampled()
+        result = resampled.interpolate(method="zero", target_cols=["value_a"])
+        self.assertIsInstance(result, TSDF)
+        self.assertGreater(result.df.count(), 0)
+
+    def test_resampled_tsdf_interpolate_show_interpolated_warns(self):
+        """show_interpolated=True logs a warning without error"""
+        import logging
+
+        resampled = self._get_interpol_resampled()
+        with self.assertLogs("tempo.resample_result", level=logging.WARNING) as cm:
+            result = resampled.interpolate(method="zero", show_interpolated=True)
+        self.assertIsInstance(result, TSDF)
+        self.assertTrue(
+            any("show_interpolated" in msg for msg in cm.output),
+            f"Expected warning about show_interpolated, got: {cm.output}",
+        )
+
+    def test_resampled_tsdf_as_tsdf_allows_normal_operations(self):
+        """Verify the TSDF from as_tsdf() supports normal DataFrame operations"""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+        resampled = resample(tsdf_input, freq="min", func="floor")
+
+        plain_tsdf = resampled.as_tsdf()
+        # Should support standard Spark DataFrame operations
+        filtered = plain_tsdf.df.filter(sfn.col(plain_tsdf.ts_col).isNotNull())
+        self.assertGreater(filtered.count(), 0)
+
+        selected = plain_tsdf.df.select(plain_tsdf.ts_col)
+        self.assertEqual(len(selected.columns), 1)
+
 
 # MAIN
 if __name__ == "__main__":

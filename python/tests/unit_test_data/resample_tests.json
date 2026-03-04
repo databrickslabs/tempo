@@ -64,6 +64,23 @@
           "symbol"
         ]
       }
+    },
+    "interpol_data": {
+      "df": {
+        "schema": "partition string, event_ts string, value_a double, value_b double",
+        "data": [
+          ["A", "2020-01-01 00:00:00", 1.0, 10.0],
+          ["A", "2020-01-01 00:30:00", null, null],
+          ["A", "2020-01-01 01:00:00", 2.0, 20.0],
+          ["A", "2020-01-01 01:30:00", null, null],
+          ["A", "2020-01-01 02:00:00", 3.0, 30.0]
+        ],
+        "ts_convert": ["event_ts"]
+      },
+      "tsdf": {
+        "ts_col": "event_ts",
+        "series_ids": ["partition"]
+      }
     }
   },
   "ResampleUnitTests": {
