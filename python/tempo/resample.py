@@ -12,7 +12,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from tempo.resampled import ResampledTSDF
+    from tempo.resample_result import ResampledTSDF
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
@@ -451,7 +451,7 @@ def resample(
     enriched_df: DataFrame = aggregate(tsdf, freq, func, metricCols, prefix, fill)
 
     # Import TSDF and ResampledTSDF here to avoid circular import
-    from tempo.resampled import ResampledTSDF
+    from tempo.resample_result import ResampledTSDF
     from tempo.tsdf import TSDF
 
     plain_tsdf = TSDF(

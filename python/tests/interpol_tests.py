@@ -226,7 +226,7 @@ class TSDBInterpolationTests(SparkTest):
 
     def test_resample_then_interpolate_chain(self):
         """Verify tsdf.resample(freq, func).interpolate(method) works and returns TSDF"""
-        from tempo.resampled import ResampledTSDF
+        from tempo.resample_result import ResampledTSDF
 
         # Reuse existing test_tsdf_interpolate_method's test_data
         tsdf = self.get_test_df_builder(

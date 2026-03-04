@@ -40,7 +40,7 @@ from tempo.tsschema import (
     is_time_format,
     sub_seconds_precision_digits,
 )
-from tempo.resampled import ResampledTSDF
+from tempo.resample_result import ResampledTSDF
 from tempo.typing import ColumnOrName, PandasGroupedMapFunction, PandasMapIterFunction
 
 logger = logging.getLogger(__name__)

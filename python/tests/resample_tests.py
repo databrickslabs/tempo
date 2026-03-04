@@ -3,7 +3,7 @@ import unittest
 import pyspark.sql.functions as sfn
 
 from tempo import TSDF
-from tempo.resampled import ResampledTSDF
+from tempo.resample_result import ResampledTSDF
 from tempo.resample import _appendAggKey, aggregate, resample
 from tempo.resample_utils import checkAllowableFreq, validateFuncExists
 from tempo.stats import calc_bars
