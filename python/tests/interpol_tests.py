@@ -240,6 +240,26 @@ class TSDBInterpolationTests(SparkTest):
         self.assertAlmostEqual(result_df[3]["value_a"], 2.5)
         self.assertAlmostEqual(result_df[3]["value_b"], 25.0)
 
+    def test_resample_then_interpolate_chain(self):
+        """Verify tsdf.resample(freq, func).interpolate(method) works and returns TSDF"""
+        from tempo.resampled import ResampledTSDF
+
+        # Reuse existing test_tsdf_interpolate_method's test_data
+        tsdf = self.get_test_df_builder(
+            "TSDBInterpolationTests", "test_tsdf_interpolate_method", "test_data"
+        ).as_tsdf()
+
+        # Chained pattern: resample returns ResampledTSDF, then interpolate returns TSDF
+        resampled = tsdf.resample(freq="30 min", func="mean")
+        self.assertIsInstance(resampled, ResampledTSDF)
+
+        result_tsdf = resampled.interpolate(method="linear")
+        self.assertIsInstance(result_tsdf, TSDF)
+        self.assertNotIsInstance(result_tsdf, ResampledTSDF)
+
+        # Verify the result has data
+        self.assertGreater(result_tsdf.df.count(), 0)
+
 
 class InterpolHelperFunctionsTests(SparkTest):
     """Tests for standalone interpolation helper functions"""

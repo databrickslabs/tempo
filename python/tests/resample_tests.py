@@ -3,6 +3,7 @@ import unittest
 import pyspark.sql.functions as sfn
 
 from tempo import TSDF
+from tempo.resampled import ResampledTSDF
 from tempo.resample import _appendAggKey, aggregate, resample
 from tempo.resample_utils import checkAllowableFreq, validateFuncExists
 from tempo.stats import calc_bars
@@ -237,6 +238,63 @@ class ResampleUnitTests(SparkTest):
 
     def test_validate_func_exists_value_error(self):
         self.assertRaises(ValueError, validateFuncExists, "non-existent")
+
+    def test_resample_returns_resampled_tsdf(self):
+        """Verify resample() returns ResampledTSDF, and as_tsdf() returns TSDF"""
+        # Reuse existing test_resample's input_data
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+
+        result = resample(tsdf_input, freq="min", func="floor")
+
+        self.assertIsInstance(result, ResampledTSDF)
+        self.assertEqual(result.resample_freq, "min")
+        self.assertEqual(result.resample_func, "floor")
+        self.assertIsNotNone(result.df)
+        self.assertEqual(result.ts_col, tsdf_input.ts_col)
+        self.assertEqual(result.series_ids, tsdf_input.series_ids)
+
+        # as_tsdf() should return a plain TSDF
+        plain = result.as_tsdf()
+        self.assertIsInstance(plain, TSDF)
+        self.assertNotIsInstance(plain, ResampledTSDF)
+
+    def test_tsdf_resample_returns_resampled_tsdf(self):
+        """Verify TSDF.resample() also returns ResampledTSDF"""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+
+        result = tsdf_input.resample(freq="min", func="floor")
+
+        self.assertIsInstance(result, ResampledTSDF)
+        self.assertEqual(result.resample_freq, "min")
+
+    def test_resampled_tsdf_blocks_invalid_operations(self):
+        """Verify that ResampledTSDF does not expose filter, withColumn, etc."""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+        resampled = resample(tsdf_input, freq="min", func="floor")
+
+        self.assertFalse(hasattr(resampled, "filter"))
+        self.assertFalse(hasattr(resampled, "withColumn"))
+        self.assertFalse(hasattr(resampled, "where"))
+        self.assertFalse(hasattr(resampled, "select"))
+        self.assertFalse(hasattr(resampled, "resample"))
+
+    def test_resampled_tsdf_repr(self):
+        """Verify __repr__ returns a descriptive string"""
+        tsdf_input = self.get_test_df_builder(
+            "ResampleUnitTests", "test_resample", "input_data"
+        ).as_tsdf()
+        resampled = resample(tsdf_input, freq="min", func="floor")
+
+        repr_str = repr(resampled)
+        self.assertIn("ResampledTSDF", repr_str)
+        self.assertIn("min", repr_str)
+        self.assertIn("floor", repr_str)
 
 
 # MAIN
