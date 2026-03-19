@@ -23,8 +23,7 @@ from tempo.joins.strategies import (
 def spark():
     """Create a Spark session for testing."""
     spark = (
-        SparkSession.builder
-        .appName("StrategyConsistencyTests")
+        SparkSession.builder.appName("StrategyConsistencyTests")
         .config("spark.sql.shuffle.partitions", "4")
         .config("spark.default.parallelism", "4")
         .getOrCreate()
@@ -51,12 +50,16 @@ class TestStrategyConsistency:
         for symbol in ["A", "B", "C"]:
             for i in range(num_left // 3):
                 left_data.append(
-                    (symbol, base_time + timedelta(minutes=i), f"{symbol}_val_{i}", float(i))
+                    (
+                        symbol,
+                        base_time + timedelta(minutes=i),
+                        f"{symbol}_val_{i}",
+                        float(i),
+                    )
                 )
 
         left_df = spark.createDataFrame(
-            left_data,
-            ["symbol", "timestamp", "left_value", "left_metric"]
+            left_data, ["symbol", "timestamp", "left_value", "left_metric"]
         )
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -67,12 +70,16 @@ class TestStrategyConsistency:
                 # Irregular intervals to test as-of logic
                 offset = i * 3.5
                 right_data.append(
-                    (symbol, base_time + timedelta(minutes=offset), float(100 + i), f"status_{i}")
+                    (
+                        symbol,
+                        base_time + timedelta(minutes=offset),
+                        float(100 + i),
+                        f"status_{i}",
+                    )
                 )
 
         right_df = spark.createDataFrame(
-            right_data,
-            ["symbol", "timestamp", "price", "status"]
+            right_data, ["symbol", "timestamp", "price", "status"]
         )
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -84,15 +91,11 @@ class TestStrategyConsistency:
 
         # Create joiners with identical parameters
         broadcast_joiner = BroadcastAsOfJoiner(
-            spark=spark,
-            left_prefix="",
-            right_prefix="right"
+            spark=spark, left_prefix="", right_prefix="right"
         )
 
         union_joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            left_prefix="", right_prefix="right", skipNulls=True
         )
 
         # Execute joins
@@ -100,7 +103,9 @@ class TestStrategyConsistency:
         union_result, _ = union_joiner(left_tsdf, right_tsdf)
 
         # Sort for comparison - handle different column naming
-        ts_col = "timestamp" if "timestamp" in broadcast_result.columns else "left_timestamp"
+        ts_col = (
+            "timestamp" if "timestamp" in broadcast_result.columns else "left_timestamp"
+        )
         broadcast_sorted = broadcast_result.orderBy("symbol", ts_col)
         union_sorted = union_result.orderBy("symbol", ts_col)
 
@@ -108,7 +113,9 @@ class TestStrategyConsistency:
         assert broadcast_sorted.count() == union_sorted.count()
 
         # Compare actual data values (not column order)
-        broadcast_data = broadcast_sorted.select(sorted(broadcast_sorted.columns)).collect()
+        broadcast_data = broadcast_sorted.select(
+            sorted(broadcast_sorted.columns)
+        ).collect()
         union_data = union_sorted.select(sorted(union_sorted.columns)).collect()
         assert broadcast_data == union_data
 
@@ -122,13 +129,11 @@ class TestStrategyConsistency:
             left_prefix="",
             right_prefix="right",
             skipNulls=True,
-            skew_threshold=1.0  # High threshold to avoid triggering skew handling
+            skew_threshold=1.0,  # High threshold to avoid triggering skew handling
         )
 
         union_joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            left_prefix="", right_prefix="right", skipNulls=True
         )
 
         # Execute joins
@@ -156,14 +161,16 @@ class TestStrategyConsistency:
         # Add nulls to right data
         right_with_nulls = right_tsdf.df.withColumn(
             "price",
-            F.when(F.col("symbol") == "B", F.lit(None)).otherwise(F.col("price"))
+            F.when(F.col("symbol") == "B", F.lit(None)).otherwise(F.col("price")),
         )
-        right_tsdf_nulls = TSDF(right_with_nulls, ts_col="timestamp", series_ids=["symbol"])
+        right_tsdf_nulls = TSDF(
+            right_with_nulls, ts_col="timestamp", series_ids=["symbol"]
+        )
 
         # Test only strategies that support skipNulls
         strategies = [
             UnionSortFilterAsOfJoiner("", "right", skipNulls=True),
-            SkewAsOfJoiner(spark, "", "right", skipNulls=True, skew_threshold=1.0)
+            SkewAsOfJoiner(spark, "", "right", skipNulls=True, skew_threshold=1.0),
         ]
 
         for strategy in strategies:
@@ -171,8 +178,9 @@ class TestStrategyConsistency:
             strategy_name = strategy.__class__.__name__
 
             # Verify LEFT JOIN semantics - all left rows preserved
-            assert result.count() == left_tsdf.df.count(), \
-                f"{strategy_name} did not preserve all left rows with nulls"
+            assert (
+                result.count() == left_tsdf.df.count()
+            ), f"{strategy_name} did not preserve all left rows with nulls"
 
     def test_tolerance_consistency(self, spark):
         """Test strategies that support tolerance produce consistent results."""
@@ -183,7 +191,14 @@ class TestStrategyConsistency:
         # Only test strategies that support tolerance
         strategies = [
             UnionSortFilterAsOfJoiner("", "right", skipNulls=True, tolerance=tolerance),
-            SkewAsOfJoiner(spark, "", "right", skipNulls=True, tolerance=tolerance, skew_threshold=1.0)
+            SkewAsOfJoiner(
+                spark,
+                "",
+                "right",
+                skipNulls=True,
+                tolerance=tolerance,
+                skew_threshold=1.0,
+            ),
         ]
 
         for strategy in strategies:
@@ -191,8 +206,9 @@ class TestStrategyConsistency:
             strategy_name = strategy.__class__.__name__
 
             # Verify LEFT JOIN semantics are preserved
-            assert result.count() == left_tsdf.df.count(), \
-                f"{strategy_name} did not preserve all left rows with tolerance"
+            assert (
+                result.count() == left_tsdf.df.count()
+            ), f"{strategy_name} did not preserve all left rows with tolerance"
 
             # Verify tolerance is applied (some joins may be filtered out)
             # Can't directly compare results as column naming differs
@@ -203,20 +219,29 @@ class TestStrategyConsistency:
         left_tsdf, _ = self.create_test_data(spark, 50, 10)
 
         # Create empty right DataFrame with proper schema
-        from pyspark.sql.types import StructType, StructField, StringType, TimestampType, DoubleType
-        right_schema = StructType([
-            StructField("symbol", StringType(), True),
-            StructField("timestamp", TimestampType(), True),
-            StructField("price", DoubleType(), True),
-            StructField("status", StringType(), True)
-        ])
+        from pyspark.sql.types import (
+            StructType,
+            StructField,
+            StringType,
+            TimestampType,
+            DoubleType,
+        )
+
+        right_schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField("timestamp", TimestampType(), True),
+                StructField("price", DoubleType(), True),
+                StructField("status", StringType(), True),
+            ]
+        )
         right_df = spark.createDataFrame([], right_schema)
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
         strategies = [
             BroadcastAsOfJoiner(spark, "", "right"),
             UnionSortFilterAsOfJoiner("", "right"),
-            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0)
+            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0),
         ]
 
         results = []
@@ -232,8 +257,8 @@ class TestStrategyConsistency:
 
             # Check that right-side columns exist and are all null
             # Need to handle different column naming conventions
-            price_cols = [c for c in result.columns if 'price' in c.lower()]
-            status_cols = [c for c in result.columns if 'status' in c.lower()]
+            price_cols = [c for c in result.columns if "price" in c.lower()]
+            status_cols = [c for c in result.columns if "status" in c.lower()]
 
             assert len(price_cols) > 0, "No price column found in result"
             assert len(status_cols) > 0, "No status column found in result"
@@ -252,14 +277,16 @@ class TestStrategyConsistency:
         left_df = spark.createDataFrame(left_data, ["timestamp", "value"])
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=[])
 
-        right_data = [(base_time + timedelta(minutes=i*5), float(i*100)) for i in range(10)]
+        right_data = [
+            (base_time + timedelta(minutes=i * 5), float(i * 100)) for i in range(10)
+        ]
         right_df = spark.createDataFrame(right_data, ["timestamp", "price"])
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=[])
 
         strategies = [
             BroadcastAsOfJoiner(spark, "", "right"),
             UnionSortFilterAsOfJoiner("", "right"),
-            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0)
+            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0),
         ]
 
         results = []
@@ -272,8 +299,9 @@ class TestStrategyConsistency:
         for i in range(1, len(results)):
             result0_data = results[0].select(sorted(results[0].columns)).collect()
             resulti_data = results[i].select(sorted(results[i].columns)).collect()
-            assert result0_data == resulti_data, \
-                f"Strategy {i} differs for single series"
+            assert (
+                result0_data == resulti_data
+            ), f"Strategy {i} differs for single series"
 
     def test_join_semantics_left_preservation(self, spark):
         """Verify all strategies preserve all left rows (LEFT JOIN semantics)."""
@@ -282,7 +310,7 @@ class TestStrategyConsistency:
         strategies = [
             BroadcastAsOfJoiner(spark, "", "right"),
             UnionSortFilterAsOfJoiner("", "right"),
-            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0)
+            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0),
         ]
 
         left_count = left_tsdf.df.count()
@@ -292,13 +320,13 @@ class TestStrategyConsistency:
             strategy_name = strategy.__class__.__name__
 
             # Verify all left rows preserved
-            assert result.count() == left_count, \
-                f"{strategy_name} did not preserve all left rows"
+            assert (
+                result.count() == left_count
+            ), f"{strategy_name} did not preserve all left rows"
 
             # Verify left columns are never null
             left_nulls = result.filter(F.col("left_value").isNull()).count()
-            assert left_nulls == 0, \
-                f"{strategy_name} has null left columns"
+            assert left_nulls == 0, f"{strategy_name} has null left columns"
 
     def test_temporal_ordering_consistency(self, spark):
         """Verify all strategies respect temporal ordering in as-of joins."""
@@ -324,7 +352,7 @@ class TestStrategyConsistency:
         strategies = [
             BroadcastAsOfJoiner(spark, "", "right"),
             UnionSortFilterAsOfJoiner("", "right"),
-            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0)
+            SkewAsOfJoiner(spark, "", "right", skew_threshold=1.0),
         ]
 
         expected_prices = [100.0, 200.0, 300.0]
@@ -341,9 +369,14 @@ class TestStrategyConsistency:
             price_col = "right_price" if "right_price" in result.columns else "price"
 
             for i, row in enumerate(rows):
-                price_val = row[price_col] if hasattr(row, price_col) else row.asDict().get(price_col)
-                assert price_val == expected_prices[i], \
-                    f"{strategy_name} incorrect temporal ordering at row {i}"
+                price_val = (
+                    row[price_col]
+                    if hasattr(row, price_col)
+                    else row.asDict().get(price_col)
+                )
+                assert (
+                    price_val == expected_prices[i]
+                ), f"{strategy_name} incorrect temporal ordering at row {i}"
 
     def test_prefix_handling_consistency(self, spark):
         """Test all strategies handle column prefixes consistently."""
@@ -361,19 +394,22 @@ class TestStrategyConsistency:
             strategies = [
                 BroadcastAsOfJoiner(spark, left_prefix, right_prefix),
                 UnionSortFilterAsOfJoiner(left_prefix, right_prefix),
-                SkewAsOfJoiner(spark, left_prefix, right_prefix, skew_threshold=1.0)
+                SkewAsOfJoiner(spark, left_prefix, right_prefix, skew_threshold=1.0),
             ]
 
             results = []
             for strategy in strategies:
                 result, _ = strategy(left_tsdf, right_tsdf)
-                ts_col = "timestamp" if "timestamp" in result.columns else "left_timestamp"
+                ts_col = (
+                    "timestamp" if "timestamp" in result.columns else "left_timestamp"
+                )
                 results.append(result.orderBy("symbol", ts_col))
 
             # Check column names are consistent
             for i in range(1, len(results)):
-                assert sorted(results[0].columns) == sorted(results[i].columns), \
-                    f"Column names differ with prefixes ({left_prefix}, {right_prefix})"
+                assert sorted(results[0].columns) == sorted(
+                    results[i].columns
+                ), f"Column names differ with prefixes ({left_prefix}, {right_prefix})"
 
     def test_no_double_prefixing(self, spark):
         """Verify that column prefixes are never applied twice."""
@@ -382,7 +418,7 @@ class TestStrategyConsistency:
         strategies = [
             BroadcastAsOfJoiner(spark, "left", "right"),
             UnionSortFilterAsOfJoiner("left", "right"),
-            SkewAsOfJoiner(spark, "left", "right", skew_threshold=1.0)
+            SkewAsOfJoiner(spark, "left", "right", skew_threshold=1.0),
         ]
 
         for strategy in strategies:
@@ -391,10 +427,12 @@ class TestStrategyConsistency:
 
             # Check no column has double prefix like "left_left_" or "right_right_"
             for col in result.columns:
-                assert not col.startswith("left_left_"), \
-                    f"{strategy_name} has double-prefixed column: {col}"
-                assert not col.startswith("right_right_"), \
-                    f"{strategy_name} has double-prefixed column: {col}"
+                assert not col.startswith(
+                    "left_left_"
+                ), f"{strategy_name} has double-prefixed column: {col}"
+                assert not col.startswith(
+                    "right_right_"
+                ), f"{strategy_name} has double-prefixed column: {col}"
 
     def test_overlapping_columns_empty_prefix(self, spark):
         """Test handling of overlapping non-timestamp columns with empty prefixes."""
@@ -405,7 +443,9 @@ class TestStrategyConsistency:
         left_df = spark.createDataFrame(left_data, ["timestamp", "symbol", "value"])
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
-        right_data = [(base_time + timedelta(minutes=i*2), "A", i*100) for i in range(5)]
+        right_data = [
+            (base_time + timedelta(minutes=i * 2), "A", i * 100) for i in range(5)
+        ]
         right_df = spark.createDataFrame(right_data, ["timestamp", "symbol", "value"])
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -414,8 +454,9 @@ class TestStrategyConsistency:
         result, _ = strategy(left_tsdf, right_tsdf)
 
         # Should have left value, not duplicate "value" columns
-        assert result.columns.count("value") == 1, \
-            "Should have only one 'value' column when prefixes are empty"
+        assert (
+            result.columns.count("value") == 1
+        ), "Should have only one 'value' column when prefixes are empty"
 
     def test_tolerance_with_prefixes(self, spark):
         """Test tolerance filtering works correctly with various prefix combinations."""
@@ -430,12 +471,17 @@ class TestStrategyConsistency:
 
         for left_prefix, right_prefix in prefix_tests:
             strategy = SkewAsOfJoiner(
-                spark, left_prefix, right_prefix,
-                skipNulls=True, tolerance=tolerance, skew_threshold=1.0
+                spark,
+                left_prefix,
+                right_prefix,
+                skipNulls=True,
+                tolerance=tolerance,
+                skew_threshold=1.0,
             )
 
             result, _ = strategy(left_tsdf, right_tsdf)
 
             # Should not error and should preserve left rows
-            assert result.count() == left_tsdf.df.count(), \
-                f"Failed with prefixes ({left_prefix}, {right_prefix})"
+            assert (
+                result.count() == left_tsdf.df.count()
+            ), f"Failed with prefixes ({left_prefix}, {right_prefix})"

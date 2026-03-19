@@ -11,7 +11,14 @@ from datetime import datetime, timedelta
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.types import StructType, StructField, StringType, TimestampType, DoubleType, IntegerType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    TimestampType,
+    DoubleType,
+    IntegerType,
+)
 
 from tempo.joins.strategies import SkewAsOfJoiner, _detectSignificantSkew
 from tempo.tsdf import TSDF
@@ -41,10 +48,10 @@ class SkewAsOfJoinerTest(SparkTest):
         if skew_type in ["key", "both"]:
             # 80% of data for key "A", 15% for "B", 5% for others
             key_distribution = (
-                ["A"] * int(num_records * 0.8) +
-                ["B"] * int(num_records * 0.15) +
-                ["C"] * int(num_records * 0.03) +
-                ["D"] * int(num_records * 0.02)
+                ["A"] * int(num_records * 0.8)
+                + ["B"] * int(num_records * 0.15)
+                + ["C"] * int(num_records * 0.03)
+                + ["D"] * int(num_records * 0.02)
             )
         else:
             # Even key distribution
@@ -74,12 +81,14 @@ class SkewAsOfJoinerTest(SparkTest):
             for i in range(num_records)
         ]
 
-        left_schema = StructType([
-            StructField("symbol", StringType(), False),
-            StructField("timestamp", TimestampType(), False),
-            StructField("left_value", StringType(), True),
-            StructField("left_metric", DoubleType(), True),
-        ])
+        left_schema = StructType(
+            [
+                StructField("symbol", StringType(), False),
+                StructField("timestamp", TimestampType(), False),
+                StructField("left_value", StringType(), True),
+                StructField("left_metric", DoubleType(), True),
+            ]
+        )
 
         left_df = self.spark.createDataFrame(left_data, schema=left_schema)
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
@@ -91,12 +100,14 @@ class SkewAsOfJoinerTest(SparkTest):
             for i in range(right_records)
         ]
 
-        right_schema = StructType([
-            StructField("symbol", StringType(), False),
-            StructField("timestamp", TimestampType(), False),
-            StructField("right_value", StringType(), True),
-            StructField("price", DoubleType(), True),
-        ])
+        right_schema = StructType(
+            [
+                StructField("symbol", StringType(), False),
+                StructField("timestamp", TimestampType(), False),
+                StructField("right_value", StringType(), True),
+                StructField("price", DoubleType(), True),
+            ]
+        )
 
         right_df = self.spark.createDataFrame(right_data, schema=right_schema)
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
@@ -106,35 +117,37 @@ class SkewAsOfJoinerTest(SparkTest):
     def test_skew_detection(self):
         """Test that skew detection correctly identifies skewed data."""
         # Create skewed data
-        left_skewed, right_skewed = self.create_skewed_data(skew_type="key", num_records=1000)
+        left_skewed, right_skewed = self.create_skewed_data(
+            skew_type="key", num_records=1000
+        )
 
         # Test skew detection
         self.assertTrue(
             _detectSignificantSkew(left_skewed, right_skewed, threshold=0.3),
-            "Should detect key skew"
+            "Should detect key skew",
         )
 
         # Create non-skewed data
-        left_normal, right_normal = self.create_skewed_data(skew_type="none", num_records=1000)
+        left_normal, right_normal = self.create_skewed_data(
+            skew_type="none", num_records=1000
+        )
 
         # Should not detect skew in even distribution
         self.assertFalse(
             _detectSignificantSkew(left_normal, right_normal, threshold=0.3),
-            "Should not detect skew in even distribution"
+            "Should not detect skew in even distribution",
         )
 
-    @patch('tempo.joins.strategies.logger')
+    @patch("tempo.joins.strategies.logger")
     def test_aqe_configuration(self, mock_logger):
         """Test that AQE is properly configured."""
-        joiner = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="",
-            right_prefix="right"
-        )
+        joiner = SkewAsOfJoiner(spark=self.spark, left_prefix="", right_prefix="right")
 
         # Check that AQE settings were configured
         self.assertEqual(self.spark.conf.get("spark.sql.adaptive.enabled"), "true")
-        self.assertEqual(self.spark.conf.get("spark.sql.adaptive.skewJoin.enabled"), "true")
+        self.assertEqual(
+            self.spark.conf.get("spark.sql.adaptive.skewJoin.enabled"), "true"
+        )
 
         # Check that configuration was logged
         mock_logger.info.assert_any_call("Configured AQE for skew handling")
@@ -142,14 +155,16 @@ class SkewAsOfJoinerTest(SparkTest):
     def test_key_skewed_join(self):
         """Test join with heavily skewed keys (80% in one key)."""
         # Create data with key skew
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="key", num_records=1000)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="key", num_records=1000
+        )
 
         # Create joiner
         joiner = SkewAsOfJoiner(
             spark=self.spark,
             left_prefix="",
             right_prefix="right",
-            skew_threshold=0.2  # 20% threshold
+            skew_threshold=0.2,  # 20% threshold
         )
 
         # Perform join
@@ -157,7 +172,9 @@ class SkewAsOfJoinerTest(SparkTest):
 
         # Verify results
         self.assertIsNotNone(result_df)
-        self.assertEqual(result_df.count(), left_tsdf.df.count(), "All left rows should be preserved")
+        self.assertEqual(
+            result_df.count(), left_tsdf.df.count(), "All left rows should be preserved"
+        )
 
         # Check that skewed key "A" was processed correctly
         key_a_results = result_df.filter(F.col("symbol") == "A")
@@ -166,27 +183,24 @@ class SkewAsOfJoinerTest(SparkTest):
         # Verify correct as-of semantics
         # Each left row should get the most recent right row
         sample_row = result_df.filter(
-            (F.col("symbol") == "A") &
-            F.col("timestamp").isNotNull()
+            (F.col("symbol") == "A") & F.col("timestamp").isNotNull()
         ).first()
         if sample_row and "right_timestamp" in result_df.columns:
             self.assertLessEqual(
                 sample_row["right_timestamp"],
                 sample_row["timestamp"],
-                "Right timestamp should be <= left timestamp"
+                "Right timestamp should be <= left timestamp",
             )
 
     def test_temporal_skewed_join(self):
         """Test join with temporal skew (90% of data in last 10% of time range)."""
         # Create data with temporal skew
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="temporal", num_records=1000)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="temporal", num_records=1000
+        )
 
         # Create joiner
-        joiner = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="",
-            right_prefix="right"
-        )
+        joiner = SkewAsOfJoiner(spark=self.spark, left_prefix="", right_prefix="right")
 
         # Perform join
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
@@ -211,13 +225,15 @@ class SkewAsOfJoinerTest(SparkTest):
             self.assertGreater(
                 dense_period_count / result_df.count(),
                 0.8,
-                "Most data should be in the dense time period"
+                "Most data should be in the dense time period",
             )
 
     def test_salted_join_for_extreme_skew(self):
         """Test salted join strategy for extreme skew."""
         # Create extremely skewed data (95% in one key)
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="key", num_records=500)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="key", num_records=500
+        )
 
         # Create joiner with salting enabled
         joiner = SkewAsOfJoiner(
@@ -226,7 +242,7 @@ class SkewAsOfJoinerTest(SparkTest):
             right_prefix="right",
             enable_salting=True,
             salt_buckets=5,
-            skew_threshold=0.1  # Low threshold to trigger skew handling
+            skew_threshold=0.1,  # Low threshold to trigger skew handling
         )
 
         # Perform join
@@ -241,14 +257,16 @@ class SkewAsOfJoinerTest(SparkTest):
 
     def test_backward_compatibility_with_tspartitionval(self):
         """Test backward compatibility with tsPartitionVal parameter."""
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="key", num_records=100)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="key", num_records=100
+        )
 
         # Create joiner with deprecated tsPartitionVal
         joiner = SkewAsOfJoiner(
             spark=self.spark,
             left_prefix="",
             right_prefix="right",
-            tsPartitionVal=300  # 5 minutes
+            tsPartitionVal=300,  # 5 minutes
         )
 
         # Should still work
@@ -259,21 +277,22 @@ class SkewAsOfJoinerTest(SparkTest):
     def test_skip_nulls_with_skewed_data(self):
         """Test skipNulls functionality with skewed data."""
         # Create skewed data and add some nulls
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="key", num_records=100)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="key", num_records=100
+        )
 
         # Add nulls to right data
         right_with_nulls = right_tsdf.df.withColumn(
             "price",
-            F.when(F.col("symbol") == "B", F.lit(None)).otherwise(F.col("price"))
+            F.when(F.col("symbol") == "B", F.lit(None)).otherwise(F.col("price")),
         )
-        right_tsdf_nulls = TSDF(right_with_nulls, ts_col="timestamp", series_ids=["symbol"])
+        right_tsdf_nulls = TSDF(
+            right_with_nulls, ts_col="timestamp", series_ids=["symbol"]
+        )
 
         # Test with skipNulls=True
         joiner_skip = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            spark=self.spark, left_prefix="", right_prefix="right", skipNulls=True
         )
 
         result_skip, _ = joiner_skip(left_tsdf, right_tsdf_nulls)
@@ -281,18 +300,22 @@ class SkewAsOfJoinerTest(SparkTest):
         # Check that rows with null values are filtered appropriately
         b_results = result_skip.filter(F.col("symbol") == "B")
         non_null_b = b_results.filter(F.col("price").isNotNull())
-        self.assertEqual(non_null_b.count(), 0, "Symbol B should have no matches due to null prices")
+        self.assertEqual(
+            non_null_b.count(), 0, "Symbol B should have no matches due to null prices"
+        )
 
     def test_tolerance_with_skewed_data(self):
         """Test tolerance filtering with skewed data."""
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="key", num_records=100)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="key", num_records=100
+        )
 
         # Create joiner with tolerance
         joiner = SkewAsOfJoiner(
             spark=self.spark,
             left_prefix="",
             right_prefix="right",
-            tolerance=60  # 1 minute tolerance
+            tolerance=60,  # 1 minute tolerance
         )
 
         result_df, _ = joiner(left_tsdf, right_tsdf)
@@ -302,26 +325,32 @@ class SkewAsOfJoinerTest(SparkTest):
         # Check that matches outside tolerance have null right columns
         # This would require examining specific timestamp differences
 
-    @patch('tempo.joins.strategies.get_bytes_from_plan')
+    @patch("tempo.joins.strategies.get_bytes_from_plan")
     def test_strategy_selection_for_skewed_keys(self, mock_get_bytes):
         """Test that different strategies are selected based on data characteristics."""
         # Mock size detection for broadcast decision
         mock_get_bytes.return_value = 50 * 1024 * 1024  # 50MB - too large for broadcast
 
         # Create heavily skewed data
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="key", num_records=100)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="key", num_records=100
+        )
 
         joiner = SkewAsOfJoiner(
             spark=self.spark,
             left_prefix="",
             right_prefix="right",
             skew_threshold=0.1,  # Low threshold
-            enable_salting=False
+            enable_salting=False,
         )
 
         # Mock to track method calls
-        with patch.object(joiner, '_skewSeparatedJoin', wraps=joiner._skewSeparatedJoin) as mock_separated:
-            with patch.object(joiner, '_standardAsOfJoin', wraps=joiner._standardAsOfJoin) as mock_standard:
+        with patch.object(
+            joiner, "_skewSeparatedJoin", wraps=joiner._skewSeparatedJoin
+        ) as mock_separated:
+            with patch.object(
+                joiner, "_standardAsOfJoin", wraps=joiner._standardAsOfJoin
+            ) as mock_standard:
                 result_df, _ = joiner(left_tsdf, right_tsdf)
 
                 # Should use separated join for skewed keys
@@ -333,13 +362,12 @@ class SkewAsOfJoinerTest(SparkTest):
     def test_mixed_key_and_temporal_skew(self):
         """Test handling of both key and temporal skew simultaneously."""
         # Create data with both types of skew
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="both", num_records=500)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="both", num_records=500
+        )
 
         joiner = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="",
-            right_prefix="right",
-            skew_threshold=0.15
+            spark=self.spark, left_prefix="", right_prefix="right", skew_threshold=0.15
         )
 
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
@@ -354,8 +382,11 @@ class SkewAsOfJoinerTest(SparkTest):
         # Verify both skew types are handled
         # Check key skew handling
         key_a_count = result_df.filter(F.col("symbol") == "A").count()
-        self.assertGreater(key_a_count, result_df.count() * 0.7,
-                          "Skewed key should have majority of results")
+        self.assertGreater(
+            key_a_count,
+            result_df.count() * 0.7,
+            "Skewed key should have majority of results",
+        )
 
         # Check temporal skew handling
         max_time = result_df.agg(F.max("timestamp")).collect()[0][0]
@@ -364,21 +395,22 @@ class SkewAsOfJoinerTest(SparkTest):
             time_range = (max_time - min_time).total_seconds()
             cutoff_time = min_time + timedelta(seconds=time_range * 0.9)
             dense_count = result_df.filter(F.col("timestamp") >= cutoff_time).count()
-            self.assertGreater(dense_count, result_df.count() * 0.8,
-                             "Dense time period should be handled correctly")
-
+            self.assertGreater(
+                dense_count,
+                result_df.count() * 0.8,
+                "Dense time period should be handled correctly",
+            )
 
     def test_no_skew_baseline(self):
         """Test baseline case with evenly distributed data (no skew)."""
         # Create evenly distributed data
-        left_tsdf, right_tsdf = self.create_skewed_data(skew_type="none", num_records=400)
+        left_tsdf, right_tsdf = self.create_skewed_data(
+            skew_type="none", num_records=400
+        )
 
         # Joiner should handle non-skewed data efficiently
         joiner = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="",
-            right_prefix="right",
-            skew_threshold=0.2
+            spark=self.spark, left_prefix="", right_prefix="right", skew_threshold=0.2
         )
 
         result_df, _ = joiner(left_tsdf, right_tsdf)
@@ -393,8 +425,9 @@ class SkewAsOfJoinerTest(SparkTest):
             max_count = max(counts)
             min_count = min(counts)
             # Ratio should be close to 1 for even distribution
-            self.assertLess(max_count / min_count, 1.5,
-                          "Keys should have roughly equal counts")
+            self.assertLess(
+                max_count / min_count, 1.5, "Keys should have roughly equal counts"
+            )
 
     def test_extreme_key_skew_95_percent(self):
         """Test extreme key skew with 95% of data in one key."""
@@ -402,26 +435,32 @@ class SkewAsOfJoinerTest(SparkTest):
         base_time = datetime(2024, 1, 1)
 
         # 95% for key "EXTREME", 5% for others
-        left_data = [("EXTREME", base_time + timedelta(minutes=i), f"val_{i}", float(i))
-                     for i in range(950)]
-        left_data += [("OTHER", base_time + timedelta(minutes=i), f"val_{i}", float(i))
-                      for i in range(50)]
+        left_data = [
+            ("EXTREME", base_time + timedelta(minutes=i), f"val_{i}", float(i))
+            for i in range(950)
+        ]
+        left_data += [
+            ("OTHER", base_time + timedelta(minutes=i), f"val_{i}", float(i))
+            for i in range(50)
+        ]
 
         left_df = self.spark.createDataFrame(
-            left_data,
-            ["symbol", "timestamp", "value", "metric"]
+            left_data, ["symbol", "timestamp", "value", "metric"]
         )
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Right side also skewed
-        right_data = [("EXTREME", base_time + timedelta(minutes=i*10), float(i*10))
-                      for i in range(95)]
-        right_data += [("OTHER", base_time + timedelta(minutes=i*10), float(i*100))
-                       for i in range(5)]
+        right_data = [
+            ("EXTREME", base_time + timedelta(minutes=i * 10), float(i * 10))
+            for i in range(95)
+        ]
+        right_data += [
+            ("OTHER", base_time + timedelta(minutes=i * 10), float(i * 100))
+            for i in range(5)
+        ]
 
         right_df = self.spark.createDataFrame(
-            right_data,
-            ["symbol", "timestamp", "price"]
+            right_data, ["symbol", "timestamp", "price"]
         )
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -432,7 +471,7 @@ class SkewAsOfJoinerTest(SparkTest):
             right_prefix="right",
             skew_threshold=0.1,  # 10% threshold
             enable_salting=True,
-            salt_buckets=5
+            salt_buckets=5,
         )
 
         result_df, _ = joiner(left_tsdf, right_tsdf)
@@ -448,6 +487,7 @@ class SkewAsOfJoinerTest(SparkTest):
         """Test power law distribution (realistic for user activity data)."""
         # Create power law distributed data
         import random
+
         random.seed(42)
 
         base_time = datetime(2024, 1, 1)
@@ -465,7 +505,7 @@ class SkewAsOfJoinerTest(SparkTest):
 
         left_df = self.spark.createDataFrame(
             left_data[:5000],  # Limit to 5000 rows
-            ["user", "timestamp", "action", "value"]
+            ["user", "timestamp", "action", "value"],
         )
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["user"])
 
@@ -475,8 +515,7 @@ class SkewAsOfJoinerTest(SparkTest):
             for i, key in enumerate(keys[:50])  # Only some users have profiles
         ]
         right_df = self.spark.createDataFrame(
-            right_data,
-            ["user", "timestamp", "status"]
+            right_data, ["user", "timestamp", "status"]
         )
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["user"])
 
@@ -484,7 +523,7 @@ class SkewAsOfJoinerTest(SparkTest):
             spark=self.spark,
             left_prefix="",
             right_prefix="profile",
-            skew_threshold=0.15
+            skew_threshold=0.15,
         )
 
         result_df, _ = joiner(left_tsdf, right_tsdf)
@@ -514,32 +553,29 @@ class SkewAsOfJoinerTest(SparkTest):
                     )
 
         left_df = self.spark.createDataFrame(
-            left_data,
-            ["exchange", "symbol", "timestamp", "volume"]
+            left_data, ["exchange", "symbol", "timestamp", "volume"]
         )
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["exchange", "symbol"])
 
         # Right side
         right_data = [
-            ("NYSE", "AAPL", base_time + timedelta(minutes=i*100), float(i*100))
+            ("NYSE", "AAPL", base_time + timedelta(minutes=i * 100), float(i * 100))
             for i in range(8)
         ]
         right_data += [
             ("NYSE", "GOOGL", base_time, 1000.0),
-            ("NASDAQ", "MSFT", base_time, 2000.0)
+            ("NASDAQ", "MSFT", base_time, 2000.0),
         ]
 
         right_df = self.spark.createDataFrame(
-            right_data,
-            ["exchange", "symbol", "timestamp", "price"]
+            right_data, ["exchange", "symbol", "timestamp", "price"]
         )
-        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["exchange", "symbol"])
+        right_tsdf = TSDF(
+            right_df, ts_col="timestamp", series_ids=["exchange", "symbol"]
+        )
 
         joiner = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="",
-            right_prefix="quote",
-            skew_threshold=0.2
+            spark=self.spark, left_prefix="", right_prefix="quote", skew_threshold=0.2
         )
 
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
@@ -563,17 +599,21 @@ class SkewAsOfJoinerTest(SparkTest):
         # First 5 minutes: 70% of activity
         for i in range(700):
             left_data.append(
-                ("AAPL", base_time + timedelta(seconds=i*0.4), f"trade_{i}", float(i))
+                ("AAPL", base_time + timedelta(seconds=i * 0.4), f"trade_{i}", float(i))
             )
         # Rest of day: 30% of activity
         for i in range(300):
             left_data.append(
-                ("AAPL", base_time + timedelta(minutes=5 + i), f"trade_{i+700}", float(i))
+                (
+                    "AAPL",
+                    base_time + timedelta(minutes=5 + i),
+                    f"trade_{i+700}",
+                    float(i),
+                )
             )
 
         left_df = self.spark.createDataFrame(
-            left_data,
-            ["symbol", "timestamp", "trade_id", "volume"]
+            left_data, ["symbol", "timestamp", "trade_id", "volume"]
         )
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -584,15 +624,12 @@ class SkewAsOfJoinerTest(SparkTest):
         ]
 
         right_df = self.spark.createDataFrame(
-            right_data,
-            ["symbol", "timestamp", "price"]
+            right_data, ["symbol", "timestamp", "price"]
         )
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
         joiner = SkewAsOfJoiner(
-            spark=self.spark,
-            left_prefix="trade",
-            right_prefix="quote"
+            spark=self.spark, left_prefix="trade", right_prefix="quote"
         )
 
         result_df, _ = joiner(left_tsdf, right_tsdf)
@@ -614,10 +651,11 @@ class SkewDetectionTest(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.spark = SparkSession.builder \
-            .master("local[*]") \
-            .appName("SkewDetectionTest") \
+        self.spark = (
+            SparkSession.builder.master("local[*]")
+            .appName("SkewDetectionTest")
             .getOrCreate()
+        )
 
     def tearDown(self):
         """Clean up after tests."""
@@ -642,7 +680,7 @@ class SkewDetectionTest(unittest.TestCase):
         # Should return False for tiny datasets
         self.assertFalse(_detectSignificantSkew(tsdf, tsdf))
 
-    @patch('tempo.joins.strategies.logger')
+    @patch("tempo.joins.strategies.logger")
     def test_detect_significant_skew_with_error(self, mock_logger):
         """Test skew detection handles errors gracefully."""
         # Create mock TSDF that will cause an error during count

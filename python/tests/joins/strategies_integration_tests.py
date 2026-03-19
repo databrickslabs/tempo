@@ -24,24 +24,18 @@ class StrategiesIntegrationTest(SparkTest):
         # Load test data using function-based pattern
         left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
         right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
-        expected_tsdf = self.get_test_function_df_builder("expected_broadcast").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder(
+            "expected_broadcast"
+        ).as_tsdf()
 
         # Create and execute broadcast join
-        joiner = BroadcastAsOfJoiner(
-            self.spark,
-            left_prefix="",
-            right_prefix="right"
-        )
+        joiner = BroadcastAsOfJoiner(self.spark, left_prefix="", right_prefix="right")
 
         # Execute join - returns (DataFrame, TSSchema) tuple
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Compare with expected results
-        self.assertDataFrameEquality(
-            result_df,
-            expected_tsdf.df,
-            ignore_row_order=True
-        )
+        self.assertDataFrameEquality(result_df, expected_tsdf.df, ignore_row_order=True)
 
     def test_union_sort_filter_join_basic(self):
         """Test UnionSortFilterAsOfJoiner with basic test data."""
@@ -52,45 +46,37 @@ class StrategiesIntegrationTest(SparkTest):
 
         # Create and execute union-sort-filter join
         joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            left_prefix="", right_prefix="right", skipNulls=True
         )
 
         # Execute join - returns (DataFrame, TSSchema) tuple
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Compare with expected results
-        self.assertDataFrameEquality(
-            result_df,
-            expected_tsdf.df,
-            ignore_row_order=True
-        )
+        self.assertDataFrameEquality(result_df, expected_tsdf.df, ignore_row_order=True)
 
     def test_tolerance_filtering(self):
         """Test tolerance parameter filtering."""
         # Load test data using function-based pattern
         left_tsdf = self.get_test_function_df_builder("left").as_tsdf()
         right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
-        expected_tsdf = self.get_test_function_df_builder("expected_tolerance_120").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder(
+            "expected_tolerance_120"
+        ).as_tsdf()
 
         # Create joiner with tolerance
         joiner = UnionSortFilterAsOfJoiner(
             left_prefix="",
             right_prefix="right",
             skipNulls=True,
-            tolerance=120  # 2 minutes tolerance
+            tolerance=120,  # 2 minutes tolerance
         )
 
         # Execute join - returns (DataFrame, TSSchema) tuple
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
 
         # Compare with expected results
-        self.assertDataFrameEquality(
-            result_df,
-            expected_tsdf.df,
-            ignore_row_order=True
-        )
+        self.assertDataFrameEquality(result_df, expected_tsdf.df, ignore_row_order=True)
 
     def test_skip_nulls_behavior(self):
         """Test skipNulls parameter behavior."""
@@ -99,32 +85,24 @@ class StrategiesIntegrationTest(SparkTest):
         right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
 
         # Test with skipNulls=True
-        expected_tsdf = self.get_test_function_df_builder("expected_skip_nulls_true").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder(
+            "expected_skip_nulls_true"
+        ).as_tsdf()
         joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            left_prefix="", right_prefix="right", skipNulls=True
         )
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
-        self.assertDataFrameEquality(
-            result_df,
-            expected_tsdf.df,
-            ignore_row_order=True
-        )
+        self.assertDataFrameEquality(result_df, expected_tsdf.df, ignore_row_order=True)
 
         # Test with skipNulls=False
-        expected_tsdf = self.get_test_function_df_builder("expected_skip_nulls_false").as_tsdf()
+        expected_tsdf = self.get_test_function_df_builder(
+            "expected_skip_nulls_false"
+        ).as_tsdf()
         joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=False
+            left_prefix="", right_prefix="right", skipNulls=False
         )
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
-        self.assertDataFrameEquality(
-            result_df,
-            expected_tsdf.df,
-            ignore_row_order=True
-        )
+        self.assertDataFrameEquality(result_df, expected_tsdf.df, ignore_row_order=True)
 
     def test_empty_dataframe_handling(self):
         """Test handling of empty DataFrames."""
@@ -134,9 +112,7 @@ class StrategiesIntegrationTest(SparkTest):
         expected_tsdf = self.get_test_function_df_builder("expected").as_tsdf()
 
         joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            left_prefix="", right_prefix="right", skipNulls=True
         )
 
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
@@ -156,11 +132,7 @@ class StrategiesIntegrationTest(SparkTest):
         expected_tsdf = self.get_test_function_df_builder("expected").as_tsdf()
 
         # Create and execute broadcast join
-        joiner = BroadcastAsOfJoiner(
-            self.spark,
-            left_prefix="",
-            right_prefix="right"
-        )
+        joiner = BroadcastAsOfJoiner(self.spark, left_prefix="", right_prefix="right")
 
         # Execute join - should not fail with NULL lead
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
@@ -169,11 +141,7 @@ class StrategiesIntegrationTest(SparkTest):
         self.assertEqual(result_df.count(), left_tsdf.df.count())
 
         # Compare with expected results
-        self.assertDataFrameEquality(
-            result_df,
-            expected_tsdf.df,
-            ignore_row_order=True
-        )
+        self.assertDataFrameEquality(result_df, expected_tsdf.df, ignore_row_order=True)
 
     def test_strategy_consistency(self):
         """Test that different strategies produce consistent results for the same data."""
@@ -182,25 +150,21 @@ class StrategiesIntegrationTest(SparkTest):
 
         # Test broadcast join
         broadcast_joiner = BroadcastAsOfJoiner(
-            self.spark,
-            left_prefix="",
-            right_prefix="right"
+            self.spark, left_prefix="", right_prefix="right"
         )
-        broadcast_result_df, broadcast_result_schema = broadcast_joiner(left_tsdf, right_tsdf)
+        broadcast_result_df, broadcast_result_schema = broadcast_joiner(
+            left_tsdf, right_tsdf
+        )
 
         # Test union-sort-filter join
         union_joiner = UnionSortFilterAsOfJoiner(
-            left_prefix="",
-            right_prefix="right",
-            skipNulls=True
+            left_prefix="", right_prefix="right", skipNulls=True
         )
         union_result_df, union_result_schema = union_joiner(left_tsdf, right_tsdf)
 
         # Results should be identical
         self.assertDataFrameEquality(
-            broadcast_result_df,
-            union_result_df,
-            ignore_row_order=True
+            broadcast_result_df, union_result_df, ignore_row_order=True
         )
 
     def test_automatic_strategy_selection(self):
@@ -210,11 +174,7 @@ class StrategiesIntegrationTest(SparkTest):
         right_tsdf = self.get_test_function_df_builder("right").as_tsdf()
 
         # Test automatic strategy selection (should potentially select broadcast for small data)
-        strategy = choose_as_of_join_strategy(
-            left_tsdf,
-            right_tsdf,
-            self.spark
-        )
+        strategy = choose_as_of_join_strategy(left_tsdf, right_tsdf, self.spark)
 
         # Execute join
         result_df, result_schema = strategy(left_tsdf, right_tsdf)
@@ -225,10 +185,7 @@ class StrategiesIntegrationTest(SparkTest):
 
         # Test with tsPartitionVal (should select SkewAsOfJoiner)
         strategy = choose_as_of_join_strategy(
-            left_tsdf,
-            right_tsdf,
-            self.spark,
-            tsPartitionVal=300  # 5 minutes
+            left_tsdf, right_tsdf, self.spark, tsPartitionVal=300  # 5 minutes
         )
 
         self.assertIsInstance(strategy, SkewAsOfJoiner)

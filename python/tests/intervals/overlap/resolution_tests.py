@@ -18,7 +18,7 @@ from tempo.intervals.overlap.resolution import (
     FinishedByResolver,
     OverlappedByResolver,
     MetByResolver,
-    AfterResolver
+    AfterResolver,
 )
 
 
@@ -122,7 +122,7 @@ def interval_factory():
             data=data_series,
             start_field="start",
             end_field="end",
-            metric_fields=[k for k in metrics.keys()]
+            metric_fields=[k for k in metrics.keys()],
         )
 
     return create_interval
@@ -162,7 +162,7 @@ def all_resolvers():
         FinishedByResolver(),
         OverlappedByResolver(),
         MetByResolver(),
-        AfterResolver()
+        AfterResolver(),
     ]
 
 
@@ -486,9 +486,7 @@ class TestSequentialResolution:
         # Extract the last part for next resolution
         last_part = result1[2]
         temp_interval = interval_factory(
-            last_part["start"],
-            last_part["end"],
-            {"value": last_part["value"]}
+            last_part["start"], last_part["end"], {"value": last_part["value"]}
         )
 
         # Second resolution: last part meets interval3
@@ -539,7 +537,7 @@ class TestIdenticalIntervals:
             StartsResolver(),
             FinishesResolver(),
             StartedByResolver(),
-            FinishedByResolver()
+            FinishedByResolver(),
         ]
 
         for resolver in applicable_resolvers:
@@ -566,7 +564,9 @@ class TestIdenticalIntervals:
                 # Skip those that explicitly don't support it
                 continue
 
-    def test_non_applicable_resolvers_with_identical_intervals(self, identical_intervals):
+    def test_non_applicable_resolvers_with_identical_intervals(
+        self, identical_intervals
+    ):
         """Test resolvers that might not be applicable to identical intervals"""
         interval1, interval2 = identical_intervals
 
@@ -575,7 +575,7 @@ class TestIdenticalIntervals:
             BeforeResolver(),
             MeetsResolver(),
             AfterResolver(),
-            MetByResolver()
+            MetByResolver(),
         ]
 
         for resolver in non_applicable:

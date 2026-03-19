@@ -8,7 +8,13 @@ identified by the Codecov report.
 import unittest
 from datetime import datetime, timedelta
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, TimestampType, StringType, DoubleType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    TimestampType,
+    StringType,
+    DoubleType,
+)
 from tempo.tsdf import TSDF
 from tempo.tsschema import TSSchema
 from tempo.joins.strategies import (
@@ -26,8 +32,7 @@ class AdditionalCoverageTests(SparkTest):
         """Test that empty/None prefix is handled correctly."""
         # Lines 108-120: _prefixColumns should skip prefixing when prefix is empty
         left_data = [
-            (datetime(2024, 1, 1, 10, i), f"A", float(100 + i))
-            for i in range(5)
+            (datetime(2024, 1, 1, 10, i), f"A", float(100 + i)) for i in range(5)
         ]
         left_df = self.spark.createDataFrame(
             left_data, ["timestamp", "symbol", "price"]
@@ -35,8 +40,7 @@ class AdditionalCoverageTests(SparkTest):
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
         right_data = [
-            (datetime(2024, 1, 1, 10, i), f"A", float(200 + i))
-            for i in range(0, 5, 2)
+            (datetime(2024, 1, 1, 10, i), f"A", float(200 + i)) for i in range(0, 5, 2)
         ]
         right_df = self.spark.createDataFrame(
             right_data, ["timestamp", "symbol", "price"]
@@ -54,8 +58,7 @@ class AdditionalCoverageTests(SparkTest):
         """Test skipNulls when right DataFrame has only series+timestamp columns."""
         # Lines 506-510: skipNulls fallback when no value columns to check
         left_data = [
-            (datetime(2024, 1, 1, 10, i), f"A", float(100 + i))
-            for i in range(5)
+            (datetime(2024, 1, 1, 10, i), f"A", float(100 + i)) for i in range(5)
         ]
         left_df = self.spark.createDataFrame(
             left_data, ["timestamp", "symbol", "price"]
@@ -63,10 +66,7 @@ class AdditionalCoverageTests(SparkTest):
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Right has ONLY series and timestamp - no value columns
-        right_data = [
-            (datetime(2024, 1, 1, 10, i), f"A")
-            for i in range(0, 5, 2)
-        ]
+        right_data = [(datetime(2024, 1, 1, 10, i), f"A") for i in range(0, 5, 2)]
         right_df = self.spark.createDataFrame(right_data, ["timestamp", "symbol"])
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -80,17 +80,14 @@ class AdditionalCoverageTests(SparkTest):
         """Test that tolerance=None returns immediately without filtering."""
         # Lines 556-557: Early return when tolerance is None
         left_data = [
-            (datetime(2024, 1, 1, 10, i), f"A", float(100 + i))
-            for i in range(5)
+            (datetime(2024, 1, 1, 10, i), f"A", float(100 + i)) for i in range(5)
         ]
         left_df = self.spark.createDataFrame(
             left_data, ["timestamp", "symbol", "price"]
         )
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
-        right_data = [
-            (datetime(2024, 1, 1, 10, 0), f"A", float(200))
-        ]
+        right_data = [(datetime(2024, 1, 1, 10, 0), f"A", float(200))]
         right_df = self.spark.createDataFrame(
             right_data, ["timestamp", "symbol", "bid"]
         )
@@ -124,7 +121,12 @@ class AdditionalCoverageTests(SparkTest):
             for product in ["ProductB", "ProductC"]:
                 for i in range(25):
                     left_data.append(
-                        (region, product, base_time + timedelta(minutes=i), float(100 + i))
+                        (
+                            region,
+                            product,
+                            base_time + timedelta(minutes=i),
+                            float(100 + i),
+                        )
                     )
 
         left_df = self.spark.createDataFrame(
@@ -134,13 +136,14 @@ class AdditionalCoverageTests(SparkTest):
 
         # Create corresponding right data (10% of left)
         right_data = [
-            (d[0], d[1], d[2], float(200 + i))
-            for i, d in enumerate(left_data[::10])
+            (d[0], d[1], d[2], float(200 + i)) for i, d in enumerate(left_data[::10])
         ]
         right_df = self.spark.createDataFrame(
             right_data, ["region", "product", "timestamp", "price"]
         )
-        right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["region", "product"])
+        right_tsdf = TSDF(
+            right_df, ts_col="timestamp", series_ids=["region", "product"]
+        )
 
         # Use low threshold to trigger skew detection and separation
         joiner = SkewAsOfJoiner(
@@ -148,7 +151,7 @@ class AdditionalCoverageTests(SparkTest):
             left_prefix="",
             right_prefix="right",
             skew_threshold=0.1,  # Low enough to detect ("US", "ProductA")
-            enable_salting=False
+            enable_salting=False,
         )
 
         result_df, result_schema = joiner(left_tsdf, right_tsdf)
@@ -167,8 +170,7 @@ class AdditionalCoverageTests(SparkTest):
         base_time = datetime(2024, 1, 1)
 
         left_data = [
-            (base_time + timedelta(minutes=i), f"A", f"val_{i}")
-            for i in range(5)
+            (base_time + timedelta(minutes=i), f"A", f"val_{i}") for i in range(5)
         ]
         left_df = self.spark.createDataFrame(
             left_data, ["timestamp", "symbol", "metric"]
@@ -178,10 +180,8 @@ class AdditionalCoverageTests(SparkTest):
         # Right has columns with "timestamp" in the name (should be excluded from null checking)
         # Also has regular value columns
         right_df = self.spark.createDataFrame(
-            [
-                (base_time, "A", base_time, 100.0, "event_1")
-            ],
-            ["timestamp", "symbol", "event_timestamp", "price", "event_id"]
+            [(base_time, "A", base_time, 100.0, "event_1")],
+            ["timestamp", "symbol", "event_timestamp", "price", "event_id"],
         )
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -193,16 +193,15 @@ class AdditionalCoverageTests(SparkTest):
         self.assertGreater(result_df.count(), 0)
 
         # Test that column without "timestamp" in name is checked for nulls
-        schema2 = StructType([
-            StructField("timestamp", TimestampType(), False),
-            StructField("symbol", StringType(), False),
-            StructField("ts", StringType(), True)  # Nullable column
-        ])
-        right_df2 = self.spark.createDataFrame(
+        schema2 = StructType(
             [
-                (base_time, "A", None)  # Null value in "ts" column
-            ],
-            schema=schema2
+                StructField("timestamp", TimestampType(), False),
+                StructField("symbol", StringType(), False),
+                StructField("ts", StringType(), True),  # Nullable column
+            ]
+        )
+        right_df2 = self.spark.createDataFrame(
+            [(base_time, "A", None)], schema=schema2  # Null value in "ts" column
         )
         right_tsdf2 = TSDF(right_df2, ts_col="timestamp", series_ids=["symbol"])
 
@@ -220,15 +219,13 @@ class AdditionalCoverageTests(SparkTest):
 
         # Create data with NO series columns (global time series)
         left_data = [
-            (base_time + timedelta(minutes=i), float(100 + i))
-            for i in range(10)
+            (base_time + timedelta(minutes=i), float(100 + i)) for i in range(10)
         ]
         left_df = self.spark.createDataFrame(left_data, ["timestamp", "value"])
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=[])
 
         right_data = [
-            (base_time + timedelta(minutes=i), float(200 + i))
-            for i in range(0, 10, 2)
+            (base_time + timedelta(minutes=i), float(200 + i)) for i in range(0, 10, 2)
         ]
         right_df = self.spark.createDataFrame(right_data, ["timestamp", "price"])
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=[])
@@ -249,7 +246,7 @@ class AdditionalCoverageTests(SparkTest):
             self.spark,
             skew_threshold=0.2,
             enable_salting=True,  # This triggers line 908-909 (salt on timestamp)
-            salt_buckets=5
+            salt_buckets=5,
         )
         skew_result, _ = skew_joiner(left_tsdf, right_tsdf)
         self.assertEqual(skew_result.count(), 10)
@@ -264,8 +261,7 @@ class AdditionalCoverageTests(SparkTest):
         base_time = datetime(2024, 1, 1, 10, 0)
 
         left_data = [
-            (base_time + timedelta(minutes=i), f"A", float(100 + i))
-            for i in range(20)
+            (base_time + timedelta(minutes=i), f"A", float(100 + i)) for i in range(20)
         ]
         left_df = self.spark.createDataFrame(
             left_data, ["timestamp", "symbol", "price"]
@@ -273,10 +269,7 @@ class AdditionalCoverageTests(SparkTest):
         left_tsdf = TSDF(left_df, ts_col="timestamp", series_ids=["symbol"])
 
         # Right DataFrame with ONLY series and timestamp columns (no value columns)
-        right_data = [
-            (base_time + timedelta(minutes=i), f"A")
-            for i in range(0, 20, 4)
-        ]
+        right_data = [(base_time + timedelta(minutes=i), f"A") for i in range(0, 20, 4)]
         right_df = self.spark.createDataFrame(right_data, ["timestamp", "symbol"])
         right_tsdf = TSDF(right_df, ts_col="timestamp", series_ids=["symbol"])
 
@@ -284,7 +277,7 @@ class AdditionalCoverageTests(SparkTest):
         joiner = SkewAsOfJoiner(
             self.spark,
             skipNulls=True,
-            skew_threshold=1.0  # Disable skew detection for simpler test
+            skew_threshold=1.0,  # Disable skew detection for simpler test
         )
         result_df, _ = joiner(left_tsdf, right_tsdf)
 
@@ -292,11 +285,7 @@ class AdditionalCoverageTests(SparkTest):
         self.assertEqual(result_df.count(), 20)
 
         # Test with skipNulls=False as well
-        joiner2 = SkewAsOfJoiner(
-            self.spark,
-            skipNulls=False,
-            skew_threshold=1.0
-        )
+        joiner2 = SkewAsOfJoiner(self.spark, skipNulls=False, skew_threshold=1.0)
         result_df2, _ = joiner2(left_tsdf, right_tsdf)
         self.assertEqual(result_df2.count(), 20)
 
@@ -326,15 +315,13 @@ class AdditionalCoverageTests(SparkTest):
 
         # Test with small bin size (60 seconds - default)
         joiner_small = BroadcastAsOfJoiner(
-            self.spark,
-            range_join_bin_size=60  # 60 seconds bin
+            self.spark, range_join_bin_size=60  # 60 seconds bin
         )
         result_small, _ = joiner_small(left_tsdf, right_tsdf)
 
         # Test with large bin size (300 seconds)
         joiner_large = BroadcastAsOfJoiner(
-            self.spark,
-            range_join_bin_size=300  # 300 seconds bin
+            self.spark, range_join_bin_size=300  # 300 seconds bin
         )
         result_large, _ = joiner_large(left_tsdf, right_tsdf)
 
@@ -343,8 +330,12 @@ class AdditionalCoverageTests(SparkTest):
         self.assertEqual(result_large.count(), 10)
 
         # Both should produce same results (bin size affects performance, not correctness)
-        small_non_null = result_small.filter(F.col("right_timestamp").isNotNull()).count()
-        large_non_null = result_large.filter(F.col("right_timestamp").isNotNull()).count()
+        small_non_null = result_small.filter(
+            F.col("right_timestamp").isNotNull()
+        ).count()
+        large_non_null = result_large.filter(
+            F.col("right_timestamp").isNotNull()
+        ).count()
 
         # Should have same number of matches regardless of bin size
         self.assertEqual(small_non_null, large_non_null)
@@ -364,20 +355,28 @@ class AdditionalCoverageTests(SparkTest):
                 (
                     (double_ts, ts, ts.isoformat()),  # timestamp struct
                     f"A",  # symbol
-                    float(100 + i)  # price
+                    float(100 + i),  # price
                 )
             )
 
         # Define schema with struct timestamp
-        left_schema = StructType([
-            StructField("ts_idx", StructType([
-                StructField("double_ts", DoubleType(), True),
-                StructField("parsed_ts", TimestampType(), True),
-                StructField("src_str", StringType(), True),
-            ]), True),
-            StructField("symbol", StringType(), True),
-            StructField("price", DoubleType(), True),
-        ])
+        left_schema = StructType(
+            [
+                StructField(
+                    "ts_idx",
+                    StructType(
+                        [
+                            StructField("double_ts", DoubleType(), True),
+                            StructField("parsed_ts", TimestampType(), True),
+                            StructField("src_str", StringType(), True),
+                        ]
+                    ),
+                    True,
+                ),
+                StructField("symbol", StringType(), True),
+                StructField("price", DoubleType(), True),
+            ]
+        )
 
         left_df = self.spark.createDataFrame(left_data, schema=left_schema)
 
@@ -388,7 +387,7 @@ class AdditionalCoverageTests(SparkTest):
             parsed_field="double_ts",
             src_str_field="src_str",
             secondary_parsed_field="parsed_ts",
-            series_ids=["symbol"]
+            series_ids=["symbol"],
         )
         left_tsdf = TSDF(left_df, ts_schema=left_ts_schema)
 
@@ -397,13 +396,7 @@ class AdditionalCoverageTests(SparkTest):
         for i in range(0, 10, 2):
             ts = base_time + timedelta(seconds=i)
             double_ts = ts.timestamp()
-            right_data.append(
-                (
-                    (double_ts, ts, ts.isoformat()),
-                    f"A",
-                    float(200 + i)
-                )
-            )
+            right_data.append(((double_ts, ts, ts.isoformat()), f"A", float(200 + i)))
 
         right_df = self.spark.createDataFrame(right_data, schema=left_schema)
         right_ts_schema = TSSchema.fromParsedTimestamp(
@@ -412,7 +405,7 @@ class AdditionalCoverageTests(SparkTest):
             parsed_field="double_ts",
             src_str_field="src_str",
             secondary_parsed_field="parsed_ts",
-            series_ids=["symbol"]
+            series_ids=["symbol"],
         )
         right_tsdf = TSDF(right_df, ts_schema=right_ts_schema)
 

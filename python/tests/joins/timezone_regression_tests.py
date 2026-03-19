@@ -10,7 +10,13 @@ from datetime import datetime, timezone
 import pytz
 
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    StringType,
+    DoubleType,
+    TimestampType,
+)
 
 from tests.base import SparkTest
 from tempo import TSDF
@@ -93,12 +99,12 @@ class TimezoneRegressionTest(SparkTest):
         # This simulates the fromStringTimestamp behavior
         left_df = left_df.withColumn(
             "timestamp",
-            F.to_timestamp("timestamp_str", "yyyy-MM-dd HH:mm:ss.SSSSSSSSS")
+            F.to_timestamp("timestamp_str", "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"),
         )
 
         right_df = right_df.withColumn(
             "timestamp",
-            F.to_timestamp("timestamp_str", "yyyy-MM-dd HH:mm:ss.SSSSSSSSS")
+            F.to_timestamp("timestamp_str", "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"),
         )
 
         # Create TSDFs
@@ -124,19 +130,18 @@ class TimezoneRegressionTest(SparkTest):
             ("S1", "2022-01-01T11:00:00.123456789Z", 101.0),
         ]
 
-        schema = StructType([
-            StructField("symbol", StringType(), True),
-            StructField("timestamp_str", StringType(), True),
-            StructField("value", DoubleType(), True)
-        ])
+        schema = StructType(
+            [
+                StructField("symbol", StringType(), True),
+                StructField("timestamp_str", StringType(), True),
+                StructField("value", DoubleType(), True),
+            ]
+        )
 
         left_df = self.spark.createDataFrame(left_data, schema)
 
         # Parse the ISO timestamp string
-        left_df = left_df.withColumn(
-            "timestamp",
-            F.to_timestamp("timestamp_str")
-        )
+        left_df = left_df.withColumn("timestamp", F.to_timestamp("timestamp_str"))
 
         right_data = [
             ("S1", "2022-01-01T09:30:00.123456789Z", 99.5),
@@ -144,10 +149,7 @@ class TimezoneRegressionTest(SparkTest):
         ]
 
         right_df = self.spark.createDataFrame(right_data, schema)
-        right_df = right_df.withColumn(
-            "timestamp",
-            F.to_timestamp("timestamp_str")
-        )
+        right_df = right_df.withColumn("timestamp", F.to_timestamp("timestamp_str"))
 
         # Create TSDFs with nanosecond precision
         # This would create composite indexes internally
@@ -172,7 +174,7 @@ class TimezoneRegressionTest(SparkTest):
     def test_different_timezone_conversion(self):
         """Test joining data from different timezones."""
         # Create left data in US/Eastern timezone
-        eastern = pytz.timezone('US/Eastern')
+        eastern = pytz.timezone("US/Eastern")
         left_data = [
             ("S1", eastern.localize(datetime(2022, 1, 1, 10, 0, 0)), 100.0),
             ("S1", eastern.localize(datetime(2022, 1, 1, 11, 0, 0)), 101.0),
@@ -182,7 +184,7 @@ class TimezoneRegressionTest(SparkTest):
         )
 
         # Create right data in US/Pacific timezone
-        pacific = pytz.timezone('US/Pacific')
+        pacific = pytz.timezone("US/Pacific")
         right_data = [
             # These times are actually simultaneous with left times when converted to UTC
             ("S1", pacific.localize(datetime(2022, 1, 1, 7, 0, 0)), 99.5),
@@ -230,10 +232,16 @@ class TimezoneRegressionTest(SparkTest):
         )
 
         # Create TSDFs - should handle nulls gracefully
-        left_tsdf = TSDF(left_df.filter(F.col("timestamp").isNotNull()),
-                        ts_col="timestamp", series_ids=["symbol"])
-        right_tsdf = TSDF(right_df.filter(F.col("timestamp").isNotNull()),
-                         ts_col="timestamp", series_ids=["symbol"])
+        left_tsdf = TSDF(
+            left_df.filter(F.col("timestamp").isNotNull()),
+            ts_col="timestamp",
+            series_ids=["symbol"],
+        )
+        right_tsdf = TSDF(
+            right_df.filter(F.col("timestamp").isNotNull()),
+            ts_col="timestamp",
+            series_ids=["symbol"],
+        )
 
         # Perform join
         joiner = BroadcastAsOfJoiner(self.spark)
@@ -246,7 +254,7 @@ class TimezoneRegressionTest(SparkTest):
         """Test handling of daylight saving time transitions."""
         # Create data around DST transition (Spring forward in US/Eastern)
         # March 13, 2022 at 2:00 AM -> 3:00 AM
-        eastern = pytz.timezone('US/Eastern')
+        eastern = pytz.timezone("US/Eastern")
 
         left_data = [
             # Before DST
@@ -293,5 +301,5 @@ class TimezoneRegressionTest(SparkTest):
                 self.assertEqual(
                     b_row["right_timestamp"],
                     u_row["right_timestamp"],
-                    f"Mismatch in DST handling between strategies"
+                    f"Mismatch in DST handling between strategies",
                 )

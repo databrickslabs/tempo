@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     List,
@@ -9,6 +10,9 @@ from typing import (
     Tuple,
     Union,
 )
+
+if TYPE_CHECKING:
+    from tempo.resample_result import ResampledTSDF
 
 import pyspark.sql.functions as sfn
 from pyspark.sql import DataFrame
@@ -419,7 +423,7 @@ def resample(
     prefix: Optional[str] = None,
     fill: Optional[bool] = None,
     perform_checks: bool = True,
-) -> t_tsdf.TSDF:
+) -> ResampledTSDF:
     """
     function to upsample based on frequency and aggregate function similar to pandas
 
@@ -446,13 +450,13 @@ def resample(
 
     enriched_df: DataFrame = aggregate(tsdf, freq, func, metricCols, prefix, fill)
 
-    # Import TSDF here to avoid circular import
+    # Import TSDF and ResampledTSDF here to avoid circular import
+    from tempo.resample_result import ResampledTSDF
     from tempo.tsdf import TSDF
 
-    return TSDF(
+    plain_tsdf = TSDF(
         enriched_df,
         ts_col=tsdf.ts_col,
         series_ids=tsdf.series_ids,
-        resample_freq=freq,
-        resample_func=func,
     )
+    return ResampledTSDF(plain_tsdf, resample_freq=freq, resample_func=func)

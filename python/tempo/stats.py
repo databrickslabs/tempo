@@ -294,16 +294,16 @@ def calc_bars(
     # - min/max compute column-wise (may mix values from different rows)
     resample_open = tsdf.resample(
         freq=freq, func="floor", metricCols=metric_cols, prefix="open", fill=fill
-    )
+    ).as_tsdf()
     resample_low = tsdf.resample(
         freq=freq, func="min", metricCols=metric_cols, prefix="low", fill=fill
-    )
+    ).as_tsdf()
     resample_high = tsdf.resample(
         freq=freq, func="max", metricCols=metric_cols, prefix="high", fill=fill
-    )
+    ).as_tsdf()
     resample_close = tsdf.resample(
         freq=freq, func="ceil", metricCols=metric_cols, prefix="close", fill=fill
-    )
+    ).as_tsdf()
 
     join_cols = resample_open.series_ids + [resample_open.ts_col]
     bars = (

@@ -8,91 +8,91 @@ from tempo.tsdf import TSDF
 from tests.base import SparkTest
 
 
-@parameterized_class(("data_type", "interpol_cols"),[
-    ('simple_ts_idx', ["open", "close"] ),
-    ('simple_ts_no_series', ["trade_pr"])
-])
+@parameterized_class(
+    ("data_type", "interpol_cols"),
+    [("simple_ts_idx", ["open", "close"]), ("simple_ts_no_series", ["trade_pr"])],
+)
 class InterpolationTests(SparkTest):
 
     def test_zero_fill(self):
         # load the initial & expected dataframes
-        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                            "init").as_tsdf()
-        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                                "expected").as_tsdf()
+        init_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "init"
+        ).as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "expected"
+        ).as_tsdf()
 
         # interpolate
-        actual_tsdf: TSDF = interpolate(init_tsdf,
-                                        self.interpol_cols,
-                                        zero_fill,
-                                        0,
-                                        0)
+        actual_tsdf: TSDF = interpolate(init_tsdf, self.interpol_cols, zero_fill, 0, 0)
         actual_tsdf.withNaturalOrdering().show()
 
         # compare
-        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
-                                     actual_tsdf.withNaturalOrdering())
+        self.assertDataFrameEquality(
+            expected_tsdf.withNaturalOrdering(), actual_tsdf.withNaturalOrdering()
+        )
 
     def test_linear(self):
         # load the initial & expected dataframes
-        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                            "init").as_tsdf()
-        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                                "expected").as_tsdf()
+        init_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "init"
+        ).as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "expected"
+        ).as_tsdf()
 
         # interpolate
         # Note: Linear interpolation behavior:
         # - Values between known points are linearly interpolated
         # - Values at the end with no following point are forward-filled with the last known value
         # - This is the default pandas behavior (limit_direction='forward')
-        actual_tsdf: TSDF = interpolate(init_tsdf,
-                                        self.interpol_cols,
-                                        "linear",
-                                        1,
-                                        1)
+        actual_tsdf: TSDF = interpolate(init_tsdf, self.interpol_cols, "linear", 1, 1)
         actual_tsdf.withNaturalOrdering().show()
 
         # compare
-        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
-                                     actual_tsdf.withNaturalOrdering())
+        self.assertDataFrameEquality(
+            expected_tsdf.withNaturalOrdering(), actual_tsdf.withNaturalOrdering()
+        )
 
     def test_forward_fill(self):
         # load the initial & expected dataframes
-        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                            "init").as_tsdf()
-        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                                "expected").as_tsdf()
+        init_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "init"
+        ).as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "expected"
+        ).as_tsdf()
 
         # interpolate
-        actual_tsdf: TSDF = interpolate(init_tsdf,
-                                        self.interpol_cols,
-                                        forward_fill,
-                                        1,
-                                        0)
+        actual_tsdf: TSDF = interpolate(
+            init_tsdf, self.interpol_cols, forward_fill, 1, 0
+        )
         actual_tsdf.withNaturalOrdering().show()
 
         # compare
-        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
-                                     actual_tsdf.withNaturalOrdering())
+        self.assertDataFrameEquality(
+            expected_tsdf.withNaturalOrdering(), actual_tsdf.withNaturalOrdering()
+        )
 
     def test_backward_fill(self):
         # load the initial & expected dataframes
-        init_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                            "init").as_tsdf()
-        expected_tsdf: TSDF = self.get_test_function_df_builder(self.data_type,
-                                                                "expected").as_tsdf()
+        init_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "init"
+        ).as_tsdf()
+        expected_tsdf: TSDF = self.get_test_function_df_builder(
+            self.data_type, "expected"
+        ).as_tsdf()
 
         # interpolate
-        actual_tsdf: TSDF = interpolate(init_tsdf,
-                                        self.interpol_cols,
-                                        backward_fill,
-                                        0,
-                                        1)
+        actual_tsdf: TSDF = interpolate(
+            init_tsdf, self.interpol_cols, backward_fill, 0, 1
+        )
         actual_tsdf.withNaturalOrdering().show()
 
         # compare
-        self.assertDataFrameEquality(expected_tsdf.withNaturalOrdering(),
-                                     actual_tsdf.withNaturalOrdering())
+        self.assertDataFrameEquality(
+            expected_tsdf.withNaturalOrdering(), actual_tsdf.withNaturalOrdering()
+        )
 
 
 # Add tests for non-numeric columns from PR-421
@@ -108,11 +108,7 @@ class NonNumericInterpolationTests(SparkTest):
         # Apply forward fill to all columns
         # Use leading_margin=1 to include previous values for forward fill
         result_tsdf = interpolate(
-            tsdf,
-            ["string_col", "bool_col", "int_col"],
-            "ffill",
-            1,
-            0
+            tsdf, ["string_col", "bool_col", "int_col"], "ffill", 1, 0
         )
 
         result_df = result_tsdf.df.orderBy("event_ts").collect()
@@ -138,11 +134,7 @@ class NonNumericInterpolationTests(SparkTest):
         # Apply backward fill to all columns
         # Use lagging_margin=1 to include next values for backward fill
         result_tsdf = interpolate(
-            tsdf,
-            ["string_col", "bool_col", "int_col"],
-            "bfill",
-            0,
-            1
+            tsdf, ["string_col", "bool_col", "int_col"], "bfill", 0, 1
         )
 
         result_df = result_tsdf.df.orderBy("event_ts").collect()
@@ -167,11 +159,7 @@ class NonNumericInterpolationTests(SparkTest):
 
         # Apply null fill
         result_tsdf = interpolate(
-            tsdf,
-            ["string_col", "bool_col", "int_col"],
-            "null",
-            0,
-            0
+            tsdf, ["string_col", "bool_col", "int_col"], "null", 0, 0
         )
 
         result_df = result_tsdf.df.orderBy("event_ts").collect()
@@ -226,11 +214,7 @@ class TSDBInterpolationTests(SparkTest):
         tsdf = self.get_test_function_df_builder("test_data").as_tsdf()
 
         # Test linear interpolation through TSDF method
-        result_tsdf = tsdf.interpolate(
-            method="linear",
-            freq="30 min",
-            func="mean"
-        )
+        result_tsdf = tsdf.interpolate(method="linear", freq="30 min", func="mean")
 
         result_df = result_tsdf.df.orderBy("event_ts").collect()
 
@@ -239,6 +223,26 @@ class TSDBInterpolationTests(SparkTest):
         self.assertAlmostEqual(result_df[1]["value_b"], 15.0)
         self.assertAlmostEqual(result_df[3]["value_a"], 2.5)
         self.assertAlmostEqual(result_df[3]["value_b"], 25.0)
+
+    def test_resample_then_interpolate_chain(self):
+        """Verify tsdf.resample(freq, func).interpolate(method) works and returns TSDF"""
+        from tempo.resample_result import ResampledTSDF
+
+        # Reuse existing test_tsdf_interpolate_method's test_data
+        tsdf = self.get_test_df_builder(
+            "TSDBInterpolationTests", "test_tsdf_interpolate_method", "test_data"
+        ).as_tsdf()
+
+        # Chained pattern: resample returns ResampledTSDF, then interpolate returns TSDF
+        resampled = tsdf.resample(freq="30 min", func="mean")
+        self.assertIsInstance(resampled, ResampledTSDF)
+
+        result_tsdf = resampled.interpolate(method="linear")
+        self.assertIsInstance(result_tsdf, TSDF)
+        self.assertNotIsInstance(result_tsdf, ResampledTSDF)
+
+        # Verify the result has data
+        self.assertGreater(result_tsdf.df.count(), 0)
 
 
 class InterpolHelperFunctionsTests(SparkTest):

@@ -39,17 +39,13 @@ class MockInterval:
 @pytest.fixture
 def test_data():
     """Fixture to create test dataframes"""
-    data1 = pd.DataFrame({
-        'time': [1, 2, 3],
-        'metric1': [10, 20, 30],
-        'metric2': [100, 200, 300]
-    })
+    data1 = pd.DataFrame(
+        {"time": [1, 2, 3], "metric1": [10, 20, 30], "metric2": [100, 200, 300]}
+    )
 
-    data2 = pd.DataFrame({
-        'time': [1, 2, 3],
-        'metric1': [1, 2, 3],
-        'metric2': [10, 20, 30]
-    })
+    data2 = pd.DataFrame(
+        {"time": [1, 2, 3], "metric1": [1, 2, 3], "metric2": [10, 20, 30]}
+    )
 
     return data1, data2
 
@@ -58,8 +54,8 @@ def test_data():
 def test_intervals(test_data):
     """Fixture to create mock intervals"""
     data1, data2 = test_data
-    interval1 = MockInterval(data1, ['metric1', 'metric2'])
-    interval2 = MockInterval(data2, ['metric1', 'metric2'])
+    interval1 = MockInterval(data1, ["metric1", "metric2"])
+    interval2 = MockInterval(data2, ["metric1", "metric2"])
     return interval1, interval2
 
 
@@ -68,8 +64,8 @@ def merge_config():
     """Fixture to create a merge config with test strategies"""
     config = MetricMergeConfig()
     strategy = TestMetricStrategy()
-    config.set_strategy('metric1', strategy)
-    config.set_strategy('metric2', strategy)
+    config.set_strategy("metric1", strategy)
+    config.set_strategy("metric2", strategy)
     return config
 
 
@@ -93,14 +89,14 @@ class TestMetricMerger:
         result = merger.merge(interval1, interval2)
 
         # The test strategy adds values, so we expect these sums
-        assert result['metric1'].tolist() == [11, 22, 33]
-        assert result['metric2'].tolist() == [110, 220, 330]
+        assert result["metric1"].tolist() == [11, 22, 33]
+        assert result["metric2"].tolist() == [110, 220, 330]
 
     def test_merge_different_metric_fields(self, test_data):
         """Test merging intervals with different metric fields"""
         data1, data2 = test_data
-        interval1 = MockInterval(data1, ['metric1', 'metric2'])
-        interval2 = MockInterval(data2, ['metric1'])
+        interval1 = MockInterval(data1, ["metric1", "metric2"])
+        interval2 = MockInterval(data2, ["metric1"])
 
         merger = MetricMerger()
 
@@ -115,15 +111,17 @@ class TestMetricMerger:
 
         config = MetricMergeConfig()
         failing_strategy = FailingMetricStrategy()
-        config.set_strategy('metric1', failing_strategy)
-        config.set_strategy('metric2', TestMetricStrategy())
+        config.set_strategy("metric1", failing_strategy)
+        config.set_strategy("metric2", TestMetricStrategy())
 
         merger = MetricMerger(config)
 
         with pytest.raises(ValueError) as excinfo:
             merger.merge(interval1, interval2)
 
-        assert "Strategy FailingMetricStrategy failed: Validation failed" in str(excinfo.value)
+        assert "Strategy FailingMetricStrategy failed: Validation failed" in str(
+            excinfo.value
+        )
 
     def test_apply_merge_strategy(self):
         """Test the _apply_merge_strategy static method"""
@@ -144,7 +142,9 @@ class TestMetricMerger:
         with pytest.raises(ValueError) as excinfo:
             MetricMerger._apply_merge_strategy(value1, value2, strategy)
 
-        assert "Strategy FailingMetricStrategy failed: Validation failed" in str(excinfo.value)
+        assert "Strategy FailingMetricStrategy failed: Validation failed" in str(
+            excinfo.value
+        )
 
 
 class TestDefaultMetricMerger:
@@ -162,5 +162,5 @@ class TestDefaultMetricMerger:
         result = merger.merge(interval1, interval2)
 
         # The test strategy adds values, so we expect these sums
-        assert result['metric1'].tolist() == [11, 22, 33]
-        assert result['metric2'].tolist() == [110, 220, 330]
+        assert result["metric1"].tolist() == [11, 22, 33]
+        assert result["metric2"].tolist() == [110, 220, 330]

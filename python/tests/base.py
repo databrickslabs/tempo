@@ -17,6 +17,7 @@ from tempo.tsdf import TSDF
 
 # helper functions
 
+
 def prefix_value(key: str, d: dict):
     # look for an exact match
     if key in d:
@@ -27,7 +28,9 @@ def prefix_value(key: str, d: dict):
             return d[k]
     return None
 
+
 # test classes
+
 
 class TestDataFrameBuilder:
     """
@@ -172,7 +175,9 @@ class TestDataFrameBuilder:
                 # handle nested columns
                 if "." in ts_col:
                     col, field = ts_col.split(".")
-                    convert_field_expr = self.to_timestamp_ntz_compat(sfn.col(col).getField(field))
+                    convert_field_expr = self.to_timestamp_ntz_compat(
+                        sfn.col(col).getField(field)
+                    )
                     df = df.withColumn(
                         col, sfn.col(col).withField(field, convert_field_expr)
                     )
@@ -200,7 +205,9 @@ class TestDataFrameBuilder:
                         col, sfn.col(col).withField(field, convert_field_expr)
                     )
                 else:
-                    df = df.withColumn(decimal_col, sfn.col(decimal_col).cast("decimal"))
+                    df = df.withColumn(
+                        decimal_col, sfn.col(decimal_col).cast("decimal")
+                    )
 
         return df
 
@@ -208,7 +215,15 @@ class TestDataFrameBuilder:
         """
         Parse a schema string that may contain struct types
         """
-        from pyspark.sql.types import DoubleType, FloatType, IntegerType, LongType, StringType, StructField, StructType
+        from pyspark.sql.types import (
+            DoubleType,
+            FloatType,
+            IntegerType,
+            LongType,
+            StringType,
+            StructField,
+            StructType,
+        )
 
         # This is a simplified parser - in production you'd want a more robust solution
         # For now, we'll manually handle the specific case we need
@@ -231,10 +246,14 @@ class TestDataFrameBuilder:
                 if "event_ts string" in struct_def:
                     struct_fields = [
                         StructField("event_ts", StringType(), True),
-                        StructField("parsed_ts", StringType(), True),  # Will be converted to timestamp later
-                        StructField("double_ts", DoubleType(), True)
+                        StructField(
+                            "parsed_ts", StringType(), True
+                        ),  # Will be converted to timestamp later
+                        StructField("double_ts", DoubleType(), True),
                     ]
-                    fields.append(StructField(field_name, StructType(struct_fields), True))
+                    fields.append(
+                        StructField(field_name, StructType(struct_fields), True)
+                    )
                 else:
                     # Generic struct handling would go here
                     pass
@@ -325,11 +344,7 @@ class SparkTest(unittest.TestCase):
         """
         try:
             # List of paths to clean up
-            cleanup_paths = [
-                "spark-warehouse",
-                "metastore_db",
-                "derby.log"
-            ]
+            cleanup_paths = ["spark-warehouse", "metastore_db", "derby.log"]
 
             for path in cleanup_paths:
                 if os.path.exists(path):
@@ -394,21 +409,22 @@ class SparkTest(unittest.TestCase):
         # Build file path from module path
         # For example: tests.join.test_strategies_integration -> join/test_strategies_integration
         # TODO: Remove this unittest-specific branch once pytest is fully adopted
-        if module_path.startswith('tests.'):
+        if module_path.startswith("tests."):
             # Running with unittest - remove 'tests.' prefix and replace dots with slashes
-            file_name = module_path[6:].replace('.', '/')
+            file_name = module_path[6:].replace(".", "/")
         else:
             # Running with pytest - module path might be truncated
             # Use inspect to get the actual file path
             import inspect
             import os
+
             test_file = inspect.getfile(self.__class__)
             # Extract path relative to tests/ directory
-            if '/tests/' in test_file:
+            if "/tests/" in test_file:
                 # Get everything after 'tests/'
-                relative_path = test_file.split('/tests/')[-1]
+                relative_path = test_file.split("/tests/")[-1]
                 # Remove .py extension
-                file_name = relative_path.replace('.py', '')
+                file_name = relative_path.replace(".py", "")
             else:
                 # Fallback to module name
                 file_name = module_path
@@ -455,13 +471,14 @@ class SparkTest(unittest.TestCase):
         elif cwd == "python":
             dir_path = "./tests"
         elif cwd != "tests":
-            raise RuntimeError(f"Cannot locate test dir, running from dir {os.getcwd()}")
+            raise RuntimeError(
+                f"Cannot locate test dir, running from dir {os.getcwd()}"
+            )
         return os.path.abspath(os.path.join(dir_path, cls.TEST_DATA_FOLDER))
 
     @classmethod
-    def getTestDataFilePath(cls, test_file_name: str, extension: str = '.json') -> str:
-        return os.path.join(cls.getTestDataDirPath(),
-                            f"{test_file_name}{extension}")
+    def getTestDataFilePath(cls, test_file_name: str, extension: str = ".json") -> str:
+        return os.path.join(cls.getTestDataDirPath(), f"{test_file_name}{extension}")
 
     def __loadTestData(self, file_name: str) -> dict:
         """
@@ -479,7 +496,7 @@ class SparkTest(unittest.TestCase):
 
         # proces the data file
         with open(test_data_filename) as f:
-            base_path = "file://"+ self.getTestDataDirPath() + "/"
+            base_path = "file://" + self.getTestDataDirPath() + "/"
             test_data = jsonref.load(f, base_uri=base_path)
 
         return test_data

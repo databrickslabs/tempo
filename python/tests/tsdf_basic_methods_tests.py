@@ -142,6 +142,5 @@ class TSDFBasicMethodsTests(SparkTest):
         self.assertIn("int", value_type.lower())
 
 
-
 if __name__ == "__main__":
     unittest.main()
