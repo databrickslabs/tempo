@@ -11,12 +11,12 @@ jobs:
   lint-and-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         fetch-depth: 0
         fetch-tags: true
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
       with:
         python-version: '3.10'
     - name: Setup development tools
@@ -44,12 +44,12 @@ jobs:
             dbr: 154
       fail-fast: false
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         fetch-depth: 0
         fetch-tags: true
     - name: Set up Python ${{ matrix.config.py }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
       with:
         python-version: ${{ matrix.config.py }}
     - name: Setup development tools
@@ -59,7 +59,7 @@ jobs:
       working-directory: ./python
       run: make test coverage-report DBR=${{ matrix.config.dbr }}
     - name: Publish test coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
       with:
           fail_ci_if_error: true
           files: ./python/coverage.xml
