@@ -1,106 +1,134 @@
-# Setup instructions
+# Contributing to Tempo
 
-We use `tox` and `pyenv` to manage developing and testing `tempo` across multiple Python versions and PySpark versions.
-`tox` is a testing tool that helps you automate and standardize testing in Python across multiple environments.
-`pyenv` allows you to manage multiple versions of Python on your computer and easily switch between them.
+## Quick Start
 
-## Pyenv setup
-
-Since `tox` supports creating virtual environments using multiple Python versions, it is recommended to use `pyenv` to manage Python versions on your computer.
-`pyenv` does not install via `pip` on all platforms, so see the [pyenv documentation](https://github.com/pyenv/pyenv#installation) for installation instructions. 
-Be sure to carefully follow the instructions to configure your shell environment to use `pyenv`, otherwise subsequent commands will not work as intended.
-
-Use `pyenv` to install the following Python versions for testing.
 ```bash
-pyenv install 3.9 3.10 3.11
+cd tempo/python
+make dev      # Sync the locked development environment
+make quality  # Format, lint, and type-check
+make test     # Run the unit test suite
 ```
 
-You will probably want to set one of these versions as your global Python version. This will be the version of Python that is used when you run `python` commands in your terminal.
-For example, to set Python 3.9 as your global Python version, run the following command:
+## Development Setup
+
+Tempo uses [uv](https://docs.astral.sh/uv/) to manage the Python interpreter,
+the locked virtual environment, and the build backend. uv also enforces the
+dependency lockdown for the project (every dependency is pinned with a
+cryptographic hash in `uv.lock`).
+
+### Prerequisites
+- [uv](https://docs.astral.sh/uv/) — `brew install uv`
+- `make`
+- A JDK (Java 8 recommended, to match the Databricks Runtime)
+
+You do **not** need to install Python yourself: uv downloads and manages the
+interpreter declared in `python/.python-version`.
+
+### Setup Instructions
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/databrickslabs/tempo.git
+   cd tempo/python
+   ```
+
+2. **Sync the development environment**
+   ```bash
+   make dev
+   ```
+   This creates `.venv` from `uv.lock` with every development dependency group
+   (test, lint, type-check, docs).
+
+## Running Tests
+
 ```bash
-pyenv global 3.9
+make test             # Run the unit + pytest suites under coverage
+make coverage-report  # Emit the coverage report and coverage.xml
 ```
 
-Within the `tempo/python` folder, run the below command to create a `.python-version` file that will tell `pyenv` which Python version to use when running commands in this directory:
+Select the Python interpreter for a run with `UV_PYTHON` (CI tests 3.9–3.11):
+
 ```bash
-pyenv local 3.9 3.10 3.11
+UV_PYTHON=3.10 make test
 ```
 
-This allows `tox` to create virtual environments using any of the Python versions listed in the `.python-version` file.
+### A note on the DBR matrix
 
-## Tox setup
+Tempo previously ran a test matrix that pinned a **different** Spark / numpy /
+pandas / pyarrow set for each Databricks Runtime (DBR 11.3 → 15.4), each on its
+own Python version, via Hatch environments.
 
-Install tox:
+That model does not translate cleanly to the supply-chain lockdown, which
+requires a single `uv.lock` where every dependency is pinned with a hash:
+
+- A single universal lock resolves each dependency group across the **whole**
+  supported Python range. The older DBRs pin old numpy/pandas/pyarrow whose
+  wheels do not exist on the newer Pythons in the matrix, which would force
+  per-dependency `python_version` markers scattered across five conflicting
+  groups — fragile and hard to review.
+- It is fundamentally at odds with the lockdown's "one cryptographically
+  verified dependency set per repository" intent.
+
+We therefore **lock the test stack to the latest supported LTS runtime
+(DBR 15.4: PySpark 3.5 / Python 3.11)** and preserve breadth through the
+**Python-version matrix (3.9, 3.10, 3.11)** in CI — matching the reference
+implementations (`blueprint`, `lsql`, `pytester`). If uv's support for
+conflicting dependency groups matures enough to express the full DBR matrix
+cleanly, this decision can be revisited.
+
+## Code Quality
+
 ```bash
-pip install -U tox
+make format      # Auto-format with black
+make lint        # Check formatting (black) and lint (flake8)
+make type-check  # Run mypy
+make quality     # format + lint + type-check
 ```
 
-A brief description of each managed `tox` environment can be found by running `tox list` or in the `tox.ini` file.
+The tempo project abides by [`black`](https://black.readthedocs.io/en/stable/index.html)
+formatting standards, and uses [`flake8`](https://flake8.pycqa.org/en/latest/)
+and [`mypy`](https://mypy.readthedocs.io/en/stable/) for style, type-checking,
+and common bad practices.
 
-## Create a development environment
-Each development environment is roughly associated with a DBR LTS version. A list of base environments can be found in your `tox.ini` file, but the number specified below is only the version number.
-Run the following command in your terminal to create a virtual environment (you can replace "your_dbr_number" with something like 154, 143, etc.):
-```bash
-make venv DBR={your_dbr_number}
-```
+### Module imports
 
-## Environments we test
-Use the following to run tests for a given environment. 
-```bash
-make test DBR={your_dbr_number}
-```
-
-If you would like to run tests for all environments, use
-```bash
-make test-all
-```
-
-### Run additional checks locally
-`tox` has special environments for additional checks that must be performed as part of the PR process. These include formatting, linting, type checking, etc.
-These environments are also defined in the `tox.ini`file and skip installing dependencies listed in the `requirements.txt` file and building the distribution when those are not required . They can be specified using the `-e` flag:
-* lint
-* type-check
-* build-dist
-* build-docs
-* coverage-report
-
-To run an individual check, use
-```bash
-make lint
-make type-check
-make {name_of_environment}
-```
-
-To run all checks at once, run
-```bash
-make all-local
-```
-# Code style & Standards
-
-The tempo project abides by [`black`](https://black.readthedocs.io/en/stable/index.html) formatting standards, 
-as well as using [`flake8`](https://flake8.pycqa.org/en/latest/) and [`mypy`](https://mypy.readthedocs.io/en/stable/) 
-to check for effective code style, type-checking and common bad practices.
-To test your code against these standards, run the following command:
-```bash
-tox -e lint, type-check
-```
-To have `black` automatically format your code, run the following command:
-```bash
-tox -e format
-```
-
-In addition, we apply some project-specific standards:
-
-## Module imports
-
-We organize import statements at the top of each module in the following order, each section being separated by a blank line:
+We organize import statements at the top of each module in the following order,
+each section separated by a blank line:
 1. Standard Python library imports
 2. Third-party library imports
 3. PySpark library imports
 4. Tempo library imports
 
-Within each section, imports are sorted alphabetically. While it is acceptable to directly import classes and some functions that are
-going to be commonly used, for the sake of readability, it is generally preferred to import a package with an alias and then use the alias
-to reference the package's classes and functions. 
+Within each section, imports are sorted alphabetically. While it is acceptable
+to directly import classes and some commonly used functions, for readability it
+is generally preferred to import a package with an alias. When importing
+`pyspark.sql.functions`, we use the convention to alias it as `sfn`.
 
-When importing `pyspark.sql.functions`, we use the convention to alias this package as `sfn`, which is both distinctive and short.
+## Building
+
+```bash
+make build-dist  # Build sdist + wheel (build backend pinned by hashes)
+make build-docs  # Build the Sphinx documentation
+make build       # build-dist + build-docs
+```
+
+## Managing dependencies
+
+Dependencies are locked in `python/uv.lock`, and the build backend (hatchling)
+is pinned with hashes in `python/.build-constraints.txt`. Whenever you change
+project dependencies in `pyproject.toml`, regenerate both:
+
+```bash
+make lock-dependencies
+```
+
+Commit the `pyproject.toml`, `uv.lock`, and `.build-constraints.txt` changes
+together. A PR that modifies `uv.lock` without a corresponding dependency change
+should be either an intentional refresh (state so in the description) or
+rejected. All newly locked third-party dependencies must be at least 7 days old.
+
+## Cleanup
+
+```bash
+make clean  # Remove the venv, caches, and build artifacts
+```
