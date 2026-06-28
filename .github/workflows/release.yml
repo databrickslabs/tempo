@@ -22,12 +22,18 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+      - name: Setup uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098  # v7.3.1
         with:
-          python-version: '3.10'
+          version: "0.11.2"
+          checksum: "7ac2ca0449c8d68dae9b99e635cd3bc9b22a4cb1de64b7c43716398447d42981"  # uv-x86_64-unknown-linux-gnu.tar.gz
 
-      - name: Setup development tools
+      # This job runs on an IT-managed runner, which is blocked from the public
+      # PyPI and developer proxies; route package installs through JFrog.
+      - name: Setup for JFrog
+        uses: ./.github/actions/jfrog-auth
+
+      - name: Setup development environment
         working-directory: ./python
         run: make setup
 
@@ -37,9 +43,10 @@ jobs:
 
       - name: Create tag
         id: create_tag
+        working-directory: ./python
         run: |
           # Extract version from version.py
-          VERSION=$(python -c "exec(open('./python/version.py').read()); print(__version__)")
+          VERSION=$(uv run --no-default-groups python -c "exec(open('version.py').read()); print(__version__)")
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           echo "Creating tag v${VERSION}"
 
