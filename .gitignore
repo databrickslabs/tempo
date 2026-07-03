@@ -38,6 +38,9 @@ venv
 .venv
 .env
 
+# developer-local Make overrides (e.g. an internal package index)
+local.mk
+
 # other misc ignore
 .DS_Store
 /docs/_build/

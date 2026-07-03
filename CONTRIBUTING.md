@@ -127,6 +127,23 @@ together. A PR that modifies `uv.lock` without a corresponding dependency change
 should be either an intentional refresh (state so in the description) or
 rejected. All newly locked third-party dependencies must be at least 7 days old.
 
+### Resolving behind a PyPI block
+
+Some environments cannot reach the public PyPI (for example a machine behind a
+supply-chain hosts blocklist). When `pypi.org` is unreachable, the `make`
+targets that need an index fall back to an internal index — but only if you
+configure one in a git-ignored `python/local.mk`:
+
+```make
+# python/local.mk (not committed)
+DATABRICKS_PYPI_PROXY := https://<your-internal-pypi-index>/simple/
+```
+
+Databricks developers can find the internal index URL in the internal package
+guidance. The fallback activates only while `pypi.org` is unreachable, and
+`make lock-dependencies` scrubs the committed `uv.lock` back to `pypi.org`, so
+the internal index never lands in the lockfile.
+
 ## Cleanup
 
 ```bash

@@ -10,6 +10,29 @@ export UV_FROZEN := 1
 # Pin the build backend (hatchling) with hashes when building distributions.
 export UV_BUILD_CONSTRAINT := .build-constraints.txt
 
+# Optional developer-local overrides (git-ignored), e.g. an internal package
+# index for environments that cannot reach the public PyPI. See CONTRIBUTING.md.
+-include local.mk
+
+# When a network target runs and public PyPI (pypi.org) is unreachable, fall
+# back to a developer-configured index (DATABRICKS_PYPI_PROXY, set in local.mk
+# or the environment) so uv can still resolve locally. This does nothing unless
+# that index is configured, so CI runners and external contributors reach the
+# public index and are unaffected. `lock-dependencies` scrubs the committed
+# uv.lock back to pypi.org, so a private index never leaks into the lockfile.
+# Export UV_DEFAULT_INDEX yourself to override the probe.
+NETWORK_GOALS := dev setup lock-dependencies build build-dist build-docs test coverage-report
+ifneq ($(filter $(NETWORK_GOALS),$(MAKECMDGOALS)),)
+ifndef UV_DEFAULT_INDEX
+ifneq ($(strip $(DATABRICKS_PYPI_PROXY)),)
+ifneq ($(shell curl -fsS -m 3 -o /dev/null https://pypi.org/simple/ 2>/dev/null && echo up),up)
+export UV_DEFAULT_INDEX := $(DATABRICKS_PYPI_PROXY)
+$(info make: public PyPI unreachable -- falling back to the developer-configured index.)
+endif
+endif
+endif
+endif
+
 # Run a tool inside an isolated dependency group (no project install needed for
 # pure source checks). Test/doc targets install the project explicitly.
 UV_LINT := uv run --no-project --no-default-groups
