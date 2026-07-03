@@ -4,13 +4,8 @@
 # build backend. See CONTRIBUTING.md for developer setup (`brew install uv`).
 SHELL := /bin/bash
 
-# Ensure uv never silently updates the lock file. If UV_FROZEN=1 (set by the
-# JFrog auth action on IT-managed runners) then UV_LOCKED must NOT be set;
-# otherwise we set it so the lock file only ever changes via an explicit
-# `make lock-dependencies`.
-ifneq ($(UV_FROZEN),1)
-export UV_LOCKED := 1
-endif
+# Ensure that all uv commands don't automatically update the lock file: instead they use the locked dependencies.
+export UV_FROZEN := 1
 
 # Pin the build backend (hatchling) with hashes when building distributions.
 export UV_BUILD_CONSTRAINT := .build-constraints.txt
@@ -103,15 +98,20 @@ build: build-dist build-docs
 	@echo "Build complete!"
 
 # Regenerate the lock file and the pinned build-backend constraints. This is the
-# only target permitted to update uv.lock, so UV_LOCKED is cleared here.
+# only target permitted to update uv.lock, so UV_FROZEN is cleared here.
 .PHONY: lock-dependencies
-lock-dependencies: UV_LOCKED :=
+lock-dependencies: UV_FROZEN := 0
 lock-dependencies:
 	@touch .build-constraints.txt
 	uv lock
 	uv run --no-default-groups --group yq tomlq -r '.["build-system"].requires[]' pyproject.toml | \
 		uv pip compile --generate-hashes --universal --no-header - > build-constraints-new.txt
 	mv build-constraints-new.txt .build-constraints.txt
+	@perl -pi \
+		-e 's|registry = "https://[^"]*"|registry = "https://pypi.org/simple"|g;' \
+		-e 's|url = "https://[^"]*/packages/([^"]*)"|url = "https://files.pythonhosted.org/packages/$$1"|g;' \
+		uv.lock
+	@printf 'Stripped registry references from uv.lock.\n'
 
 .PHONY: clean
 clean:
