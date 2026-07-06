@@ -23,9 +23,8 @@ coverage.xml
 *.pyc
 **/__pycache__
 
-## pyenv files
-.python-version
-python/.python-version
+# NOTE: .python-version is intentionally tracked (uv reads it to pick the
+# default interpreter); do not add it to this ignore list.
 
 ## tox files
 .tox
@@ -39,6 +38,9 @@ venv
 .venv
 .env
 .venv-*
+
+# developer-local Make overrides (e.g. an internal package index)
+local.mk
 
 # other misc ignore
 .DS_Store

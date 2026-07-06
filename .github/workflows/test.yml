@@ -5,68 +5,68 @@ on:
     types: [opened, synchronize]
   push:
     branches: ['master']
-  workflow_dispatch: 
+  workflow_dispatch:
+
+# Least-privilege default: jobs only read the repository.
+permissions:
+  contents: read
 
 jobs:
   lint-and-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         fetch-depth: 0
         fetch-tags: true
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Set up Java
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
       with:
-        python-version: '3.10'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install hatch 
-    - name: Lint check
+        distribution: temurin
+        java-version: '8'
+    - name: Setup uv
+      uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098  # v7.3.1
+      with:
+        version: "0.11.2"
+        checksum: "7ac2ca0449c8d68dae9b99e635cd3bc9b22a4cb1de64b7c43716398447d42981"  # uv-x86_64-unknown-linux-gnu.tar.gz
+    - name: Setup development environment
       working-directory: ./python
-      run: make lint LINT_PARAMS="-- --check --diff"
-    - name: Type check
+      run: make setup
+    - name: Run code quality checks (format, lint, type-check)
       working-directory: ./python
-      run: make type-check
+      run: make quality
 
   test:
     needs: lint-and-check
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        config:
-          - py: '3.9'
-            dbr: 113
-          - py: '3.9'
-            dbr: 122
-          - py: '3.10'
-            dbr: 133
-          - py: '3.10'
-            dbr: 143
-          - py: '3.11'
-            dbr: 154
+        python: ['3.9', '3.10', '3.11']
       fail-fast: false
+    env:
+      UV_PYTHON: "${{ matrix.python }}"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         fetch-depth: 0
         fetch-tags: true
-    - name: Set up Python ${{ matrix.config.py }}
-      uses: actions/setup-python@v5
+    - name: Set up Java
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
       with:
-        python-version: ${{ matrix.config.py }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install semver
-        python -m pip install hatch
-    - name: Execute hatch envs
+        distribution: temurin
+        java-version: '8'
+    - name: Setup uv
+      uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098  # v7.3.1
+      with:
+        version: "0.11.2"
+        checksum: "7ac2ca0449c8d68dae9b99e635cd3bc9b22a4cb1de64b7c43716398447d42981"  # uv-x86_64-unknown-linux-gnu.tar.gz
+    - name: Run tests
       working-directory: ./python
-      run: make test coverage-report DBR=${{ matrix.config.dbr }}
+      run: make test coverage-report
     - name: Publish test coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
       with:
-          fail_ci_if_error: true
-          files: ./python/coverage.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+        files: ./python/coverage.xml
+        # CODECOV_TOKEN is an org-level secret; scoped to this step only.
+        token: ${{ secrets.CODECOV_TOKEN }}
