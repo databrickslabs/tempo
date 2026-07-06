@@ -1,11 +1,17 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
+# Dependabot configuration.
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# The `github-actions` ecosystem is intentionally NOT enabled: actions are
+# pinned to commit SHAs and must stay frozen at releases published before the
+# cutoff until central guidance allows updates.
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "/"
+  - package-ecosystem: "uv"
+    directory: "/python"
+    cooldown:
+      # Newly published releases must age before Dependabot proposes them.
+      default-days: 7
+      exclude:
+        - "databricks*"
     schedule:
-      interval: "weekly"
+      interval: "daily"
