@@ -1,452 +1,142 @@
-# Check if pyenv is available and add shims to PATH if needed
+# Tempo developer & CI toolchain, driven by uv.
+#
+# uv manages the Python interpreter, the locked virtual environment, and the
+# build backend. See CONTRIBUTING.md for developer setup (`brew install uv`).
 SHELL := /bin/bash
-PYENV_ROOT ?= $(HOME)/.pyenv
-export PATH := $(PYENV_ROOT)/shims:$(PYENV_ROOT)/bin:$(PATH)
 
-# Map the desired dbr version to that LTS version of python
-PYTHON_DBR154=python3.11
-PYTHON_DBR143=python3.10
-PYTHON_DBR133=python3.10
-PYTHON_DBR122=python3.9
-PYTHON_DBR113=python3.9
+# Ensure that all uv commands don't automatically update the lock file: instead they use the locked dependencies.
+export UV_FROZEN := 1
 
-# All DBR versions use Java 8 to match Databricks Runtime environments
-JAVA_VERSION=8.0.422-zulu
-# SDKMAN Java path
-SDKMAN_DIR ?= $(HOME)/.sdkman
-JAVA_HOME_TARGET=$(SDKMAN_DIR)/candidates/java/$(JAVA_VERSION)
+# Pin the build backend (hatchling) with hashes when building distributions.
+export UV_BUILD_CONSTRAINT := .build-constraints.txt
 
-# Default to 154 for now
-DBR ?= 154
-TEST_ENVS = dbr154,dbr143,dbr133,dbr122,dbr113
-PYTHON_VERSION=$(PYTHON_DBR$(DBR))
+# Optional developer-local overrides (git-ignored), e.g. an internal package
+# index for environments that cannot reach the public PyPI. See CONTRIBUTING.md.
+-include local.mk
 
-# Virtual environment path. Hopefully can use this to manage venvs a bit better once we remove tox
-VENV_DIR=.venv
-VENV=$(VENV_DIR)/dbr$(DBR)
-COVERAGE_FILE=.coverage.dbr$(DBR)
+# When a network target runs and public PyPI (pypi.org) is unreachable, fall
+# back to a developer-configured index (DATABRICKS_PYPI_PROXY, set in local.mk
+# or the environment) so uv can still resolve locally. This does nothing unless
+# that index is configured, so CI runners and external contributors reach the
+# public index and are unaffected. `lock-dependencies` scrubs the committed
+# uv.lock back to pypi.org, so a private index never leaks into the lockfile.
+# Export UV_DEFAULT_INDEX yourself to override the probe.
+NETWORK_GOALS := dev setup lock-dependencies build build-dist build-docs test coverage-report
+ifneq ($(filter $(NETWORK_GOALS),$(MAKECMDGOALS)),)
+ifndef UV_DEFAULT_INDEX
+ifneq ($(strip $(DATABRICKS_PYPI_PROXY)),)
+ifneq ($(shell curl -fsS -m 3 -o /dev/null https://pypi.org/simple/ 2>/dev/null && echo up),up)
+export UV_DEFAULT_INDEX := $(DATABRICKS_PYPI_PROXY)
+$(info make: public PyPI unreachable -- falling back to the developer-configured index.)
+endif
+endif
+endif
+endif
 
-# Load version constraints
--include .env.versions
+# Run a tool inside an isolated dependency group (no project install needed for
+# pure source checks). Test/doc targets install the project explicitly.
+UV_LINT := uv run --no-project --no-default-groups
+# Run a tool with the project installed and the `test` group (Spark stack).
+UV_TEST := uv run --no-default-groups --group test
 
-# Default target
+.DEFAULT_GOAL := help
+
 .PHONY: help
 help:
-	@echo "Makefile for managing test environments"
+	@echo "Tempo Makefile (uv-based)"
 	@echo ""
-	@echo "Usage:"
-	@echo "  make init                  Complete setup for new developers (recommended)"
-	@echo "  make status                Quick status check"
-	@echo "  make doctor                Run comprehensive environment health check"
-	@echo "  make check-env             Check Python and Java environment setup"
-	@echo "  make venv                  Create virtual environment for newest, supported DBR version"
-	@echo "  make venv DBR=<version>    Create virtual environment for a specific DBR version"
+	@echo "Setup:"
+	@echo "  make dev               Sync the locked development environment"
+	@echo "  make setup             Alias for 'make dev' (used by CI)"
+	@echo ""
+	@echo "Code quality:"
+	@echo "  make lint              Check formatting (black) and lint (flake8)"
+	@echo "  make format            Auto-format the code with black"
+	@echo "  make type-check        Run mypy"
+	@echo "  make quality           format + lint + type-check"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test                  Run tests for the newest, supported DBR version"
-	@echo "  make test DBR=<version>    Run tests for a specific DBR version"
-	@echo "  make test-all              Run tests for all supported DBR versions"
-	@echo "  make coverage-report       Generate test coverage report (requires test run first)"
-	@echo ""
-	@echo "Code Quality:"
-	@echo "  make quality               Run all code quality checks (format + lint + type-check)"
-	@echo "  make lint                  Run linters"
-	@echo "  make format                Format code with Black"
-	@echo "  make type-check            Run type checks"
+	@echo "  make test              Run the unit test suite under coverage"
+	@echo "  make coverage-report   Emit the coverage report and coverage.xml"
 	@echo ""
 	@echo "Build:"
-	@echo "  make build                 Build distribution and documentation"
-	@echo "  make build-dist            Build distribution only"
-	@echo "  make build-docs            Build documentation only"
+	@echo "  make build-dist        Build sdist + wheel (hash-pinned backend)"
+	@echo "  make build-docs        Build the Sphinx documentation"
+	@echo "  make build             build-dist + build-docs"
 	@echo ""
-	@echo "Complete CI:"
-	@echo "  make ci                    Run complete CI pipeline (quality + test-all + build + coverage)"
-	@echo "  make all                   Alias for 'make ci'"
-	@echo ""
-	@echo "Cleanup:"
-	@echo "  make clean                 Remove all generated files"
-	@echo "  make deep-clean            Remove everything (venvs, caches, artifacts)"
-	@echo ""
-	@echo "Available Environment Versions:"
-	@echo "  154 - Python 3.11, Java 8 (default)"
-	@echo "  143 - Python 3.10, Java 8"
-	@echo "  133 - Python 3.10, Java 8"
-	@echo "  122 - Python 3.9, Java 8"
-	@echo "  113 - Python 3.9, Java 8"
-	@echo ""
-	@echo "Environment Management:"
-	@echo "  - Python versions: uses system Python if available, otherwise installs pyenv"
-	@echo "  - Java 8 (Zulu) managed via SDKMAN"
-	@echo "  - All DBR versions use Java 8 to match Databricks Runtime"
-	@echo ""
+	@echo "Maintenance:"
+	@echo "  make lock-dependencies Regenerate uv.lock and .build-constraints.txt"
+	@echo "  make clean             Remove caches and build artifacts"
 
-# Setup development environment
+# Sync the locked development environment (all dev dependency groups).
+.PHONY: dev
+dev:
+	uv sync
+
+# Alias used by the CI workflows.
 .PHONY: setup
-setup:
-	@echo "Setting up development environment..."
-	@if [ -f .env.versions ]; then \
-		. .env.versions && \
-		python -m pip install --upgrade pip --quiet && \
-		$${HATCH_INSTALL_CMD} --quiet && \
-		echo "Development tools installed successfully"; \
-	else \
-		echo "ERROR: .env.versions file not found"; \
-		exit 1; \
-	fi
+setup: dev
 
-# Complete initialization for new developers - one command to set up everything
-.PHONY: init
-init:
-	@echo " Initializing complete development environment..."
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@$(MAKE) setup
-	@echo ""
-	@$(MAKE) check-env
-	@echo ""
-	@echo " Creating default virtual environment..."
-	@$(MAKE) venv
-	@echo ""
-	@echo " Running smoke test..."
-	@$(MAKE) lint 2>&1 | head -5
-	@echo ""
-	@echo " Development environment initialization complete!"
-	@echo ""
-	@echo " Next steps:"
-	@echo "  1. Review CONTRIBUTING.md for detailed documentation"
-	@echo "  2. Run 'make test' to run tests"
-	@echo "  3. Run 'make help' to see all available commands"
-
-# Quick status check
-.PHONY: status
-status:
-	@# Check development tools
-	@if [ -f .env.versions ]; then \
-		. .env.versions && \
-		if command -v hatch >/dev/null 2>&1; then \
-			HATCH_VER=$$(hatch --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \
-			if [ "$${HATCH_VER}" = "$${HATCH_VERSION}" ]; then \
-				echo "Development tools: OK"; \
-			else \
-				echo "Development tools: needs update (run 'make setup')"; \
-			fi; \
-		else \
-			echo "Development tools: not installed (run 'make setup')"; \
-		fi; \
-	else \
-		echo "Development tools: config missing"; \
-	fi
-	@# Check Java
-	@if [ -d "$(JAVA_HOME_TARGET)" ]; then \
-		echo "Java 8: OK"; \
-	else \
-		echo "Java 8: not installed"; \
-	fi
-	@# Check virtual environments
-	@if [ -d "${VENV_DIR}" ]; then \
-		COUNT=$$(ls -1 ${VENV_DIR} | wc -l | tr -d ' '); \
-		echo "Virtual environments: $${COUNT}"; \
-	else \
-		echo "Virtual environments: none (run 'make venv')"; \
-	fi
-
-# Comprehensive environment health check
-.PHONY: doctor
-doctor:
-	@echo " Running comprehensive environment health check..."
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo ""
-	@echo " System Information:"
-	@echo "  OS: $$(uname -s) $$(uname -m)"
-	@echo "  Shell: $$SHELL"
-	@echo "  User: $$USER"
-	@echo ""
-	@echo " Python Status:"
-	@which python >/dev/null 2>&1 && echo "   python: $$(which python) ($$(python --version 2>&1))" || echo "   python: not found"
-	@which python3 >/dev/null 2>&1 && echo "   python3: $$(which python3) ($$(python3 --version 2>&1))" || echo "   python3: not found"
-	@echo ""
-	@$(MAKE) check-deps 2>&1 | sed 's/^/  /'
-	@echo ""
-	@echo " Java Status:"
-	@if [ -d "$(JAVA_HOME_TARGET)" ]; then \
-		echo "   Java 8 installed at $(JAVA_HOME_TARGET)"; \
-	else \
-		echo "    Java 8 not installed (will be installed when needed)"; \
-	fi
-	@echo ""
-	@echo " Virtual Environments:"
-	@if [ -d "${VENV_DIR}" ]; then \
-		for env in ${VENV_DIR}/*; do \
-			if [ -d "$$env" ]; then \
-				echo "   $$(basename $$env)"; \
-			fi; \
-		done; \
-	else \
-		echo "    No virtual environments found"; \
-	fi
-	@echo ""
-	@echo " Diagnosis Complete"
-	@if command -v hatch >/dev/null 2>&1; then \
-		echo "   Environment is healthy"; \
-	else \
-		echo "    Issues detected - run 'make init' to fix"; \
-	fi
-
-# Run all code quality checks (format + lint + type-check)
-.PHONY: quality
-quality: format lint type-check
-	@echo "✅ All quality checks passed!"
-
-
-# Deep clean - remove everything including venvs
-.PHONY: deep-clean
-deep-clean: clean
-	@echo " Deep cleaning - removing all artifacts..."
-	@rm -rf ${VENV_DIR}/
-	@rm -rf .tox/
-	@rm -rf __pycache__/
-	@rm -rf .pytest_cache/
-	@rm -rf .mypy_cache/
-	@rm -rf .coverage*
-	@rm -rf htmlcov/
-	@rm -rf dist/
-	@rm -rf build/
-	@rm -rf *.egg-info/
-	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	@find . -type f -name "*.pyo" -delete 2>/dev/null || true
-	@echo " Deep clean complete!"
-
-# Check if Java 8 is available and install if needed
-.PHONY: check-java
-check-java:
-	@# Check if SDKMAN is installed
-	@if [ ! -f "$(SDKMAN_DIR)/bin/sdkman-init.sh" ]; then \
-		echo "SDKMAN not found. Installing SDKMAN..."; \
-		curl -s "https://get.sdkman.io" | bash; \
-	fi
-	@# Source SDKMAN and check for Java 8
-	@if [ ! -d "$(JAVA_HOME_TARGET)" ]; then \
-		echo "Installing Zulu OpenJDK 8 via SDKMAN..."; \
-		bash -c "source $(SDKMAN_DIR)/bin/sdkman-init.sh && sdk install java $(JAVA_VERSION)"; \
-	fi
-	@# Verify Java installation
-	@if [ -d "$(JAVA_HOME_TARGET)" ]; then \
-		export JAVA_HOME=$(JAVA_HOME_TARGET) && \
-		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		echo "Java version check:" && \
-		$(JAVA_HOME_TARGET)/bin/java -version && \
-		echo "JAVA_HOME set to: $(JAVA_HOME_TARGET)"; \
-	else \
-		echo "Warning: Java 8 installation may have failed. Using system Java."; \
-		java -version 2>/dev/null || echo "No Java found!"; \
-	fi
-
-# Check if required Python version for current DBR is available, install pyenv if needed
-.PHONY: check-python
-check-python:
-	@echo "Checking Python environment for DBR $(DBR)..."
-	@REQUIRED_PYTHON=$(PYTHON_DBR$(DBR)); \
-	if command -v $$REQUIRED_PYTHON >/dev/null 2>&1; then \
-		echo "Required Python version ($$REQUIRED_PYTHON) found in system"; \
-		echo "Using system Python: $$(which $$REQUIRED_PYTHON)"; \
-	elif command -v pyenv >/dev/null 2>&1; then \
-		echo "pyenv is available at: $$(which pyenv)"; \
-		echo "Using pyenv for Python version management"; \
-	else \
-		echo "Required Python version ($$REQUIRED_PYTHON) not found in system and pyenv not installed"; \
-		echo "Installing pyenv..."; \
-		curl https://pyenv.run | bash; \
-		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
-		eval "$$(pyenv init -)"; \
-		echo "Configuring shell for pyenv..."; \
-		if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-			echo 'export PATH="$$HOME/.pyenv/bin:$$PATH"' >> ~/.zshrc; \
-			echo 'eval "$$(pyenv init -)"' >> ~/.zshrc; \
-			echo "Added pyenv configuration to ~/.zshrc"; \
-		elif [ "$$SHELL" = "/bin/bash" ] || [ "$$SHELL" = "/usr/bin/bash" ]; then \
-			echo 'export PATH="$$HOME/.pyenv/bin:$$PATH"' >> ~/.bashrc; \
-			echo 'eval "$$(pyenv init -)"' >> ~/.bashrc; \
-			echo "Added pyenv configuration to ~/.bashrc"; \
-		else \
-			echo "Unknown shell ($$SHELL). Please manually add the following to your shell config:"; \
-			echo '  export PATH="$$HOME/.pyenv/bin:$$PATH"'; \
-			echo '  eval "$$(pyenv init -)"'; \
-		fi; \
-		echo "pyenv installed successfully"; \
-	fi
-
-# Check dependencies (hatch version)
-.PHONY: check-deps
-check-deps:
-	@echo "Checking development dependencies..."
-	@if [ -f .env.versions ]; then \
-		. .env.versions && \
-		echo "Expected versions from .env.versions:" && \
-		echo "  - hatch: $${HATCH_VERSION}" && \
-		echo "" && \
-		if command -v hatch >/dev/null 2>&1; then \
-			INSTALLED_HATCH=$$(hatch --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+') && \
-			echo "Installed hatch: $${INSTALLED_HATCH}" && \
-			if [ "$${INSTALLED_HATCH}" != "$${HATCH_VERSION}" ]; then \
-				echo "  Warning: hatch version mismatch! Expected $${HATCH_VERSION}, got $${INSTALLED_HATCH}"; \
-				echo "  Run 'make setup' to install the correct version"; \
-			else \
-				echo " Hatch version is correct"; \
-			fi; \
-		else \
-			echo " hatch not found! Run 'make setup' to install"; \
-		fi; \
-	else \
-		echo " Error: .env.versions file not found"; \
-		echo "  Cannot verify dependency versions"; \
-	fi
-
-# Check both Python, Java environments, and dependencies
-.PHONY: check-env
-check-env: check-python check-java check-deps
-
-# Setup Python version for current DBR using either system Python or pyenv
-.PHONY: setup-python-versions
-setup-python-versions:
-	@echo "Setting up Python version for DBR $(DBR)..."
-	@REQUIRED_PYTHON=$(PYTHON_DBR$(DBR)); \
-	PYTHON_VERSION=$${REQUIRED_PYTHON#python}; \
-	if command -v $$REQUIRED_PYTHON >/dev/null 2>&1; then \
-		echo "Using system Python: $$(which $$REQUIRED_PYTHON)"; \
-	elif command -v pyenv >/dev/null 2>&1; then \
-		echo "Using pyenv to install and configure Python $$PYTHON_VERSION"; \
-		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
-		eval "$$(pyenv init -)"; \
-		(pyenv versions | grep -q " $$PYTHON_VERSION" || (echo "Installing Python $$PYTHON_VERSION..." && pyenv install $$PYTHON_VERSION)); \
-		pyenv local $$PYTHON_VERSION; \
-	else \
-		echo "Error: Required Python version ($$REQUIRED_PYTHON) not available and pyenv not found"; \
-		exit 1; \
-	fi
-
-# Setup all Python versions for test-all target
-.PHONY: setup-all-python-versions
-setup-all-python-versions:
-	@echo "Setting up all Python versions for test-all..."
-	@if command -v python3.9 >/dev/null 2>&1 && command -v python3.10 >/dev/null 2>&1 && command -v python3.11 >/dev/null 2>&1; then \
-		echo "All required Python versions (3.9, 3.10, 3.11) found in system"; \
-		echo "Using system Python versions"; \
-	elif command -v pyenv >/dev/null 2>&1; then \
-		echo "Using pyenv to install and configure all Python versions"; \
-		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
-		eval "$$(pyenv init -)"; \
-		(pyenv versions | grep -q " 3.9" || (echo "Installing Python 3.9..." && pyenv install 3.9)); \
-		(pyenv versions | grep -q " 3.10" || (echo "Installing Python 3.10..." && pyenv install 3.10)); \
-		(pyenv versions | grep -q " 3.11" || (echo "Installing Python 3.11..." && pyenv install 3.11)); \
-		pyenv local 3.9 3.10 3.11; \
-	else \
-		echo "Error: Python versions not available and pyenv not found"; \
-		echo "Installing pyenv..."; \
-		curl https://pyenv.run | bash; \
-		export PATH="$$HOME/.pyenv/bin:$$PATH"; \
-		eval "$$(pyenv init -)"; \
-		echo "Installing required Python versions..."; \
-		pyenv install 3.9; \
-		pyenv install 3.10; \
-		pyenv install 3.11; \
-		pyenv local 3.9 3.10 3.11; \
-	fi
-
-# Create virtual environment if it doesn't exist
-# Ensure the virtual environment is created
-.PHONY: create-env
-venv: check-env
-	@echo "Creating virtual environment for DBR $(DBR)..."
-	@$(MAKE) setup-python-versions
-	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
-		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		hatch shell dbr${DBR}
-
-# Run specific environment tests
-.PHONY: test
-test: check-env
-	@echo "Running tests in DBR $(DBR)..."
-	@$(MAKE) setup-python-versions
-	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
-		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		hatch run dbr${DBR}:test
-
-.PHONY: test-all
-test-all: check-java
-	@echo "Running tests for all DBR versions..."
-	@$(MAKE) setup-all-python-versions
-	export JAVA_HOME=$(JAVA_HOME_TARGET) && \
-		export PATH=$(JAVA_HOME_TARGET)/bin:$$PATH && \
-		for env in dbr154 dbr143 dbr133 dbr122 dbr113; do \
-			echo "Testing $$env..." && \
-			hatch run $$env:test || exit 1; \
-		done
-	@echo "✅ All tests passed!"
-
-# Run linters
 .PHONY: lint
 lint:
-	@echo "Running linters..."
-	hatch run lint:runLint
+	$(UV_LINT) --group lint black --check --diff ./tempo
+	$(UV_LINT) --group lint flake8 --config ./.flake8 ./tempo
 
-# Format code with Black
 .PHONY: format
 format:
-	@echo "Formatting code with Black..."
-	hatch run lint:formatBlack
+	$(UV_LINT) --group lint black ./tempo ./tests
 
-# Run type checks
 .PHONY: type-check
 type-check:
-	@echo "Running type checks..."
-	hatch run type-check:check
+	$(UV_LINT) --group type-check mypy --install-types --non-interactive ./tempo
 
-# Build distribution
-.PHONY: build-dist
-build-dist: 
-	@echo "Building distribution..."
-	hatch run build-dist:build
+.PHONY: quality
+quality: format lint type-check
+	@echo "All quality checks passed!"
 
-# Build documentation
-.PHONY: build-docs
-build-docs:
-	@echo "Building documentation..."
-	hatch run build-docs:build
+# Run the unit tests under coverage. The project must be installed, so this uses
+# the `test` group (which includes the Spark stack) with the project.
+.PHONY: test
+test:
+	$(UV_TEST) coverage erase
+	$(UV_TEST) coverage run -m unittest discover -s tests -p '*_tests.py'
 
-# Combine coverage data and generate report
 .PHONY: coverage-report
 coverage-report:
-	@if [ ! -f .coverage ] && ! ls .coverage.* 1> /dev/null 2>&1; then \
-		echo "Error: No coverage data found (.coverage file missing)"; \
-		echo "Run tests first with: make test or make test-all"; \
-		exit 1; \
-	fi
-	@if ls .coverage.* 1> /dev/null 2>&1 && [ ! -f .coverage ]; then \
-		echo "Combining parallel coverage files..."; \
-		hatch run coverage-report:coverage combine; \
-	fi
-	@echo "Generating coverage report..."
-	hatch run coverage-report:run-coverage
-	@echo "✅ Coverage report generated!"
+	$(UV_TEST) coverage report -m
+	$(UV_TEST) coverage xml
 
+# Build the distribution with the build backend pinned by hashes.
+.PHONY: build-dist
+build-dist:
+	uv build --require-hashes --build-constraints=.build-constraints.txt
 
-# Build both distribution and documentation
+# Sphinx autodoc imports tempo, so the docs build needs the Spark stack too.
+.PHONY: build-docs
+build-docs:
+	uv run --no-default-groups --group docs --group test $(MAKE) --directory ../docs html
+
 .PHONY: build
 build: build-dist build-docs
-	@echo "✅ Build complete!"
+	@echo "Build complete!"
 
-# Run complete CI pipeline
-.PHONY: ci
-ci: quality test-all build coverage-report
-	@echo "✅ Complete CI pipeline passed!"
+# Regenerate the lock file and the pinned build-backend constraints. This is the
+# only target permitted to update uv.lock, so UV_FROZEN is cleared here.
+.PHONY: lock-dependencies
+lock-dependencies: UV_FROZEN := 0
+lock-dependencies:
+	@touch .build-constraints.txt
+	uv lock
+	uv run --no-default-groups --group yq tomlq -r '.["build-system"].requires[]' pyproject.toml | \
+		uv pip compile --generate-hashes --universal --no-header - > build-constraints-new.txt
+	mv build-constraints-new.txt .build-constraints.txt
+	@perl -pi \
+		-e 's|registry = "https://[^"]*"|registry = "https://pypi.org/simple"|g;' \
+		-e 's|url = "https://[^"]*/packages/([^"]*)"|url = "https://files.pythonhosted.org/packages/$$1"|g;' \
+		uv.lock
+	@printf 'Stripped registry references from uv.lock.\n'
 
-# Alias for ci
-.PHONY: all
-all: ci
-
-# Clean virtual environments and build artifacts
 .PHONY: clean
 clean:
-	@echo "Cleaning up..."
-	rm -rf $(VENV_DIR)
-	rm -rf .coverage .coverage.* build dist
+	rm -rf .venv htmlcov .mypy_cache .pytest_cache .ruff_cache .coverage .coverage.* coverage.xml build dist
+	find . -name '__pycache__' -type d -prune -print0 | xargs -0 rm -rf
