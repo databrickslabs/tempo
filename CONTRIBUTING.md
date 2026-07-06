@@ -42,7 +42,7 @@ interpreter declared in `python/.python-version`.
 ## Running Tests
 
 ```bash
-make test             # Run the unit + pytest suites under coverage
+make test             # Run the unit tests under coverage
 make coverage-report  # Emit the coverage report and coverage.xml
 ```
 

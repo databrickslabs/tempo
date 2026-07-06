@@ -42,6 +42,9 @@ venv
 # developer-local Make overrides (e.g. an internal package index)
 local.mk
 
+# developer-local Make overrides (e.g. an internal package index)
+local.mk
+
 # other misc ignore
 .DS_Store
 /docs/_build/

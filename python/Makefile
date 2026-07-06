@@ -94,14 +94,12 @@ type-check:
 quality: format lint type-check
 	@echo "All quality checks passed!"
 
-# Run the unit + pytest suites under coverage. Each runner writes a partial
-# coverage file (--parallel-mode) which `coverage combine` merges into .coverage.
+# Run the unit tests under coverage. The project must be installed, so this uses
+# the `test` group (which includes the Spark stack) with the project.
 .PHONY: test
 test:
 	$(UV_TEST) coverage erase
-	$(UV_TEST) coverage run --parallel-mode -m unittest discover -s tests -p '*_tests.py'
-	$(UV_TEST) coverage run --parallel-mode -m pytest tests/ -v --ignore=__pycache__
-	$(UV_TEST) coverage combine
+	$(UV_TEST) coverage run -m unittest discover -s tests -p '*_tests.py'
 
 .PHONY: coverage-report
 coverage-report:
