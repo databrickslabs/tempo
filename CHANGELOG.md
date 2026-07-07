@@ -1,107 +1,188 @@
 # Changelog
 
-All notable changes to Tempo will be documented in this file.
+All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [0.2.0] - 2026-07-07
 
-## [Unreleased]
+Major release. See [`BREAKING_CHANGES.md`](BREAKING_CHANGES.md) for the full
+catalog of breaking changes and [`MIGRATION_GUIDE.md`](MIGRATION_GUIDE.md) for
+upgrade instructions. v0.1.x APIs continue to work via deprecation shims and
+are scheduled for removal in v1.0.0.
 
 ### Added
 
-#### As-Of Join Strategy Pattern
-- **Strategy-based join selection**: Four join strategies with automatic selection based on data characteristics
-  - `BroadcastAsOfJoiner`: For small datasets (<30MB)
-  - `UnionSortFilterAsOfJoiner`: Default for general cases
-  - `SkewAsOfJoiner`: AQE-based optimization for skewed data
-  - `AsOfJoiner`: Abstract base class with validation
-- **Automatic optimization**: `choose_as_of_join_strategy()` selects optimal strategy based on data size and skew
-- **Manual strategy selection**: New `strategy` parameter in `asofJoin()` to override automatic selection
-- **Feature flag**: `use_strategy_pattern` parameter for gradual rollout (defaults to `False`)
-
-#### Testing Improvements
-- Pure pytest test suite for new as-of join strategies (38 tests total)
-- Strategy consistency tests verifying all strategies produce identical results
-- Comprehensive edge case coverage (nulls, empty DataFrames, single series, prefixing)
-
-#### Documentation
-- Design proposals for future refactoring work (organized in `docs/proposals/`)
-- Architecture documentation for tuple pattern approach
+- **Timestamp schema model** (`TSSchema` / `TSIndex`): `TSDF` is now constructed
+  from an explicit time-series schema and inherits from `WindowBuilder`.
+- **`ResampledTSDF` intermediate object**: `resample()` now returns a restricted
+  object exposing only valid post-resample operations (`interpolate()`,
+  `as_tsdf()`, `show()`), mirroring Spark's `groupBy() -> GroupedData` pattern
+  and preventing invalid chained operations.
+- **As-of join strategy pattern**: automatic strategy selection with
+  `BroadcastAsOfJoiner`, `UnionSortFilterAsOfJoiner`, and `SkewAsOfJoiner`, plus
+  a manual `strategy=` parameter on `asofJoin()`.
+- **Interval API** reorganized into the `tempo.intervals` package.
+- **Function-based interpolation** API in `tempo.interpol`.
 
 ### Changed
 
-#### API Changes (Internal)
-- **Breaking (Internal API)**: `choose_as_of_join_strategy()` now requires `spark` parameter as 3rd argument
-  - Rationale: Better testability, explicit dependencies, dependency injection pattern
-  - Impact: Only affects direct callers (internal helper function)
-  - All internal usage updated
-
-#### Architectural Improvements
-- **Circular dependency resolution**: Strategies now return `(DataFrame, TSSchema)` tuples instead of TSDF objects
-  - **Tuple pattern approach**: Separates data (DataFrame) from metadata (TSSchema) for loose coupling
-  - **Benefits**:
-    - Clean separation of concerns - strategies are pure DataFrame transformers
-    - Better testability - can test without TSDF dependency
-    - Improved reusability - functions work with raw DataFrames
-    - No runtime import workarounds needed
-    - Performance gains from avoiding unnecessary object creation
-  - **Establishes best practice**: This pattern should be adopted for future data transformations in Tempo
-
-### Fixed
-
-#### As-Of Join Bug Fixes
-- **NULL handling in broadcast joins**: Proper handling of NULL lead values for last rows in partitions
-- **LEFT JOIN semantics**: Standardized all strategies to use LEFT JOIN (preserves all left rows)
-- **Prefix handling**: Fixed double-prefixing issue in `SkewAsOfJoiner` (e.g., `left_left_metric`)
-- **Composite timestamps**: Proper extraction of comparable expressions for nanosecond precision
-- **skipNulls behavior**: Correct implementation in `UnionSortFilterAsOfJoiner`
-- **Empty DataFrame handling**: Strategies now handle empty right DataFrames correctly
-
-### Performance
-
-- **Expected improvements**:
-  - Small datasets (<30MB): 2-3x faster with broadcast join
-  - Skewed datasets: 20-50% improvement with AQE optimization
-  - General cases: Equivalent performance with cleaner code
+- Relocated statistics helpers (`vwap`, `EMA`, `withRangeStats`,
+  `withGroupedStats`, `withLookbackFeatures`) to module-level functions in
+  `tempo.stats`.
+- `TSDF` constructor: `partition_cols` renamed to `series_ids`; `ts_col` is no
+  longer defaulted.
 
 ### Deprecated
 
-- `sql_join_opt` parameter removed from internal strategy selection (replaced by automatic size detection)
+All of the following still work but emit `DeprecationWarning` (removed in v1.0.0):
 
----
+- `TSDF(partition_cols=...)` -> use `series_ids=`
+- `TSDF(sequence_col=...)` / `TSDF.sequence_col` -> use `TSDF.fromSubsequenceCol(...)`
+- `TSDF.partitionCols` -> use `TSDF.series_ids`
+- `TSDF.asofJoin(sql_join_opt=True)` -> use `strategy='broadcast'`
+- `TSDF.vwap()`, `TSDF.EMA()`, `TSDF.withLookbackFeatures()`,
+  `TSDF.withRangeStats()`, `TSDF.withGroupedStats()` -> use the `tempo.stats.*`
+  functions
 
-## Migration Guide
+### Infrastructure
 
-### For End Users
+- Migrated the build toolchain to `uv` with `pyproject.toml` as the single build
+  source of truth (PEP 517/518); CI runs via `make` targets.
 
-**No changes required** - existing code works as-is. The `use_strategy_pattern` feature flag defaults to `False`.
+## [0.1.30] - 2025-08-28
 
-**To use new strategy pattern**:
-```python
-# Automatic strategy selection
-result = left_tsdf.asofJoin(right_tsdf, use_strategy_pattern=True)
+### Added
 
-# Manual strategy selection
-result = left_tsdf.asofJoin(right_tsdf, strategy='broadcast', use_strategy_pattern=True)
-```
+- Enhanced Makefile functionality with environment checks for Python and Java setups
+- New `formatBlack` command in Makefile for code formatting
+- Support for more column types in interpolation methods
+- `_cleanup_delta_warehouse` method for Delta test environment cleanup
+- Dynamic Python environment management with pyenv integration
+- Coverage report generation with parallel coverage file handling
+- Artifact signing with Sigstore for PyPI releases
+- Draft release creation in GitHub Actions workflow
 
-### Rollout Plan
+### Changed
 
-1. **Current**: Feature flag defaults to `False` (existing implementation)
-2. **Future v0.2.x**: Change default to `True` after validation period
-3. **Future v0.3**: Remove feature flag and old implementation
+- Upgraded build system from Tox to Hatch
+- Updated release process to not rely on git tags
+- Migrated CI/CD workflows to use make commands instead of direct tox calls
+- Updated Python version support (removed 3.8, added 3.11)
+- Enhanced type checking with mypy improvements
+- Improved error handling in coverage report generation
+- Switched release workflow to use protected runner group (databrickslabs-protected-runner-group)
 
----
+### Fixed
 
-## Known Limitations
+- Coverage report generation error in CI/CD environments
+- Fixed handling of parallel coverage files (.coverage.*)
+- Resolved unit test incompatibility with DBR 1.13
+- Fixed bool conversions in tempo/intervals.py for consistent type handling
+- Corrected column reference errors in interpolation tests
+- Fixed mypy type checking issues with scipy
 
-- **Nanosecond precision**: Double precision loses nanosecond-level differences (fundamental constraint)
-- **Spark timestamp precision**: Limited to microsecond precision (6 decimal places)
+### Infrastructure
 
----
+- Updated GitHub workflows to use Hatch instead of Tox
+- Enhanced Makefile with better Python version management
+- Added pre- and post-test cleanup for Delta warehouse directories
+- Improved virtual environment handling and creation
+- Enhanced release workflow with protected runner group for security
+- Added automated artifact signing for Python distribution packages
 
-## [Previous Releases]
+## Detailed Changes
 
-*Previous release notes to be added here*
+### Update release workflow: switch to protected runner group, add artifact signing, and draft releases (#436)
+
+**Commit:** c8002f29  
+**Author:** Lorin Dawson  
+**Date:** 2025-09-10
+
+- Switched release workflow to use protected runner group (databrickslabs-protected-runner-group) for enhanced security
+- Added draft release creation using softprops/action-gh-release@v2 with wheel distribution files
+- Integrated Sigstore artifact signing for Python packages (dbl_tempo*.whl and tempo*.whl)
+- Enhanced release process with automated artifact signing and release management
+
+### Fix coverage report generation error (#434)
+
+**Commit:** 1c31f6a  
+**Author:** Lorin Dawson  
+**Date:** 2025-08-28
+
+- Removed skip-install from coverage-report environment to ensure source files are accessible
+- Added automatic handling of parallel coverage files in CI/CD environments
+- Improved error messages when coverage data is missing
+- Preserved test exit codes for proper CI/CD failure reporting
+
+### Updating release process to not rely on tags
+
+**Commit:** 7273c73  
+**Author:** kwang-databricks  
+**Date:** 2025-08-06
+
+- Updated release process to remove dependency on git tags
+- Manual version management changes
+- Cleaned up get_version function to remove git references
+
+### Added formatBlack in makefile, updated hatch files (#429)
+
+**Commit:** 2476e8e  
+**Author:** kwang-databricks  
+**Date:** 2025-08-06
+
+- Added formatBlack command to Makefile for consistent code formatting
+- Updated hatch configuration files with respective commands
+- Removed erroneous ignore file
+
+### Allow more column types to be interpolated (#421)
+
+**Commit:** 74c2b07  
+**Author:** Brian Deacon  
+**Date:** 2025-06-30
+
+- Expanded interpolation functionality to support additional column types
+- Fixed unit test compatibility issues with DBR 1.13
+- Improved error messages for unsupported column types
+- Enhanced test coverage for column interpolation methods
+
+### Upgrading Tox to Hatch, and Updating respective commands in Makefile (#426)
+
+**Commit:** 042c309  
+**Author:** kwang-databricks  
+**Date:** 2025-06-24
+
+- Migrated from Tox to Hatch for improved build and environment management
+- Updated all CI/CD workflows to use make commands
+- Added comprehensive Makefile with environment management features
+- Enhanced Python version support and management
+- Improved type checking configuration with mypy
+- Added version handling for hatch environment creation
+- Updated GitHub workflow dependencies to use hatch instead of tox
+
+### [Chore] CICD updates 02 (#425)
+
+**Commit:** 8597388  
+**Author:** kwang-databricks  
+**Date:** 2025-06-13
+
+- Enhanced Makefile with Python environment checks and management
+- Added Delta warehouse cleanup methods for test environments
+- Improved virtual environment handling and creation
+- Updated .gitignore to include .claude directory
+- Fixed bool type conversions throughout codebase
+- Added setup-python-versions and setup-all-python-versions targets
+
+### Created prelim makefile with tox commands, updated contributing.md (#424)
+
+**Commit:** a45bdc9  
+**Author:** kwang-databricks  
+**Date:** 2025-05-14
+
+- Created preliminary Makefile with tox command integration
+- Updated contributing documentation with new development processes
+- Added support for Python 3.11 and removed Python 3.8
+- Enhanced test and environment management commands
+- Improved documentation for supported DBR versions
+- Added dynamic virtualenv variable support
