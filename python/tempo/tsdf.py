@@ -42,6 +42,7 @@ from tempo.tsschema import (
 )
 from tempo.resample_result import ResampledTSDF
 from tempo.typing import ColumnOrName, PandasGroupedMapFunction, PandasMapIterFunction
+from tempo._deprecation import warn_deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,29 @@ class TSDF(WindowBuilder):
         ts_schema: Optional[TSSchema] = None,
         ts_col: Optional[str] = None,
         series_ids: Optional[Collection[str]] = None,
+        partition_cols: Optional[Collection[str]] = None,
+        sequence_col: Optional[str] = None,
     ) -> None:
+        # --- v0.1.x backwards-compatibility shims (removed in v1.0.0) ---
+        if partition_cols is not None:
+            warn_deprecated("the 'partition_cols' parameter", "'series_ids'")
+            if series_ids is None:
+                series_ids = partition_cols
+        if sequence_col is not None:
+            warn_deprecated(
+                "the 'sequence_col' parameter", "TSDF.fromSubsequenceCol(...)"
+            )
+            assert (
+                ts_col is not None
+            ), "ts_col must be provided when using sequence_col"
+            # build the composite (timestamp, subsequence) index used by v0.2
+            struct_col_name = self.__DEFAULT_TS_IDX_COL
+            df = make_struct_from_cols(df, struct_col_name, [ts_col, sequence_col])
+            subseq_idx = SubsequenceTSIndex(
+                df.schema[struct_col_name], ts_col, sequence_col
+            )
+            ts_schema = TSSchema(subseq_idx, series_ids)
+
         self.df = df
         # construct schema if we don't already have one
         if ts_schema:
@@ -366,6 +389,24 @@ class TSDF(WindowBuilder):
     @property
     def series_ids(self) -> List[str]:
         return self.ts_schema.series_ids
+
+    @property
+    def partitionCols(self) -> List[str]:
+        """Deprecated alias for :attr:`series_ids` (removed in v1.0.0)."""
+        warn_deprecated("the 'partitionCols' attribute", "'series_ids'")
+        return self.series_ids
+
+    @property
+    def sequence_col(self) -> Optional[str]:
+        """Deprecated accessor for the subsequence column (removed in v1.0.0).
+
+        Returns the subsequence column name when the index is a
+        :class:`SubsequenceTSIndex`, otherwise ``None``.
+        """
+        warn_deprecated(
+            "the 'sequence_col' attribute", "TSDF.ts_schema.ts_idx"
+        )
+        return getattr(self.ts_schema.ts_idx, "_subsequence_col", None)
 
     @property
     def structural_cols(self) -> List[str]:
@@ -931,6 +972,7 @@ class TSDF(WindowBuilder):
         suppress_null_warning: bool = False,
         tolerance: Optional[int] = None,
         strategy: Optional[str] = None,  # Allow manual strategy selection
+        sql_join_opt: Optional[bool] = None,
     ) -> TSDF:
         """
         Performs an as-of join between two time-series using modular strategy pattern.
@@ -960,6 +1002,12 @@ class TSDF(WindowBuilder):
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
         :param strategy - manually specify join strategy ('broadcast', 'union', or 'skew')
         """
+        # v0.1.x backwards-compatibility shim (removed in v1.0.0)
+        if sql_join_opt is not None:
+            warn_deprecated("the 'sql_join_opt' parameter", "strategy='broadcast'")
+            if sql_join_opt and strategy is None:
+                strategy = "broadcast"
+
         # Import strategy classes to avoid circular dependency
         from tempo.joins.strategies import (
             AsOfJoiner,
@@ -1026,6 +1074,81 @@ class TSDF(WindowBuilder):
         # Execute join and wrap result in TSDF
         result_df, result_schema = joiner(self, right_tsdf)
         return TSDF(result_df, ts_schema=result_schema)
+
+    # ------------------------------------------------------------------
+    # Deprecated v0.1.x statistics methods (removed in v1.0.0).
+    # These now live as module-level functions in ``tempo.stats``; the
+    # methods below are thin wrappers kept for backwards compatibility.
+    # ------------------------------------------------------------------
+    def vwap(
+        self,
+        frequency: str = "m",
+        volume_col: str = "volume",
+        price_col: str = "price",
+    ) -> TSDF:
+        """Deprecated: use :func:`tempo.stats.vwap` (removed in v1.0.0)."""
+        warn_deprecated("TSDF.vwap()", "tempo.stats.vwap()")
+        from tempo import stats
+
+        return stats.vwap(
+            self, frequency=frequency, volume_col=volume_col, price_col=price_col
+        )
+
+    def EMA(self, colName: str, window: int = 30, exp_factor: float = 0.2) -> TSDF:
+        """Deprecated: use :func:`tempo.stats.EMA` (removed in v1.0.0)."""
+        warn_deprecated("TSDF.EMA()", "tempo.stats.EMA()")
+        from tempo import stats
+
+        return stats.EMA(self, colName, window=window, exp_factor=exp_factor)
+
+    def withLookbackFeatures(
+        self,
+        feature_cols: List[str],
+        lookback_window_size: int,
+        exact_size: bool = True,
+        feature_col_name: str = "features",
+    ) -> TSDF:
+        """Deprecated: use :func:`tempo.stats.withLookbackFeatures` (removed in v1.0.0)."""
+        warn_deprecated(
+            "TSDF.withLookbackFeatures()", "tempo.stats.withLookbackFeatures()"
+        )
+        from tempo import stats
+
+        return stats.withLookbackFeatures(
+            self,
+            feature_cols,
+            lookback_window_size,
+            exact_size=exact_size,
+            feature_col_name=feature_col_name,
+        )
+
+    def withRangeStats(
+        self,
+        type: str = "range",
+        cols_to_summarize: Optional[List[Column]] = None,
+        range_back_window_secs: int = 1000,
+    ) -> TSDF:
+        """Deprecated: use :func:`tempo.stats.withRangeStats` (removed in v1.0.0)."""
+        warn_deprecated("TSDF.withRangeStats()", "tempo.stats.withRangeStats()")
+        from tempo import stats
+
+        return stats.withRangeStats(
+            self,
+            type=type,
+            cols_to_summarize=cols_to_summarize,
+            range_back_window_secs=range_back_window_secs,
+        )
+
+    def withGroupedStats(
+        self,
+        metric_cols: Optional[List[str]] = None,
+        freq: Optional[str] = None,
+    ) -> TSDF:
+        """Deprecated: use :func:`tempo.stats.withGroupedStats` (removed in v1.0.0)."""
+        warn_deprecated("TSDF.withGroupedStats()", "tempo.stats.withGroupedStats()")
+        from tempo import stats
+
+        return stats.withGroupedStats(self, metric_cols=metric_cols, freq=freq)
 
     def baseWindow(self, reverse: bool = False) -> WindowSpec:
         return self.ts_schema.baseWindow(reverse=reverse)
