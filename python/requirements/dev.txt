@@ -1,4 +1,4 @@
-pip>=23,<24
+pip>=26.1.2,<27
 chispa>=0.10,<1
 coverage>=7,<8
 jsonref>=1,<2
