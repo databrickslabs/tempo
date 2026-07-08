@@ -51,6 +51,13 @@ All of the following still work but emit `DeprecationWarning` (removed in v1.0.0
 - Migrated the build toolchain to `uv` with `pyproject.toml` as the single build
   source of truth (PEP 517/518); CI runs via `make` targets.
 
+### Known Issues
+
+- `tempo.stats.vwap()` (and the deprecated `TSDF.vwap()` wrapper) currently raises
+  `AssertionError: The TSIndex column ... does not exist` because it rebuilds the
+  `TSDF` with the pre-aggregation schema. Tracked in
+  [#475](https://github.com/databrickslabs/tempo/issues/475).
+
 ## [0.1.30] - 2025-08-28
 
 ### Added
