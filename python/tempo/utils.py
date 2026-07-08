@@ -57,8 +57,7 @@ def time_range(
     :param step_size: time step size (optional)
     :param num_intervals: number of intervals (optional)
     :param ts_colname: name of the timestamp column, default is "ts"
-    :param include_interval_ends: whether to include the end of each time
-    interval as a separate column in the DataFrame
+    :param include_interval_ends: whether to include the end of each time interval as a separate column in the DataFrame
 
     :return: DataFrame with a time range of timestamps
     """

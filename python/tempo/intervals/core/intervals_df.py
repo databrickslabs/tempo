@@ -18,13 +18,13 @@ class IntervalsDF:
     overlap detection, and metric aggregation.
 
     Key Components:
-    -------------
+    ---------------
     - Series: List of columns used for summarization
     - Metrics: List of columns to analyze
     - Start/End Timestamps: Define the interval boundaries (can be epoch or TimestampType)
 
     Notes:
-    -----
+    ------
     - Complex Python objects cannot be referenced by UDFs due to PyArrow's data type limitations.
       See: https://arrow.apache.org/docs/python/api/datatypes.html
     - Nested iterations require checking that records haven't been previously added to
@@ -34,7 +34,7 @@ class IntervalsDF:
       data type supporting multiple elements
 
     Examples:
-    --------
+    ---------
     >>> df = spark.createDataFrame(
     ...     [["2020-08-01 00:00:09", "2020-08-01 00:00:14", "v1", 5, 0]],
     ...     "start_ts STRING, end_ts STRING, series_1 STRING, metric_1 INT, metric_2 INT",
@@ -44,7 +44,7 @@ class IntervalsDF:
     [Row(start_ts='2020-08-01 00:00:09', end_ts='2020-08-01 00:00:14', series_1='v1', metric_1=5, metric_2=0)]
 
     Todo:
-    ----
+    -----
     - Create IntervalsSchema class to validate data types and column existence
     - Check elements of series and identifiers to ensure all are str
     - Check if start_ts, end_ts, and the elements of series and identifiers can be of type col
@@ -110,7 +110,7 @@ class IntervalsDF:
         Create an IntervalsDF from a DataFrame with a nested window struct column.
 
         Parameters:
-        ----------
+        -----------
         df : DataFrame
             DataFrame containing a window struct column with start and end fields
         window_col : str
@@ -119,7 +119,7 @@ class IntervalsDF:
             Optional list of column names that identify the series
 
         Returns:
-        -------
+        --------
         IntervalsDF
             A new IntervalsDF with the window boundaries extracted
         """
@@ -221,61 +221,61 @@ class IntervalsDF:
         Returns a new :class:`IntervalsDF` where metrics of overlapping time intervals
         are correlated and merged prior to constructing new time interval boundaries.
 
-        The following examples demonstrate each type of overlap case and its resolution:
+        The following examples demonstrate each type of overlap case and its resolution::
 
-        1. No Overlap:
-            Input:
-                Row1: start='2020-01-01', end='2020-01-05', metric=10
-                Row2: start='2020-01-06', end='2020-01-10', metric=20
-            Output: Same as input (no changes needed)
+            1. No Overlap:
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-05', metric=10
+                    Row2: start='2020-01-06', end='2020-01-10', metric=20
+                Output: Same as input (no changes needed)
 
-        2. Boundary Equal (exact same interval):
-            Input:
-                Row1: start='2020-01-01', end='2020-01-05', metric1=10, metric2=null
-                Row2: start='2020-01-01', end='2020-01-05', metric1=null, metric2=20
-            Output:
-                Row1: start='2020-01-01', end='2020-01-05', metric1=10, metric2=20
+            2. Boundary Equal (exact same interval):
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-05', metric1=10, metric2=null
+                    Row2: start='2020-01-01', end='2020-01-05', metric1=null, metric2=20
+                Output:
+                    Row1: start='2020-01-01', end='2020-01-05', metric1=10, metric2=20
 
-        3. Common Start:
-            Input:
-                Row1: start='2020-01-01', end='2020-01-05', metric=10
-                Row2: start='2020-01-01', end='2020-01-07', metric=20
-            Output:
-                Row1: start='2020-01-01', end='2020-01-05', metric=10
-                Row2: start='2020-01-05', end='2020-01-07', metric=20
+            3. Common Start:
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-05', metric=10
+                    Row2: start='2020-01-01', end='2020-01-07', metric=20
+                Output:
+                    Row1: start='2020-01-01', end='2020-01-05', metric=10
+                    Row2: start='2020-01-05', end='2020-01-07', metric=20
 
-        4. Common End:
-            Input:
-                Row1: start='2020-01-01', end='2020-01-07', metric=10
-                Row2: start='2020-01-03', end='2020-01-07', metric=20
-            Output:
-                Row1: start='2020-01-01', end='2020-01-03', metric=10
-                Row2: start='2020-01-03', end='2020-01-07', metric=20
+            4. Common End:
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-07', metric=10
+                    Row2: start='2020-01-03', end='2020-01-07', metric=20
+                Output:
+                    Row1: start='2020-01-01', end='2020-01-03', metric=10
+                    Row2: start='2020-01-03', end='2020-01-07', metric=20
 
-        5. Interval Contained:
-            Input:
-                Row1: start='2020-01-01', end='2020-01-07', metric=10
-                Row2: start='2020-01-03', end='2020-01-05', metric=20
-            Output:
-                Row1: start='2020-01-01', end='2020-01-03', metric=10
-                Row2: start='2020-01-03', end='2020-01-05', metric=20
-                Row3: start='2020-01-05', end='2020-01-07', metric=10
+            5. Interval Contained:
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-07', metric=10
+                    Row2: start='2020-01-03', end='2020-01-05', metric=20
+                Output:
+                    Row1: start='2020-01-01', end='2020-01-03', metric=10
+                    Row2: start='2020-01-03', end='2020-01-05', metric=20
+                    Row3: start='2020-01-05', end='2020-01-07', metric=10
 
-        6. Partial Overlap:
-            Input:
-                Row1: start='2020-01-01', end='2020-01-05', metric=10
-                Row2: start='2020-01-03', end='2020-01-07', metric=20
-            Output:
-                Row1: start='2020-01-01', end='2020-01-03', metric=10
-                Row2: start='2020-01-03', end='2020-01-05', metric=20
-                Row3: start='2020-01-05', end='2020-01-07', metric=20
+            6. Partial Overlap:
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-05', metric=10
+                    Row2: start='2020-01-03', end='2020-01-07', metric=20
+                Output:
+                    Row1: start='2020-01-01', end='2020-01-03', metric=10
+                    Row2: start='2020-01-03', end='2020-01-05', metric=20
+                    Row3: start='2020-01-05', end='2020-01-07', metric=20
 
-        7. Metrics Equivalent (overlapping intervals with same metrics):
-            Input:
-                Row1: start='2020-01-01', end='2020-01-05', metric=10
-                Row2: start='2020-01-03', end='2020-01-07', metric=10
-            Output:
-                Row1: start='2020-01-01', end='2020-01-07', metric=10
+            7. Metrics Equivalent (overlapping intervals with same metrics):
+                Input:
+                    Row1: start='2020-01-01', end='2020-01-05', metric=10
+                    Row2: start='2020-01-03', end='2020-01-07', metric=10
+                Output:
+                    Row1: start='2020-01-01', end='2020-01-07', metric=10
 
         Returns:
             IntervalsDF: A new IntervalsDF containing disjoint time intervals

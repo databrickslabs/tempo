@@ -47,7 +47,7 @@ time column and the optional partition column specification.
      from pyspark.sql.functions import *
      phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
      from tempo import *
-     phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+     phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", series_ids = ["User"])
      display(phone_accel_tsdf)
 
 Slice by Time
@@ -113,7 +113,7 @@ For the accepted functions to aggregate data, options are 'floor', 'ceil', 'min'
 .. code-block:: python
 
      # ts_col = timestamp column on which to sort fact and source table
-     # partition_cols - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
+     # series_ids - columns to use for partitioning the TSDF into more granular time series for windowing and sorting
 
      resampled_sdf = phone_accel_tsdf.resample(freq='min', func='floor')
      resampled_pdf = resampled_sdf.df.filter(col('event_ts').cast("date") == "2015-02-23").toPandas()
@@ -148,7 +148,7 @@ table.
 
     watch_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Watch_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
 
-    watch_accel_tsdf = TSDF(watch_accel_df, ts_col="event_ts", partition_cols = ["User"])
+    watch_accel_tsdf = TSDF(watch_accel_df, ts_col="event_ts", series_ids = ["User"])
 
     # Applying AS OF join to TSDF datasets
     joined_df = watch_accel_tsdf.asofJoin(phone_accel_tsdf, right_prefix="phone_accel")
@@ -160,13 +160,13 @@ table.
 Skew Join Optimized AS OF Join
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The purpose of the skew optimized as of join is to bucket each set of partition_cols to get the latest source record merged onto the fact table
+The purpose of the skew optimized as of join is to bucket each set of series IDs to get the latest source record merged onto the fact table
 
 Parameters
 ^^^^^^^^^^
 
 * ts_col = timestamp column for sorting
-* partition_cols = partition columns for defining granular time series for windowing and sorting
+* series_ids = columns for defining granular time series for windowing and sorting
 * tsPartitionVal = value to break up each partition into time brackets
 * fraction = overlap fraction
 * right_prefix = prefix used for source columns when merged into fact table
@@ -190,9 +190,16 @@ Parameters
 
 * window = number of lagged values to compute for moving average
 
+.. note::
+   In v0.2 the statistics helpers are module-level functions in ``tempo.stats``.
+   The equivalent ``TSDF`` methods (e.g. ``watch_accel_tsdf.EMA(...)``) still
+   work but are deprecated and will be removed in v1.0.0.
+
 .. code-block:: python
 
-    ema_trades = watch_accel_tsdf.EMA("x", window = 50)
+    from tempo import stats
+
+    ema_trades = stats.EMA(watch_accel_tsdf, "x", window=50)
     display(ema_trades)
     # We can use show() also
     # ema_trades.show(10, False)
@@ -205,11 +212,13 @@ Method for computing rolling statistics based on the distinguished timestamp col
 Parameters
 ^^^^^^^^^^
 
-* rangeBackWindowSecs = number of seconds to look back
+* range_back_window_secs = number of seconds to look back
 
 .. code-block:: python
 
-    moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
+    from tempo import stats
+
+    moving_avg = stats.withRangeStats(watch_accel_tsdf, range_back_window_secs=600)
     moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 
 
@@ -273,7 +282,7 @@ Valid columns data types for interpolation are
     # Create instance of the TSDF class
     input_tsdf = TSDF(
                 input_df,
-                partition_cols=["partition_a", "partition_b"],
+                series_ids=["partition_a", "partition_b"],
                 ts_col="event_ts",
             )
 
@@ -301,7 +310,7 @@ Valid columns data types for interpolation are
     # e.g. partition_cols, ts_col a
     interpolated_tsdf = input_tsdf.interpolate(
         partition_cols=["partition_c"],
-        ts_col="other_event_ts"
+        ts_col="other_event_ts",
         freq="30 seconds",
         func="mean",
         target_cols= ["columnA","columnB"],
@@ -312,7 +321,7 @@ Valid columns data types for interpolation are
     # for a given row that shows if a column has been interpolated.
     interpolated_tsdf = input_tsdf.interpolate(
         partition_cols=["partition_c"],
-        ts_col="other_event_ts"
+        ts_col="other_event_ts",
         freq="30 seconds",
         func="mean",
         method="linear",
@@ -331,11 +340,13 @@ Parameters
 
 * freq = (required) Frequency at which the grouping should take place - acceptable parameters are strings of the form "1 minute", "40 seconds", etc.
 
-* metricCols = (optional) List of columns to compute metrics for. These should be numeric columns. If this is not supplied, this method will compute stats on all numeric columns in the TSDF.
+* metric_cols = (optional) List of columns to compute metrics for. These should be numeric columns. If this is not supplied, this method will compute stats on all numeric columns in the TSDF.
 
 .. code-block:: python
 
-    grouped_stats = watch_accel_tsdf.withGroupedStats(metricCols = ["y"], freq="1 minute")
+    from tempo import stats
+
+    grouped_stats = stats.withGroupedStats(watch_accel_tsdf, metric_cols=["y"], freq="1 minute")
     display(grouped_stats)
 
 

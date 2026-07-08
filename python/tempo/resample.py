@@ -201,7 +201,7 @@ def aggregate(
     aggregate a data frame by a coarser timestamp than the initial TSDF ts_col
 
     Column Handling Behavior:
-    ------------------------
+    -------------------------
     This function follows the "explicit is better than implicit" principle for column selection,
     which aligns with industry best practices from pandas, Flint, and other time series libraries.
 
@@ -428,7 +428,7 @@ def resample(
     function to upsample based on frequency and aggregate function similar to pandas
 
     Note on Column Handling:
-    -----------------------
+    ------------------------
     This function delegates column handling behavior to the aggregate() function.
     See aggregate() documentation for detailed explanation of how columns are handled
     based on whether metricCols is None (default) or explicitly provided.
@@ -437,8 +437,8 @@ def resample(
     :param func: function used to aggregate input
     :param metricCols: supply a smaller list of numeric columns if the entire set of numeric columns should not be
                        returned for the resample function. If None, all observational columns are included.
-    :param prefix - supply a prefix for the newly sampled columns
-    :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
+    :param prefix: supply a prefix for the newly sampled columns
+    :param fill: Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
     :param perform_checks: calculate time horizon and warnings if True (default is True)
     :return: TSDF object with sample data using aggregate function
     """

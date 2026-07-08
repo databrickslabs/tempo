@@ -147,13 +147,10 @@ def interpolate(
     :param tsdf: the :class:`TSDF` timeseries dataframe
     :param cols: the names of the columns to interpolate
     :param fn: the interpolation function
-    :param leading_margin: the number of non-missing values
-    to include before the first missing value
-    :param lagging_margin: the number of non-missing values
-    to include after the last missing value
+    :param leading_margin: the number of non-missing values to include before the first missing value
+    :param lagging_margin: the number of non-missing values to include after the last missing value
 
-    :return: a new :class:`TSDF` with the missing values of the given
-    column interpolated
+    :return: a new :class:`TSDF` with the missing values of the given column interpolated
     """
 
     # parameter normalization & validation

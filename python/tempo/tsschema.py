@@ -212,8 +212,7 @@ class TSIndex(ABC):
     @abstractmethod
     def comparableExpr(self) -> Union[Column, List[Column]]:
         """
-        :return: an expression that can be used to compare an index with
-        other columns, expressions or values
+        :return: an expression that can be used to compare an index with other columns, expressions or values
         """
 
     @abstractmethod
@@ -271,8 +270,7 @@ class TSIndex(ABC):
 
         :param reverse: whether the ordering should be reversed (backwards in time)
 
-        :return: an expression appropriate for ordering the :class:`TSDF`
-        according to this index
+        :return: an expression appropriate for ordering the :class:`TSDF` according to this index
         """
 
     @abstractmethod
@@ -283,8 +281,7 @@ class TSIndex(ABC):
 
         :param reverse: whether the ordering should be reversed (backwards in time)
 
-        :return: an expression appropriate for performing range operations
-        on the :class:`TSDF` records
+        :return: an expression appropriate for performing range operations on the :class:`TSDF` records
         """
 
 
@@ -1041,8 +1038,7 @@ class WindowBuilder(ABC):
         """
         build a window that includes all rows before the current row
 
-        :param inclusive: if True, include the current row,
-        otherwise end with the last row before the current row
+        :param inclusive: if True, include the current row, otherwise end with the last row before the current row
 
         :return: a WindowSpec object
         """
@@ -1052,8 +1048,7 @@ class WindowBuilder(ABC):
         """
         build a window that includes all rows after the current row
 
-        :param inclusive: if True, include the current row,
-        otherwise begin with the first row after the current row
+        :param inclusive: if True, include the current row, otherwise begin with the first row after the current row
 
         :return: a WindowSpec object
         """

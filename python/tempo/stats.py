@@ -192,8 +192,8 @@ def withGroupedStats(
     mean/count/min/max/sum/std deviation
 
     :param tsdf: the input dataframe
-    :param metric_cols - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
-    :param freq - frequency (provide a string of the form '1 min', '30 seconds' and we interpret the window to use to aggregate
+    :param metric_cols: list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
+    :param freq: frequency (provide a string of the form '1 min', '30 seconds' and we interpret the window to use to aggregate
     """
 
     # identify columns to summarize if not provided
@@ -263,7 +263,7 @@ def calc_bars(
     Calculate OHLC (Open, High, Low, Close) bars for time series data.
 
     Column Handling Behavior:
-    ------------------------
+    -------------------------
     This function follows the same "explicit is better than implicit" principle as the
     aggregate/resample functions, aligning with pandas and other time series libraries:
 

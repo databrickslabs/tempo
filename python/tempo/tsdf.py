@@ -116,6 +116,12 @@ class TSDF(WindowBuilder):
     This class represents a time series DataFrame (TSDF) - a DataFrame with a
     time series index. It can represent multiple logical time series,
     each identified by a unique set of series IDs.
+
+    .. deprecated:: 0.2.0
+        The ``partition_cols`` constructor parameter is deprecated in favor of
+        ``series_ids``, and ``sequence_col`` in favor of
+        :meth:`TSDF.fromSubsequenceCol`. Both still work but emit a
+        ``DeprecationWarning`` and are removed in v1.0.0.
     """
 
     summarizable_types = ["int", "bigint", "float", "double"]
@@ -392,16 +398,23 @@ class TSDF(WindowBuilder):
 
     @property
     def partitionCols(self) -> List[str]:
-        """Deprecated alias for :attr:`series_ids` (removed in v1.0.0)."""
+        """
+        .. deprecated:: 0.2.0
+            Use :attr:`series_ids` instead. This alias is removed in v1.0.0.
+        """
         warn_deprecated("the 'partitionCols' attribute", "'series_ids'")
         return self.series_ids
 
     @property
     def sequence_col(self) -> Optional[str]:
-        """Deprecated accessor for the subsequence column (removed in v1.0.0).
+        """Accessor for the subsequence column name.
 
         Returns the subsequence column name when the index is a
         :class:`SubsequenceTSIndex`, otherwise ``None``.
+
+        .. deprecated:: 0.2.0
+            Use ``TSDF.ts_schema.ts_idx`` instead. This accessor is removed in
+            v1.0.0.
         """
         warn_deprecated(
             "the 'sequence_col' attribute", "TSDF.ts_schema.ts_idx"
@@ -1001,6 +1014,10 @@ class TSDF(WindowBuilder):
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
         :param strategy - manually specify join strategy ('broadcast', 'union', or 'skew')
+
+        .. deprecated:: 0.2.0
+            The ``sql_join_opt`` parameter is deprecated; pass
+            ``strategy='broadcast'`` instead. It is removed in v1.0.0.
         """
         # v0.1.x backwards-compatibility shim (removed in v1.0.0)
         if sql_join_opt is not None:
@@ -1086,7 +1103,11 @@ class TSDF(WindowBuilder):
         volume_col: str = "volume",
         price_col: str = "price",
     ) -> TSDF:
-        """Deprecated: use :func:`tempo.stats.vwap` (removed in v1.0.0)."""
+        """
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.vwap` instead. This wrapper is removed in
+            v1.0.0.
+        """
         warn_deprecated("TSDF.vwap()", "tempo.stats.vwap()")
         from tempo import stats
 
@@ -1095,7 +1116,11 @@ class TSDF(WindowBuilder):
         )
 
     def EMA(self, colName: str, window: int = 30, exp_factor: float = 0.2) -> TSDF:
-        """Deprecated: use :func:`tempo.stats.EMA` (removed in v1.0.0)."""
+        """
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.EMA` instead. This wrapper is removed in
+            v1.0.0.
+        """
         warn_deprecated("TSDF.EMA()", "tempo.stats.EMA()")
         from tempo import stats
 
@@ -1108,7 +1133,11 @@ class TSDF(WindowBuilder):
         exact_size: bool = True,
         feature_col_name: str = "features",
     ) -> TSDF:
-        """Deprecated: use :func:`tempo.stats.withLookbackFeatures` (removed in v1.0.0)."""
+        """
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.withLookbackFeatures` instead. This wrapper
+            is removed in v1.0.0.
+        """
         warn_deprecated(
             "TSDF.withLookbackFeatures()", "tempo.stats.withLookbackFeatures()"
         )
@@ -1128,7 +1157,11 @@ class TSDF(WindowBuilder):
         cols_to_summarize: Optional[List[Column]] = None,
         range_back_window_secs: int = 1000,
     ) -> TSDF:
-        """Deprecated: use :func:`tempo.stats.withRangeStats` (removed in v1.0.0)."""
+        """
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.withRangeStats` instead. This wrapper is
+            removed in v1.0.0.
+        """
         warn_deprecated("TSDF.withRangeStats()", "tempo.stats.withRangeStats()")
         from tempo import stats
 
@@ -1144,7 +1177,11 @@ class TSDF(WindowBuilder):
         metric_cols: Optional[List[str]] = None,
         freq: Optional[str] = None,
     ) -> TSDF:
-        """Deprecated: use :func:`tempo.stats.withGroupedStats` (removed in v1.0.0)."""
+        """
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.withGroupedStats` instead. This wrapper is
+            removed in v1.0.0.
+        """
         warn_deprecated("TSDF.withGroupedStats()", "tempo.stats.withGroupedStats()")
         from tempo import stats
 
@@ -1378,11 +1415,9 @@ class TSDF(WindowBuilder):
         aggregations over the given columns.
         If no columns are specified, all metric columns will be assumed.
 
-        :param cols: columns to summarize. If none are given,
-        then all the `metric_cols` will be used
+        :param cols: columns to summarize. If none are given, then all the `metric_cols` will be used
         :type cols: str or List[str]
-        :return: a :class:`GroupedData` object that can be used for
-        summarizing columns/metrics across all observations from all series
+        :return: a :class:`GroupedData` object that can be used for summarizing columns/metrics across all observations from all series
         :rtype: :class:`GroupedData`
         """
         cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
@@ -1419,8 +1454,7 @@ class TSDF(WindowBuilder):
         """
         Groups the underlying :class:`DataFrame` by the series IDs
 
-        :return: a :class:`GroupedData` object that can be used for
-        aggregating within Series
+        :return: a :class:`GroupedData` object that can be used for aggregating within Series
         :rtype: :class:`GroupedData`
         """
         return self.df.groupBy(self.series_ids)
@@ -1429,8 +1463,7 @@ class TSDF(WindowBuilder):
         """
         Compute aggregates of each series.
 
-        :param exprs: a dict mapping from column name (string) to aggregate functions (string),
-        or a list of :class:`Column`.
+        :param exprs: a dict mapping from column name (string) to aggregate functions (string), or a list of :class:`Column`.
         :return: a :class:`DataFrame` of the resulting aggregates
         :rtype: :class:`DataFrame`
         """
@@ -1455,15 +1488,11 @@ class TSDF(WindowBuilder):
         field data types by position if not strings, e.g. integer indices.
         The length of the returned `pandas.DataFrame` can be arbitrary.
 
-        :param func: a Python native function that takes a `pandas.DataFrame` and outputs a
-        `pandas.DataFrame`, or that takes one tuple (grouping keys) and a
-        `pandas.DataFrame` and outputs a `pandas.DataFrame`.
+        :param func: a Python native function that takes a `pandas.DataFrame` and outputs a `pandas.DataFrame`, or that takes one tuple (grouping keys) and a `pandas.DataFrame` and outputs a `pandas.DataFrame`.
         :type func: function
-        :param schema: the return type of the `func` in PySpark. The value can be either a
-        :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
+        :param schema: the return type of the `func` in PySpark. The value can be either a :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
         :type schema: :class:`pyspark.sql.types.DataType` or str
-        :return: a :class:`pyspark.sql.DataFrame` (of the given schema)
-        containing the results of applying the given function per series
+        :return: a :class:`pyspark.sql.DataFrame` (of the given schema) containing the results of applying the given function per series
         :rtype: :class:`pyspark.sql.DataFrame`
         """
         return self.groupBySeries().applyInPandas(func, schema)
