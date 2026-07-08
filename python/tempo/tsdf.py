@@ -144,9 +144,7 @@ class TSDF(WindowBuilder):
             warn_deprecated(
                 "the 'sequence_col' parameter", "TSDF.fromSubsequenceCol(...)"
             )
-            assert (
-                ts_col is not None
-            ), "ts_col must be provided when using sequence_col"
+            assert ts_col is not None, "ts_col must be provided when using sequence_col"
             # build the composite (timestamp, subsequence) index used by v0.2
             struct_col_name = self.__DEFAULT_TS_IDX_COL
             df = make_struct_from_cols(df, struct_col_name, [ts_col, sequence_col])
@@ -416,9 +414,7 @@ class TSDF(WindowBuilder):
             Use ``TSDF.ts_schema.ts_idx`` instead. This accessor is removed in
             v1.0.0.
         """
-        warn_deprecated(
-            "the 'sequence_col' attribute", "TSDF.ts_schema.ts_idx"
-        )
+        warn_deprecated("the 'sequence_col' attribute", "TSDF.ts_schema.ts_idx")
         return getattr(self.ts_schema.ts_idx, "_subsequence_col", None)
 
     @property

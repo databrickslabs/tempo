@@ -49,9 +49,7 @@ class TSDFDeprecationTests(SparkTest):
             ("A", datetime(2024, 1, 1, 10, 0), 1, 100.0),
             ("A", datetime(2024, 1, 1, 10, 0), 2, 101.0),
         ]
-        df = self.spark.createDataFrame(
-            data, ["symbol", "event_ts", "seq", "price"]
-        )
+        df = self.spark.createDataFrame(data, ["symbol", "event_ts", "seq", "price"])
         with self.assertWarns(DeprecationWarning):
             TSDF(df, ts_col="event_ts", series_ids=["symbol"], sequence_col="seq")
 
@@ -89,9 +87,7 @@ class TSDFDeprecationTests(SparkTest):
                 tsdf.vwap(price_col="price", volume_col="volume")
             except Exception:
                 pass
-        self.assertTrue(
-            any(issubclass(w.category, DeprecationWarning) for w in caught)
-        )
+        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
 
     def test_EMA_method_warns(self):
         tsdf = TSDF(self._simple_df(), ts_col="event_ts", series_ids=["symbol"])
@@ -111,6 +107,4 @@ class TSDFDeprecationTests(SparkTest):
     def test_withLookbackFeatures_method_warns(self):
         tsdf = TSDF(self._simple_df(), ts_col="event_ts", series_ids=["symbol"])
         with self.assertWarns(DeprecationWarning):
-            tsdf.withLookbackFeatures(
-                feature_cols=["price"], lookback_window_size=2
-            )
+            tsdf.withLookbackFeatures(feature_cols=["price"], lookback_window_size=2)
