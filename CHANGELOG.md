@@ -2,7 +2,61 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] - 2026-07-07
+
+Major release. See [`BREAKING_CHANGES.md`](BREAKING_CHANGES.md) for the full
+catalog of breaking changes and [`MIGRATION_GUIDE.md`](MIGRATION_GUIDE.md) for
+upgrade instructions. v0.1.x APIs continue to work via deprecation shims and
+are scheduled for removal in v1.0.0.
+
+### Added
+
+- **Timestamp schema model** (`TSSchema` / `TSIndex`): `TSDF` is now constructed
+  from an explicit time-series schema and inherits from `WindowBuilder`.
+- **`ResampledTSDF` intermediate object**: `resample()` now returns a restricted
+  object exposing only valid post-resample operations (`interpolate()`,
+  `as_tsdf()`, `show()`), mirroring Spark's `groupBy() -> GroupedData` pattern
+  and preventing invalid chained operations.
+- **As-of join strategy pattern**: automatic strategy selection with
+  `BroadcastAsOfJoiner`, `UnionSortFilterAsOfJoiner`, and `SkewAsOfJoiner`, plus
+  a manual `strategy=` parameter on `asofJoin()`.
+- **Interval API** reorganized into the `tempo.intervals` package.
+- **Function-based interpolation** API in `tempo.interpol`.
+
+### Changed
+
+- Relocated statistics helpers (`vwap`, `EMA`, `withRangeStats`,
+  `withGroupedStats`, `withLookbackFeatures`) to module-level functions in
+  `tempo.stats`.
+- `TSDF` constructor: `partition_cols` renamed to `series_ids`; `ts_col` is no
+  longer defaulted.
+
+### Deprecated
+
+All of the following still work but emit `DeprecationWarning` (removed in v1.0.0):
+
+- `TSDF(partition_cols=...)` -> use `series_ids=`
+- `TSDF(sequence_col=...)` / `TSDF.sequence_col` -> use `TSDF.fromSubsequenceCol(...)`
+- `TSDF.partitionCols` -> use `TSDF.series_ids`
+- `TSDF.asofJoin(sql_join_opt=True)` -> use `strategy='broadcast'`
+- `TSDF.vwap()`, `TSDF.EMA()`, `TSDF.withLookbackFeatures()`,
+  `TSDF.withRangeStats()`, `TSDF.withGroupedStats()` -> use the `tempo.stats.*`
+  functions
+
+### Infrastructure
+
+- Migrated the build toolchain to `uv` with `pyproject.toml` as the single build
+  source of truth (PEP 517/518); CI runs via `make` targets.
+
+### Known Issues
+
+- `tempo.stats.vwap()` (and the deprecated `TSDF.vwap()` wrapper) currently raises
+  `AssertionError: The TSIndex column ... does not exist` because it rebuilds the
+  `TSDF` with the pre-aggregation schema. Tracked in
+  [#475](https://github.com/databrickslabs/tempo/issues/475).
 
 ## [0.1.30] - 2025-08-28
 

@@ -2,10 +2,9 @@ import os
 import shutil
 import unittest
 import warnings
-from typing import Union, Optional
+from typing import Optional, Union
 
 import jsonref
-import pandas as pd
 import pyspark.sql.functions as sfn
 from chispa import assert_df_equality
 from delta.pip_utils import configure_spark_with_delta_pip
@@ -14,6 +13,23 @@ from pyspark.sql.dataframe import DataFrame
 
 from tempo.intervals import IntervalsDF
 from tempo.tsdf import TSDF
+
+
+# helper functions
+
+
+def prefix_value(key: str, d: dict):
+    # look for an exact match
+    if key in d:
+        return d[key]
+    # scan for a prefix-match
+    for k in d:
+        if key.startswith(k):
+            return d[k]
+    return None
+
+
+# test classes
 
 
 class TestDataFrameBuilder:
@@ -45,20 +61,11 @@ class TestDataFrameBuilder:
         """
         return self.df["schema"]
 
-    def df_data(self) -> Union[list, pd.DataFrame]:
+    def df_data(self) -> list:
         """
         :return: the data component of the test data
         """
-        data = self.df["data"]
-        # return data literals (list of rows)
-        if isinstance(data, list):
-            return data
-        # load data from a csv file
-        elif isinstance(data, str):
-            csv_path = SparkTest.getTestDataFilePath(data, extension="")
-            return pd.read_csv(csv_path)
-        else:
-            raise ValueError(f"Invalid data type {type(data)}")
+        return self.df["data"]
 
     # TSDF metadata
 
@@ -134,8 +141,22 @@ class TestDataFrameBuilder:
         """
         Constructs a Spark Dataframe from the test data
         """
-        # build dataframe
-        df = self.spark.createDataFrame(self.df_data(), self.df_schema)
+        # Parse the schema to identify struct columns
+
+        # Parse schema string if it's a string
+        if isinstance(self.df_schema, str):
+            # Check if schema contains struct definitions
+            if "struct<" in self.df_schema:
+                # Parse the schema string to build proper StructType
+                schema = self._parse_complex_schema(self.df_schema)
+                # Process data to convert lists to Row objects for struct columns
+                data = self._process_struct_data(self.df_data(), schema)
+                df = self.spark.createDataFrame(data, schema)
+            else:
+                # Simple schema - use existing logic
+                df = self.spark.createDataFrame(self.df_data(), self.df_schema)
+        else:
+            df = self.spark.createDataFrame(self.df_data(), self.df_schema)
 
         # convert timestamp columns
         if "ts_convert" in self.df:
@@ -190,15 +211,109 @@ class TestDataFrameBuilder:
 
         return df
 
+    def _parse_complex_schema(self, schema_str: str):
+        """
+        Parse a schema string that may contain struct types
+        """
+        from pyspark.sql.types import (
+            DoubleType,
+            FloatType,
+            IntegerType,
+            LongType,
+            StringType,
+            StructField,
+            StructType,
+        )
+
+        # This is a simplified parser - in production you'd want a more robust solution
+        # For now, we'll manually handle the specific case we need
+        fields = []
+        parts = schema_str.split(", ")
+
+        i = 0
+        while i < len(parts):
+            part = parts[i]
+            if "struct<" in part:
+                # Find the complete struct definition
+                struct_def = part
+                while ">" not in struct_def and i < len(parts) - 1:
+                    i += 1
+                    struct_def += ", " + parts[i]
+
+                # Parse struct field
+                field_name = struct_def.split()[0]
+                # For the nanos test case, we know the struct format
+                if "event_ts string" in struct_def:
+                    struct_fields = [
+                        StructField("event_ts", StringType(), True),
+                        StructField(
+                            "parsed_ts", StringType(), True
+                        ),  # Will be converted to timestamp later
+                        StructField("double_ts", DoubleType(), True),
+                    ]
+                    fields.append(
+                        StructField(field_name, StructType(struct_fields), True)
+                    )
+                else:
+                    # Generic struct handling would go here
+                    pass
+            else:
+                # Parse simple field
+                field_parts = part.strip().split()
+                if len(field_parts) >= 2:
+                    field_name = field_parts[0]
+                    field_type = field_parts[1]
+
+                    if field_type == "string":
+                        fields.append(StructField(field_name, StringType(), True))
+                    elif field_type == "double":
+                        fields.append(StructField(field_name, DoubleType(), True))
+                    elif field_type == "float":
+                        fields.append(StructField(field_name, FloatType(), True))
+                    elif field_type == "integer" or field_type == "int":
+                        fields.append(StructField(field_name, IntegerType(), True))
+                    elif field_type == "long":
+                        fields.append(StructField(field_name, LongType(), True))
+            i += 1
+
+        return StructType(fields)
+
+    def _process_struct_data(self, data, schema):
+        """
+        Convert list data to Row objects where needed for struct columns
+        """
+        from pyspark.sql import Row
+        from pyspark.sql.types import StructType
+
+        processed_data = []
+        for row in data:
+            new_row = []
+            for i, (value, field) in enumerate(zip(row, schema.fields)):
+                if isinstance(field.dataType, StructType) and isinstance(value, list):
+                    # Convert list to Row object for struct column
+                    struct_row = Row(*[f.name for f in field.dataType.fields])(*value)
+                    new_row.append(struct_row)
+                else:
+                    new_row.append(value)
+            processed_data.append(new_row)
+
+        return processed_data
+
     def as_tsdf(self) -> TSDF:
         """
         Constructs a TSDF from the test data
         """
         sdf = self.as_sdf()
+
+        # Remove ts_schema from kwargs if present, as it's not a valid TSDF parameter
+        tsdf_kwargs = dict(self.tsdf)
+        if "ts_schema" in tsdf_kwargs:
+            del tsdf_kwargs["ts_schema"]
+
         if self.tsdf_constructor is not None:
-            return getattr(TSDF, self.tsdf_constructor)(sdf, **self.tsdf)
+            return getattr(TSDF, self.tsdf_constructor)(sdf, **tsdf_kwargs)
         else:
-            return TSDF(sdf, **self.tsdf)
+            return TSDF(sdf, **tsdf_kwargs)
 
     def as_idf(self) -> IntervalsDF:
         """
@@ -220,7 +335,6 @@ class SparkTest(unittest.TestCase):
     spark = None
 
     # test data
-    test_data_file = None
     test_case_data = None
 
     @classmethod
@@ -283,10 +397,50 @@ class SparkTest(unittest.TestCase):
         cls._cleanup_delta_warehouse()
 
     def setUp(self) -> None:
-        self.test_case_data = self.__loadTestData(self.id())
+        # parse out components of the test case path
+        id_parts = self.id().split(".")
+        func_name = id_parts[-1]
+        class_name = id_parts[-2]
+
+        # Get the module path from the test class's __module__ attribute
+        # This works correctly with both unittest and pytest
+        module_path = self.__class__.__module__
+
+        # Build file path from module path
+        # For example: tests.join.test_strategies_integration -> join/test_strategies_integration
+        # TODO: Remove this unittest-specific branch once pytest is fully adopted
+        if module_path.startswith("tests."):
+            # Running with unittest - remove 'tests.' prefix and replace dots with slashes
+            file_name = module_path[6:].replace(".", "/")
+        else:
+            # Running with pytest - module path might be truncated
+            # Use inspect to get the actual file path
+            import inspect
+            import os
+
+            test_file = inspect.getfile(self.__class__)
+            # Extract path relative to tests/ directory
+            if "/tests/" in test_file:
+                # Get everything after 'tests/'
+                relative_path = test_file.split("/tests/")[-1]
+                # Remove .py extension
+                file_name = relative_path.replace(".py", "")
+            else:
+                # Fallback to module name
+                file_name = module_path
+
+        self.file_name = file_name
+        self.class_name = class_name
+        self.func_name = func_name
+
+        # load the test data file if it hasn't been loaded yet
+        if self.test_case_data is None:
+            self.test_case_data = self.__loadTestData(file_name)
 
     def tearDown(self) -> None:
-        del self.test_case_data
+        del self.file_name
+        del self.class_name
+        del self.func_name
 
     #
     # Utility Functions
@@ -306,7 +460,7 @@ class SparkTest(unittest.TestCase):
     TEST_DATA_FOLDER = "unit_test_data"
 
     @classmethod
-    def getTestDataFilePath(cls, test_file_name: str, extension: str = ".json") -> str:
+    def getTestDataDirPath(cls) -> str:
         # what folder are we running from?
         cwd = os.path.basename(os.getcwd())
 
@@ -318,44 +472,61 @@ class SparkTest(unittest.TestCase):
             dir_path = "./tests"
         elif cwd != "tests":
             raise RuntimeError(
-                f"Cannot locate test data file {test_file_name}, running from dir"
-                f" {os.getcwd()}"
+                f"Cannot locate test dir, running from dir {os.getcwd()}"
             )
+        return os.path.abspath(os.path.join(dir_path, cls.TEST_DATA_FOLDER))
 
-        # return appropriate path
-        return f"{dir_path}/{cls.TEST_DATA_FOLDER}/{test_file_name}{extension}"
+    @classmethod
+    def getTestDataFilePath(cls, test_file_name: str, extension: str = ".json") -> str:
+        return os.path.join(cls.getTestDataDirPath(), f"{test_file_name}{extension}")
 
-    def __loadTestData(self, test_case_path: str) -> dict:
+    def __loadTestData(self, file_name: str) -> dict:
         """
         This function reads our unit test data config json and returns the required metadata to create the correct
         format of test data (Spark DataFrames, Pandas DataFrames and Tempo TSDFs)
-        :param test_case_path: string representation of the data path e.g. : "tsdf_tests.BasicTests.test_describe"
-        :type test_case_path: str
+        :param file_name: base name of the test data file
+        :type file_name: str
         """
-        file_name, class_name, func_name = test_case_path.split(".")[-3:]
 
-        # load the test data file if it hasn't been loaded yet
-        if self.test_data_file is None:
-            # find our test data file
-            test_data_filename = self.getTestDataFilePath(file_name)
-            if not os.path.isfile(test_data_filename):
-                warnings.warn(f"Could not load test data file {test_data_filename}")
-                self.test_data_file = {}
+        # find our test data file
+        test_data_filename = self.getTestDataFilePath(file_name)
+        if not os.path.isfile(test_data_filename):
+            warnings.warn(f"Could not load test data file {test_data_filename}")
+            return {}
 
-            # proces the data file
-            with open(test_data_filename, "r") as f:
-                self.test_data_file = jsonref.load(f)
+        # proces the data file
+        with open(test_data_filename) as f:
+            base_path = "file://" + self.getTestDataDirPath() + "/"
+            test_data = jsonref.load(f, base_uri=base_path)
 
-        # return the data if it exists
-        if class_name in self.test_data_file:
-            if func_name in self.test_data_file[class_name]:
-                return self.test_data_file[class_name][func_name]
+        return test_data
 
-        # return empty dictionary if no data found
-        return {}
+    def get_test_df_builder(self, *data_keys: str) -> TestDataFrameBuilder:
+        # unpack the test data by keys
+        data = self.test_case_data
+        for key in data_keys:
+            data = prefix_value(key, data)
+        # return the builder
+        return TestDataFrameBuilder(self.spark, data)
 
-    def get_test_df_builder(self, name: str) -> TestDataFrameBuilder:
-        return TestDataFrameBuilder(self.spark, self.test_case_data[name])
+    def get_test_function_df_builder(self, *sub_elements: str) -> TestDataFrameBuilder:
+        """
+        Get the test data builder for the current test function
+        """
+        function_data_keys = [self.class_name, self.func_name] + list(sub_elements)
+        return self.get_test_df_builder(*function_data_keys)
+
+    def get_data_as_sdf(self, name: str, convert_ts_col=True):
+        """
+        Get test data as a Spark DataFrame
+        """
+        return self.get_test_function_df_builder(name).as_sdf()
+
+    def get_data_as_tsdf(self, name: str):
+        """
+        Get test data as a TSDF
+        """
+        return self.get_test_function_df_builder(name).as_tsdf()
 
     #
     # Assertion Functions

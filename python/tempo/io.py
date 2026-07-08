@@ -5,9 +5,10 @@ from collections import deque
 from typing import Optional
 
 import pyspark.sql.functions as sfn
-import tempo.tsdf as t_tsdf
 from pyspark.sql import SparkSession
 from pyspark.sql.utils import ParseException
+
+import tempo.tsdf as t_tsdf
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def write(
 
     df = tsdf.df
     ts_col = tsdf.ts_col
-    partitionCols = tsdf.partitionCols
+    series_ids: list[str] = tsdf.series_ids
 
     view_df = df.withColumn("event_dt", sfn.to_date(sfn.col(ts_col))).withColumn(
         "event_time",
@@ -50,12 +51,10 @@ def write(
             spark.sql(
                 "optimize {} zorder by {}".format(
                     tabName,
-                    "(" + ",".join(partitionCols + optimizationCols + [ts_col]) + ")",
+                    "(" + ",".join(series_ids + optimizationCols + [ts_col]) + ")",
                 )
             )
         except ParseException as e:
             logger.error(
-                "Delta optimizations attempted, but was not successful.\nError: {}".format(
-                    e
-                )
+                f"Delta optimizations attempted, but was not successful.\nError: {e}"
             )

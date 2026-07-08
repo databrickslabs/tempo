@@ -144,7 +144,7 @@ Parameters:
 rangeBackWindowSecs = number of seconds to look back
 
 ```python
-moving_avg = watch_accel_tsdf.withRangeStats("y", rangeBackWindowSecs=600)
+moving_avg = watch_accel_tsdf.withRangeStats("y", range_back_window_secs=600)
 moving_avg.select('event_ts', 'x', 'y', 'z', 'mean_y').show(10, False)
 ```
 
@@ -159,7 +159,7 @@ timestep = timestep value to be used for getting the frequency scale
 valueCol = name of the time domain data column which will be transformed
 
 ```python
-ft_df = tsdf.fourier_transform(timestep=1, valueCol="data_col")
+ft_df = tsdf.fourier_transform(timestep=1, value_col="data_col")
 display(ft_df)
 ```
 
@@ -246,7 +246,7 @@ Group by partition columns and a frequency to get the minimum, maximum, count, m
 `metricCols` = (optional) List of columns to compute metrics for. These should be numeric columns. If this is not supplied, this method will compute stats on all numeric columns in the TSDF
 
 ```python
-grouped_stats = watch_accel_tsdf.withGroupedStats(metricCols = ["y"], freq="1 minute")
+grouped_stats = watch_accel_tsdf.withGroupedStats(metric_cols=["y"], freq="1 minute")
 display(grouped_stats)
 ```
 

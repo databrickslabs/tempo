@@ -3,6 +3,7 @@ import unittest
 from importlib.metadata import version
 
 from packaging import version as pkg_version
+
 from tests.base import SparkTest
 
 DELTA_VERSION = version("delta-spark")

@@ -44,7 +44,7 @@ Tempo is very easy to use:
     from pyspark.sql.functions import *
     phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
     from tempo import *
-    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", partition_cols = ["User"])
+    phone_accel_tsdf = TSDF(phone_accel_df, ts_col="event_ts", series_ids = ["User"])
     display(phone_accel_tsdf)
 
 .. _direct-git-install:

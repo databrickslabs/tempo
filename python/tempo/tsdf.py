@@ -1,33 +1,127 @@
 from __future__ import annotations
 
+import copy
 import logging
 import operator
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, List, Optional, Sequence, TypeVar, Union
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from datetime import datetime as dt
+from datetime import timedelta as td
+from functools import cached_property
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 import numpy as np
 import pandas as pd
 import pyspark.sql.functions as sfn
-from IPython.core.display import HTML  # type: ignore
-from IPython.display import display as ipydisplay  # type: ignore
-from pyspark.sql import SparkSession
+from IPython.core.display import HTML  # type: ignore[import-not-found]
+from IPython.display import display as ipydisplay  # type: ignore[import-not-found]
+from pandas.core.frame import DataFrame as PandasDataFrame
+from pyspark import RDD
+from pyspark.sql import GroupedData, SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import StringType, TimestampType
+from pyspark.sql.types import AtomicType, DataType, StructType
 from pyspark.sql.window import Window, WindowSpec
 from scipy.fft import fft, fftfreq
 
-import tempo.interpol as t_interpolation
 import tempo.io as t_io
 import tempo.resample as t_resample
+import tempo.resample_utils as t_resample_utils
 import tempo.utils as t_utils
+from tempo.intervals import IntervalsDF
+from tempo.tsschema import (
+    DEFAULT_TIMESTAMP_FORMAT,
+    ParsedTSIndex,
+    SubsequenceTSIndex,
+    TSIndex,
+    TSSchema,
+    WindowBuilder,
+    identify_fractional_second_separator,
+    is_time_format,
+    sub_seconds_precision_digits,
+)
+from tempo.resample_result import ResampledTSDF
+from tempo.typing import ColumnOrName, PandasGroupedMapFunction, PandasMapIterFunction
+from tempo._deprecation import warn_deprecated
 
 logger = logging.getLogger(__name__)
 
 
-class TSDF:
+# Helper functions
+
+
+def make_struct_from_cols(
+    df: DataFrame, struct_col_name: str, cols_to_move: List[str]
+) -> DataFrame:
     """
-    This object is the main wrapper over a Spark data frame which allows a user to parallelize time series computations on a Spark data frame by various dimensions. The two dimensions required are partition_cols (list of columns by which to summarize) and ts_col (timestamp column, which can be epoch or TimestampType).
+    Transform a :class:`DataFrame` by moving certain columns into a named struct
+
+    :param df: the :class:`DataFrame` to transform
+    :param struct_col_name: name of the struct column to create
+    :param cols_to_move: name of the columns to move into the struct
+
+    :return: the transformed :class:`DataFrame`
+    """
+    return df.withColumn(struct_col_name, sfn.struct(*cols_to_move)).drop(*cols_to_move)
+
+
+def time_str_to_double(
+    df: DataFrame,
+    ts_str_col: str,
+    ts_dbl_col: str,
+    ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT,
+) -> DataFrame:
+    """
+    Convert a string timestamp column to a double timestamp column
+
+    :param df: the :class:`DataFrame` to transform
+    :param ts_str_col: name of the string timestamp column
+    :param ts_dbl_col: name of the double timestamp column to create
+    :param fractional_seconds_split_char: the character to split fractional seconds on
+
+    :return: the transformed :class:`DataFrame`
+    """
+    tmp_int_ts_col = "__tmp_int_ts"
+    tmp_frac_ts_col = "__tmp_fract_ts"
+    fract_secs_sep = identify_fractional_second_separator(ts_fmt)
+    double_ts_df = (
+        # get the interger part of the timestamp
+        df.withColumn(tmp_int_ts_col, sfn.to_timestamp(ts_str_col, ts_fmt).cast("long"))
+        # get the fractional part of the timestamp
+        .withColumn(
+            tmp_frac_ts_col,
+            sfn.when(
+                sfn.col(ts_str_col).contains(fract_secs_sep),
+                sfn.concat(
+                    sfn.lit("0."),
+                    sfn.split(sfn.col(ts_str_col), f"\\{fract_secs_sep}")[1],
+                ),
+            )
+            .otherwise(0.0)
+            .cast("double"),
+        )
+        # combine them together
+        .withColumn(ts_dbl_col, sfn.col(tmp_int_ts_col) + sfn.col(tmp_frac_ts_col))
+        # clean up
+        .drop(tmp_int_ts_col, tmp_frac_ts_col)
+    )
+    return double_ts_df
+
+
+# The TSDF class
+
+
+class TSDF(WindowBuilder):
+    """
+    This class represents a time series DataFrame (TSDF) - a DataFrame with a
+    time series index. It can represent multiple logical time series,
+    each identified by a unique set of series IDs.
+
+    .. deprecated:: 0.2.0
+        The ``partition_cols`` constructor parameter is deprecated in favor of
+        ``series_ids``, and ``sequence_col`` in favor of
+        :meth:`TSDF.fromSubsequenceCol`. Both still work but emit a
+        ``DeprecationWarning`` and are removed in v1.0.0.
     """
 
     summarizable_types = ["int", "bigint", "float", "double"]
@@ -35,175 +129,327 @@ class TSDF:
     def __init__(
         self,
         df: DataFrame,
-        ts_col: str = "event_ts",
-        partition_cols: Optional[list[str]] = None,
+        ts_schema: Optional[TSSchema] = None,
+        ts_col: Optional[str] = None,
+        series_ids: Optional[Collection[str]] = None,
+        partition_cols: Optional[Collection[str]] = None,
         sequence_col: Optional[str] = None,
-    ):
-        """
-        Constructor
-        :param df:
-        :param ts_col:
-        :param partition_cols:
-        :sequence_col every tsdf allows for a tie-breaker secondary sort key
-        """
-        self.ts_col = self.__validated_column(df, ts_col)
-        self.partitionCols = (
-            []
-            if partition_cols is None
-            else self.__validated_columns(df, partition_cols.copy())
-        )
+    ) -> None:
+        # --- v0.1.x backwards-compatibility shims (removed in v1.0.0) ---
+        if partition_cols is not None:
+            warn_deprecated("the 'partition_cols' parameter", "'series_ids'")
+            if series_ids is None:
+                series_ids = partition_cols
+        if sequence_col is not None:
+            warn_deprecated(
+                "the 'sequence_col' parameter", "TSDF.fromSubsequenceCol(...)"
+            )
+            assert ts_col is not None, "ts_col must be provided when using sequence_col"
+            # build the composite (timestamp, subsequence) index used by v0.2
+            struct_col_name = self.__DEFAULT_TS_IDX_COL
+            df = make_struct_from_cols(df, struct_col_name, [ts_col, sequence_col])
+            subseq_idx = SubsequenceTSIndex(
+                df.schema[struct_col_name], ts_col, sequence_col
+            )
+            ts_schema = TSSchema(subseq_idx, series_ids)
 
         self.df = df
-        self.sequence_col = "" if sequence_col is None else sequence_col
+        # construct schema if we don't already have one
+        if ts_schema:
+            self.ts_schema = ts_schema
+        else:
+            assert ts_col is not None
+            self.ts_schema = TSSchema.fromDFSchema(self.df.schema, ts_col, series_ids)
+        # validate that this schema works for this DataFrame
+        self.ts_schema.validate(df.schema)
 
-        # Add customized check for string type for the timestamp.
-        # If we see a string, we will proactively created a double
-        # version of the string timestamp for sorting purposes and
-        # rename to ts_col
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(df={self.df}, ts_schema={self.ts_schema})"
 
-        # TODO : we validate the string is of a specific format. Spark will
-        # convert a valid formatted timestamp string to timestamp type so
-        # this if clause seems unneeded. Perhaps we should check for non-valid
-        # Timestamp string matching then do some pattern matching to extract
-        # the time stamp.
-        if isinstance(df.schema[ts_col].dataType, StringType):  # pragma: no cover
-            sample_ts = df.select(ts_col).limit(1).head(1)[0][0]
-            self.__validate_ts_string(sample_ts)
-            self.df = (
-                self.__add_double_ts()
-                .drop(self.ts_col)
-                .withColumnRenamed("double_ts", self.ts_col)
-            )
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TSDF):
+            return False
+        return self.ts_schema == other.ts_schema and self.df == other.df
 
+    def __withTransformedDF(self, new_df: DataFrame) -> TSDF:
         """
-    Make sure DF is ordered by its respective ts_col and partition columns.
-    """
+        This helper function will create a new :class:`TSDF` using the current schema, but a new / transformed :class:`DataFrame`
+
+        :param new_df: the new / transformed :class:`DataFrame` to
+
+        :return: a new TSDF object with the transformed DataFrame
+        """
+        return TSDF(
+            new_df,
+            ts_schema=copy.deepcopy(self.ts_schema),
+        )
+
+    def __withStandardizedColOrder(self) -> TSDF:
+        """
+        Standardizes the column ordering as such:
+        * series_ids,
+        * ts_index,
+        * observation columns
+
+        :return: a :class:`TSDF` with the columns reordered into
+        "standard order" (as described above)
+        """
+        std_ordered_cols = (
+            list(self.series_ids)
+            + [self.ts_index.colname]
+            + list(self.observational_cols)
+        )
+
+        return self.__withTransformedDF(self.df.select(std_ordered_cols))
+
+    # default column name for constructed timeseries index struct columns
+    __DEFAULT_TS_IDX_COL = "ts_idx"
+
+    @classmethod
+    def buildEmptyLattice(
+        cls,
+        spark: SparkSession,
+        start_time: dt,
+        end_time: Optional[dt] = None,
+        step_size: Optional[td] = None,
+        num_intervals: Optional[int] = None,
+        ts_col: Optional[str] = None,
+        series_ids: Optional[Any] = None,
+        series_schema: Optional[Union[AtomicType, StructType, str]] = None,
+        observation_cols: Optional[Union[Mapping[str, str], Iterable[str]]] = None,
+        num_partitions: Optional[int] = None,
+    ) -> TSDF:
+        """
+        Construct an empty "lattice", i.e. a :class:`TSDF` with a time range
+        for each unique series and a set of observational columns (initialized to Nulls)
+
+        :param spark: the Spark session to use
+        :param start_time: the start time of the lattice
+        :param end_time: the end time of the lattice (optional)
+        :param step_size: the step size between each time interval (optional)
+        :param num_intervals: the number of intervals to create (optional)
+        :param ts_col: the name of the timestamp column (optional)
+        :param series_ids: the unique series identifiers (optional)
+        :param series_schema: the schema of the series identifiers (optional)
+        :param observation_cols: the observational columns to include (optional)
+        :param num_partitions: the number of partitions to create (optional)
+
+        :return: a :class:`TSDF` representing the empty lattice
+        """
+
+        # set a default timestamp column if not provided
+        if ts_col is None:
+            ts_col = cls.__DEFAULT_TS_IDX_COL
+
+        # initialize the lattice as a time range
+        lattice_df = t_utils.time_range(
+            spark, start_time, end_time, step_size, num_intervals, ts_colname=ts_col
+        )
+        select_exprs = [sfn.col(ts_col)]
+
+        # handle construction of the series_ids DataFrame
+        series_df = None
+        if series_ids:
+            if isinstance(series_ids, DataFrame):
+                series_df = series_ids
+            elif isinstance(series_ids, (RDD, PandasDataFrame)):
+                series_df = spark.createDataFrame(series_ids)
+            elif isinstance(series_ids, dict):
+                series_df = spark.createDataFrame(pd.DataFrame(series_ids))
+            else:
+                series_df = spark.createDataFrame(data=series_ids, schema=series_schema)
+            # add the series columns to the select expressions
+            select_exprs += [sfn.col(c) for c in series_df.columns]
+            # lattice is the cross join of the time range and the series identifiers
+            lattice_df = lattice_df.crossJoin(series_df)
+
+        # set up select expressions for the observation columns
+        if observation_cols:
+            # convert to a dict if not already, mapping all columns to "double" types
+            if not isinstance(observation_cols, dict):
+                observation_cols = {col: "double" for col in observation_cols}
+            select_exprs += [
+                sfn.lit(None).cast(coltype).alias(colname)
+                for colname, coltype in observation_cols.items()
+            ]
+            lattice_df = lattice_df.select(*select_exprs)
+
+        # repartition the lattice in a more optimal way
+        if num_partitions is None:
+            num_partitions = lattice_df.rdd.getNumPartitions()
+        if series_df:
+            sort_cols = series_df.columns + [ts_col]
+            lattice_df = lattice_df.repartition(
+                num_partitions, *(series_df.columns)
+            ).sortWithinPartitions(*sort_cols)
+        else:
+            lattice_df = lattice_df.repartitionByRange(num_partitions, ts_col)
+
+        # construct the appropriate TSDF
+        return TSDF(
+            lattice_df,
+            ts_col=ts_col,
+            series_ids=series_df.columns if series_df else None,
+        )
+
+    @classmethod
+    def fromSubsequenceCol(
+        cls,
+        df: DataFrame,
+        ts_col: str,
+        subsequence_col: str,
+        series_ids: Optional[Collection[str]] = None,
+    ) -> TSDF:
+        # construct a struct with the ts_col and subsequence_col
+        struct_col_name = cls.__DEFAULT_TS_IDX_COL
+        with_subseq_struct_df = make_struct_from_cols(
+            df, struct_col_name, [ts_col, subsequence_col]
+        )
+        # construct an appropriate TSIndex
+        subseq_struct = with_subseq_struct_df.schema[struct_col_name]
+        # Use the proper SubsequenceTSIndex for composite timestamp/subsequence columns
+        subseq_idx = SubsequenceTSIndex(subseq_struct, ts_col, subsequence_col)
+        # construct & return the TSDF with appropriate schema
+        return TSDF(with_subseq_struct_df, ts_schema=TSSchema(subseq_idx, series_ids))
+
+    # default column name for parsed timeseries column
+    __DEFAULT_PARSED_TS_COL = "parsed_ts"
+    __DEFAULT_DOUBLE_TS_COL = "double_ts"
+
+    @classmethod
+    def fromStringTimestamp(
+        cls,
+        df: DataFrame,
+        ts_col: str,
+        series_ids: Optional[Collection[str]] = None,
+        ts_fmt: str = DEFAULT_TIMESTAMP_FORMAT,
+    ) -> TSDF:
+        # TODO (v0.2 refactor): Fix timezone handling for nanosecond precision timestamps
+        # When using composite timestamp indexes for nanosecond precision, there can be
+        # timezone inconsistencies between different join strategies (broadcast vs union).
+        # This should be addressed in the v0.2 refactor to ensure consistent behavior.
+
+        # parse the ts_col based on the pattern
+        is_sub_ms = False
+        sub_ms_digits = 0
+        if is_time_format(ts_fmt):
+            # is this a sub-microsecond precision timestamp?
+            sub_ms_digits = sub_seconds_precision_digits(ts_fmt)
+            is_sub_ms = sub_ms_digits > 6
+            # if the ts_fmt is a time format, we can use to_timestamp
+            ts_expr = sfn.to_timestamp(sfn.col(ts_col), ts_fmt)
+        else:
+            # otherwise, we'll use to_date
+            ts_expr = sfn.to_date(sfn.col(ts_col), ts_fmt)
+        # parse the ts_col give the expression
+        parsed_ts_col = cls.__DEFAULT_PARSED_TS_COL
+        parsed_df = df.withColumn(parsed_ts_col, ts_expr)
+        # parse a sub-microsecond precision timestamp to a double
+        if is_sub_ms:
+            # get the integer part of the timestamp
+            parsed_df = time_str_to_double(
+                parsed_df, ts_col, cls.__DEFAULT_DOUBLE_TS_COL, ts_fmt
+            )
+        # move the ts cols into a struct
+        struct_col_name = cls.__DEFAULT_TS_IDX_COL
+        cols_to_move = [ts_col, parsed_ts_col]
+        if is_sub_ms:
+            cols_to_move.append(cls.__DEFAULT_DOUBLE_TS_COL)
+        with_parsed_struct_df = make_struct_from_cols(
+            parsed_df, struct_col_name, cols_to_move
+        )
+        # construct an appropriate TSIndex
+        parsed_struct = with_parsed_struct_df.schema[struct_col_name]
+        if is_sub_ms:
+            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(
+                parsed_struct,
+                parsed_ts_col,
+                ts_col,
+                cls.__DEFAULT_DOUBLE_TS_COL,
+                sub_ms_digits,
+            )
+        else:
+            parsed_ts_idx = ParsedTSIndex.fromParsedTimestamp(
+                parsed_struct, parsed_ts_col, ts_col
+            )
+        # construct & return the TSDF with appropriate schema
+        return TSDF(
+            with_parsed_struct_df, ts_schema=TSSchema(parsed_ts_idx, series_ids)
+        )
+
+    @property
+    def ts_index(self) -> TSIndex:
+        return self.ts_schema.ts_idx
+
+    @property
+    def ts_col(self) -> str:
+        # TODO - this should be replaced TSIndex expressions
+        return self.ts_schema.ts_idx.colname
+
+    @property
+    def columns(self) -> List[str]:
+        return self.df.columns
+
+    @property
+    def series_ids(self) -> List[str]:
+        return self.ts_schema.series_ids
+
+    @property
+    def partitionCols(self) -> List[str]:
+        """
+        .. deprecated:: 0.2.0
+            Use :attr:`series_ids` instead. This alias is removed in v1.0.0.
+        """
+        warn_deprecated("the 'partitionCols' attribute", "'series_ids'")
+        return self.series_ids
+
+    @property
+    def sequence_col(self) -> Optional[str]:
+        """Accessor for the subsequence column name.
+
+        Returns the subsequence column name when the index is a
+        :class:`SubsequenceTSIndex`, otherwise ``None``.
+
+        .. deprecated:: 0.2.0
+            Use ``TSDF.ts_schema.ts_idx`` instead. This accessor is removed in
+            v1.0.0.
+        """
+        warn_deprecated("the 'sequence_col' attribute", "TSDF.ts_schema.ts_idx")
+        return getattr(self.ts_schema.ts_idx, "_subsequence_col", None)
+
+    @property
+    def structural_cols(self) -> List[str]:
+        return self.ts_schema.structural_columns
+
+    @cached_property
+    def observational_cols(self) -> List[str]:
+        return self.ts_schema.find_observational_columns(self.df.schema)
+
+    @cached_property
+    def metric_cols(self) -> List[str]:
+        return self.ts_schema.find_metric_columns(self.df.schema)
 
     #
     # Helper functions
     #
 
-    @staticmethod
-    def parse_nanos_timestamp(
-        df: DataFrame,
-        str_ts_col: str,
-        ts_fmt: str = "yyyy-MM-dd HH:mm:ss",
-        double_ts_col: Optional[str] = None,
-        parsed_ts_col: Optional[str] = None,
-    ) -> DataFrame:
-        """
-        Parse a string timestamp column with nanosecond precision into a double timestamp column.
-
-        :param df: DataFrame containing the string timestamp column
-        :param str_ts_col: Name of the string timestamp column
-        :param ts_fmt: Format of the string timestamp column (default: "yyyy-MM-dd HH:mm:ss")
-        :param double_ts_col: Name of the double timestamp column to create, if None
-                the source string column will be overwritten
-        :param parsed_ts_col: Name of the parsed timestamp column to create, if None
-                no parsed timestamp column will be kept
-
-        :return: DataFrame with the double timestamp column
-        """
-
-        # add a parsed timestamp column if requested
-        src_df = (
-            df.withColumn(parsed_ts_col, sfn.to_timestamp(sfn.col(str_ts_col), ts_fmt))
-            if parsed_ts_col
-            else df
-        )
-
-        return (
-            src_df.withColumn(
-                "nanos",
-                sfn.when(
-                    sfn.col(str_ts_col).contains("."),
-                    sfn.concat(sfn.lit("0."), sfn.split(sfn.col(str_ts_col), r"\.")[1]),
-                )
-                .otherwise(0)
-                .cast("double"),
-            )
-            .withColumn("long_ts", sfn.unix_timestamp(str_ts_col, ts_fmt))
-            .withColumn(
-                (double_ts_col or str_ts_col), sfn.col("long_ts") + sfn.col("nanos")
-            )
-        )
-
-    def __add_double_ts(self) -> DataFrame:
-        """Add a double (epoch) version of the string timestamp out to nanos"""
-        return (
-            self.df.withColumn(
-                "nanos",
-                (
-                    sfn.when(
-                        sfn.col(self.ts_col).contains("."),
-                        sfn.concat(
-                            sfn.lit("0."),
-                            sfn.split(sfn.col(self.ts_col), r"\.")[1],
-                        ),
-                    ).otherwise(0)
-                ).cast("double"),
-            )
-            .withColumn("long_ts", sfn.col(self.ts_col).cast("timestamp").cast("long"))
-            .withColumn("double_ts", sfn.col("long_ts") + sfn.col("nanos"))
-            .drop("nanos")
-            .drop("long_ts")
-        )
-
-    @staticmethod
-    def __validate_ts_string(ts_text: str) -> None:
-        """Validate the format for the string using Regex matching for ts_string"""
-        import re
-
-        ts_pattern = r"^(\d{4}-\d{2}-\d{2}[T| ]\d{2}:\d{2}:\d{2})(\.\d+)?$"
-        if re.match(ts_pattern, ts_text) is None:
-            raise ValueError(
-                "Incorrect data format, should be YYYY-MM-DD HH:MM:SS[.nnnnnnnn]"
-            )
-
-    @staticmethod
-    def __validated_column(df: DataFrame, colname: str) -> str:
-        if not isinstance(colname, str):
-            raise TypeError(
-                f"Column names must be of type str; found {type(colname)} instead!"
-            )
-        if colname.lower() not in [col.lower() for col in df.columns]:
-            raise ValueError(f"Column {colname} not found in Dataframe")
-        return colname
-
-    def __validated_columns(
-        self, df: DataFrame, colnames: Optional[Union[str, List[str]]]
-    ) -> List[str]:
-        # if provided a string, treat it as a single column
-        if isinstance(colnames, str):
-            colnames = [colnames]
-        # otherwise we really should have a list or None
-        elif colnames is None:
-            colnames = []
-        elif not isinstance(colnames, list):
-            raise TypeError(
-                f"Columns must be of type list, str, or None; found {type(colnames)} instead!"
-            )
-        # validate each column
-        for col in colnames:
-            self.__validated_column(df, col)
-        return colnames
-
-    def __checkPartitionCols(self, tsdf_right: "TSDF") -> None:
-        for left_col, right_col in zip(self.partitionCols, tsdf_right.partitionCols):
+    def __checkPartitionCols(self, tsdf_right: TSDF) -> None:
+        for left_col, right_col in zip(self.series_ids, tsdf_right.series_ids):
             if left_col != right_col:
                 raise ValueError(
                     "left and right dataframe partition columns should have same name in same order"
                 )
 
-    def __validateTsColMatch(self, right_tsdf: "TSDF") -> None:
+    def __validateTsColMatch(self, right_tsdf: TSDF) -> None:
+        # TODO - can simplify this to get types from schema object
         left_ts_datatype = self.df.select(self.ts_col).dtypes[0][1]
-        right_ts_datatype = right_tsdf.df.select(self.ts_col).dtypes[0][1]
+        right_ts_datatype = right_tsdf.df.select(right_tsdf.ts_col).dtypes[0][1]
         if left_ts_datatype != right_ts_datatype:
             raise ValueError(
                 "left and right dataframe timestamp index columns should have same type"
             )
 
-    def __addPrefixToColumns(self, col_list: list[str], prefix: str) -> "TSDF":
+    def __addPrefixToColumns(self, col_list: list[str], prefix: str) -> TSDF:
         """
         Add prefix to all specified columns.
         """
@@ -226,11 +472,12 @@ class TSDF:
 
         # find the structural columns
         ts_col = col_map.get(self.ts_col, self.ts_col)
-        partition_cols = [col_map.get(c, c) for c in self.partitionCols]
-        sequence_col = col_map.get(self.sequence_col, self.sequence_col)
-        return TSDF(renamed_df, ts_col, partition_cols, sequence_col=sequence_col)
+        partition_cols = [col_map.get(c, c) for c in self.series_ids]
+        # sequence_col = col_map.get(self.sequence_col, self.sequence_col)
+        # TODO: Handle sequence_col in the refactored version
+        return TSDF(renamed_df, ts_col=ts_col, series_ids=partition_cols)
 
-    def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> "TSDF":
+    def __addColumnsFromOtherDF(self, other_cols: Sequence[str]) -> TSDF:
         """
         Add columns from some other DF as lit(None), as pre-step before union.
         """
@@ -240,39 +487,34 @@ class TSDF:
         new_cols = [sfn.lit(None).alias(col) for col in other_cols]
         new_df = self.df.select(current_cols + new_cols)
 
-        return TSDF(new_df, self.ts_col, self.partitionCols)
+        return self.__withTransformedDF(new_df)
 
-    def __combineTSDF(self, ts_df_right: "TSDF", combined_ts_col: str) -> "TSDF":
+    def __combineTSDF(self, ts_df_right: TSDF, combined_ts_col: str) -> TSDF:
         combined_df = self.df.unionByName(ts_df_right.df).withColumn(
             combined_ts_col, sfn.coalesce(self.ts_col, ts_df_right.ts_col)
         )
 
-        return TSDF(combined_df, combined_ts_col, self.partitionCols)
+        return TSDF(combined_df, ts_col=combined_ts_col, series_ids=self.series_ids)
 
     def __getLastRightRow(
         self,
         left_ts_col: str,
         right_cols: list[str],
-        sequence_col: str,
+        sequence_col: Optional[str],
         tsPartitionVal: Optional[int],
         ignoreNulls: bool,
         suppress_null_warning: bool,
-    ) -> "TSDF":
+    ) -> TSDF:
         """Get last right value of each right column (inc. right timestamp) for each self.ts_col value
 
         self.ts_col, which is the combined time-stamp column of both left and right dataframe, is dropped at the end
         since it is no longer used in subsequent methods.
         """
-        ptntl_sort_keys = [self.ts_col, "rec_ind"]
-        if sequence_col:
-            ptntl_sort_keys.append(sequence_col)
-
-        sort_keys = [
-            sfn.col(col_name) for col_name in ptntl_sort_keys if col_name != ""
-        ]
+        ptntl_sort_keys = [self.ts_col, "rec_ind", sequence_col]
+        sort_keys = [sfn.col(col_name) for col_name in ptntl_sort_keys if col_name]
 
         window_spec = (
-            Window.partitionBy(self.partitionCols)
+            Window.partitionBy(self.series_ids)
             .orderBy(sort_keys)
             .rowsBetween(Window.unboundedPreceding, Window.currentRow)
         )
@@ -327,7 +569,7 @@ class TSDF:
                     if not suppress_null_warning and logger.isEnabledFor(
                         logging.WARNING
                     ):
-                        any_blank_vals = df.agg({column: "min"}).head(1)[0][0] == 0
+                        any_blank_vals = df.agg({column: "min"}).collect()[0][0] == 0
                         newCol = column.replace("non_null_ct", "")
                         if any_blank_vals:
                             logger.warning(
@@ -337,9 +579,9 @@ class TSDF:
                             )
                     df = df.drop(column)
 
-        return TSDF(df, left_ts_col, self.partitionCols)
+        return TSDF(df, ts_col=left_ts_col, series_ids=self.series_ids)
 
-    def __getTimePartitions(self, tsPartitionVal: int, fraction: float = 0.1) -> "TSDF":
+    def __getTimePartitions(self, tsPartitionVal: int, fraction: float = 0.1) -> TSDF:
         """
         Create time-partitions for our data-set. We put our time-stamps into brackets of <tsPartitionVal>. Timestamps
         are rounded down to the nearest <tsPartitionVal> seconds.
@@ -380,65 +622,49 @@ class TSDF:
         df = partition_df.union(remainder_df).drop(
             "partition_remainder", "ts_col_double"
         )
-        return TSDF(df, self.ts_col, self.partitionCols + ["ts_partition"])
+        return TSDF(
+            df, ts_col=self.ts_col, series_ids=self.series_ids + ["ts_partition"]
+        )
 
     #
     # Slicing & Selection
     #
 
-    def select(self, *cols: Union[str, List[str]]) -> "TSDF":
+    def select(self, *cols: Union[str, Column]) -> TSDF:
         """
         pyspark.sql.DataFrame.select() method's equivalent for TSDF objects
+        Parameters
+        ----------
+        cols : str or list of strs
+        column names (string).
+        If one of the column names is '*', that column is expanded to include all columns
+        in the current :class:`TSDF`.
 
-        :param cols: str or list of strs column names (string). If one of the column names is '*', that
-            column is expanded to include all columns in the current :class:`TSDF`.
-
-        ## Examples
-        .. code-block:: python
+        Examples
+        --------
         tsdf.select('*').collect()
         [Row(age=2, name='Alice'), Row(age=5, name='Bob')]
         tsdf.select('name', 'age').collect()
         [Row(name='Alice', age=2), Row(name='Bob', age=5)]
 
         """
-
         # The columns which will be a mandatory requirement while selecting from TSDFs
-        seq_col_stub = [] if bool(self.sequence_col) is False else [self.sequence_col]
-        mandatory_cols = [self.ts_col] + self.partitionCols + seq_col_stub
-        if set(mandatory_cols).issubset(set(cols)):
-            return TSDF(
-                self.df.select(*cols),
-                self.ts_col,
-                self.partitionCols,
-                self.sequence_col,
-            )
-        else:
-            raise Exception(
-                "In TSDF's select statement original ts_col, partitionCols and seq_col_stub(optional) must be present"
-            )
+        selected_df = self.df.select(*cols)
+        return self.__withTransformedDF(selected_df)
 
-    def __slice(self, op: str, target_ts: Union[str, int]) -> "TSDF":
+    def where(self, condition: Union[Column, str]) -> TSDF:
         """
-        Private method to slice TSDF by time
+        Selects rows using the given condition.
 
-        :param op: string symbol of the operation to perform
-        :type op: str
-        :param target_ts: timestamp on which to filter
+        :param condition: a :class:`Column` of :class:`types.BooleanType` or a string of SQL expression.
 
-        :return: a TSDF object containing only those records within the time slice specified
+        :return: a new :class:`TSDF` object
+        :rtype: :class:`TSDF`
         """
-        # quote our timestamp if its a string
-        target_expr = f"'{target_ts}'" if isinstance(target_ts, str) else target_ts
-        slice_expr = sfn.expr(f"{self.ts_col} {op} {target_expr}")
-        sliced_df = self.df.where(slice_expr)
-        return TSDF(
-            sliced_df,
-            ts_col=self.ts_col,
-            partition_cols=self.partitionCols,
-            sequence_col=self.sequence_col,
-        )
+        where_df = self.df.where(condition)
+        return self.__withTransformedDF(where_df)
 
-    def at(self, ts: Union[str, int]) -> "TSDF":
+    def at(self, ts: Any) -> TSDF:
         """
         Select only records at a given time
 
@@ -446,9 +672,9 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at the given time
         """
-        return self.__slice("==", ts)
+        return self.where(self.ts_index == ts)
 
-    def before(self, ts: Union[str, int]) -> "TSDF":
+    def before(self, ts: Any) -> TSDF:
         """
         Select only records before a given time
 
@@ -456,9 +682,9 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing just the records before the given time
         """
-        return self.__slice("<", ts)
+        return self.where(self.ts_index < ts)
 
-    def atOrBefore(self, ts: Union[str, int]) -> "TSDF":
+    def atOrBefore(self, ts: Any) -> TSDF:
         """
         Select only records at or before a given time
 
@@ -466,9 +692,9 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at or before the given time
         """
-        return self.__slice("<=", ts)
+        return self.where(self.ts_index <= ts)
 
-    def after(self, ts: Union[str, int]) -> "TSDF":
+    def after(self, ts: Any) -> TSDF:
         """
         Select only records after a given time
 
@@ -476,9 +702,9 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing just the records after the given time
         """
-        return self.__slice(">", ts)
+        return self.where(self.ts_index > ts)
 
-    def atOrAfter(self, ts: Union[str, int]) -> "TSDF":
+    def atOrAfter(self, ts: Any) -> TSDF:
         """
         Select only records at or after a given time
 
@@ -486,11 +712,9 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing just the records at or after the given time
         """
-        return self.__slice(">=", ts)
+        return self.where(self.ts_index >= ts)
 
-    def between(
-        self, start_ts: Union[str, int], end_ts: Union[str, int], inclusive: bool = True
-    ) -> "TSDF":
+    def between(self, start_ts: Any, end_ts: Any, inclusive: bool = True) -> TSDF:
         """
         Select only records in a given range
 
@@ -505,7 +729,7 @@ class TSDF:
             return self.atOrAfter(start_ts).atOrBefore(end_ts)
         return self.after(start_ts).before(end_ts)
 
-    def __top_rows_per_series(self, win: WindowSpec, n: int) -> "TSDF":
+    def __top_rows_per_series(self, win: WindowSpec, n: int) -> TSDF:
         """
         Private method to select just the top n rows per series (as defined by a window ordering)
 
@@ -520,14 +744,9 @@ class TSDF:
             .where(sfn.col(row_num_col) <= sfn.lit(n))
             .drop(row_num_col)
         )
-        return TSDF(
-            prev_records_df,
-            ts_col=self.ts_col,
-            partition_cols=self.partitionCols,
-            sequence_col=self.sequence_col,
-        )
+        return self.__withTransformedDF(prev_records_df)
 
-    def earliest(self, n: int = 1) -> "TSDF":
+    def earliest(self, n: int = 1) -> TSDF:
         """
         Select the earliest n records for each series
 
@@ -535,10 +754,10 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing the earliest n records for each series
         """
-        prev_window = self.__baseWindow(reverse=False)
+        prev_window = self.baseWindow(reverse=False)
         return self.__top_rows_per_series(prev_window, n)
 
-    def latest(self, n: int = 1) -> "TSDF":
+    def latest(self, n: int = 1) -> TSDF:
         """
         Select the latest n records for each series
 
@@ -546,10 +765,10 @@ class TSDF:
 
         :return: a :class:`~tsdf.TSDF` object containing the latest n records for each series
         """
-        next_window = self.__baseWindow(reverse=True)
+        next_window = self.baseWindow(reverse=True)
         return self.__top_rows_per_series(next_window, n)
 
-    def priorTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def priorTo(self, ts: Any, n: int = 1) -> TSDF:
         """
         Select the n most recent records prior to a given time
         You can think of this like an 'asOf' select - it selects the records as of a particular time
@@ -561,7 +780,7 @@ class TSDF:
         """
         return self.atOrBefore(ts).latest(n)
 
-    def subsequentTo(self, ts: Union[str, int], n: int = 1) -> "TSDF":
+    def subsequentTo(self, ts: Any, n: int = 1) -> TSDF:
         """
         Select the n records subsequent to a give time
 
@@ -582,22 +801,23 @@ class TSDF:
         """
         pyspark.sql.DataFrame.show() method's equivalent for TSDF objects
 
-        :param n: Number of rows to show. (default: 20)
-        :param truncate: If set to True, truncate strings longer than 20 chars by default.
-            If set to a number greater than one, truncates long strings to length truncate
-            and align cells right.
-        :param vertical: If set to True, print output rows vertically (one line per column value).
+        Parameters
+        ----------
+        n : int, optional
+        Number of rows to show.
+        truncate : bool or int, optional
+        If set to ``True``, truncate strings longer than 20 chars by default.
+        If set to a number greater than one, truncates long strings to length ``truncate``
+        and align cells right.
+        vertical : bool, optional
+        If set to ``True``, print output rows vertically (one line
+        per column value).
 
-        ## Example to show usage:
-        .. code-block:: python
+        Example to show usage
+        ---------------------
         from pyspark.sql.functions import *
 
-        phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer") \n
-            .withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")) \n
-            .withColumn("x", col("x").cast("double")) \n
-            .withColumn("y", col("y").cast("double")) \n
-            .withColumn("z", col("z").cast("double")) \n
-            .withColumn("event_ts_dbl", col("event_ts").cast("double"))
+        phone_accel_df = spark.read.format("csv").option("header", "true").load("dbfs:/home/tempo/Phones_accelerometer").withColumn("event_ts", (col("Arrival_Time").cast("double")/1000).cast("timestamp")).withColumn("x", col("x").cast("double")).withColumn("y", col("y").cast("double")).withColumn("z", col("z").cast("double")).withColumn("event_ts_dbl", col("event_ts").cast("double"))
 
         from tempo import *
 
@@ -605,8 +825,8 @@ class TSDF:
 
         # Call show method here
         phone_accel_tsdf.show()
-        """
 
+        """
         # validate k <= n
         if k > n:
             raise ValueError(f"Parameter k {k} cannot be greater than parameter n {n}")
@@ -617,87 +837,88 @@ class TSDF:
             ipydisplay(
                 HTML("<style>pre { white-space: pre !important; }</style>")
             )  # pragma: no cover
-        t_utils.get_display_df(self, k).show(n, truncate, vertical)
+        # t_utils.get_display_df(self, k).show(n, truncate, vertical)
+        self.df.show(n, truncate, vertical)
 
-    def describe(self) -> DataFrame:
-        """
-        Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals
-        Summary
-        global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
-        count / mean / stddev / min / max - standard Spark data frame describe() output
-        missing_vals_pct - percentage (from 0 to 100) of missing values.
-        """
-        # extract the double version of the timestamp column to summarize
-        double_ts_col = self.ts_col + "_dbl"
-
-        this_df = self.df.withColumn(double_ts_col, sfn.col(self.ts_col).cast("double"))
-
-        # summary missing value percentages
-        missing_vals = this_df.select(
-            [
-                (
-                    100
-                    * sfn.count(sfn.when(sfn.col(c[0]).isNull(), c[0]))
-                    / sfn.count(sfn.lit(1))
-                ).alias(c[0])
-                for c in this_df.dtypes
-                if c[1] != "timestamp"
-            ]
-        ).select(sfn.lit("missing_vals_pct").alias("summary"), "*")
-
-        # describe stats
-        desc_stats = this_df.describe().union(missing_vals)
-        unique_ts = this_df.select(*self.partitionCols).distinct().count()
-
-        max_ts = this_df.select(sfn.max(sfn.col(self.ts_col)).alias("max_ts")).head(1)[
-            0
-        ][0]
-        min_ts = this_df.select(sfn.min(sfn.col(self.ts_col)).alias("max_ts")).head(1)[
-            0
-        ][0]
-        gran = this_df.selectExpr(
-            """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
-                  when {0} % 60 != 0 then '2-seconds'
-                  when {0} % 3600 != 0 then '3-minutes'
-                  when {0} % 86400 != 0 then '4-hours'
-                  else '5-days' end) granularity""".format(
-                double_ts_col
-            )
-        ).head(1)[0][0][2:]
-
-        non_summary_cols = [c for c in desc_stats.columns if c != "summary"]
-
-        desc_stats = desc_stats.select(
-            sfn.col("summary"),
-            sfn.lit(" ").alias("unique_ts_count"),
-            sfn.lit(" ").alias("min_ts"),
-            sfn.lit(" ").alias("max_ts"),
-            sfn.lit(" ").alias("granularity"),
-            *non_summary_cols,
-        )
-
-        # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
-        global_smry_rec = desc_stats.limit(1).select(
-            sfn.lit("global").alias("summary"),
-            sfn.lit(unique_ts).alias("unique_ts_count"),
-            sfn.lit(min_ts).alias("min_ts"),
-            sfn.lit(max_ts).alias("max_ts"),
-            sfn.lit(gran).alias("granularity"),
-            *[sfn.lit(" ").alias(c) for c in non_summary_cols],
-        )
-
-        full_smry = global_smry_rec.union(desc_stats)
-        full_smry = full_smry.withColumnRenamed(
-            "unique_ts_count", "unique_time_series_count"
-        )
-
-        try:  # pragma: no cover
-            dbutils.fs.ls("/")  # type: ignore
-            return full_smry
-        # TODO: Can we raise something other than generic Exception?
-        #  perhaps refactor to check for IS_DATABRICKS
-        except Exception:
-            return full_smry
+    # def describe(self) -> DataFrame:
+    #     """
+    #     Describe a TSDF object using a global summary across all time series (anywhere from 10 to millions) as well as the standard Spark data frame stats. Missing vals
+    #     Summary
+    #     global - unique time series based on partition columns, min/max times, granularity - lowest precision in the time series timestamp column
+    #     count / mean / stddev / min / max - standard Spark data frame describe() output
+    #     missing_vals_pct - percentage (from 0 to 100) of missing values.
+    #     """
+    #     # extract the double version of the timestamp column to summarize
+    #     double_ts_col = self.ts_col + "_dbl"
+    #
+    #     this_df = self.df.withColumn(double_ts_col, sfn.col(self.ts_col).cast("double"))
+    #
+    #     # summary missing value percentages
+    #     missing_vals = this_df.select(
+    #         [
+    #             (
+    #                 100
+    #                 * sfn.count(sfn.when(sfn.col(c[0]).isNull(), c[0]))
+    #                 / sfn.count(sfn.lit(1))
+    #             ).alias(c[0])
+    #             for c in this_df.dtypes
+    #             if c[1] != "timestamp"
+    #         ]
+    #     ).select(sfn.lit("missing_vals_pct").alias("summary"), "*")
+    #
+    #     # describe stats
+    #     desc_stats = this_df.describe().union(missing_vals)
+    #     unique_ts = this_df.select(*self.series_ids).distinct().count()
+    #
+    #     max_ts = this_df.select(
+    #         sfn.max(sfn.col(self.ts_col)).alias("max_ts")
+    #     ).collect()[0][0]
+    #     min_ts = this_df.select(
+    #         sfn.min(sfn.col(self.ts_col)).alias("max_ts")
+    #     ).collect()[0][0]
+    #     gran = this_df.selectExpr(
+    #         """min(case when {0} - cast({0} as integer) > 0 then '1-millis'
+    #               when {0} % 60 != 0 then '2-seconds'
+    #               when {0} % 3600 != 0 then '3-minutes'
+    #               when {0} % 86400 != 0 then '4-hours'
+    #               else '5-days' end) granularity""".format(
+    #             double_ts_col
+    #         )
+    #     ).collect()[0][0][2:]
+    #
+    #     non_summary_cols = [c for c in desc_stats.columns if c != "summary"]
+    #
+    #     desc_stats = desc_stats.select(
+    #         sfn.col("summary"),
+    #         sfn.lit(" ").alias("unique_ts_count"),
+    #         sfn.lit(" ").alias("min_ts"),
+    #         sfn.lit(" ").alias("max_ts"),
+    #         sfn.lit(" ").alias("granularity"),
+    #         *non_summary_cols,
+    #     )
+    #
+    #     # add in single record with global summary attributes and the previously computed missing value and Spark data frame describe stats
+    #     global_smry_rec = desc_stats.limit(1).select(
+    #         sfn.lit("global").alias("summary"),
+    #         sfn.lit(unique_ts).alias("unique_ts_count"),
+    #         sfn.lit(min_ts).alias("min_ts"),
+    #         sfn.lit(max_ts).alias("max_ts"),
+    #         sfn.lit(gran).alias("granularity"),
+    #         *[sfn.lit(" ").alias(c) for c in non_summary_cols],
+    #     )
+    #
+    #     full_smry = global_smry_rec.union(desc_stats)
+    #     full_smry = full_smry.withColumnRenamed(
+    #         "unique_ts_count", "unique_time_series_count"
+    #     )
+    #
+    #     try:  # pragma: no cover
+    #         dbutils.fs.ls("/")  # type: ignore
+    #         return full_smry
+    #     # TODO: Can we raise something other than generic Exception?
+    #     #  perhaps refactor to check for IS_DATABRICKS
+    #     except Exception:
+    #         return full_smry
 
     def __getSparkPlan(self, df: DataFrame, spark: SparkSession) -> str:
         """
@@ -709,7 +930,7 @@ class TSDF:
         """
 
         df.createOrReplaceTempView("view")
-        plan = spark.sql("explain cost select * from view").head(1)[0][0]
+        plan = spark.sql("explain cost select * from view").collect()[0][0]
 
         return plan
 
@@ -751,19 +972,30 @@ class TSDF:
 
     def asofJoin(
         self,
-        right_tsdf: "TSDF",
+        right_tsdf: TSDF,
         left_prefix: Optional[str] = None,
         right_prefix: str = "right",
         tsPartitionVal: Optional[int] = None,
         fraction: float = 0.5,
         skipNulls: bool = True,
-        sql_join_opt: bool = False,
         suppress_null_warning: bool = False,
         tolerance: Optional[int] = None,
-    ) -> "TSDF":
+        strategy: Optional[str] = None,  # Allow manual strategy selection
+        sql_join_opt: Optional[bool] = None,
+    ) -> TSDF:
         """
-        Performs an as-of join between two time-series. If a tsPartitionVal is
-        specified, it will do this partitioned by time brackets, which can help alleviate skew.
+        Performs an as-of join between two time-series using modular strategy pattern.
+
+        The strategy is automatically selected based on data characteristics unless
+        manually specified:
+        - If tsPartitionVal is set: SkewAsOfJoiner (for handling skewed data)
+        - If either DataFrame < 30MB: BroadcastAsOfJoiner (for small data)
+        - Otherwise: UnionSortFilterAsOfJoiner (default for most cases)
+
+        Available manual strategies:
+        - 'broadcast': Force BroadcastAsOfJoiner
+        - 'union': Force UnionSortFilterAsOfJoiner
+        - 'skew': Force SkewAsOfJoiner
 
         NOTE: partition cols have to be the same for both Dataframes. We are
         collecting stats when the WARNING level is enabled also.
@@ -775,477 +1007,589 @@ class TSDF:
         :param tsPartitionVal - value to break up each partition into time brackets
         :param fraction - overlap fraction
         :param skipNulls - whether to skip nulls when joining in values
-        :param sql_join_opt - if set to True, will use standard Spark SQL join if it is estimated to be efficient
         :param suppress_null_warning - when tsPartitionVal is specified, will collect min of each column and raise warnings about null values, set to True to avoid
         :param tolerance - only join values within this tolerance range (inclusive), expressed in number of seconds as a double
+        :param strategy - manually specify join strategy ('broadcast', 'union', or 'skew')
+
+        .. deprecated:: 0.2.0
+            The ``sql_join_opt`` parameter is deprecated; pass
+            ``strategy='broadcast'`` instead. It is removed in v1.0.0.
         """
+        # v0.1.x backwards-compatibility shim (removed in v1.0.0)
+        if sql_join_opt is not None:
+            warn_deprecated("the 'sql_join_opt' parameter", "strategy='broadcast'")
+            if sql_join_opt and strategy is None:
+                strategy = "broadcast"
 
-        # first block of logic checks whether a standard range join will suffice
-        left_df = self.df
-        right_df = right_tsdf.df
+        # Import strategy classes to avoid circular dependency
+        from tempo.joins.strategies import (
+            AsOfJoiner,
+            BroadcastAsOfJoiner,
+            UnionSortFilterAsOfJoiner,
+            SkewAsOfJoiner,
+            choose_as_of_join_strategy,
+        )
 
-        # test if the broadcast join will be efficient
-        if sql_join_opt:
-            spark = SparkSession.builder.getOrCreate()
-            left_bytes = self.__getBytesFromPlan(left_df, spark)
-            right_bytes = self.__getBytesFromPlan(right_df, spark)
-
-            # choose 30MB as the cutoff for the broadcast
-            bytes_threshold = 30 * 1024 * 1024
-            if (left_bytes < bytes_threshold) or (right_bytes < bytes_threshold):
-                spark.conf.set("spark.databricks.optimizer.rangeJoin.binSize", 60)
-                partition_cols = right_tsdf.partitionCols
-                left_cols = list(set(left_df.columns) - set(self.partitionCols))
-                right_cols = list(set(right_df.columns) - set(right_tsdf.partitionCols))
-
-                left_prefix = left_prefix + "_" if left_prefix else ""
-                right_prefix = right_prefix + "_" if right_prefix else ""
-
-                w = Window.partitionBy(*partition_cols).orderBy(
-                    right_prefix + right_tsdf.ts_col
-                )
-
-                new_left_ts_col = left_prefix + self.ts_col
-                new_left_cols = [
-                    sfn.col(c).alias(left_prefix + c) for c in left_cols
-                ] + partition_cols
-                new_right_cols = [
-                    sfn.col(c).alias(right_prefix + c) for c in right_cols
-                ] + partition_cols
-                quotes_df_w_lag = right_df.select(*new_right_cols).withColumn(
-                    "lead_" + right_tsdf.ts_col,
-                    sfn.lead(right_prefix + right_tsdf.ts_col).over(w),
-                )
-                left_df = left_df.select(*new_left_cols)
-                res = (
-                    left_df.join(quotes_df_w_lag, partition_cols)
-                    .where(
-                        left_df[new_left_ts_col].between(
-                            sfn.col(right_prefix + right_tsdf.ts_col),
-                            sfn.coalesce(
-                                sfn.col("lead_" + right_tsdf.ts_col),
-                                sfn.lit("2099-01-01").cast("timestamp"),
-                            ),
-                        )
-                    )
-                    .drop("lead_" + right_tsdf.ts_col)
-                )
-                return TSDF(
-                    res, partition_cols=self.partitionCols, ts_col=new_left_ts_col
-                )
-
-        # end of block checking to see if standard Spark SQL join will work
-
-        if tsPartitionVal is not None:
+        # Log warning for skew join if applicable
+        if tsPartitionVal is not None and not suppress_null_warning:
             logger.warning(
                 "You are using the skew version of the AS OF join. This may result in null values if there are any "
                 "values outside of the maximum lookback. For maximum efficiency, choose smaller values of maximum "
                 "lookback, trading off performance and potential blank AS OF values for sparse keys"
             )
 
-        # Check whether partition columns have same name in both dataframes
-        self.__checkPartitionCols(right_tsdf)
+        # Get SparkSession for strategy initialization
+        spark = SparkSession.builder.getOrCreate()
 
-        # prefix non-partition columns, to avoid duplicated columns.
-        left_df = self.df
-        right_df = right_tsdf.df
-
-        # validate timestamp datatypes match
-        self.__validateTsColMatch(right_tsdf)
-
-        orig_left_col_diff = list(
-            set(left_df.columns).difference(set(self.partitionCols))
-        )
-        orig_right_col_diff = list(
-            set(right_df.columns).difference(set(self.partitionCols))
-        )
-
-        left_tsdf = (
-            (self.__addPrefixToColumns([self.ts_col] + orig_left_col_diff, left_prefix))
-            if left_prefix is not None
-            else self
-        )
-        right_tsdf = right_tsdf.__addPrefixToColumns(
-            [right_tsdf.ts_col] + orig_right_col_diff, right_prefix
-        )
-
-        left_columns = list(
-            set(left_tsdf.df.columns).difference(set(self.partitionCols))
-        )
-        right_columns = list(
-            set(right_tsdf.df.columns).difference(set(self.partitionCols))
-        )
-
-        # Union both dataframes, and create a combined TS column
-        combined_ts_col = "combined_ts"
-        combined_df = left_tsdf.__addColumnsFromOtherDF(right_columns).__combineTSDF(
-            right_tsdf.__addColumnsFromOtherDF(left_columns), combined_ts_col
-        )
-        combined_df.df = combined_df.df.withColumn(
-            "rec_ind",
-            sfn.when(sfn.col(left_tsdf.ts_col).isNotNull(), 1).otherwise(-1),
-        )
-
-        # perform asof join.
-        if tsPartitionVal is None:
-            asofDF = combined_df.__getLastRightRow(
-                left_tsdf.ts_col,
-                right_columns,
-                right_tsdf.sequence_col,
-                tsPartitionVal,
-                skipNulls,
-                suppress_null_warning,
+        # Choose strategy based on manual selection or automatic selection
+        joiner: AsOfJoiner
+        if strategy:
+            # Manual strategy selection
+            if strategy.lower() == "broadcast":
+                joiner = BroadcastAsOfJoiner(spark, left_prefix or "", right_prefix)
+            elif strategy.lower() == "union":
+                joiner = UnionSortFilterAsOfJoiner(
+                    left_prefix or "", right_prefix, skipNulls, tolerance
+                )
+            elif strategy.lower() == "skew":
+                joiner = SkewAsOfJoiner(
+                    spark,
+                    left_prefix or "",
+                    right_prefix,
+                    skipNulls,
+                    tolerance,
+                    tsPartitionVal=tsPartitionVal,
+                )
+            else:
+                raise ValueError(
+                    f"Unknown strategy: {strategy}. Must be 'broadcast', 'union', or 'skew'"
+                )
+            logger.info(
+                f"Using manually selected strategy: {joiner.__class__.__name__}"
             )
         else:
-            tsPartitionDF = combined_df.__getTimePartitions(
-                tsPartitionVal, fraction=fraction
-            )
-            asofDF = tsPartitionDF.__getLastRightRow(
-                left_tsdf.ts_col,
-                right_columns,
-                right_tsdf.sequence_col,
+            # Automatic strategy selection
+            joiner = choose_as_of_join_strategy(
+                self,
+                right_tsdf,
+                spark,
+                left_prefix,
+                right_prefix,
                 tsPartitionVal,
+                fraction,
                 skipNulls,
-                suppress_null_warning,
+                tolerance,
+            )
+            logger.info(
+                f"Using automatically selected strategy: {joiner.__class__.__name__}"
             )
 
-            # Get rid of overlapped data and the extra columns generated from timePartitions
-            df = asofDF.df.filter(sfn.col("is_original") == 1).drop(
-                "ts_partition", "is_original"
-            )
+        # Execute join and wrap result in TSDF
+        result_df, result_schema = joiner(self, right_tsdf)
+        return TSDF(result_df, ts_schema=result_schema)
 
-            asofDF = TSDF(df, asofDF.ts_col, combined_df.partitionCols)
-
-        if tolerance is not None:
-            df = asofDF.df
-            left_ts_col = left_tsdf.ts_col
-            right_ts_col = right_tsdf.ts_col
-            tolerance_condition = (
-                df[left_ts_col].cast("double") - df[right_ts_col].cast("double")
-                > tolerance
-            )
-
-            for right_col in right_columns:
-                # First set right non-timestamp columns to null for rows outside of tolerance band
-                if right_col != right_ts_col:
-                    df = df.withColumn(
-                        right_col,
-                        sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-                            df[right_col]
-                        ),
-                    )
-
-            # Finally, set right timestamp column to null for rows outside of tolerance band
-            df = df.withColumn(
-                right_ts_col,
-                sfn.when(tolerance_condition, sfn.lit(None)).otherwise(
-                    df[right_ts_col]
-                ),
-            )
-            asofDF.df = df
-
-        return asofDF
-
-    def __baseWindow(
-        self, sort_col: Optional[str] = None, reverse: bool = False
-    ) -> WindowSpec:
-        # figure out our sorting columns
-        primary_sort_col = self.ts_col if not sort_col else sort_col
-        sort_cols = (
-            [primary_sort_col, self.sequence_col]
-            if self.sequence_col
-            else [primary_sort_col]
-        )
-
-        # are we ordering forwards (default) or reveresed?
-        col_fn = sfn.col
-        if reverse:
-            col_fn = lambda colname: sfn.col(colname).desc()  # noqa E731
-
-        # our window will be sorted on our sort_cols in the appropriate direction
-        w = Window().orderBy([col_fn(col) for col in sort_cols])
-        # and partitioned by any series IDs
-        if self.partitionCols:
-            w = w.partitionBy([sfn.col(elem) for elem in self.partitionCols])
-        return w
-
-    def __rangeBetweenWindow(
-        self,
-        range_from: int,
-        range_to: int,
-        sort_col: Optional[str] = None,
-        reverse: bool = False,
-    ) -> WindowSpec:
-        return self.__baseWindow(sort_col=sort_col, reverse=reverse).rangeBetween(
-            range_from, range_to
-        )
-
-    def __rowsBetweenWindow(
-        self,
-        rows_from: int,
-        rows_to: int,
-        reverse: bool = False,
-    ) -> WindowSpec:
-        return self.__baseWindow(reverse=reverse).rowsBetween(rows_from, rows_to)
-
-    def withPartitionCols(self, partitionCols: list[str]) -> "TSDF":
-        """
-        Sets certain columns of the TSDF as partition columns. Partition columns are those that differentiate distinct timeseries
-        from each other.
-        :param partitionCols: a list of columns used to partition distinct timeseries
-        :return: a TSDF object with the given partition columns
-        """
-        return TSDF(self.df, self.ts_col, partitionCols)
-
+    # ------------------------------------------------------------------
+    # Deprecated v0.1.x statistics methods (removed in v1.0.0).
+    # These now live as module-level functions in ``tempo.stats``; the
+    # methods below are thin wrappers kept for backwards compatibility.
+    # ------------------------------------------------------------------
     def vwap(
         self,
         frequency: str = "m",
         volume_col: str = "volume",
         price_col: str = "price",
-    ) -> "TSDF":
-        # set pre_vwap as self or enrich with the frequency
-        pre_vwap = self.df
-        if frequency == "m":
-            pre_vwap = self.df.withColumn(
-                "time_group",
-                sfn.concat(
-                    sfn.lpad(sfn.hour(sfn.col(self.ts_col)), 2, "0"),
-                    sfn.lit(":"),
-                    sfn.lpad(sfn.minute(sfn.col(self.ts_col)), 2, "0"),
-                ),
-            )
-        elif frequency == "H":
-            pre_vwap = self.df.withColumn(
-                "time_group",
-                sfn.concat(sfn.lpad(sfn.hour(sfn.col(self.ts_col)), 2, "0")),
-            )
-        elif frequency == "D":
-            pre_vwap = self.df.withColumn(
-                "time_group",
-                sfn.concat(sfn.lpad(sfn.day(sfn.col(self.ts_col)), 2, "0")),
-            )
+    ) -> TSDF:
+        """
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.vwap` instead. This wrapper is removed in
+            v1.0.0.
+        """
+        warn_deprecated("TSDF.vwap()", "tempo.stats.vwap()")
+        from tempo import stats
 
-        group_cols = ["time_group"]
-        if self.partitionCols:
-            group_cols.extend(self.partitionCols)
-        vwapped = (
-            pre_vwap.withColumn("dllr_value", sfn.col(price_col) * sfn.col(volume_col))
-            .groupby(group_cols)
-            .agg(
-                sfn.sum("dllr_value").alias("dllr_value"),
-                sfn.sum(volume_col).alias(volume_col),
-                sfn.max(price_col).alias("_".join(["max", price_col])),
-            )
-            .withColumn("vwap", sfn.col("dllr_value") / sfn.col(volume_col))
+        return stats.vwap(
+            self, frequency=frequency, volume_col=volume_col, price_col=price_col
         )
 
-        return TSDF(vwapped, self.ts_col, self.partitionCols)
-
-    def EMA(self, colName: str, window: int = 30, exp_factor: float = 0.2) -> "TSDF":
+    def EMA(self, colName: str, window: int = 30, exp_factor: float = 0.2) -> TSDF:
         """
-        Constructs an approximate EMA in the fashion of:
-        EMA = e * lag(col,0) + e * (1 - e) * lag(col, 1) + e * (1 - e)^2 * lag(col, 2) etc, up until window
-        TODO: replace case when statement with coalesce
-        TODO: add in time partitions functionality (what is the overlap fraction?)
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.EMA` instead. This wrapper is removed in
+            v1.0.0.
         """
+        warn_deprecated("TSDF.EMA()", "tempo.stats.EMA()")
+        from tempo import stats
 
-        emaColName = "_".join(["EMA", colName])
-        df = self.df.withColumn(emaColName, sfn.lit(0)).orderBy(self.ts_col)
-        w = self.__baseWindow()
-        # Generate all the lag columns:
-        for i in range(window):
-            lagColName = "_".join(["lag", colName, str(i)])
-            weight = exp_factor * (1 - exp_factor) ** i
-            df = df.withColumn(
-                lagColName, weight * sfn.lag(sfn.col(colName), i).over(w)
-            )
-            df = df.withColumn(
-                emaColName,
-                sfn.col(emaColName)
-                + sfn.when(sfn.col(lagColName).isNull(), sfn.lit(0)).otherwise(
-                    sfn.col(lagColName)
-                ),
-            ).drop(lagColName)
-            # Nulls are currently removed
-
-        return TSDF(df, self.ts_col, self.partitionCols)
+        return stats.EMA(self, colName, window=window, exp_factor=exp_factor)
 
     def withLookbackFeatures(
         self,
-        featureCols: List[str],
-        lookbackWindowSize: int,
-        exactSize: bool = True,
-        featureColName: str = "features",
-    ) -> Union[DataFrame | "TSDF"]:
+        feature_cols: List[str],
+        lookback_window_size: int,
+        exact_size: bool = True,
+        feature_col_name: str = "features",
+    ) -> TSDF:
         """
-        Creates a 2-D feature tensor suitable for training an ML model to predict current values from the history of
-        some set of features. This function creates a new column containing, for each observation, a 2-D array of the values
-        of some number of other columns over a trailing "lookback" window from the previous observation up to some maximum
-        number of past observations.
-
-        :param featureCols: the names of one or more feature columns to be aggregated into the feature column
-        :param lookbackWindowSize: The size of lookback window (in terms of past observations). Must be an integer >= 1
-        :param exactSize: If True (the default), then the resulting DataFrame will only include observations where the
-          generated feature column contains arrays of length lookbackWindowSize. This implies that it will truncate
-          observations that occurred less than lookbackWindowSize from the start of the timeseries. If False, no truncation
-          occurs, and the column may contain arrays less than lookbackWindowSize in length.
-        :param featureColName: The name of the feature column to be generated. Defaults to "features"
-        :return: a DataFrame with a feature column named featureColName containing the lookback feature tensor
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.withLookbackFeatures` instead. This wrapper
+            is removed in v1.0.0.
         """
-        # first, join all featureCols into a single array column
-        tempArrayColName = "__TempArrayCol"
-        feat_array_tsdf = self.df.withColumn(tempArrayColName, sfn.array(featureCols))
+        warn_deprecated(
+            "TSDF.withLookbackFeatures()", "tempo.stats.withLookbackFeatures()"
+        )
+        from tempo import stats
 
-        # construct a lookback array
-        lookback_win = self.__rowsBetweenWindow(-lookbackWindowSize, -1)
-        lookback_tsdf = feat_array_tsdf.withColumn(
-            featureColName,
-            sfn.collect_list(sfn.col(tempArrayColName)).over(lookback_win),
-        ).drop(tempArrayColName)
-
-        # make sure only windows of exact size are allowed
-        if exactSize:
-            return lookback_tsdf.where(sfn.size(featureColName) == lookbackWindowSize)
-
-        return TSDF(lookback_tsdf, self.ts_col, self.partitionCols)
+        return stats.withLookbackFeatures(
+            self,
+            feature_cols,
+            lookback_window_size,
+            exact_size=exact_size,
+            feature_col_name=feature_col_name,
+        )
 
     def withRangeStats(
         self,
         type: str = "range",
-        colsToSummarize: Optional[List[Column]] = None,
-        rangeBackWindowSecs: int = 1000,
-    ) -> "TSDF":
+        cols_to_summarize: Optional[List[Column]] = None,
+        range_back_window_secs: int = 1000,
+    ) -> TSDF:
         """
-        Create a wider set of stats based on all numeric columns by default
-        Users can choose which columns they want to summarize also. These stats are:
-        mean/count/min/max/sum/std deviation/zscore
-        :param type - this is created in case we want to extend these stats to lookback over a fixed number of rows instead of ranging over column values
-        :param colsToSummarize - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
-        :param rangeBackWindowSecs - lookback this many seconds in time to summarize all stats. Note this will look back from the floor of the base event timestamp (as opposed to the exact time since we cast to long)
-        Assumptions:
-
-        1. The features are summarized over a rolling window that ranges back
-        2. The range back window can be specified by the user
-        3. Sequence numbers are not yet supported for the sort
-        4. There is a cast to long from timestamp so microseconds or more likely breaks down - this could be more easily handled with a string timestamp or sorting the timestamp itself. If using a 'rows preceding' window, this wouldn't be a problem
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.withRangeStats` instead. This wrapper is
+            removed in v1.0.0.
         """
+        warn_deprecated("TSDF.withRangeStats()", "tempo.stats.withRangeStats()")
+        from tempo import stats
 
-        # identify columns to summarize if not provided
-        # these should include all numeric columns that
-        # are not the timestamp column and not any of the partition columns
-        if colsToSummarize is None:
-            # columns we should never summarize
-            prohibited_cols = [self.ts_col.lower()]
-            if self.partitionCols:
-                prohibited_cols.extend([pc.lower() for pc in self.partitionCols])
-            # filter columns to find summarizable columns
-            colsToSummarize = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in self.summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
-                )
-            ]
-
-        # build window
-        if isinstance(self.df.schema[self.ts_col].dataType, TimestampType):
-            self.df = self.__add_double_ts()
-            prohibited_cols.extend(["double_ts"])
-            w = self.__rangeBetweenWindow(
-                -1 * rangeBackWindowSecs, 0, sort_col="double_ts"
-            )
-        else:
-            w = self.__rangeBetweenWindow(-1 * rangeBackWindowSecs, 0)
-
-        # compute column summaries
-        selectedCols = self.df.columns
-        derivedCols = []
-        for metric in colsToSummarize:
-            selectedCols.append(sfn.mean(metric).over(w).alias("mean_" + metric))
-            selectedCols.append(sfn.count(metric).over(w).alias("count_" + metric))
-            selectedCols.append(sfn.min(metric).over(w).alias("min_" + metric))
-            selectedCols.append(sfn.max(metric).over(w).alias("max_" + metric))
-            selectedCols.append(sfn.sum(metric).over(w).alias("sum_" + metric))
-            selectedCols.append(sfn.stddev(metric).over(w).alias("stddev_" + metric))
-            derivedCols.append(
-                (
-                    (sfn.col(metric) - sfn.col("mean_" + metric))
-                    / sfn.col("stddev_" + metric)
-                ).alias("zscore_" + metric)
-            )
-        selected_df = self.df.select(*selectedCols)
-        summary_df = selected_df.select(*selected_df.columns, *derivedCols).drop(
-            "double_ts"
+        return stats.withRangeStats(
+            self,
+            type=type,
+            cols_to_summarize=cols_to_summarize,
+            range_back_window_secs=range_back_window_secs,
         )
-
-        return TSDF(summary_df, self.ts_col, self.partitionCols)
 
     def withGroupedStats(
         self,
-        metricCols: Optional[List[str]] = None,
+        metric_cols: Optional[List[str]] = None,
         freq: Optional[str] = None,
-    ) -> "TSDF":
+    ) -> TSDF:
         """
-        Create a wider set of stats based on all numeric columns by default
-        Users can choose which columns they want to summarize also. These stats are:
-        mean/count/min/max/sum/std deviation
-        :param metricCols - list of user-supplied columns to compute stats for. All numeric columns are used if no list is provided
-        :param freq - frequency (provide a string of the form '1 min', '30 seconds' and we interpret the window to use to aggregate
+        .. deprecated:: 0.2.0
+            Use :func:`tempo.stats.withGroupedStats` instead. This wrapper is
+            removed in v1.0.0.
+        """
+        warn_deprecated("TSDF.withGroupedStats()", "tempo.stats.withGroupedStats()")
+        from tempo import stats
+
+        return stats.withGroupedStats(self, metric_cols=metric_cols, freq=freq)
+
+    def baseWindow(self, reverse: bool = False) -> WindowSpec:
+        return self.ts_schema.baseWindow(reverse=reverse)
+
+    def rowsBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
+        return self.ts_schema.rowsBetweenWindow(start, end, reverse=reverse)
+
+    def rangeBetweenWindow(
+        self, start: int, end: int, reverse: bool = False
+    ) -> WindowSpec:
+        return self.ts_schema.rangeBetweenWindow(start, end, reverse=reverse)
+
+    #
+    # Re-Partitioning
+    #
+
+    def repartitionBySeries(self, numPartitions: Optional[int] = None) -> TSDF:
+        """
+        Repartition the data frame by series id(s) into a given number of partitions.
+
+        :param numPartitions: number of partitions to repartition the data frame into
+
+        :return: a new :class:`~tsdf.TSDF` object with the data frame repartitioned
         """
 
-        # identify columns to summarize if not provided
-        # these should include all numeric columns that
-        # are not the timestamp column and not any of the partition columns
-        if metricCols is None:
-            # columns we should never summarize
-            prohibited_cols = [self.ts_col.lower()]
-            if self.partitionCols:
-                prohibited_cols.extend([pc.lower() for pc in self.partitionCols])
-            # filter columns to find summarizable columns
-            metricCols = [
-                datatype[0]
-                for datatype in self.df.dtypes
-                if (
-                    (datatype[1] in self.summarizable_types)
-                    and (datatype[0].lower() not in prohibited_cols)
+        # only makes sense if we have series ids
+        assert (
+            self.series_ids and len(self.series_ids) > 0
+        ), "No series ids to repartition by"
+
+        # keep same number of partitions if not specified
+        if numPartitions is None:
+            numPartitions = self.df.rdd.getNumPartitions()
+
+        # repartition by series ids, ordering by time
+        repartitioned_df = self.df.repartition(
+            numPartitions, *self.series_ids
+        ).sortWithinPartitions(*[self.series_ids + [self.ts_index.orderByExpr()]])
+        return self.__withTransformedDF(repartitioned_df)
+
+    def repartitionByTime(self, numPartitions: Optional[int] = None) -> TSDF:
+        """
+        Repartition the data frame by time into a given number of partitions.
+
+        :param numPartitions: number of partitions to repartition the data frame into
+
+        :return: a new :class:`~tsdf.TSDF` object with the data frame repartitioned
+        """
+        if numPartitions is None:
+            numPartitions = self.df.rdd.getNumPartitions()
+
+        repartitioned_df = self.df.repartitionByRange(
+            numPartitions, self.ts_index.orderByExpr()
+        )
+        return self.__withTransformedDF(repartitioned_df)
+
+    #
+    # Core Transformations
+    #
+
+    def withNaturalOrdering(self, reverse: bool = False) -> TSDF:
+        order_expr = [sfn.col(c) for c in self.series_ids]
+        ts_idx_expr = self.ts_index.orderByExpr(reverse)
+        if isinstance(ts_idx_expr, list):
+            order_expr.extend(ts_idx_expr)
+        else:
+            order_expr.append(ts_idx_expr)
+
+        return self.__withTransformedDF(self.df.orderBy(order_expr))
+
+    def withColumn(self, colName: str, col: Column) -> TSDF:
+        """
+        Returns a new :class:`TSDF` by adding a column or replacing the
+        existing column that has the same name.
+
+        :param colName: the name of the new column (or existing column to be replaced)
+        :param col: a :class:`Column` expression for the new column definition
+        """
+        new_df = self.df.withColumn(colName, col)
+        return self.__withTransformedDF(new_df)
+
+    def withColumnRenamed(self, existing: str, new: str) -> TSDF:
+        """
+        Returns a new :class:`TSDF` with the given column renamed.
+
+        :param existing: name of the existing column to renmame
+        :param new: new name for the column
+        """
+
+        # create new TSIndex
+        new_ts_index = copy.deepcopy(self.ts_index)
+        if existing == self.ts_index.colname:
+            new_ts_index = new_ts_index.renamed(new)
+
+        # and for series ids
+        new_series_ids = self.series_ids
+        if existing in self.series_ids:
+            # replace column name in series
+            new_series_ids = self.series_ids
+            new_series_ids[new_series_ids.index(existing)] = new
+
+        # rename the column in the underlying DF
+        new_df = self.df.withColumnRenamed(existing, new)
+
+        # return new TSDF
+        new_schema = TSSchema(new_ts_index, new_series_ids)
+        return TSDF(new_df, ts_schema=new_schema)
+
+    def withColumnTypeChanged(
+        self, colName: str, newType: Union[DataType, str]
+    ) -> TSDF:
+        """
+
+        :param colName:
+        :param newType:
+        :return:
+        """
+        new_df = self.df.withColumn(colName, sfn.col(colName).cast(newType))
+        return self.__withTransformedDF(new_df)
+
+    def drop(self, *cols: ColumnOrName) -> TSDF:
+        """
+        Returns a new :class:`TSDF` that drops the specified column.
+
+        :param cols: name of the column to drop
+
+        :return: new :class:`TSDF` with the column dropped
+        :rtype: TSDF
+        """
+        dropped_df = self.df.drop(*cols)
+        return self.__withTransformedDF(dropped_df)
+
+    def mapInPandas(
+        self, func: PandasMapIterFunction, schema: Union[StructType, str]
+    ) -> TSDF:
+        """
+
+        :param func:
+        :param schema:
+        :return:
+        """
+        mapped_df = self.df.mapInPandas(func, schema)
+        return self.__withTransformedDF(mapped_df)
+
+    def union(self, other: TSDF) -> TSDF:
+        # union of the underlying DataFrames
+        union_df = self.df.union(other.df)
+        return self.__withTransformedDF(union_df)
+
+    def unionByName(self, other: TSDF, allowMissingColumns: bool = False) -> TSDF:
+        # union of the underlying DataFrames
+        union_df = self.df.unionByName(
+            other.df, allowMissingColumns=allowMissingColumns
+        )
+        return self.__withTransformedDF(union_df)
+
+    #
+    # Rolling (Windowed) Transformations
+    #
+
+    def rollingAgg(
+        self, window: WindowSpec, *exprs: Union[Column, Dict[str, str]]
+    ) -> TSDF:
+        """
+
+        :param window:
+        :param exprs:
+        :return:
+        """
+        roll_agg_tsdf = self
+        if len(exprs) == 1 and isinstance(exprs[0], dict):
+            # dict
+            expr_dict = cast(Dict[str, str], exprs[0])
+            for input_col in expr_dict.keys():
+                expr_str = expr_dict[input_col]
+                new_col_name = f"{expr_str}({input_col})"
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(
+                    new_col_name, sfn.expr(expr_str).over(window)
                 )
-            ]
+        else:
+            # Columns
+            assert all(
+                isinstance(c, Column) for c in exprs
+            ), "all exprs should be Column"
+            for expr in exprs:
+                new_col_name = f"{expr}"
+                roll_agg_tsdf = roll_agg_tsdf.withColumn(
+                    new_col_name, cast(Column, expr).over(window)
+                )
 
-        # build window
-        parsed_freq = t_resample.checkAllowableFreq(freq)
-        period, unit = parsed_freq[0], parsed_freq[1]
-        agg_window = sfn.window(
-            sfn.col(self.ts_col),
-            "{} {}".format(
-                period, t_resample.freq_dict[unit]  # type: ignore[literal-required]
-            ),
-        )
+        return roll_agg_tsdf
 
-        # compute column summaries
-        selectedCols = []
-        for metric in metricCols:
-            selectedCols.extend(
-                [
-                    sfn.mean(sfn.col(metric)).alias("mean_" + metric),
-                    sfn.count(sfn.col(metric)).alias("count_" + metric),
-                    sfn.min(sfn.col(metric)).alias("min_" + metric),
-                    sfn.max(sfn.col(metric)).alias("max_" + metric),
-                    sfn.sum(sfn.col(metric)).alias("sum_" + metric),
-                    sfn.stddev(sfn.col(metric)).alias("stddev_" + metric),
-                ]
+    def rollingApply(
+        self,
+        outputCol: str,
+        window: WindowSpec,
+        func: PandasGroupedMapFunction,
+        schema: Union[StructType, str],
+        *inputCols: Union[str, Column],
+    ) -> TSDF:
+        """
+
+        :param outputCol:
+        :param window:
+        :param func:
+        :param schema:
+        :param inputCols:
+        :return:
+        """
+        cols_list = [
+            sfn.col(col) if not isinstance(col, Column) else col for col in inputCols
+        ]
+        pd_udf = sfn.pandas_udf(func, schema)
+        return self.withColumn(outputCol, pd_udf(*cols_list).over(window))
+
+    #
+    # Aggregations
+    #
+
+    # Aggregations across series and time
+
+    def summarize(self, *cols: Union[str, List[str]]) -> GroupedData:
+        """
+        Groups the underlying :class:`DataFrame` such that the user can compute
+        aggregations over the given columns.
+        If no columns are specified, all metric columns will be assumed.
+
+        :param cols: columns to summarize. If none are given, then all the `metric_cols` will be used
+        :type cols: str or List[str]
+        :return: a :class:`GroupedData` object that can be used for summarizing columns/metrics across all observations from all series
+        :rtype: :class:`GroupedData`
+        """
+        cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
+        return self.df.select(cols_to_use).groupBy()
+
+    def agg(self, *exprs: Union[Column, Dict[str, str]]) -> DataFrame:
+        """
+
+        :param exprs:
+        :return:
+        """
+        return self.df.agg(exprs)
+
+    def describe(self, *cols: Union[str, List[str]]) -> DataFrame:
+        """
+
+        :param cols:
+        :return:
+        """
+        cols_to_use = list(cols) if cols and len(cols) > 0 else self.metric_cols
+        return self.df.describe(*cols_to_use)
+
+    def metricSummary(self, *statistics: str) -> DataFrame:
+        """
+
+        :param statistics:
+        :return:
+        """
+        return self.df.select(self.metric_cols).summary(statistics)
+
+    # Aggregations by series
+
+    def groupBySeries(self) -> GroupedData:
+        """
+        Groups the underlying :class:`DataFrame` by the series IDs
+
+        :return: a :class:`GroupedData` object that can be used for aggregating within Series
+        :rtype: :class:`GroupedData`
+        """
+        return self.df.groupBy(self.series_ids)
+
+    def aggBySeries(self, *exprs: Union[Column, Dict[str, str]]) -> DataFrame:
+        """
+        Compute aggregates of each series.
+
+        :param exprs: a dict mapping from column name (string) to aggregate functions (string), or a list of :class:`Column`.
+        :return: a :class:`DataFrame` of the resulting aggregates
+        :rtype: :class:`DataFrame`
+        """
+        return self.groupBySeries().agg(exprs)
+
+    def applyToSeries(
+        self, func: PandasGroupedMapFunction, schema: Union[StructType, str]
+    ) -> DataFrame:
+        """
+        Maps each series using a pandas udf and returns the result as a `DataFrame`.
+
+        The function should take a `pandas.DataFrame` and return another
+        `pandas.DataFrame`. Alternatively, the user can pass a function that takes
+        a tuple of the grouping key(s) and a `pandas.DataFrame`.
+        For each group, all columns are passed together as a `pandas.DataFrame`
+        to the user-function and the returned `pandas.DataFrame` are combined as a
+        :class:`DataFrame`.
+
+        The `schema` should be a :class:`StructType` describing the schema of the returned
+        `pandas.DataFrame`. The column labels of the returned `pandas.DataFrame` must either match
+        the field names in the defined schema if specified as strings, or match the
+        field data types by position if not strings, e.g. integer indices.
+        The length of the returned `pandas.DataFrame` can be arbitrary.
+
+        :param func: a Python native function that takes a `pandas.DataFrame` and outputs a `pandas.DataFrame`, or that takes one tuple (grouping keys) and a `pandas.DataFrame` and outputs a `pandas.DataFrame`.
+        :type func: function
+        :param schema: the return type of the `func` in PySpark. The value can be either a :class:`pyspark.sql.types.DataType` object or a DDL-formatted type string.
+        :type schema: :class:`pyspark.sql.types.DataType` or str
+        :return: a :class:`pyspark.sql.DataFrame` (of the given schema) containing the results of applying the given function per series
+        :rtype: :class:`pyspark.sql.DataFrame`
+        """
+        return self.groupBySeries().applyInPandas(func, schema)
+
+    # Cyclical Aggregtion
+
+    def groupByCycles(
+        self,
+        length: str,
+        period: Optional[str] = None,
+        offset: Optional[str] = None,
+        bySeries: bool = True,
+    ) -> GroupedData:
+        """
+
+        :param length:
+        :param period:
+        :param offset:
+        :param bySeries:
+        :return:
+        """
+        # build our set of grouping columns
+        if bySeries:
+            grouping_cols = [sfn.col(series_col) for series_col in self.series_ids]
+        else:
+            grouping_cols = []
+        grouping_cols.append(
+            sfn.window(
+                timeColumn=self.ts_col,
+                windowDuration=length,
+                slideDuration=period,
+                startTime=offset,
             )
-
-        selected_df = self.df.groupBy(self.partitionCols + [agg_window]).agg(
-            *selectedCols
-        )
-        summary_df = (
-            selected_df.select(*selected_df.columns)
-            .withColumn(self.ts_col, sfn.col("window").start)
-            .drop("window")
         )
 
-        return TSDF(summary_df, self.ts_col, self.partitionCols)
+        # return the DataFrame grouped accordingly
+        return self.df.groupBy(grouping_cols)
+
+    def aggByCycles(
+        self,
+        length: str,
+        *exprs: Union[Column, Dict[str, str]],
+        period: Optional[str] = None,
+        offset: Optional[str] = None,
+        bySeries: bool = True,
+    ) -> IntervalsDF:
+        """
+
+        :param length:
+        :param exprs:
+        :param period:
+        :param offset:
+        :param bySeries:
+        :return:
+        """
+        # build aggregated DataFrame
+        agged_df = self.groupByCycles(length, period, offset, bySeries).agg(exprs)
+
+        # if we have aggregated over series, we return a TSDF without series
+        if bySeries:
+            return IntervalsDF.fromNestedBoundariesDF(
+                agged_df, "window", self.series_ids
+            )
+        else:
+            return IntervalsDF.fromNestedBoundariesDF(agged_df, "window")
+
+    def applyToCycles(
+        self,
+        length: str,
+        func: PandasGroupedMapFunction,
+        schema: Union[StructType, str],
+        period: Optional[str] = None,
+        offset: Optional[str] = None,
+        bySeries: bool = True,
+    ) -> IntervalsDF:
+        """
+
+        :param length:
+        :param func:
+        :param schema:
+        :param period:
+        :param offset:
+        :param bySeries:
+        :return:
+        """
+        # apply function to get DataFrame of results
+        applied_df = self.groupByCycles(length, period, offset, bySeries).applyInPandas(
+            func, schema
+        )
+
+        # if we have applied over series, we return a TSDF without series
+        if bySeries:
+            return IntervalsDF.fromNestedBoundariesDF(
+                applied_df, "window", self.series_ids
+            )
+        else:
+            return IntervalsDF.fromNestedBoundariesDF(applied_df, "window")
+
+    #
+    # utility functions
+    #
 
     def write(
         self,
@@ -1263,7 +1607,7 @@ class TSDF:
         prefix: Optional[str] = None,
         fill: Optional[bool] = None,
         perform_checks: bool = True,
-    ) -> "TSDF":
+    ) -> ResampledTSDF:
         """
         function to upsample based on frequency and aggregate function similar to pandas
         :param freq: frequency for upsample - valid inputs are "hr", "min", "sec" corresponding to hour, minute, or second
@@ -1272,26 +1616,22 @@ class TSDF:
         :param prefix - supply a prefix for the newly sampled columns
         :param fill - Boolean - set to True if the desired output should contain filled in gaps (with 0s currently)
         :param perform_checks: calculate time horizon and warnings if True (default is True)
-        :return: TSDF object with sample data using aggregate function
+        :return: ResampledTSDF object with sample data using aggregate function
         """
-        t_resample.validateFuncExists(func)
+        t_resample_utils.validateFuncExists(func)
 
         # Throw warning for user to validate that the expected number of output rows is valid.
         if fill is True and perform_checks is True:
-            t_utils.calculate_time_horizon(
-                self.df, self.ts_col, freq, self.partitionCols
-            )
+            t_resample.calculate_time_horizon(self, freq)
 
         enriched_df: DataFrame = t_resample.aggregate(
             self, freq, func, metricCols, prefix, fill
         )
-        return _ResampledTSDF(
+        plain_tsdf = TSDF(
             enriched_df,
-            ts_col=self.ts_col,
-            partition_cols=self.partitionCols,
-            freq=freq,
-            func=func,
+            ts_schema=copy.deepcopy(self.ts_schema),
         )
+        return ResampledTSDF(plain_tsdf, resample_freq=freq, resample_func=func)
 
     def interpolate(
         self,
@@ -1303,7 +1643,7 @@ class TSDF:
         partition_cols: Optional[List[str]] = None,
         show_interpolated: bool = False,
         perform_checks: bool = True,
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         Function to interpolate based on frequency, aggregation, and fill similar to pandas. Data will first be aggregated using resample, then missing values
         will be filled based on the fill calculation.
@@ -1318,74 +1658,73 @@ class TSDF:
         :param perform_checks: calculate time horizon and warnings if True (default is True)
         :return: new TSDF object containing interpolated data
         """
-
-        # Set defaults for target columns, timestamp column and partition columns when not provided
         if freq is None:
             raise ValueError("freq must be provided")
         if func is None:
             raise ValueError("func must be provided")
+
+        # Resolve target columns using the same defaults as before
         if ts_col is None:
             ts_col = self.ts_col
         if partition_cols is None:
-            partition_cols = self.partitionCols
+            partition_cols = self.series_ids
         if target_cols is None:
             prohibited_cols: List[str] = partition_cols + [ts_col]
             target_cols = [col for col in self.df.columns if col not in prohibited_cols]
 
-        interpolate_service = t_interpolation.Interpolation(is_resampled=False)
-        tsdf_input = TSDF(self.df, ts_col=ts_col, partition_cols=partition_cols)
-        interpolated_df: DataFrame = interpolate_service.interpolate(
-            tsdf_input,
-            ts_col,
-            partition_cols,
-            target_cols,
-            freq,
-            func,
-            method,
-            show_interpolated,
-            perform_checks,
+        # Delegate through resample().interpolate()
+        return self.resample(
+            freq=freq,
+            func=func,
+            metricCols=target_cols,
+            fill=False,
+            perform_checks=perform_checks,
+        ).interpolate(
+            method=method,
+            target_cols=target_cols,
+            show_interpolated=show_interpolated,
         )
-
-        return TSDF(interpolated_df, ts_col=ts_col, partition_cols=partition_cols)
 
     def calc_bars(
         tsdf,
         freq: str,
         metricCols: Optional[List[str]] = None,
         fill: Optional[bool] = None,
-    ) -> "TSDF":
+    ) -> TSDF:
         resample_open = tsdf.resample(
             freq=freq, func="floor", metricCols=metricCols, prefix="open", fill=fill
-        )
+        ).as_tsdf()
         resample_low = tsdf.resample(
             freq=freq, func="min", metricCols=metricCols, prefix="low", fill=fill
-        )
+        ).as_tsdf()
         resample_high = tsdf.resample(
             freq=freq, func="max", metricCols=metricCols, prefix="high", fill=fill
-        )
+        ).as_tsdf()
         resample_close = tsdf.resample(
             freq=freq, func="ceil", metricCols=metricCols, prefix="close", fill=fill
-        )
+        ).as_tsdf()
 
-        join_cols = resample_open.partitionCols + [resample_open.ts_col]
+        join_cols = resample_open.series_ids + [resample_open.ts_col]
         bars = (
             resample_open.df.join(resample_high.df, join_cols)
             .join(resample_low.df, join_cols)
             .join(resample_close.df, join_cols)
         )
-        non_part_cols = set(set(bars.columns) - set(resample_open.partitionCols)) - set(
+        non_part_cols = set(set(bars.columns) - set(resample_open.series_ids)) - set(
             [resample_open.ts_col]
         )
         sel_and_sort = (
-            resample_open.partitionCols + [resample_open.ts_col] + sorted(non_part_cols)
+            resample_open.series_ids + [resample_open.ts_col] + sorted(non_part_cols)
         )
         bars = bars.select(sel_and_sort)
 
-        return TSDF(bars, resample_open.ts_col, resample_open.partitionCols)
+        return TSDF(
+            bars, ts_col=resample_open.ts_col, series_ids=resample_open.series_ids
+        )
 
     def fourier_transform(
         self, timestep: Union[int, float, complex], valueCol: str
-    ) -> "TSDF":
+    ) -> TSDF:
         """
         Function to fourier transform the time series to its frequency domain representation.
         :param timestep: timestep value to be used for getting the frequency scale
@@ -1417,10 +1756,12 @@ class TSDF:
             pdf["freq"] = xf
             return pdf[select_cols + ["freq", "ft_real", "ft_imag"]]
 
-        valueCol = self.__validated_column(self.df, valueCol)
+        # TODO: Implement __validated_column or replace with proper validation
+        # valueCol = self.__validated_column(self.df, valueCol)
         data = self.df
-        if self.sequence_col:
-            if self.partitionCols == []:
+        # TODO: Handle sequence_col in refactored version
+        if False:  # self.sequence_col:
+            if self.series_ids == []:
                 data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
                 data = (
                     data.select(
@@ -1441,7 +1782,7 @@ class TSDF:
                 )
                 result = result.drop("dummy_group", "tdval", "tpoints")
             else:
-                group_cols = self.partitionCols
+                group_cols = self.series_ids
                 data = (
                     data.select(
                         *group_cols,
@@ -1460,39 +1801,39 @@ class TSDF:
                     tempo_fourier_util, return_schema
                 )
                 result = result.drop("tdval", "tpoints")
+        elif self.series_ids == []:
+            data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
+            data = (
+                data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
+                .withColumn("tdval", sfn.col(valueCol))
+                .withColumn("tpoints", sfn.col(self.ts_col))
+            )
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                + ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy("dummy_group").applyInPandas(
+                tempo_fourier_util, return_schema
+            )
+            result = result.drop("dummy_group", "tdval", "tpoints")
         else:
-            if self.partitionCols == []:
-                data = data.withColumn("dummy_group", sfn.lit("dummy_val"))
-                data = (
-                    data.select(sfn.col("dummy_group"), self.ts_col, sfn.col(valueCol))
-                    .withColumn("tdval", sfn.col(valueCol))
-                    .withColumn("tpoints", sfn.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy("dummy_group").applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("dummy_group", "tdval", "tpoints")
-            else:
-                group_cols = self.partitionCols
-                data = (
-                    data.select(*group_cols, self.ts_col, sfn.col(valueCol))
-                    .withColumn("tdval", sfn.col(valueCol))
-                    .withColumn("tpoints", sfn.col(self.ts_col))
-                )
-                return_schema = ",".join(
-                    [f"{i[0]} {i[1]}" for i in data.dtypes]
-                    + ["freq double", "ft_real double", "ft_imag double"]
-                )
-                result = data.groupBy(*group_cols).applyInPandas(
-                    tempo_fourier_util, return_schema
-                )
-                result = result.drop("tdval", "tpoints")
+            group_cols = self.series_ids
+            data = (
+                data.select(*group_cols, self.ts_col, sfn.col(valueCol))
+                .withColumn("tdval", sfn.col(valueCol))
+                .withColumn("tpoints", sfn.col(self.ts_col))
+            )
+            return_schema = ",".join(
+                [f"{i[0]} {i[1]}" for i in data.dtypes]
+                + ["freq double", "ft_real double", "ft_imag double"]
+            )
+            result = data.groupBy(*group_cols).applyInPandas(
+                tempo_fourier_util, return_schema
+            )
+            result = result.drop("tdval", "tpoints")
 
-        return TSDF(result, self.ts_col, self.partitionCols, self.sequence_col)
+        # TODO: Handle sequence_col in refactored version
+        return TSDF(result, ts_col=self.ts_col, series_ids=self.series_ids)
 
     def extractStateIntervals(
         self,
@@ -1549,7 +1890,7 @@ class TSDF:
 
         # Validate state definition and construct state comparison function
         if type(state_definition) is str:
-            if state_definition not in operator_dict.keys():
+            if state_definition not in operator_dict:
                 raise ValueError(
                     f"Invalid comparison operator for `state_definition` argument: {state_definition}."
                 )
@@ -1566,7 +1907,7 @@ class TSDF:
                 f"but received value of type {type(state_definition)}"
             )
 
-        w = self.__baseWindow()
+        w = self.baseWindow()
 
         data = self.df
 
@@ -1605,7 +1946,7 @@ class TSDF:
 
         # Find the start and end timestamp of the interval
         result = (
-            data.groupBy(*self.partitionCols, "state_incrementer")
+            data.groupBy(*self.series_ids, "state_incrementer")
             .agg(
                 sfn.min("previous_ts").alias("start_ts"),
                 sfn.max(self.ts_col).alias("end_ts"),
@@ -1616,84 +1957,11 @@ class TSDF:
         return result
 
 
-class _ResampledTSDF(TSDF):
-    def __init__(
-        self,
-        df: DataFrame,
-        freq: str,
-        func: Union[Callable | str],
-        ts_col: str = "event_ts",
-        partition_cols: Optional[List[str]] = None,
-        sequence_col: Optional[str] = None,
-    ):
-        super(_ResampledTSDF, self).__init__(df, ts_col, partition_cols, sequence_col)
-        self.__freq = freq
-        self.__func = func
-
-    def interpolate(
-        self,
-        method: str,
-        freq: Optional[str] = None,
-        func: Optional[Union[Callable | str]] = None,
-        target_cols: Optional[List[str]] = None,
-        ts_col: Optional[str] = None,
-        partition_cols: Optional[List[str]] = None,
-        show_interpolated: bool = False,
-        perform_checks: bool = True,
-    ) -> "TSDF":
-        """
-        Function to interpolate based on frequency, aggregation, and fill similar to pandas. This method requires an already sampled data set in order to use.
-
-        :param method: function used to fill missing values e.g. linear, null, zero, bfill, ffill
-        :param target_cols [optional]: columns that should be interpolated, by default interpolates all numeric columns
-        :param show_interpolated [optional]: if true will include an additional column to show which rows have been fully interpolated.
-        :param perform_checks: calculate time horizon and warnings if True (default is True)
-        :return: new TSDF object containing interpolated data
-        """
-
-        if freq is None:
-            freq = self.__freq
-
-        if func is None:
-            func = self.__func
-
-        if ts_col is None:
-            ts_col = self.ts_col
-
-        if partition_cols is None:
-            partition_cols = self.partitionCols
-
-        # Set defaults for target columns, timestamp column and partition columns when not provided
-        if target_cols is None:
-            prohibited_cols: List[str] = self.partitionCols + [self.ts_col]
-            target_cols = [col for col in self.df.columns if col not in prohibited_cols]
-
-        interpolate_service = t_interpolation.Interpolation(is_resampled=True)
-        tsdf_input = TSDF(
-            self.df, ts_col=self.ts_col, partition_cols=self.partitionCols
-        )
-        interpolated_df = interpolate_service.interpolate(
-            tsdf=tsdf_input,
-            ts_col=self.ts_col,
-            partition_cols=self.partitionCols,
-            target_cols=target_cols,
-            freq=freq,
-            func=func,
-            method=method,
-            show_interpolated=show_interpolated,
-            perform_checks=perform_checks,
-        )
-
-        return TSDF(
-            interpolated_df, ts_col=self.ts_col, partition_cols=self.partitionCols
-        )
-
-
 class Comparable(metaclass=ABCMeta):
     """For typing functions generated by operator_dict"""
 
     @abstractmethod
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: object) -> bool:
         pass
 
     @abstractmethod
@@ -1705,7 +1973,7 @@ class Comparable(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         pass
 
     @abstractmethod
